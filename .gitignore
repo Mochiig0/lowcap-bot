@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# env
+.env
+
+# prisma
+dev.db
+
+# logs
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
