@@ -1,0 +1,10 @@
+{
+  "keywords": [
+    { "keyword": "community", "score": 1, "tag": "social" },
+    { "keyword": "fair launch", "score": 2, "tag": "launch" }
+  ],
+  "patterns": [
+    { "pattern": "\\b[a-z]{3,}\\s+ai\\b", "score": 1, "tag": "ai_phrase" },
+    { "pattern": "\\b(raid|shill)\\b", "score": 1, "tag": "growth_tactic" }
+  ]
+}

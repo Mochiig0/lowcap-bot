@@ -1,12 +1,25 @@
 {
   "name": "lowcap-bot",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "migrate:dev": "prisma migrate dev",
+    "import": "tsx src/cli/import.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.2"
+  }
 }

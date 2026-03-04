@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Dev {
+  id        Int      @id @default(autoincrement())
+  wallet    String   @unique
+  note      String?
+  tokens    Token[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Token {
+  id               Int      @id @default(autoincrement())
+  mint             String   @unique
+  name             String
+  symbol           String
+  description      String?
+  source           String?
+  groupKey         String?
+  groupNote        String?
+  normalizedText   String
+  hardRejected     Boolean  @default(false)
+  hardRejectReason String?
+  scoreTotal       Int      @default(0)
+  scoreRank        String   @default("C")
+  scoreBreakdown   Json
+  devId            Int?
+  dev              Dev?     @relation(fields: [devId], references: [id])
+  metrics          Metric[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([scoreRank])
+  @@index([groupKey])
+}
+
+model Metric {
+  id            Int      @id @default(autoincrement())
+  tokenId       Int
+  token         Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  // MVPで保存する観測値
+  maxMultiple15m Float?
+  peakFdv24h     Float?
+  volume24h      Float?
+  peakFdv7d      Float?
+  volume7d       Float?
+
+  observedAt    DateTime @default(now())
+  source        String?
+  rawJson       Json?
+
+  @@index([tokenId, observedAt])
+}

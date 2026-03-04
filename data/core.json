@@ -1,0 +1,11 @@
+{
+  "keywords": [
+    { "keyword": "meme", "score": 1, "tag": "meme" },
+    { "keyword": "dog", "score": 2, "tag": "animal" },
+    { "keyword": "cat", "score": 1, "tag": "animal" },
+    { "keyword": "tech", "score": 2, "tag": "tech" },
+    { "keyword": "pokemon", "score": 2, "tag": "ip" },
+    { "keyword": "newinfo", "score": 2, "tag": "newinfo" },
+    { "keyword": "politics scandal", "score": 2, "tag": "politics_scandal" }
+  ]
+}
