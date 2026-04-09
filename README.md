@@ -13,6 +13,7 @@ The current focus is manual operation: import a token candidate, score its narra
 - Optionally save one `Metric` row during import
 - Notify Telegram only when a token is `S` rank and not hard rejected
 - Manually refresh `data/trend.json` with `pnpm trend:update`
+- Inspect saved tokens with `pnpm tokens:report`
 - Inspect saved metrics with `pnpm metrics:report`
 - Run a lightweight operational check with `pnpm smoke`
 
@@ -96,6 +97,12 @@ Refresh trend keywords:
 
 ```bash
 pnpm trend:update -- --keywords "ai,anime,base" --ttlHours 24
+```
+
+Inspect recent tokens:
+
+```bash
+pnpm tokens:report -- --rank S --limit 10
 ```
 
 Inspect recent metrics:
