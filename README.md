@@ -122,7 +122,7 @@ pnpm metric:show -- --id 1
 Inspect recent metrics:
 
 ```bash
-pnpm metrics:report -- --source manual --limit 20
+pnpm metrics:report -- --source manual --rank A --limit 20
 ```
 
 Run the smoke test:

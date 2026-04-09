@@ -6,6 +6,7 @@ type MetricsReportArgs = {
   mint?: string;
   tokenId?: number;
   source?: string;
+  rank?: string;
   limit: number;
 };
 
@@ -17,7 +18,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--limit 20]",
+      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -73,6 +74,9 @@ function parseArgs(argv: string[]): MetricsReportArgs {
       case "--source":
         out.source = value === "" ? undefined : value;
         break;
+      case "--rank":
+        out.rank = value === "" ? undefined : value;
+        break;
       case "--limit":
         out.limit = parseLimitArg(value, key);
         break;
@@ -94,10 +98,11 @@ async function run(): Promise<void> {
     where: {
       ...(args.tokenId !== undefined ? { tokenId: args.tokenId } : {}),
       ...(args.source ? { source: args.source } : {}),
-      ...(args.mint
+      ...(args.mint || args.rank
         ? {
             token: {
-              mint: args.mint,
+              ...(args.mint ? { mint: args.mint } : {}),
+              ...(args.rank ? { scoreRank: args.rank } : {}),
             },
           }
         : {}),
@@ -125,6 +130,7 @@ async function run(): Promise<void> {
           mint: args.mint ?? null,
           tokenId: args.tokenId ?? null,
           source: args.source ?? null,
+          rank: args.rank ?? null,
           limit: args.limit,
         },
         items: metrics.map((metric) => ({
