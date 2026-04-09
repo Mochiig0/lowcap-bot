@@ -4,6 +4,8 @@ import { db } from "../db.js";
 
 type MetricsReportArgs = {
   mint?: string;
+  tokenId?: number;
+  source?: string;
   limit: number;
 };
 
@@ -15,13 +17,26 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:report -- [--mint <MINT>] [--limit 20]",
+      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
 }
 
 function parseLimitArg(value: string, key: string): number {
+  if (value === "") {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseIdArg(value: string, key: string): number {
   if (value === "") {
     printUsageAndExit(`Invalid number for ${key}: ${value}`);
   }
@@ -52,6 +67,12 @@ function parseArgs(argv: string[]): MetricsReportArgs {
       case "--mint":
         out.mint = value === "" ? undefined : value;
         break;
+      case "--tokenId":
+        out.tokenId = parseIdArg(value, key);
+        break;
+      case "--source":
+        out.source = value === "" ? undefined : value;
+        break;
       case "--limit":
         out.limit = parseLimitArg(value, key);
         break;
@@ -70,13 +91,17 @@ async function run(): Promise<void> {
   const args = parseArgs(argv);
 
   const metrics = await db.metric.findMany({
-    where: args.mint
-      ? {
-          token: {
-            mint: args.mint,
-          },
-        }
-      : undefined,
+    where: {
+      ...(args.tokenId !== undefined ? { tokenId: args.tokenId } : {}),
+      ...(args.source ? { source: args.source } : {}),
+      ...(args.mint
+        ? {
+            token: {
+              mint: args.mint,
+            },
+          }
+        : {}),
+    },
     orderBy: [{ observedAt: "desc" }, { id: "desc" }],
     take: args.limit,
     include: {
@@ -98,6 +123,8 @@ async function run(): Promise<void> {
         count: metrics.length,
         filters: {
           mint: args.mint ?? null,
+          tokenId: args.tokenId ?? null,
+          source: args.source ?? null,
           limit: args.limit,
         },
         items: metrics.map((metric) => ({
