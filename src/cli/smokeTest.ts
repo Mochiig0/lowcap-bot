@@ -18,6 +18,7 @@ type SmokeContext = {
   smokeId: string;
   basicMint: string;
   metricMint: string;
+  metricId: number | null;
   devWallet: string;
   trendRaw: string;
   trendGeneratedAt: string;
@@ -152,6 +153,7 @@ async function run(): Promise<void> {
     smokeId,
     basicMint: `${smokeId}_BASIC`,
     metricMint: `${smokeId}_METRIC`,
+    metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
     trendGeneratedAt: "",
@@ -239,6 +241,58 @@ async function run(): Promise<void> {
 
       if (!metricToken || metricToken.metrics.length === 0) {
         throw new Error("metric import did not save a metric row");
+      }
+
+      context.metricId = metricToken.metrics[0].id;
+    });
+
+    await runStep("token show", async () => {
+      const parsed = await runCliJson<{
+        mint: string;
+        latestMetric: { id: number } | null;
+      }>(
+        "token show",
+        "src/cli/tokenShow.ts",
+        [
+          "--mint",
+          context.metricMint,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.mint !== context.metricMint) {
+        throw new Error("token show returned unexpected mint");
+      }
+
+      if (!parsed.latestMetric) {
+        throw new Error("token show did not include latestMetric");
+      }
+    });
+
+    await runStep("metric show", async () => {
+      if (context.metricId === null) {
+        throw new Error("metric show missing smoke metric id");
+      }
+
+      const parsed = await runCliJson<{
+        id: number;
+        token: { mint: string };
+      }>(
+        "metric show",
+        "src/cli/metricShow.ts",
+        [
+          "--id",
+          String(context.metricId),
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.id !== context.metricId) {
+        throw new Error("metric show returned unexpected id");
+      }
+
+      if (parsed.token.mint !== context.metricMint) {
+        throw new Error("metric show returned unexpected token mint");
       }
     });
 
