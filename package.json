@@ -13,6 +13,7 @@
     "migrate:dev": "prisma migrate dev",
     "import": "tsx src/cli/import.ts",
     "trend:update": "tsx src/cli/updateTrend.ts",
+    "token:show": "tsx src/cli/tokenShow.ts",
     "tokens:report": "tsx src/cli/tokensReport.ts",
     "metrics:report": "tsx src/cli/metricsReport.ts",
     "smoke": "node --import tsx src/cli/smokeTest.ts"
