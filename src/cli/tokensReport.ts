@@ -109,6 +109,11 @@ async function run(): Promise<void> {
           observedAt: true,
         },
       },
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
     },
   });
 
@@ -131,6 +136,7 @@ async function run(): Promise<void> {
           hardRejected: token.hardRejected,
           hardRejectReason: token.hardRejectReason,
           source: token.source ?? null,
+          metricsCount: token._count.metrics,
           latestMetricObservedAt: token.metrics[0]
             ? token.metrics[0].observedAt.toISOString()
             : null,
