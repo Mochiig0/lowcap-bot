@@ -6,19 +6,19 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Add a smoke-test path for scoring and import behavior.
+Decide whether `src/index.ts` should become a real app entrypoint or remain a placeholder.
 
 Why this is now the most natural next step:
 
 - metric import can now write `Metric` rows without changing existing token import behavior
 - manual trend refresh can now keep `data/trend.json` fresh enough for trend scoring to work
-- metric reporting now covers the basic manual read path for stored observations
-- a small smoke-test path would help verify the MVP without introducing a full test framework
+- metric reporting and smoke checks now cover the basic manual operations around stored data
+- the remaining main gap in the CLI-first MVP is having a clearer top-level entrypoint story
 
 ## Short-Term
 
 - Refresh or generate `data/trend.json` on a real cadence
-- Add a smoke-test path for scoring and import behavior
+- Decide whether `src/index.ts` should become a real app entrypoint or remain a placeholder
 - Add simple review/reporting commands for stored tokens
 - Document setup and execution steps in a top-level README or docs index
 

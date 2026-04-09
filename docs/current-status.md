@@ -22,6 +22,12 @@ Stored metrics can be inspected from the CLI:
 pnpm metrics:report -- [--mint <MINT>] [--limit 20]
 ```
 
+A minimal smoke-test path is also available:
+
+```bash
+pnpm smoke
+```
+
 There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 ## Implemented
@@ -31,6 +37,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - CLI import flow in `src/cli/import.ts`
 - Manual trend update CLI in `src/cli/updateTrend.ts`
 - Manual metric report CLI in `src/cli/metricsReport.ts`
+- Manual smoke-test CLI in `src/cli/smokeTest.ts`
 - Optional metric persistence from the import CLI
 - Text normalization for `name`, `symbol`, and `description`
 - Hard reject matching for obvious scam/rug phrases
@@ -96,12 +103,20 @@ Metrics report:
 pnpm metrics:report -- --mint TESTMINT --limit 5
 ```
 
+Smoke test:
+
+```bash
+pnpm smoke
+```
+
 Notes:
 
 - `generatedAt` is always set to the current time when the file is updated
 - `ttlHours` keeps the current value unless explicitly provided
 - this command is for manual refresh only and does not schedule updates
 - metric reporting is read-only and returns recent rows as JSON
+- smoke runs a lightweight operational check for typecheck, import, metric save, trend update, and metric report
+- smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
 
 ## Repository State
 
