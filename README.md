@@ -15,6 +15,7 @@ The current focus is manual operation: import a token candidate, score its narra
 - Manually refresh `data/trend.json` with `pnpm trend:update`
 - Inspect one saved token with `pnpm token:show`
 - Inspect saved tokens with `pnpm tokens:report`
+- Inspect one saved metric with `pnpm metric:show`
 - Inspect saved metrics with `pnpm metrics:report`
 - Run a lightweight operational check with `pnpm smoke`
 
@@ -110,6 +111,12 @@ Inspect recent tokens:
 
 ```bash
 pnpm tokens:report -- --rank S --limit 10
+```
+
+Inspect one metric in detail:
+
+```bash
+pnpm metric:show -- --id 1
 ```
 
 Inspect recent metrics:
