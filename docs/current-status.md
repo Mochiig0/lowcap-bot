@@ -16,6 +16,12 @@ Trend data can also be refreshed manually:
 pnpm trend:update -- --keywords "ai,anime,base,solchat" [--ttlHours 24]
 ```
 
+Stored metrics can be inspected from the CLI:
+
+```bash
+pnpm metrics:report -- [--mint <MINT>] [--limit 20]
+```
+
 There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 ## Implemented
@@ -24,6 +30,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `Dev`, `Token`, and `Metric` models in the schema
 - CLI import flow in `src/cli/import.ts`
 - Manual trend update CLI in `src/cli/updateTrend.ts`
+- Manual metric report CLI in `src/cli/metricsReport.ts`
 - Optional metric persistence from the import CLI
 - Text normalization for `name`, `symbol`, and `description`
 - Hard reject matching for obvious scam/rug phrases
@@ -83,11 +90,18 @@ Trend update:
 pnpm trend:update -- --keywords "ai, ai, anime, , base" --ttlHours 24
 ```
 
+Metrics report:
+
+```bash
+pnpm metrics:report -- --mint TESTMINT --limit 5
+```
+
 Notes:
 
 - `generatedAt` is always set to the current time when the file is updated
 - `ttlHours` keeps the current value unless explicitly provided
 - this command is for manual refresh only and does not schedule updates
+- metric reporting is read-only and returns recent rows as JSON
 
 ## Repository State
 
