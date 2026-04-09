@@ -6,13 +6,13 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Refresh or generate `data/trend.json` on a real cadence.
+Add a simple query or report path to inspect stored `Metric` rows.
 
 Why this is now the most natural next step:
 
 - metric import can now write `Metric` rows without changing existing token import behavior
-- trend scoring already exists in code, but stale trend data makes that branch effectively inactive
-- this can be improved without introducing workers or large architecture changes
+- manual trend refresh can now keep `data/trend.json` fresh enough for trend scoring to work
+- a small read path is the next step to make stored metrics operationally useful
 
 ## Short-Term
 

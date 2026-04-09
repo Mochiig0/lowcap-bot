@@ -10,6 +10,12 @@ The current entrypoint is the import CLI:
 pnpm import -- --mint <MINT> --name <NAME> --symbol <SYM> [--desc ...] [--dev ...] [--groupKey ...] [--groupNote ...] [--source ...]
 ```
 
+Trend data can also be refreshed manually:
+
+```bash
+pnpm trend:update -- --keywords "ai,anime,base,solchat" [--ttlHours 24]
+```
+
 There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 ## Implemented
@@ -17,6 +23,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - Prisma + SQLite persistence
 - `Dev`, `Token`, and `Metric` models in the schema
 - CLI import flow in `src/cli/import.ts`
+- Manual trend update CLI in `src/cli/updateTrend.ts`
 - Optional metric persistence from the import CLI
 - Text normalization for `name`, `symbol`, and `description`
 - Hard reject matching for obvious scam/rug phrases
@@ -36,6 +43,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 - `groupKey` and `groupNote` are stored on `Token`, but no grouping logic uses them yet
 - Trend scoring exists, but depends on fresh `data/trend.json`
+- Trend data refresh is manual, not automatic
 
 ## Not Implemented
 
@@ -53,6 +61,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - Scoring is entirely rule-based and file-backed
 - Trend scoring is currently ineffective unless `data/trend.json` is refreshed
 - Metrics are only stored when optional metric args are supplied manually
+- Trend updates must be triggered manually through the CLI
 
 ## Import Example
 
@@ -67,6 +76,18 @@ Import with metrics:
 ```bash
 pnpm import -- --mint TESTMINT --name "metric token" --symbol MTK --maxMultiple15m 2.4 --peakFdv24h 180000 --volume24h 42000 --metricSource manual
 ```
+
+Trend update:
+
+```bash
+pnpm trend:update -- --keywords "ai, ai, anime, , base" --ttlHours 24
+```
+
+Notes:
+
+- `generatedAt` is always set to the current time when the file is updated
+- `ttlHours` keeps the current value unless explicitly provided
+- this command is for manual refresh only and does not schedule updates
 
 ## Repository State
 

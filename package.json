@@ -11,13 +11,15 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "migrate:dev": "prisma migrate dev",
-    "import": "tsx src/cli/import.ts"
+    "import": "tsx src/cli/import.ts",
+    "trend:update": "tsx src/cli/updateTrend.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
+    "@types/node": "^25.5.2",
     "prisma": "^6.5.0",
     "tsx": "^4.19.2",
     "typescript": "^5.8.2"
