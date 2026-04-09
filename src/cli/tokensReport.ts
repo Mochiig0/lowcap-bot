@@ -99,6 +99,16 @@ async function run(): Promise<void> {
           wallet: true,
         },
       },
+      metrics: {
+        orderBy: [
+          { observedAt: "desc" },
+          { id: "desc" },
+        ],
+        take: 1,
+        select: {
+          observedAt: true,
+        },
+      },
     },
   });
 
@@ -121,6 +131,9 @@ async function run(): Promise<void> {
           hardRejected: token.hardRejected,
           hardRejectReason: token.hardRejectReason,
           source: token.source ?? null,
+          latestMetricObservedAt: token.metrics[0]
+            ? token.metrics[0].observedAt.toISOString()
+            : null,
           createdAt: token.createdAt.toISOString(),
           devWallet: token.dev?.wallet ?? null,
         })),
