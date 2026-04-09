@@ -110,7 +110,7 @@ pnpm token:show -- --mint TESTMINT
 Inspect recent tokens:
 
 ```bash
-pnpm tokens:report -- --rank S --limit 10
+pnpm tokens:report -- --source manual --hardRejected false --limit 10
 ```
 
 Inspect one metric in detail:

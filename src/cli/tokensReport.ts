@@ -4,6 +4,8 @@ import { db } from "../db.js";
 
 type TokensReportArgs = {
   rank?: string;
+  source?: string;
+  hardRejected?: boolean;
   limit: number;
 };
 
@@ -15,7 +17,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:report -- [--rank <RANK>] [--limit 20]",
+      "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--hardRejected <true|false>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -32,6 +34,12 @@ function parseLimitArg(value: string, key: string): number {
   }
 
   return parsed;
+}
+
+function parseBooleanArg(value: string, key: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  printUsageAndExit(`Invalid boolean for ${key}: ${value}`);
 }
 
 function parseArgs(argv: string[]): TokensReportArgs {
@@ -52,6 +60,12 @@ function parseArgs(argv: string[]): TokensReportArgs {
       case "--rank":
         out.rank = value === "" ? undefined : value;
         break;
+      case "--source":
+        out.source = value === "" ? undefined : value;
+        break;
+      case "--hardRejected":
+        out.hardRejected = parseBooleanArg(value, key);
+        break;
       case "--limit":
         out.limit = parseLimitArg(value, key);
         break;
@@ -70,11 +84,13 @@ async function run(): Promise<void> {
   const args = parseArgs(argv);
 
   const tokens = await db.token.findMany({
-    where: args.rank
-      ? {
-          scoreRank: args.rank,
-        }
-      : undefined,
+    where: {
+      ...(args.rank ? { scoreRank: args.rank } : {}),
+      ...(args.source ? { source: args.source } : {}),
+      ...(args.hardRejected !== undefined
+        ? { hardRejected: args.hardRejected }
+        : {}),
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: args.limit,
     include: {
@@ -92,6 +108,8 @@ async function run(): Promise<void> {
         count: tokens.length,
         filters: {
           rank: args.rank ?? null,
+          source: args.source ?? null,
+          hardRejected: args.hardRejected ?? null,
           limit: args.limit,
         },
         items: tokens.map((token) => ({
