@@ -15,6 +15,23 @@ type ImportArgs = {
   groupKey?: string;
   groupNote?: string;
   source?: string;
+  maxMultiple15m?: number;
+  peakFdv24h?: number;
+  volume24h?: number;
+  peakFdv7d?: number;
+  volume7d?: number;
+  metricSource?: string;
+  observedAt?: Date;
+};
+
+type MetricInput = {
+  maxMultiple15m?: number;
+  peakFdv24h?: number;
+  volume24h?: number;
+  peakFdv7d?: number;
+  volume7d?: number;
+  source: string;
+  observedAt: Date;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -25,10 +42,57 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm import -- --mint <MINT> --name <NAME> --symbol <SYM> [--desc ...] [--dev ...] [--groupKey ...] [--groupNote ...] [--source ...]",
+      "pnpm import -- --mint <MINT> --name <NAME> --symbol <SYM> [--desc ...] [--dev ...] [--groupKey ...] [--groupNote ...] [--source ...] [--maxMultiple15m ...] [--peakFdv24h ...] [--volume24h ...] [--peakFdv7d ...] [--volume7d ...] [--metricSource ...] [--observedAt ...]",
     ].join("\n"),
   );
   process.exit(1);
+}
+
+function parseOptionalNumberArg(value: string, key: string): number | undefined {
+  if (value === "") return undefined;
+
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseOptionalDateArg(value: string, key: string): Date | undefined {
+  if (value === "") return undefined;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    printUsageAndExit(`Invalid date for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
+function buildMetricInput(args: ImportArgs): MetricInput | null {
+  const hasMetricValue =
+    args.maxMultiple15m !== undefined ||
+    args.peakFdv24h !== undefined ||
+    args.volume24h !== undefined ||
+    args.peakFdv7d !== undefined ||
+    args.volume7d !== undefined ||
+    args.metricSource !== undefined ||
+    args.observedAt !== undefined;
+
+  if (!hasMetricValue) {
+    return null;
+  }
+
+  return {
+    maxMultiple15m: args.maxMultiple15m,
+    peakFdv24h: args.peakFdv24h,
+    volume24h: args.volume24h,
+    peakFdv7d: args.peakFdv7d,
+    volume7d: args.volume7d,
+    source: args.metricSource ?? "manual",
+    observedAt: args.observedAt ?? new Date(),
+  };
 }
 
 function parseArgs(argv: string[]): ImportArgs {
@@ -68,6 +132,27 @@ function parseArgs(argv: string[]): ImportArgs {
       case "--source":
         out.source = value;
         break;
+      case "--maxMultiple15m":
+        out.maxMultiple15m = parseOptionalNumberArg(value, key);
+        break;
+      case "--peakFdv24h":
+        out.peakFdv24h = parseOptionalNumberArg(value, key);
+        break;
+      case "--volume24h":
+        out.volume24h = parseOptionalNumberArg(value, key);
+        break;
+      case "--peakFdv7d":
+        out.peakFdv7d = parseOptionalNumberArg(value, key);
+        break;
+      case "--volume7d":
+        out.volume7d = parseOptionalNumberArg(value, key);
+        break;
+      case "--metricSource":
+        out.metricSource = value === "" ? undefined : value;
+        break;
+      case "--observedAt":
+        out.observedAt = parseOptionalDateArg(value, key);
+        break;
       default:
         printUsageAndExit(`Unknown arg: ${key}`);
     }
@@ -85,6 +170,7 @@ function parseArgs(argv: string[]): ImportArgs {
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
+  const metricInput = buildMetricInput(args);
 
   const normalizedText = buildTargetText({
     name: args.name,
@@ -137,6 +223,21 @@ async function run(): Promise<void> {
       devId: devRecord?.id,
     },
   });
+
+  if (metricInput) {
+    await db.metric.create({
+      data: {
+        tokenId: token.id,
+        maxMultiple15m: metricInput.maxMultiple15m,
+        peakFdv24h: metricInput.peakFdv24h,
+        volume24h: metricInput.volume24h,
+        peakFdv7d: metricInput.peakFdv7d,
+        volume7d: metricInput.volume7d,
+        source: metricInput.source,
+        observedAt: metricInput.observedAt,
+      },
+    });
+  }
 
   if (score.rank === "S" && !hardReject.rejected) {
     await notifyTelegram(
