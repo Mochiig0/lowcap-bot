@@ -64,6 +64,23 @@ async function run(): Promise<void> {
           wallet: true,
         },
       },
+      metrics: {
+        orderBy: [
+          { observedAt: "desc" },
+          { id: "desc" },
+        ],
+        take: 1,
+        select: {
+          id: true,
+          observedAt: true,
+          source: true,
+          maxMultiple15m: true,
+          peakFdv24h: true,
+          volume24h: true,
+          peakFdv7d: true,
+          volume7d: true,
+        },
+      },
       _count: {
         select: {
           metrics: true,
@@ -75,6 +92,19 @@ async function run(): Promise<void> {
   if (!token) {
     printUsageAndExit(`Token not found for mint: ${args.mint}`);
   }
+
+  const latestMetric = token.metrics[0]
+    ? {
+        id: token.metrics[0].id,
+        observedAt: token.metrics[0].observedAt.toISOString(),
+        source: token.metrics[0].source ?? null,
+        maxMultiple15m: token.metrics[0].maxMultiple15m,
+        peakFdv24h: token.metrics[0].peakFdv24h,
+        volume24h: token.metrics[0].volume24h,
+        peakFdv7d: token.metrics[0].peakFdv7d,
+        volume7d: token.metrics[0].volume7d,
+      }
+    : null;
 
   console.log(
     JSON.stringify(
@@ -94,6 +124,7 @@ async function run(): Promise<void> {
         scoreBreakdown: token.scoreBreakdown,
         devWallet: token.dev?.wallet ?? null,
         metricsCount: token._count.metrics,
+        latestMetric,
         createdAt: token.createdAt.toISOString(),
         updatedAt: token.updatedAt.toISOString(),
       },
