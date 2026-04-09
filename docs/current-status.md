@@ -63,7 +63,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 - Automatic import from external sources
 - Background processing or scheduled jobs
-- A real application entrypoint in `src/index.ts`
+- A true application runtime beyond the CLI help hub in `src/index.ts`
 - Tests
 - Migrations directory and versioned DB history
 - Operational docs and runbooks
