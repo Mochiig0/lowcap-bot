@@ -103,7 +103,7 @@ function parseArgs(argv: string[]): ImportArgs {
     const value = argv[i + 1];
 
     if (!key.startsWith("--")) continue;
-    if (!value || value.startsWith("--")) {
+    if (value === undefined || value.startsWith("--")) {
       printUsageAndExit(`Missing value for ${key}`);
     }
 
