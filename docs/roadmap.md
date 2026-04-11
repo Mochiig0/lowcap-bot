@@ -6,20 +6,20 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Decide whether `src/index.ts` should become a real app entrypoint or remain a placeholder.
+Keep the docs aligned with the current CLI surface and avoid reintroducing outdated examples.
 
 Why this is now the most natural next step:
 
 - metric import can now write `Metric` rows without changing existing token import behavior
 - manual trend refresh can now keep `data/trend.json` fresh enough for trend scoring to work
-- metric reporting and smoke checks now cover the basic manual operations around stored data
-- the remaining main gap in the CLI-first MVP is having a clearer top-level entrypoint story
+- token and metric show/report commands now cover the basic manual inspection flow
+- `src/index.ts` already works as the CLI help hub, so the smaller gap is keeping docs in sync
 
 ## Short-Term
 
 - Refresh or generate `data/trend.json` on a real cadence
-- Decide whether `src/index.ts` should become a real app entrypoint or remain a placeholder
-- Add simple review/reporting commands for stored tokens
+- Keep README and docs synced with CLI usage and JSON output fields
+- Add only small filter or smoke-check refinements when they improve manual operation
 - Document setup and execution steps in a top-level README or docs index
 
 ## Mid-Term
@@ -31,7 +31,6 @@ Why this is now the most natural next step:
   - import CLI behavior
 - Clarify ranking policy and dictionary maintenance workflow
 - Define how `groupKey` and `groupNote` should affect duplicate handling or review grouping
-- Add simple review/reporting commands for stored tokens
 
 ## Longer-Term
 

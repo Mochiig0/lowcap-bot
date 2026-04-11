@@ -101,28 +101,28 @@ Refresh trend keywords:
 pnpm trend:update -- --keywords "ai,anime,base" --ttlHours 24
 ```
 
-Inspect one token in detail:
+Inspect one token in detail, including `latestMetric` when present:
 
 ```bash
-pnpm token:show -- --mint TESTMINT
+pnpm token:show -- --mint <MINT>
 ```
 
-Inspect recent tokens:
+Inspect recent tokens with filters:
 
 ```bash
-pnpm tokens:report -- --source manual --hardRejected false --limit 10
+pnpm tokens:report -- --rank S --source manual --hardRejected false --limit 10
 ```
 
 Inspect one metric in detail:
 
 ```bash
-pnpm metric:show -- --id 1
+pnpm metric:show -- --id <ID>
 ```
 
-Inspect recent metrics:
+Inspect recent metrics with filters:
 
 ```bash
-pnpm metrics:report -- --source manual --rank A --limit 20
+pnpm metrics:report -- --tokenId 1 --source manual --rank B --limit 10
 ```
 
 Run the smoke test:
@@ -131,13 +131,20 @@ Run the smoke test:
 pnpm smoke
 ```
 
+Report notes:
+
+- `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
+- `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
+- `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, and `--limit`
+
 ## Typical Workflow
 
 1. Refresh trend keywords if needed.
 2. Import a token candidate with `pnpm import`.
 3. Add optional metric observations during import when you have them.
-4. Inspect stored metric rows with `pnpm metrics:report`.
-5. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
+4. Inspect the saved token with `pnpm token:show` or recent tokens with `pnpm tokens:report`.
+5. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
+6. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
 
 ## What `pnpm smoke` Checks
 
@@ -148,6 +155,8 @@ It currently checks:
 - TypeScript typecheck
 - Basic manual import
 - Manual import with metric persistence
+- `token:show`
+- `metric:show`
 - Trend update
 - Metrics report
 
