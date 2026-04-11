@@ -25,6 +25,18 @@ function printUsageAndExit(message?: string): never {
   process.exit(1);
 }
 
+function readRequiredArg(
+  input: Partial<ImportMinArgs>,
+  key: keyof Pick<ImportMinArgs, "mint" | "name" | "symbol">,
+): string {
+  const value = input[key];
+  if (typeof value !== "string" || value.trim().length === 0) {
+    printUsageAndExit(`Missing required arg: --${key}`);
+  }
+
+  return value;
+}
+
 function parseArgs(argv: string[]): ImportMinArgs {
   const out: Partial<ImportMinArgs> = {};
 
@@ -63,11 +75,14 @@ function parseArgs(argv: string[]): ImportMinArgs {
     i += 1;
   }
 
-  if (!out.mint || !out.name || !out.symbol) {
-    printUsageAndExit("--mint, --name and --symbol are required");
-  }
-
-  return out as ImportMinArgs;
+  return {
+    mint: readRequiredArg(out, "mint"),
+    name: readRequiredArg(out, "name"),
+    symbol: readRequiredArg(out, "symbol"),
+    source: out.source,
+    desc: out.desc,
+    dev: out.dev,
+  };
 }
 
 function buildImportArgs(args: ImportMinArgs): string[] {
