@@ -105,6 +105,8 @@ pnpm import:file -- --file ./examples/import-file.sample.json
 
 Sample payload: `examples/import-file.sample.json`
 
+Metric sample payload: `examples/import-file-with-metric.sample.json`
+
 Import with one metric observation:
 
 ```bash

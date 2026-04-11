@@ -1,0 +1,13 @@
+{
+  "mint": "TESTMINTMETRIC",
+  "name": "Example Token With Metric",
+  "symbol": "EXTKM",
+  "source": "manual",
+  "desc": "sample intake payload with metric fields",
+  "maxMultiple15m": 2.4,
+  "peakFdv24h": 180000,
+  "volume24h": 42000,
+  "peakFdv7d": 260000,
+  "volume7d": 120000,
+  "metricSource": "manual"
+}
