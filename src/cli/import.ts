@@ -70,6 +70,18 @@ function parseOptionalDateArg(value: string, key: string): Date | undefined {
   return parsed;
 }
 
+function readRequiredArg(
+  input: Partial<ImportArgs>,
+  key: keyof Pick<ImportArgs, "mint" | "name" | "symbol">,
+): string {
+  const value = input[key];
+  if (typeof value !== "string" || value.trim().length === 0) {
+    printUsageAndExit(`Missing required arg: --${key}`);
+  }
+
+  return value;
+}
+
 function buildMetricInput(args: ImportArgs): MetricInput | null {
   const hasMetricValue =
     args.maxMultiple15m !== undefined ||
@@ -160,11 +172,23 @@ function parseArgs(argv: string[]): ImportArgs {
     i += 1;
   }
 
-  if (!out.mint || !out.name || !out.symbol) {
-    printUsageAndExit("--mint, --name and --symbol are required");
-  }
-
-  return out as ImportArgs;
+  return {
+    mint: readRequiredArg(out, "mint"),
+    name: readRequiredArg(out, "name"),
+    symbol: readRequiredArg(out, "symbol"),
+    desc: out.desc,
+    dev: out.dev,
+    groupKey: out.groupKey,
+    groupNote: out.groupNote,
+    source: out.source,
+    maxMultiple15m: out.maxMultiple15m,
+    peakFdv24h: out.peakFdv24h,
+    volume24h: out.volume24h,
+    peakFdv7d: out.peakFdv7d,
+    volume7d: out.volume7d,
+    metricSource: out.metricSource,
+    observedAt: out.observedAt,
+  };
 }
 
 async function run(): Promise<void> {
