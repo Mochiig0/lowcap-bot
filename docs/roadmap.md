@@ -6,14 +6,13 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Keep the docs aligned with the current CLI surface and avoid reintroducing outdated examples.
+Add only small CLI refinements that reduce manual intake cost without introducing ingestion or worker infrastructure.
 
 Why this is now the most natural next step:
 
-- metric import can now write `Metric` rows without changing existing token import behavior
-- manual trend refresh can now keep `data/trend.json` fresh enough for trend scoring to work
-- token and metric show/report commands now cover the basic manual inspection flow
-- `src/index.ts` already works as the CLI help hub, so the smaller gap is keeping docs in sync
+- the manual import and inspection loop is now complete enough to use day-to-day
+- the next bottleneck is reducing repeated CLI typing for manual intake
+- a thin wrapper stays aligned with the CLI-first MVP and avoids premature automation
 
 ## Short-Term
 

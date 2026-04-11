@@ -12,6 +12,7 @@
     "db:studio": "prisma studio",
     "migrate:dev": "prisma migrate dev",
     "import": "tsx src/cli/import.ts",
+    "import:min": "tsx src/cli/importMin.ts",
     "trend:update": "tsx src/cli/updateTrend.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
     "tokens:report": "tsx src/cli/tokensReport.ts",

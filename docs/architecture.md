@@ -6,6 +6,8 @@
 
 The main operational path is `pnpm import`, which takes one token candidate, runs the current scoring pipeline, stores results in SQLite through Prisma, and optionally sends a Telegram notification.
 
+`pnpm import:min` is a thin wrapper around that flow for the common manual intake case with only `mint`, `name`, `symbol`, and a few optional descriptive fields.
+
 This repository is not yet an always-on bot. It does not currently include automatic ingestion, a scheduler, workers, or a queue.
 
 ## Main Flows
@@ -21,6 +23,17 @@ The main flow lives in `src/cli/import.ts` and runs in this order:
 5. Upsert `Dev` and `Token`
 6. Optionally create one `Metric`
 7. Notify Telegram only when the token is `S` rank and not hard rejected
+
+### Minimal Intake Flow
+
+`src/cli/importMin.ts` is a thin wrapper for manual intake.
+
+It:
+
+- accepts only the common minimum fields
+- forwards them into `src/cli/import.ts`
+- reuses the existing scoring, persistence, and notification flow
+- does not add new schema, ingestion, or automation behavior
 
 ### Trend Update Flow
 
@@ -52,7 +65,10 @@ It checks:
 
 - TypeScript typecheck
 - basic import
+- minimal wrapper import
 - import with metric persistence
+- `token:show`
+- `metric:show`
 - trend update
 - metrics report
 
@@ -65,8 +81,16 @@ It also restores `data/trend.json` after the run and cleans up smoke-prefixed da
 - `src/cli/import.ts`
   - main operational entrypoint
   - token import, scoring, persistence, conditional notify
+- `src/cli/importMin.ts`
+  - thin manual-intake wrapper over `src/cli/import.ts`
 - `src/cli/updateTrend.ts`
   - manual refresh for `data/trend.json`
+- `src/cli/tokenShow.ts`
+  - read-only token inspection with latest metric summary
+- `src/cli/tokensReport.ts`
+  - read-only token inspection with basic filters
+- `src/cli/metricShow.ts`
+  - read-only metric inspection for one row
 - `src/cli/metricsReport.ts`
   - read-only metric inspection
 - `src/cli/smokeTest.ts`

@@ -11,6 +11,10 @@ pnpm import -- --mint <MINT> --name <NAME> --symbol <SYM> [--desc ...] [--dev ..
 ```
 
 ```bash
+pnpm import:min -- --mint <MINT> --name <NAME> --symbol <SYM> [--source <SOURCE>] [--desc <TEXT>] [--dev <WALLET>]
+```
+
+```bash
 pnpm trend:update -- --keywords "ai,anime,base" [--ttlHours 24]
 ```
 
@@ -43,6 +47,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - Prisma + SQLite persistence
 - `Dev`, `Token`, and `Metric` models in the schema
 - CLI import flow in `src/cli/import.ts`
+- Minimal import wrapper CLI in `src/cli/importMin.ts`
 - Manual trend update CLI in `src/cli/updateTrend.ts`
 - Token detail CLI in `src/cli/tokenShow.ts`
 - Token report CLI in `src/cli/tokensReport.ts`
@@ -62,6 +67,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `Token` upsert by `mint`
 - `Dev` upsert by `wallet`
 - `Metric` create when one or more metric args are provided
+- `import:min` forwards the minimum manual intake fields into `import`
 - `token:show` returns `latestMetric` and `metricsCount`
 - `tokens:report` supports `rank`, `source`, and `hardRejected` filters
 - `tokens:report` returns `latestMetricObservedAt` and `metricsCount`
@@ -98,6 +104,12 @@ Basic import:
 
 ```bash
 pnpm import -- --mint TESTMINT --name "basic token" --symbol BTK
+```
+
+Minimal intake import:
+
+```bash
+pnpm import:min -- --mint TESTMINT --name "basic token" --symbol BTK --source manual
 ```
 
 Import with metrics:
@@ -147,10 +159,11 @@ Notes:
 - `generatedAt` is always set to the current time when the file is updated
 - `ttlHours` keeps the current value unless explicitly provided
 - this command is for manual refresh only and does not schedule updates
+- `import:min` is a thin wrapper for the common manual intake path and does not replace full `import` args
 - `token:show` includes the latest metric summary when one exists
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
-- smoke runs a lightweight operational check for typecheck, import, metric save, `token:show`, `metric:show`, trend update, and metric report
+- smoke runs a lightweight operational check for typecheck, `import`, `import:min`, metric save, `token:show`, `metric:show`, trend update, and metric report
 - smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
 
 ## Repository State

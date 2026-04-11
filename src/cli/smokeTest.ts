@@ -17,6 +17,7 @@ type CommandResult = {
 type SmokeContext = {
   smokeId: string;
   basicMint: string;
+  minMint: string;
   metricMint: string;
   metricId: number | null;
   devWallet: string;
@@ -109,7 +110,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   const tokens = await db.token.findMany({
     where: {
       mint: {
-        in: [context.basicMint, context.metricMint],
+        in: [context.basicMint, context.minMint, context.metricMint],
       },
     },
     select: {
@@ -131,7 +132,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await db.token.deleteMany({
     where: {
       mint: {
-        in: [context.basicMint, context.metricMint],
+        in: [context.basicMint, context.minMint, context.metricMint],
       },
     },
   });
@@ -152,6 +153,7 @@ async function run(): Promise<void> {
   const context: SmokeContext = {
     smokeId,
     basicMint: `${smokeId}_BASIC`,
+    minMint: `${smokeId}_MIN`,
     metricMint: `${smokeId}_METRIC`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
@@ -195,6 +197,54 @@ async function run(): Promise<void> {
       });
       if (!token) {
         throw new Error("basic import token was not saved");
+      }
+    });
+
+    await runStep("minimal import", async () => {
+      const parsed = await runCliJson<{ mint: string }>(
+        "minimal import",
+        "src/cli/importMin.ts",
+        [
+          "--mint",
+          context.minMint,
+          "--name",
+          "smoke token minimal",
+          "--symbol",
+          "SMKN",
+          "--source",
+          "smoke-test",
+          "--desc",
+          "minimal wrapper path",
+          "--dev",
+          context.devWallet,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.mint !== context.minMint) {
+        throw new Error("minimal import returned unexpected mint");
+      }
+
+      const token = await db.token.findUnique({
+        where: { mint: context.minMint },
+        include: {
+          dev: {
+            select: {
+              wallet: true,
+            },
+          },
+        },
+      });
+      if (!token) {
+        throw new Error("minimal import token was not saved");
+      }
+
+      if (token.source !== "smoke-test") {
+        throw new Error("minimal import did not persist source");
+      }
+
+      if (token.dev?.wallet !== context.devWallet) {
+        throw new Error("minimal import did not persist dev wallet");
       }
     });
 
