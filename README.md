@@ -8,6 +8,7 @@ The current focus is manual operation: import a token candidate, score its narra
 
 - Manually import a token candidate with `pnpm import`
 - Manually intake a token candidate with the thin `pnpm import:min` wrapper
+- Manually intake one JSON object from a file with `pnpm import:file`
 - Normalize text and run hard reject checks
 - Score text with dictionary-based scoring
 - Save `Token` and optional `Dev` records in SQLite via Prisma
@@ -96,6 +97,12 @@ Import one token candidate with the minimal wrapper:
 pnpm import:min -- --mint <MINT> --name <NAME> --symbol <SYM> --source manual
 ```
 
+Import one token candidate from a JSON file:
+
+```bash
+pnpm import:file -- --file ./tmp/token.json
+```
+
 Import with one metric observation:
 
 ```bash
@@ -148,10 +155,11 @@ Report notes:
 
 1. Refresh trend keywords if needed.
 2. Use `pnpm import:min` for the common manual intake path, or `pnpm import` when you also want group or metric args.
-3. Add optional metric observations during import when you have them.
-4. Inspect the saved token with `pnpm token:show` or recent tokens with `pnpm tokens:report`.
-5. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
-6. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
+3. Use `pnpm import:file` when the intake data already exists as one local JSON object.
+4. Add optional metric observations during import when you have them.
+5. Inspect the saved token with `pnpm token:show` or recent tokens with `pnpm tokens:report`.
+6. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
+7. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
 
 ## What `pnpm smoke` Checks
 
@@ -162,6 +170,7 @@ It currently checks:
 - TypeScript typecheck
 - Basic manual import
 - Minimal wrapper import
+- File wrapper import
 - Manual import with metric persistence
 - `token:show`
 - `metric:show`
@@ -178,6 +187,7 @@ Operational behavior:
 
 - `src/index.ts` is a CLI guide hub, not a router
 - `pnpm import:min` is a thin wrapper over `pnpm import` for the common manual intake case
+- `pnpm import:file` is a thin wrapper over `pnpm import` for one local JSON object
 - the main operational entrypoint is still `pnpm import`
 - trend scoring depends on a fresh `data/trend.json`
 - this repo is still optimized for manual operation, not automation

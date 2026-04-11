@@ -18,11 +18,13 @@ type SmokeContext = {
   smokeId: string;
   basicMint: string;
   minMint: string;
+  fileMint: string;
   metricMint: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
   trendGeneratedAt: string;
+  fileImportPath: string;
 };
 
 function logStep(message: string): void {
@@ -110,7 +112,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   const tokens = await db.token.findMany({
     where: {
       mint: {
-        in: [context.basicMint, context.minMint, context.metricMint],
+        in: [context.basicMint, context.minMint, context.fileMint, context.metricMint],
       },
     },
     select: {
@@ -132,7 +134,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await db.token.deleteMany({
     where: {
       mint: {
-        in: [context.basicMint, context.minMint, context.metricMint],
+        in: [context.basicMint, context.minMint, context.fileMint, context.metricMint],
       },
     },
   });
@@ -142,6 +144,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
       wallet: context.devWallet,
     },
   });
+
+  await rm(context.fileImportPath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -154,11 +158,13 @@ async function run(): Promise<void> {
     smokeId,
     basicMint: `${smokeId}_BASIC`,
     minMint: `${smokeId}_MIN`,
+    fileMint: `${smokeId}_FILE`,
     metricMint: `${smokeId}_METRIC`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
     trendGeneratedAt: "",
+    fileImportPath: `/tmp/${smokeId}-import-file.json`,
   };
 
   try {
@@ -245,6 +251,61 @@ async function run(): Promise<void> {
 
       if (token.dev?.wallet !== context.devWallet) {
         throw new Error("minimal import did not persist dev wallet");
+      }
+    });
+
+    await runStep("file import", async () => {
+      await writeFile(
+        context.fileImportPath,
+        `${JSON.stringify(
+          {
+            mint: context.fileMint,
+            name: "smoke token file",
+            symbol: "SMKF",
+            source: "smoke-test",
+            desc: "file wrapper path",
+            dev: context.devWallet,
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const parsed = await runCliJson<{ mint: string }>(
+        "file import",
+        "src/cli/importFile.ts",
+        [
+          "--file",
+          context.fileImportPath,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.mint !== context.fileMint) {
+        throw new Error("file import returned unexpected mint");
+      }
+
+      const token = await db.token.findUnique({
+        where: { mint: context.fileMint },
+        include: {
+          dev: {
+            select: {
+              wallet: true,
+            },
+          },
+        },
+      });
+      if (!token) {
+        throw new Error("file import token was not saved");
+      }
+
+      if (token.description !== "file wrapper path") {
+        throw new Error("file import did not persist description");
+      }
+
+      if (token.dev?.wallet !== context.devWallet) {
+        throw new Error("file import did not persist dev wallet");
       }
     });
 

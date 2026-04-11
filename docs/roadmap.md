@@ -11,8 +11,8 @@ Add only small CLI refinements that reduce manual intake cost without introducin
 Why this is now the most natural next step:
 
 - the manual import and inspection loop is now complete enough to use day-to-day
-- the next bottleneck is reducing repeated CLI typing for manual intake
-- a thin wrapper stays aligned with the CLI-first MVP and avoids premature automation
+- the next bottleneck is reducing repeated CLI typing and copy/paste for manual intake
+- thin wrappers stay aligned with the CLI-first MVP and avoid premature automation
 
 ## Short-Term
 

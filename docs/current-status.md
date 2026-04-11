@@ -15,6 +15,10 @@ pnpm import:min -- --mint <MINT> --name <NAME> --symbol <SYM> [--source <SOURCE>
 ```
 
 ```bash
+pnpm import:file -- --file <PATH>
+```
+
+```bash
 pnpm trend:update -- --keywords "ai,anime,base" [--ttlHours 24]
 ```
 
@@ -48,6 +52,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `Dev`, `Token`, and `Metric` models in the schema
 - CLI import flow in `src/cli/import.ts`
 - Minimal import wrapper CLI in `src/cli/importMin.ts`
+- File import wrapper CLI in `src/cli/importFile.ts`
 - Manual trend update CLI in `src/cli/updateTrend.ts`
 - Token detail CLI in `src/cli/tokenShow.ts`
 - Token report CLI in `src/cli/tokensReport.ts`
@@ -68,6 +73,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `Dev` upsert by `wallet`
 - `Metric` create when one or more metric args are provided
 - `import:min` forwards the minimum manual intake fields into `import`
+- `import:file` reads one JSON object and forwards supported fields into `import`
 - `token:show` returns `latestMetric` and `metricsCount`
 - `tokens:report` supports `rank`, `source`, and `hardRejected` filters
 - `tokens:report` returns `latestMetricObservedAt` and `metricsCount`
@@ -110,6 +116,12 @@ Minimal intake import:
 
 ```bash
 pnpm import:min -- --mint TESTMINT --name "basic token" --symbol BTK --source manual
+```
+
+File intake import:
+
+```bash
+pnpm import:file -- --file ./tmp/token.json
 ```
 
 Import with metrics:
@@ -160,10 +172,11 @@ Notes:
 - `ttlHours` keeps the current value unless explicitly provided
 - this command is for manual refresh only and does not schedule updates
 - `import:min` is a thin wrapper for the common manual intake path and does not replace full `import` args
+- `import:file` is a thin wrapper for one local JSON object and does not introduce automatic ingestion
 - `token:show` includes the latest metric summary when one exists
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
-- smoke runs a lightweight operational check for typecheck, `import`, `import:min`, metric save, `token:show`, `metric:show`, trend update, and metric report
+- smoke runs a lightweight operational check for typecheck, `import`, `import:min`, `import:file`, metric save, `token:show`, `metric:show`, trend update, and metric report
 - smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
 
 ## Repository State

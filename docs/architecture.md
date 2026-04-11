@@ -8,6 +8,8 @@ The main operational path is `pnpm import`, which takes one token candidate, run
 
 `pnpm import:min` is a thin wrapper around that flow for the common manual intake case with only `mint`, `name`, `symbol`, and a few optional descriptive fields.
 
+`pnpm import:file` is another thin wrapper that reads one local JSON object and forwards supported fields into the same import flow.
+
 This repository is not yet an always-on bot. It does not currently include automatic ingestion, a scheduler, workers, or a queue.
 
 ## Main Flows
@@ -34,6 +36,17 @@ It:
 - forwards them into `src/cli/import.ts`
 - reuses the existing scoring, persistence, and notification flow
 - does not add new schema, ingestion, or automation behavior
+
+### File Intake Flow
+
+`src/cli/importFile.ts` is a thin wrapper for one-file manual intake.
+
+It:
+
+- reads one local JSON object from `--file`
+- validates the supported `import` fields
+- forwards them into `src/cli/import.ts`
+- does not fetch external data or introduce scheduler behavior
 
 ### Trend Update Flow
 
@@ -66,6 +79,7 @@ It checks:
 - TypeScript typecheck
 - basic import
 - minimal wrapper import
+- file wrapper import
 - import with metric persistence
 - `token:show`
 - `metric:show`
@@ -83,6 +97,8 @@ It also restores `data/trend.json` after the run and cleans up smoke-prefixed da
   - token import, scoring, persistence, conditional notify
 - `src/cli/importMin.ts`
   - thin manual-intake wrapper over `src/cli/import.ts`
+- `src/cli/importFile.ts`
+  - thin one-file intake wrapper over `src/cli/import.ts`
 - `src/cli/updateTrend.ts`
   - manual refresh for `data/trend.json`
 - `src/cli/tokenShow.ts`
