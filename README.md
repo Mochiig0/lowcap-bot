@@ -154,6 +154,7 @@ Report notes:
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
 - `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
 - `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, and `--limit`
+- In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
 
 ## Typical Workflow
 
