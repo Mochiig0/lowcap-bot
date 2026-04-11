@@ -89,7 +89,7 @@ function parseArgs(argv: string[]): UpdateTrendArgs {
   }
 
   if (!out.keywords || out.keywords.length === 0) {
-    printUsageAndExit("--keywords is required");
+    printUsageAndExit("Missing required arg: --keywords");
   }
 
   return out as UpdateTrendArgs;
