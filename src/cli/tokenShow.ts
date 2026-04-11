@@ -20,6 +20,18 @@ function printUsageAndExit(message?: string): never {
   process.exit(1);
 }
 
+function readRequiredArg(
+  input: Partial<TokenShowArgs>,
+  key: keyof Pick<TokenShowArgs, "mint">,
+): string {
+  const value = input[key];
+  if (typeof value !== "string" || value.trim().length === 0) {
+    printUsageAndExit(`Missing required arg: --${key}`);
+  }
+
+  return value;
+}
+
 function parseArgs(argv: string[]): TokenShowArgs {
   const out: Partial<TokenShowArgs> = {};
 
@@ -43,11 +55,9 @@ function parseArgs(argv: string[]): TokenShowArgs {
     i += 1;
   }
 
-  if (!out.mint) {
-    printUsageAndExit("--mint is required");
-  }
-
-  return out as TokenShowArgs;
+  return {
+    mint: readRequiredArg(out, "mint"),
+  };
 }
 
 async function run(): Promise<void> {

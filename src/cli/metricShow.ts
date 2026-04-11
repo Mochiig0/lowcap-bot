@@ -20,6 +20,18 @@ function printUsageAndExit(message?: string): never {
   process.exit(1);
 }
 
+function readRequiredArg(
+  input: Partial<MetricShowArgs>,
+  key: keyof Pick<MetricShowArgs, "id">,
+): number {
+  const value = input[key];
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    printUsageAndExit(`Missing required arg: --${key}`);
+  }
+
+  return value;
+}
+
 function parseIdArg(value: string, key: string): number {
   if (value === "") {
     printUsageAndExit(`Invalid number for ${key}: ${value}`);
@@ -56,11 +68,9 @@ function parseArgs(argv: string[]): MetricShowArgs {
     i += 1;
   }
 
-  if (out.id === undefined) {
-    printUsageAndExit("--id is required");
-  }
-
-  return out as MetricShowArgs;
+  return {
+    id: readRequiredArg(out, "id"),
+  };
 }
 
 async function run(): Promise<void> {
