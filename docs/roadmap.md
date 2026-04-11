@@ -6,26 +6,24 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Add only small CLI refinements that reduce manual intake cost without introducing ingestion or worker infrastructure.
+Keep docs and small tests synced with the current CLI-first MVP before expanding into larger automation work.
 
 Why this is now the most natural next step:
 
 - the manual import and inspection loop is now complete enough to use day-to-day
-- the next bottleneck is reducing repeated CLI typing and copy/paste for manual intake
-- thin wrappers stay aligned with the CLI-first MVP and avoid premature automation
+- the first pure-function tests are in place, but status and roadmap docs should reflect the current baseline
+- the next safe step is to add small coverage or docs accuracy without jumping into scheduler or worker design
 
 ## Short-Term
 
 - Refresh or generate `data/trend.json` on a real cadence
 - Keep README and docs synced with CLI usage and JSON output fields
-- Add only small filter or smoke-check refinements when they improve manual operation
+- Add only small pure-function tests or smoke-check refinements when they improve manual operation
 - Document setup and execution steps in a top-level README or docs index
 
 ## Mid-Term
 
 - Add tests for:
-  - normalization
-  - hard reject rules
   - scoring breakdown and rank thresholds
   - import CLI behavior
 - Clarify ranking policy and dictionary maintenance workflow

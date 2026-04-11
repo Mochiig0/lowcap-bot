@@ -59,6 +59,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - Metric detail CLI in `src/cli/metricShow.ts`
 - Manual metric report CLI in `src/cli/metricsReport.ts`
 - Manual smoke-test CLI in `src/cli/smokeTest.ts`
+- Minimal unit tests in `tests/scoring.test.ts` and `tests/updateTrend.test.ts`
 - Optional metric persistence from the import CLI
 - Text normalization for `name`, `symbol`, and `description`
 - Hard reject matching for obvious scam/rug phrases
@@ -90,7 +91,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 - Automatic import from external sources
 - Background processing or scheduled jobs
-- Tests
+- Full test framework
 - Migrations directory and versioned DB history
 - Operational docs and runbooks
 - Telegram command handling or inbound bot features
@@ -177,6 +178,7 @@ Notes:
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
 - smoke runs a lightweight operational check for typecheck, `import`, `import:min`, `import:file`, metric save, `token:show`, `metric:show`, trend update, and metric report
+- `pnpm test` runs the current pure-function tests for normalization, hard reject matching, and trend keyword parsing
 - smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
 
 ## Repository State
