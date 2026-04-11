@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 type WeightedKeyword = {
   keyword: string;
@@ -45,7 +46,7 @@ function parseOptionalNumberArg(value: string, key: string): number | undefined 
   return parsed;
 }
 
-function parseKeywordsArg(value: string): string[] {
+export function parseKeywordsArg(value: string): string[] {
   const keywords = Array.from(
     new Set(
       value
@@ -154,7 +155,13 @@ async function run(): Promise<void> {
   );
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isMainModule =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule) {
+  run().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
