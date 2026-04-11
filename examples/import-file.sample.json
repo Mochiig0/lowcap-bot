@@ -1,0 +1,7 @@
+{
+  "mint": "TESTMINT",
+  "name": "Example Token",
+  "symbol": "EXTK",
+  "source": "manual",
+  "desc": "sample intake payload"
+}

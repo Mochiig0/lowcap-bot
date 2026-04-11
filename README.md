@@ -100,8 +100,10 @@ pnpm import:min -- --mint <MINT> --name <NAME> --symbol <SYM> --source manual
 Import one token candidate from a JSON file:
 
 ```bash
-pnpm import:file -- --file ./tmp/token.json
+pnpm import:file -- --file ./examples/import-file.sample.json
 ```
+
+Sample payload: `examples/import-file.sample.json`
 
 Import with one metric observation:
 
