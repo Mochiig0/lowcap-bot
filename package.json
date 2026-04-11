@@ -19,7 +19,8 @@
     "tokens:report": "tsx src/cli/tokensReport.ts",
     "metric:show": "tsx src/cli/metricShow.ts",
     "metrics:report": "tsx src/cli/metricsReport.ts",
-    "smoke": "node --import tsx src/cli/smokeTest.ts"
+    "smoke": "node --import tsx src/cli/smokeTest.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

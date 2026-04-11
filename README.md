@@ -149,6 +149,12 @@ Run the smoke test:
 pnpm smoke
 ```
 
+Run the pure-function tests:
+
+```bash
+pnpm test
+```
+
 Report notes:
 
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
