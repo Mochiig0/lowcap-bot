@@ -64,15 +64,15 @@ function parseArgs(argv: string[]): ImportFileArgs {
   }
 
   if (!out.file) {
-    printUsageAndExit("--file is required");
+    printUsageAndExit("Missing required arg: --file");
   }
 
   return out as ImportFileArgs;
 }
 
-function ensureObject(value: unknown): Record<string, unknown> {
+function ensureObject(value: unknown, filePath: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    printUsageAndExit("JSON file must contain exactly one object");
+    printUsageAndExit(`Invalid JSON in ${filePath}: expected exactly one object`);
   }
 
   return value as Record<string, unknown>;
@@ -81,10 +81,13 @@ function ensureObject(value: unknown): Record<string, unknown> {
 function readRequiredString(
   input: Record<string, unknown>,
   key: keyof Pick<ImportPayload, "mint" | "name" | "symbol">,
+  filePath: string,
 ): string {
   const value = input[key];
   if (typeof value !== "string" || value.length === 0) {
-    printUsageAndExit(`${key} must be a non-empty string`);
+    printUsageAndExit(
+      `Invalid payload in ${filePath}: missing required non-empty string field "${key}"`,
+    );
   }
 
   return value;
@@ -139,23 +142,23 @@ function readOptionalNumber(
   return value;
 }
 
-function parsePayload(raw: string): ImportPayload {
+function parsePayload(raw: string, filePath: string): ImportPayload {
   let parsed: unknown;
 
   try {
     parsed = JSON.parse(raw) as unknown;
   } catch (error) {
     printUsageAndExit(
-      `Invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      `Invalid JSON in ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
-  const input = ensureObject(parsed);
+  const input = ensureObject(parsed, filePath);
 
   return {
-    mint: readRequiredString(input, "mint"),
-    name: readRequiredString(input, "name"),
-    symbol: readRequiredString(input, "symbol"),
+    mint: readRequiredString(input, "mint", filePath),
+    name: readRequiredString(input, "name", filePath),
+    symbol: readRequiredString(input, "symbol", filePath),
     desc: readOptionalString(input, "desc"),
     dev: readOptionalString(input, "dev"),
     groupKey: readOptionalString(input, "groupKey"),
@@ -208,7 +211,21 @@ async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
   const filePath = resolve(process.cwd(), args.file);
-  const payload = parsePayload(await readFile(filePath, "utf-8"));
+  let raw: string;
+
+  try {
+    raw = await readFile(filePath, "utf-8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      printUsageAndExit(`File not found: ${filePath}`);
+    }
+
+    printUsageAndExit(
+      `Failed to read file ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const payload = parsePayload(raw, filePath);
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
