@@ -61,6 +61,8 @@ It:
 - sets `metadataStatus` to `mint_only`
 - stores an initial `entrySnapshot`
 - does not score, notify, or create metrics
+- returns `created: false` on normal sequential re-runs for an existing mint
+- can still hit a unique-constraint race on `mint` if the same mint is submitted concurrently
 
 ### Enrich Flow
 

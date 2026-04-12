@@ -108,6 +108,8 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `Dev` upsert by `wallet`
 - `Metric` create when one or more metric args are provided
 - `import:mint` creates a minimum `Token` row and initial `entrySnapshot`
+- `import:mint` returns `created: false` on normal sequential re-runs for an existing mint
+- `import:mint` can still hit a unique-constraint race on `mint` under concurrent re-runs
 - `token:enrich` updates current token fields without rescoring
 - `token:rescore` recomputes current hard reject and score fields
 - `metric:add` appends one metric row without mutating token fields
