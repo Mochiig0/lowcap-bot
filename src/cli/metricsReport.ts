@@ -36,6 +36,7 @@ type MetricReportItem = {
   };
   source: string | null;
   observedAt: string;
+  peakPrice15m: number | null;
   maxMultiple15m: number | null;
   peakFdv24h: number | null;
   volume24h: number | null;
@@ -265,6 +266,7 @@ async function run(): Promise<void> {
     token: metric.token,
     source: metric.source ?? null,
     observedAt: metric.observedAt.toISOString(),
+    peakPrice15m: metric.peakPrice15m,
     maxMultiple15m: metric.maxMultiple15m,
     peakFdv24h: metric.peakFdv24h,
     volume24h: metric.volume24h,
