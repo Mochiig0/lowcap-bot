@@ -208,7 +208,7 @@ Report notes:
 - `tokens:compare-report` supports `--minEntryScoreTotal` and `--minCurrentScoreTotal` for score-threshold filtering
 - `tokens:compare-report` supports `--entryScoreRank` and `--currentScoreRank` for exact rank filtering
 - `tokens:compare-report` supports `--sortBy` and `--sortOrder`; `null` sort targets are placed last
-- `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, `--hasPeakFdv24h`, `--sortBy`, `--sortOrder`, and `--limit`; `null` sort targets are placed last
+- `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, `--hasPeakFdv24h`, `--hasMaxMultiple15m`, `--sortBy`, `--sortOrder`, and `--limit`; `null` sort targets are placed last
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
 
 ## Typical Workflow

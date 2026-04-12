@@ -8,6 +8,7 @@ type MetricsReportArgs = {
   source?: string;
   rank?: string;
   hasPeakFdv24h?: boolean;
+  hasMaxMultiple15m?: boolean;
   sortBy?: SortField;
   sortOrder: SortOrder;
   limit: number;
@@ -48,7 +49,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--hasPeakFdv24h <true|false>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--hasPeakFdv24h <true|false>] [--hasMaxMultiple15m <true|false>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -163,6 +164,9 @@ function parseArgs(argv: string[]): MetricsReportArgs {
       case "--hasPeakFdv24h":
         out.hasPeakFdv24h = parseBooleanArg(value, key);
         break;
+      case "--hasMaxMultiple15m":
+        out.hasMaxMultiple15m = parseBooleanArg(value, key);
+        break;
       case "--sortBy":
         out.sortBy = parseSortFieldArg(value, key);
         break;
@@ -193,6 +197,11 @@ async function run(): Promise<void> {
       ...(args.hasPeakFdv24h !== undefined
         ? {
             peakFdv24h: args.hasPeakFdv24h ? { not: null } : null,
+          }
+        : {}),
+      ...(args.hasMaxMultiple15m !== undefined
+        ? {
+            maxMultiple15m: args.hasMaxMultiple15m ? { not: null } : null,
           }
         : {}),
       ...(args.mint || args.rank
@@ -280,6 +289,7 @@ async function run(): Promise<void> {
           source: args.source ?? null,
           rank: args.rank ?? null,
           hasPeakFdv24h: args.hasPeakFdv24h ?? null,
+          hasMaxMultiple15m: args.hasMaxMultiple15m ?? null,
           sortBy: args.sortBy ?? null,
           sortOrder: args.sortOrder,
           limit: args.limit,
