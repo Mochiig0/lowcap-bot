@@ -11,6 +11,7 @@ type MetricsReportArgs = {
   hasMaxMultiple15m?: boolean;
   hasTimeToPeakMinutes?: boolean;
   hasVolume24h?: boolean;
+  hasPeakPrice15m?: boolean;
   sortBy?: SortField;
   sortOrder: SortOrder;
   limit: number;
@@ -51,7 +52,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--hasPeakFdv24h <true|false>] [--hasMaxMultiple15m <true|false>] [--hasTimeToPeakMinutes <true|false>] [--hasVolume24h <true|false>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--hasPeakFdv24h <true|false>] [--hasMaxMultiple15m <true|false>] [--hasTimeToPeakMinutes <true|false>] [--hasVolume24h <true|false>] [--hasPeakPrice15m <true|false>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -175,6 +176,9 @@ function parseArgs(argv: string[]): MetricsReportArgs {
       case "--hasVolume24h":
         out.hasVolume24h = parseBooleanArg(value, key);
         break;
+      case "--hasPeakPrice15m":
+        out.hasPeakPrice15m = parseBooleanArg(value, key);
+        break;
       case "--sortBy":
         out.sortBy = parseSortFieldArg(value, key);
         break;
@@ -220,6 +224,11 @@ async function run(): Promise<void> {
       ...(args.hasVolume24h !== undefined
         ? {
             volume24h: args.hasVolume24h ? { not: null } : null,
+          }
+        : {}),
+      ...(args.hasPeakPrice15m !== undefined
+        ? {
+            peakPrice15m: args.hasPeakPrice15m ? { not: null } : null,
           }
         : {}),
       ...(args.mint || args.rank
@@ -310,6 +319,7 @@ async function run(): Promise<void> {
           hasMaxMultiple15m: args.hasMaxMultiple15m ?? null,
           hasTimeToPeakMinutes: args.hasTimeToPeakMinutes ?? null,
           hasVolume24h: args.hasVolume24h ?? null,
+          hasPeakPrice15m: args.hasPeakPrice15m ?? null,
           sortBy: args.sortBy ?? null,
           sortOrder: args.sortOrder,
           limit: args.limit,

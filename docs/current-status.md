@@ -124,7 +124,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `tokens:compare-report` supports `entryScoreRank` and `currentScoreRank` for exact rank filtering
 - `tokens:compare-report` supports `sortBy` and `sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`
 - `tokens:compare-report` returns entry-vs-outcome summary rows across multiple tokens, including `entryScoreTotal` and `metricsCount`
-- `metrics:report` supports `mint`, `tokenId`, `source`, `rank`, `hasPeakFdv24h`, `hasMaxMultiple15m`, `hasTimeToPeakMinutes`, `hasVolume24h`, `sortBy`, and `sortOrder`; `null` sort targets are placed last
+- `metrics:report` supports `mint`, `tokenId`, `source`, `rank`, `hasPeakFdv24h`, `hasMaxMultiple15m`, `hasTimeToPeakMinutes`, `hasVolume24h`, `hasPeakPrice15m`, `sortBy`, and `sortOrder`; `null` sort targets are placed last
 - Telegram notification for `S` rank tokens that are not hard rejected
 
 ## Partially Implemented
