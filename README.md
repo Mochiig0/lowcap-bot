@@ -20,6 +20,7 @@ The current focus is manual operation: import a token candidate, score its narra
 - Notify Telegram only when a token is `S` rank and not hard rejected
 - Manually refresh `data/trend.json` with `pnpm trend:update`
 - Inspect one saved token with `pnpm token:show`
+- Compare one token's entry snapshot, current fields, and metrics with `pnpm token:compare`
 - Inspect saved tokens with `pnpm tokens:report`
 - Inspect one saved metric with `pnpm metric:show`
 - Inspect saved metrics with `pnpm metrics:report`
@@ -153,6 +154,12 @@ Inspect one token in detail, including `latestMetric` when present:
 pnpm token:show -- --mint <MINT>
 ```
 
+Compare one token's entry snapshot, current fields, and recent metrics:
+
+```bash
+pnpm token:compare -- --mint <MINT>
+```
+
 Inspect recent tokens with filters:
 
 ```bash
@@ -186,6 +193,7 @@ pnpm test
 Report notes:
 
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
+- `token:compare` returns `entrySnapshot`, current token fields, `latestMetric`, and up to 3 `recentMetrics`
 - `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
 - `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, and `--limit`
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
@@ -196,7 +204,7 @@ Report notes:
 2. Use `pnpm import:min` for the common manual intake path, or `pnpm import` when you also want group or metric args.
 3. Use `pnpm import:file` when the intake data already exists as one local JSON object.
 4. Add optional metric observations during import when you have them.
-5. Inspect the saved token with `pnpm token:show` or recent tokens with `pnpm tokens:report`.
+5. Inspect one saved token with `pnpm token:show` or `pnpm token:compare`, or inspect recent tokens with `pnpm tokens:report`.
 6. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
 7. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
 
@@ -212,6 +220,7 @@ It currently checks:
 - File wrapper import
 - Manual import with metric persistence
 - `token:show`
+- `token:compare`
 - `metric:show`
 - Trend update
 - Metrics report

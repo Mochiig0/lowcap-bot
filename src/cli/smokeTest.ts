@@ -380,6 +380,34 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("token compare", async () => {
+      const parsed = await runCliJson<{
+        mint: string;
+        latestMetric: { id: number } | null;
+        recentMetrics: Array<{ id: number }>;
+      }>(
+        "token compare",
+        "src/cli/tokenCompare.ts",
+        [
+          "--mint",
+          context.metricMint,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.mint !== context.metricMint) {
+        throw new Error("token compare returned unexpected mint");
+      }
+
+      if (!parsed.latestMetric) {
+        throw new Error("token compare did not include latestMetric");
+      }
+
+      if (parsed.recentMetrics.length === 0) {
+        throw new Error("token compare did not include recentMetrics");
+      }
+    });
+
     await runStep("metric show", async () => {
       if (context.metricId === null) {
         throw new Error("metric show missing smoke metric id");
