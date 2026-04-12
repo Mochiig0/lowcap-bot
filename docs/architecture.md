@@ -2,9 +2,16 @@
 
 ## Overview
 
-`lowcap-bot` is currently a CLI-first MVP.
+`lowcap-bot` is currently a CLI-first MVP centered on mint-driven accumulation.
 
-The main operational path is `pnpm import`, which takes one token candidate, runs the current scoring pipeline, stores results in SQLite through Prisma, and optionally sends a Telegram notification.
+The main operational paths are now split between:
+
+- `pnpm import` for full manual import with optional notify
+- `pnpm import:mint` for minimum mint-first accumulation
+- `pnpm token:enrich` for filling current token fields after mint-only intake
+- `pnpm token:rescore` for recomputing hard reject and score fields from current text
+- `pnpm metric:add` for adding outcome observations after intake
+- `pnpm token:compare` and `pnpm tokens:compare-report` for read-only comparison views
 
 `pnpm import:min` is a thin wrapper around that flow for the common manual intake case with only `mint`, `name`, `symbol`, and a few optional descriptive fields.
 
@@ -25,6 +32,68 @@ The main flow lives in `src/cli/import.ts` and runs in this order:
 5. Upsert `Dev` and `Token`
 6. Optionally create one `Metric`
 7. Notify Telegram only when the token is `S` rank and not hard rejected
+
+### Mint-Driven Accumulation Flow
+
+The mint-driven accumulation path is intentionally staged:
+
+1. `src/cli/importMint.ts`
+2. `src/cli/tokenEnrich.ts`
+3. `src/cli/tokenRescore.ts`
+4. `src/cli/metricAdd.ts`
+5. `src/cli/tokenCompare.ts` / `src/cli/tokensCompareReport.ts` for read-only inspection
+
+Current intent:
+
+- capture an early `entrySnapshot` as close to mint arrival as possible
+- keep current token fields separate from that initial entry view
+- add metrics later without forcing token mutation
+- inspect both entry and outcome side by side before adding interpretation logic
+
+### Mint-Only Intake Flow
+
+`src/cli/importMint.ts` creates the minimum `Token` row for mint-first accumulation.
+
+It:
+
+- requires only `mint`
+- optionally stores `source`
+- sets `metadataStatus` to `mint_only`
+- stores an initial `entrySnapshot`
+- does not score, notify, or create metrics
+
+### Enrich Flow
+
+`src/cli/tokenEnrich.ts` updates the current token fields after mint-only intake.
+
+It:
+
+- fills `name`, `symbol`, and optional `description`
+- rebuilds `normalizedText`
+- updates `metadataStatus` to `partial` or `enriched`
+- does not rescore automatically
+
+### Rescore Flow
+
+`src/cli/tokenRescore.ts` recomputes token evaluation from current fields.
+
+It:
+
+- requires an existing token with `name` and `symbol`
+- rebuilds normalized text
+- reruns hard reject checks and score calculation
+- stores updated score fields on `Token`
+
+### Metric Append Flow
+
+`src/cli/metricAdd.ts` appends one metric observation for an existing token.
+
+It:
+
+- requires `mint`
+- requires at least one metric value
+- creates one new `Metric` row
+- does not mutate `Token` score fields
 
 ### Minimal Intake Flow
 
@@ -70,6 +139,27 @@ It:
 - optionally filters by token mint
 - returns JSON with token metadata and metric fields
 
+### Comparison Flows
+
+`src/cli/tokenCompare.ts` is the single-token deep view.
+
+It returns:
+
+- `entrySnapshot`
+- current token fields
+- `latestMetric`
+- up to 3 `recentMetrics`
+
+`src/cli/tokensCompareReport.ts` is the multi-token comparison view.
+
+It returns:
+
+- one row per token
+- `entryScoreRank` from `entrySnapshot` when present
+- current score fields from `Token`
+- latest metric summary fields from the newest `Metric`
+- no automatic comments or judgments
+
 ### Smoke Flow
 
 `src/cli/smokeTest.ts` is a lightweight operational check, not a full test suite.
@@ -82,6 +172,8 @@ It checks:
 - file wrapper import
 - import with metric persistence
 - `token:show`
+- `token:compare`
+- `tokens:compare-report`
 - `metric:show`
 - trend update
 - metrics report
@@ -103,8 +195,12 @@ It also restores `data/trend.json` after the run and cleans up smoke-prefixed da
   - manual refresh for `data/trend.json`
 - `src/cli/tokenShow.ts`
   - read-only token inspection with latest metric summary
+- `src/cli/tokenCompare.ts`
+  - read-only single-token comparison view
 - `src/cli/tokensReport.ts`
   - read-only token inspection with basic filters
+- `src/cli/tokensCompareReport.ts`
+  - read-only multi-token comparison view
 - `src/cli/metricShow.ts`
   - read-only metric inspection for one row
 - `src/cli/metricsReport.ts`
@@ -136,8 +232,8 @@ It also restores `data/trend.json` after the run and cleans up smoke-prefixed da
 
 ### Shared Runtime
 
-- `src/db.ts`
-  - shared `PrismaClient`
+- `src/cli/db.ts`
+  - shared `PrismaClient` for CLI entrypoints
 - `src/index.ts`
   - CLI help hub
   - not a router and not the runtime entrypoint for the import flow
@@ -170,6 +266,8 @@ Current use:
 Current use:
 
 - token identity
+- initial `entrySnapshot`
+- current token metadata state via `metadataStatus`
 - source and grouping metadata
 - normalized text
 - hard reject result
@@ -183,9 +281,28 @@ Current use:
 Current use:
 
 - optional metric persistence during import
+- manual metric accumulation after mint-only intake
 - read-only inspection through `pnpm metrics:report`
+- latest-outcome lookup for comparison views
 
 It is intentionally created as separate rows so multiple observations can exist for the same token.
+
+## Snapshot Relationship
+
+The current comparison model uses three layers:
+
+1. `entrySnapshot`
+   stores how the token looked at the first mint-driven capture
+2. current `Token` fields
+   store the latest manually enriched and rescored state
+3. latest `Metric`
+   stores the newest observed outcome row for that token
+
+This is why:
+
+- `token:compare` can show "entry vs now vs latest metric" for one mint
+- `tokens:compare-report` can compare many tokens with a compact summary row
+- no automatic interpretation is required yet to inspect outcomes
 
 ## Runtime Inputs and Dependencies
 
@@ -216,4 +333,4 @@ If trend data is stale, trend keyword scoring is effectively disabled for that r
 - no review UI or operational UI
 - no full test framework
 - `src/index.ts` is a help hub, not a runtime entrypoint
-- the current operational center is still `pnpm import`
+- the current operational center is split between `pnpm import` and the mint-driven accumulation CLIs

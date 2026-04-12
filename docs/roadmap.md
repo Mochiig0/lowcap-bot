@@ -6,26 +6,30 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Keep docs and small tests synced with the current CLI-first MVP before expanding into larger automation work.
+Extend comparison-oriented read-only inspection without changing the mint-driven accumulation write path.
 
 Why this is now the most natural next step:
 
-- the manual import and inspection loop is now complete enough to use day-to-day
-- the first pure-function tests are in place, but status and roadmap docs should reflect the current baseline
-- the next safe step is to add small coverage or docs accuracy without jumping into scheduler or worker design
+- mint-only import, enrich, rescore, metric append, and comparison views are now in place
+- the repo can already capture "entry vs current vs outcome" for one token and as a compact multi-token report
+- the next safe step is to add more read-only comparison depth before moving into automation or notify logic
 
 ## Short-Term
 
+- Add the next read-only comparison slice only if it helps manual review:
+  - richer comparison report fields
+  - comparison filters or sort controls
+  - focused report variants for outcomes
 - Refresh or generate `data/trend.json` on a real cadence
 - Keep README and docs synced with CLI usage and JSON output fields
 - Add only small pure-function tests or smoke-check refinements when they improve manual operation
-- Document setup and execution steps in a top-level README or docs index
 
 ## Mid-Term
 
 - Add tests for:
   - scoring breakdown and rank thresholds
   - import CLI behavior
+- Clarify how comparison reports should evolve before adding interpretation or alerts
 - Clarify ranking policy and dictionary maintenance workflow
 - Define how `groupKey` and `groupNote` should affect duplicate handling or review grouping
 
@@ -44,6 +48,6 @@ Why this is now the most natural next step:
 - Complex UI
 - ML-based scoring
 
-The codebase is not at that stage yet; the current roadmap should stay aligned with the existing MVP architecture.
+The codebase is not at that stage yet; the current roadmap should stay aligned with the existing mint-driven accumulation MVP.
 
 For deferred ideas with high later value, see `docs/future-features.md`.
