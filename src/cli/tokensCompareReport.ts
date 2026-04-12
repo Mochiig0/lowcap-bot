@@ -6,6 +6,7 @@ type TokensCompareReportArgs = {
   rank?: string;
   source?: string;
   metadataStatus?: string;
+  hardRejected?: boolean;
   hasMetrics?: boolean;
   minMetricsCount?: number;
   minEntryScoreTotal?: number;
@@ -54,7 +55,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -155,6 +156,9 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
       case "--metadataStatus":
         out.metadataStatus = value === "" ? undefined : value;
         break;
+      case "--hardRejected":
+        out.hardRejected = parseBooleanArg(value, key);
+        break;
       case "--hasMetrics":
         out.hasMetrics = parseBooleanArg(value, key);
         break;
@@ -235,6 +239,9 @@ async function run(): Promise<void> {
       ...(args.rank ? { scoreRank: args.rank } : {}),
       ...(args.source ? { source: args.source } : {}),
       ...(args.metadataStatus ? { metadataStatus: args.metadataStatus } : {}),
+      ...(args.hardRejected !== undefined
+        ? { hardRejected: args.hardRejected }
+        : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: args.limit,
@@ -350,6 +357,7 @@ async function run(): Promise<void> {
           rank: args.rank ?? null,
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
+          hardRejected: args.hardRejected ?? null,
           hasMetrics: args.hasMetrics ?? null,
           minMetricsCount: args.minMetricsCount ?? null,
           minEntryScoreTotal: args.minEntryScoreTotal ?? null,
