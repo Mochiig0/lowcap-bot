@@ -113,6 +113,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `token:enrich` updates current token fields without rescoring
 - `token:rescore` recomputes current hard reject and score fields
 - `metric:add` appends one metric row without mutating token fields
+- `metric:add` is append-only; repeated submissions with the same values still create new `Metric` rows
 - `import:min` forwards the minimum manual intake fields into `import`
 - `import:min` parses `mint`, `name`, `symbol`, and optional `source`, `desc`, `dev`, then delegates to `src/cli/import.ts`
 - `import:file` reads one JSON object and forwards supported fields into `import`
@@ -154,9 +155,11 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - Scoring is entirely rule-based and file-backed
 - Trend scoring is currently ineffective unless `data/trend.json` is refreshed
 - Metrics are only stored when optional metric args are supplied manually
+- In `pnpm import`, optional metric number/date args still treat empty strings as `undefined` instead of usage errors
 - Trend updates must be triggered manually through the CLI
 - CLI output is JSON-first and intended for manual inspection, not a long-running app runtime
 - Comparison views are read-only summaries and do not include automatic interpretation
+- Comparison and report CLIs are read-only and do not send Telegram notifications
 
 ## Import Example
 

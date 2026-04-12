@@ -33,6 +33,10 @@ The main flow lives in `src/cli/import.ts` and runs in this order:
 6. Optionally create one `Metric`
 7. Notify Telegram only when the token is `S` rank and not hard rejected
 
+Current manual-operation note:
+
+- optional metric number/date args on `pnpm import` still treat empty strings as `undefined` instead of usage errors
+
 ### Mint-Driven Accumulation Flow
 
 The mint-driven accumulation path is intentionally staged:
@@ -95,6 +99,7 @@ It:
 - requires `mint`
 - requires at least one metric value
 - creates one new `Metric` row
+- is append-only, so repeated submissions with the same values still create new rows
 - does not mutate `Token` score fields
 
 ### Minimal Intake Flow
@@ -163,6 +168,8 @@ It returns:
 - current score fields from `Token`
 - latest metric summary fields from the newest `Metric`
 - no automatic comments or judgments
+
+These comparison/report CLIs remain read-only and do not send Telegram notifications.
 
 ### Smoke Flow
 
