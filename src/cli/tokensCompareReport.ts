@@ -8,6 +8,8 @@ type TokensCompareReportArgs = {
   metadataStatus?: string;
   hasMetrics?: boolean;
   minMetricsCount?: number;
+  minEntryScoreTotal?: number;
+  minCurrentScoreTotal?: number;
   sortBy?: SortField;
   sortOrder: SortOrder;
   limit: number;
@@ -52,7 +54,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -84,6 +86,19 @@ function parseNonNegativeIntArg(value: string, key: string): number {
 
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseNumberArg(value: string, key: string): number {
+  if (value === "") {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
     printUsageAndExit(`Invalid number for ${key}: ${value}`);
   }
 
@@ -145,6 +160,12 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--minMetricsCount":
         out.minMetricsCount = parseNonNegativeIntArg(value, key);
+        break;
+      case "--minEntryScoreTotal":
+        out.minEntryScoreTotal = parseNumberArg(value, key);
+        break;
+      case "--minCurrentScoreTotal":
+        out.minCurrentScoreTotal = parseNumberArg(value, key);
         break;
       case "--sortBy":
         out.sortBy = parseSortFieldArg(value, key);
@@ -285,6 +306,21 @@ async function run(): Promise<void> {
       return false;
     }
 
+    if (
+      args.minEntryScoreTotal !== undefined &&
+      (item.entryScoreTotal === null ||
+        item.entryScoreTotal < args.minEntryScoreTotal)
+    ) {
+      return false;
+    }
+
+    if (
+      args.minCurrentScoreTotal !== undefined &&
+      item.currentScoreTotal < args.minCurrentScoreTotal
+    ) {
+      return false;
+    }
+
     return true;
   });
 
@@ -316,6 +352,8 @@ async function run(): Promise<void> {
           metadataStatus: args.metadataStatus ?? null,
           hasMetrics: args.hasMetrics ?? null,
           minMetricsCount: args.minMetricsCount ?? null,
+          minEntryScoreTotal: args.minEntryScoreTotal ?? null,
+          minCurrentScoreTotal: args.minCurrentScoreTotal ?? null,
           sortBy: args.sortBy ?? null,
           sortOrder: args.sortOrder,
           limit: args.limit,
