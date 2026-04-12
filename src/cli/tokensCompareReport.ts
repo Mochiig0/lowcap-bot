@@ -6,12 +6,40 @@ type TokensCompareReportArgs = {
   rank?: string;
   source?: string;
   metadataStatus?: string;
+  sortBy?: SortField;
+  sortOrder: SortOrder;
   limit: number;
 };
+
+type SortField =
+  | "entryScoreTotal"
+  | "currentScoreTotal"
+  | "metricsCount"
+  | "latestPeakFdv24h"
+  | "latestMaxMultiple15m"
+  | "latestTimeToPeakMinutes";
+
+type SortOrder = "asc" | "desc";
 
 type EntrySnapshotView = {
   scoreRank: string | null;
   scoreTotal: number | null;
+};
+
+type CompareReportItem = {
+  mint: string;
+  name: string | null;
+  symbol: string | null;
+  metadataStatus: string;
+  entryScoreRank: string | null;
+  entryScoreTotal: number | null;
+  currentScoreRank: string;
+  currentScoreTotal: number;
+  metricsCount: number;
+  latestMetricObservedAt: string | null;
+  latestPeakFdv24h: number | null;
+  latestMaxMultiple15m: number | null;
+  latestTimeToPeakMinutes: number | null;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -22,7 +50,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -41,8 +69,34 @@ function parseLimitArg(value: string, key: string): number {
   return parsed;
 }
 
+function parseSortFieldArg(value: string, key: string): SortField {
+  const sortFields: SortField[] = [
+    "entryScoreTotal",
+    "currentScoreTotal",
+    "metricsCount",
+    "latestPeakFdv24h",
+    "latestMaxMultiple15m",
+    "latestTimeToPeakMinutes",
+  ];
+
+  if (sortFields.includes(value as SortField)) {
+    return value as SortField;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
+function parseSortOrderArg(value: string, key: string): SortOrder {
+  if (value === "asc" || value === "desc") {
+    return value;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
 function parseArgs(argv: string[]): TokensCompareReportArgs {
   const out: Partial<TokensCompareReportArgs> = {
+    sortOrder: "desc",
     limit: 20,
   };
 
@@ -64,6 +118,12 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--metadataStatus":
         out.metadataStatus = value === "" ? undefined : value;
+        break;
+      case "--sortBy":
+        out.sortBy = parseSortFieldArg(value, key);
+        break;
+      case "--sortOrder":
+        out.sortOrder = parseSortOrderArg(value, key);
         break;
       case "--limit":
         out.limit = parseLimitArg(value, key);
@@ -102,6 +162,20 @@ function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
     scoreRank: readOptionalString(entrySnapshot.scoreRank),
     scoreTotal: readOptionalNumber(entrySnapshot.scoreTotal),
   };
+}
+
+function compareNullableNumbers(
+  left: number | null,
+  right: number | null,
+  sortOrder: SortOrder,
+): number {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+
+  if (left === right) return 0;
+
+  return sortOrder === "asc" ? left - right : right - left;
 }
 
 async function run(): Promise<void> {
@@ -145,6 +219,47 @@ async function run(): Promise<void> {
     },
   });
 
+  const items = tokens.map((token): CompareReportItem => {
+    const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
+    const latestMetric = token.metrics[0] ?? null;
+
+    return {
+      mint: token.mint,
+      name: token.name,
+      symbol: token.symbol,
+      metadataStatus: token.metadataStatus,
+      entryScoreRank: entrySnapshot.scoreRank,
+      entryScoreTotal: entrySnapshot.scoreTotal,
+      currentScoreRank: token.scoreRank,
+      currentScoreTotal: token.scoreTotal,
+      metricsCount: token._count.metrics,
+      latestMetricObservedAt: latestMetric
+        ? latestMetric.observedAt.toISOString()
+        : null,
+      latestPeakFdv24h: latestMetric?.peakFdv24h ?? null,
+      latestMaxMultiple15m: latestMetric?.maxMultiple15m ?? null,
+      latestTimeToPeakMinutes: latestMetric?.timeToPeakMinutes ?? null,
+    };
+  });
+
+  if (args.sortBy) {
+    const sortBy = args.sortBy;
+
+    items.sort((left, right) => {
+      const byTarget = compareNullableNumbers(
+        left[sortBy],
+        right[sortBy],
+        args.sortOrder,
+      );
+
+      if (byTarget !== 0) {
+        return byTarget;
+      }
+
+      return left.mint.localeCompare(right.mint);
+    });
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -153,30 +268,11 @@ async function run(): Promise<void> {
           rank: args.rank ?? null,
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
+          sortBy: args.sortBy ?? null,
+          sortOrder: args.sortOrder,
           limit: args.limit,
         },
-        items: tokens.map((token) => {
-          const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
-          const latestMetric = token.metrics[0] ?? null;
-
-          return {
-            mint: token.mint,
-            name: token.name,
-            symbol: token.symbol,
-            metadataStatus: token.metadataStatus,
-            entryScoreRank: entrySnapshot.scoreRank,
-            entryScoreTotal: entrySnapshot.scoreTotal,
-            currentScoreRank: token.scoreRank,
-            currentScoreTotal: token.scoreTotal,
-            metricsCount: token._count.metrics,
-            latestMetricObservedAt: latestMetric
-              ? latestMetric.observedAt.toISOString()
-              : null,
-            latestPeakFdv24h: latestMetric?.peakFdv24h ?? null,
-            latestMaxMultiple15m: latestMetric?.maxMultiple15m ?? null,
-            latestTimeToPeakMinutes: latestMetric?.timeToPeakMinutes ?? null,
-          };
-        }),
+        items,
       },
       null,
       2,
