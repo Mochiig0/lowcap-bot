@@ -115,6 +115,8 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `metric:add` appends one metric row without mutating token fields
 - `import:min` forwards the minimum manual intake fields into `import`
 - `import:file` reads one JSON object and forwards supported fields into `import`
+- `import:file` expects exactly one JSON object with required `mint`, `name`, and `symbol`
+- `import:file` also accepts optional `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`
 - `token:show` returns `latestMetric` and `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and `recentMetrics`
 - `tokens:report` supports `rank`, `source`, and `hardRejected` filters

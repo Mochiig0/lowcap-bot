@@ -137,6 +137,8 @@ Sample payload: `examples/import-file.sample.json`
 
 Metric sample payload: `examples/import-file-with-metric.sample.json`
 
+`import:file` expects exactly one JSON object. Required fields are `mint`, `name`, and `symbol`. Supported optional fields are `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`.
+
 Import with one metric observation:
 
 ```bash
