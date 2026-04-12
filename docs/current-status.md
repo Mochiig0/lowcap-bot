@@ -118,6 +118,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `tokens:report` supports `rank`, `source`, and `hardRejected` filters
 - `tokens:report` returns `latestMetricObservedAt` and `metricsCount`
 - `tokens:compare-report` supports `rank`, `source`, `metadataStatus`, and `limit`
+- `tokens:compare-report` supports `hasMetrics` and `minMetricsCount` for observation-count filtering
 - `tokens:compare-report` supports `sortBy` and `sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`
 - `tokens:compare-report` returns entry-vs-outcome summary rows across multiple tokens, including `entryScoreTotal` and `metricsCount`
 - `metrics:report` supports `mint`, `tokenId`, `source`, and `rank` filters

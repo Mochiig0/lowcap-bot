@@ -6,6 +6,8 @@ type TokensCompareReportArgs = {
   rank?: string;
   source?: string;
   metadataStatus?: string;
+  hasMetrics?: boolean;
+  minMetricsCount?: number;
   sortBy?: SortField;
   sortOrder: SortOrder;
   limit: number;
@@ -50,7 +52,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -63,6 +65,25 @@ function parseLimitArg(value: string, key: string): number {
 
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
+function parseBooleanArg(value: string, key: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  printUsageAndExit(`Invalid boolean for ${key}: ${value}`);
+}
+
+function parseNonNegativeIntArg(value: string, key: string): number {
+  if (value === "") {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
     printUsageAndExit(`Invalid number for ${key}: ${value}`);
   }
 
@@ -118,6 +139,12 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--metadataStatus":
         out.metadataStatus = value === "" ? undefined : value;
+        break;
+      case "--hasMetrics":
+        out.hasMetrics = parseBooleanArg(value, key);
+        break;
+      case "--minMetricsCount":
+        out.minMetricsCount = parseNonNegativeIntArg(value, key);
         break;
       case "--sortBy":
         out.sortBy = parseSortFieldArg(value, key);
@@ -242,10 +269,29 @@ async function run(): Promise<void> {
     };
   });
 
+  const filteredItems = items.filter((item) => {
+    if (args.hasMetrics === true && item.metricsCount === 0) {
+      return false;
+    }
+
+    if (args.hasMetrics === false && item.metricsCount > 0) {
+      return false;
+    }
+
+    if (
+      args.minMetricsCount !== undefined &&
+      item.metricsCount < args.minMetricsCount
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
   if (args.sortBy) {
     const sortBy = args.sortBy;
 
-    items.sort((left, right) => {
+    filteredItems.sort((left, right) => {
       const byTarget = compareNullableNumbers(
         left[sortBy],
         right[sortBy],
@@ -268,11 +314,13 @@ async function run(): Promise<void> {
           rank: args.rank ?? null,
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
+          hasMetrics: args.hasMetrics ?? null,
+          minMetricsCount: args.minMetricsCount ?? null,
           sortBy: args.sortBy ?? null,
           sortOrder: args.sortOrder,
           limit: args.limit,
         },
-        items,
+        items: filteredItems,
       },
       null,
       2,
