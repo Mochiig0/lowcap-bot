@@ -7,6 +7,7 @@ type MetricsReportArgs = {
   tokenId?: number;
   source?: string;
   rank?: string;
+  hasPeakFdv24h?: boolean;
   sortBy?: SortField;
   sortOrder: SortOrder;
   limit: number;
@@ -47,7 +48,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--hasPeakFdv24h <true|false>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -102,6 +103,12 @@ function parseSortOrderArg(value: string, key: string): SortOrder {
   printUsageAndExit(`Invalid value for ${key}: ${value}`);
 }
 
+function parseBooleanArg(value: string, key: string): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  printUsageAndExit(`Invalid boolean for ${key}: ${value}`);
+}
+
 function compareNullableNumbers(
   left: number | null,
   right: number | null,
@@ -153,6 +160,9 @@ function parseArgs(argv: string[]): MetricsReportArgs {
       case "--rank":
         out.rank = value === "" ? undefined : value;
         break;
+      case "--hasPeakFdv24h":
+        out.hasPeakFdv24h = parseBooleanArg(value, key);
+        break;
       case "--sortBy":
         out.sortBy = parseSortFieldArg(value, key);
         break;
@@ -180,6 +190,11 @@ async function run(): Promise<void> {
     where: {
       ...(args.tokenId !== undefined ? { tokenId: args.tokenId } : {}),
       ...(args.source ? { source: args.source } : {}),
+      ...(args.hasPeakFdv24h !== undefined
+        ? {
+            peakFdv24h: args.hasPeakFdv24h ? { not: null } : null,
+          }
+        : {}),
       ...(args.mint || args.rank
         ? {
             token: {
@@ -264,6 +279,7 @@ async function run(): Promise<void> {
           tokenId: args.tokenId ?? null,
           source: args.source ?? null,
           rank: args.rank ?? null,
+          hasPeakFdv24h: args.hasPeakFdv24h ?? null,
           sortBy: args.sortBy ?? null,
           sortOrder: args.sortOrder,
           limit: args.limit,
