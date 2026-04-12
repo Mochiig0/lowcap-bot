@@ -11,10 +11,14 @@ type TokensCompareReportArgs = {
   minMetricsCount?: number;
   minEntryScoreTotal?: number;
   minCurrentScoreTotal?: number;
+  entryScoreRank?: ScoreRank;
+  currentScoreRank?: ScoreRank;
   sortBy?: SortField;
   sortOrder: SortOrder;
   limit: number;
 };
+
+type ScoreRank = "S" | "A" | "B" | "C";
 
 type SortField =
   | "entryScoreTotal"
@@ -55,7 +59,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -131,6 +135,16 @@ function parseSortOrderArg(value: string, key: string): SortOrder {
   printUsageAndExit(`Invalid value for ${key}: ${value}`);
 }
 
+function parseScoreRankArg(value: string, key: string): ScoreRank {
+  const scoreRanks: ScoreRank[] = ["S", "A", "B", "C"];
+
+  if (scoreRanks.includes(value as ScoreRank)) {
+    return value as ScoreRank;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
 function parseArgs(argv: string[]): TokensCompareReportArgs {
   const out: Partial<TokensCompareReportArgs> = {
     sortOrder: "desc",
@@ -170,6 +184,12 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--minCurrentScoreTotal":
         out.minCurrentScoreTotal = parseNumberArg(value, key);
+        break;
+      case "--entryScoreRank":
+        out.entryScoreRank = parseScoreRankArg(value, key);
+        break;
+      case "--currentScoreRank":
+        out.currentScoreRank = parseScoreRankArg(value, key);
         break;
       case "--sortBy":
         out.sortBy = parseSortFieldArg(value, key);
@@ -328,6 +348,20 @@ async function run(): Promise<void> {
       return false;
     }
 
+    if (
+      args.entryScoreRank !== undefined &&
+      item.entryScoreRank !== args.entryScoreRank
+    ) {
+      return false;
+    }
+
+    if (
+      args.currentScoreRank !== undefined &&
+      item.currentScoreRank !== args.currentScoreRank
+    ) {
+      return false;
+    }
+
     return true;
   });
 
@@ -362,6 +396,8 @@ async function run(): Promise<void> {
           minMetricsCount: args.minMetricsCount ?? null,
           minEntryScoreTotal: args.minEntryScoreTotal ?? null,
           minCurrentScoreTotal: args.minCurrentScoreTotal ?? null,
+          entryScoreRank: args.entryScoreRank ?? null,
+          currentScoreRank: args.currentScoreRank ?? null,
           sortBy: args.sortBy ?? null,
           sortOrder: args.sortOrder,
           limit: args.limit,

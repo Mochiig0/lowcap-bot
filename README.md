@@ -206,6 +206,7 @@ Report notes:
 - `tokens:compare-report` supports `--hardRejected` for filtering by current reject state
 - `tokens:compare-report` supports `--hasMetrics` and `--minMetricsCount` for filtering by observation count
 - `tokens:compare-report` supports `--minEntryScoreTotal` and `--minCurrentScoreTotal` for score-threshold filtering
+- `tokens:compare-report` supports `--entryScoreRank` and `--currentScoreRank` for exact rank filtering
 - `tokens:compare-report` supports `--sortBy` and `--sortOrder`; `null` sort targets are placed last
 - `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, and `--limit`
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
