@@ -193,7 +193,9 @@ async function run(): Promise<void> {
       args.sortBy === "observedAt"
         ? [{ observedAt: args.sortOrder }, { id: args.sortOrder }]
         : [{ observedAt: "desc" }, { id: "desc" }],
-    take: args.limit,
+    ...(args.sortBy === undefined || args.sortBy === "observedAt"
+      ? { take: args.limit }
+      : {}),
     include: {
       token: {
         select: {
@@ -251,10 +253,12 @@ async function run(): Promise<void> {
     });
   }
 
+  const limitedItems = items.slice(0, args.limit);
+
   console.log(
     JSON.stringify(
       {
-        count: metrics.length,
+        count: limitedItems.length,
         filters: {
           mint: args.mint ?? null,
           tokenId: args.tokenId ?? null,
@@ -264,7 +268,7 @@ async function run(): Promise<void> {
           sortOrder: args.sortOrder,
           limit: args.limit,
         },
-        items,
+        items: limitedItems,
       },
       null,
       2,
