@@ -22,6 +22,7 @@ The current focus is manual operation: import a token candidate, score its narra
 - Inspect one saved token with `pnpm token:show`
 - Compare one token's entry snapshot, current fields, and metrics with `pnpm token:compare`
 - Inspect saved tokens with `pnpm tokens:report`
+- Compare saved tokens side by side with `pnpm tokens:compare-report`
 - Inspect one saved metric with `pnpm metric:show`
 - Inspect saved metrics with `pnpm metrics:report`
 - Run a lightweight operational check with `pnpm smoke`
@@ -166,6 +167,12 @@ Inspect recent tokens with filters:
 pnpm tokens:report -- --rank S --source manual --hardRejected false --limit 10
 ```
 
+Inspect recent tokens as entry-vs-outcome comparison rows:
+
+```bash
+pnpm tokens:compare-report -- --metadataStatus enriched --limit 10
+```
+
 Inspect one metric in detail:
 
 ```bash
@@ -195,6 +202,7 @@ Report notes:
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `latestMetric`, and up to 3 `recentMetrics`
 - `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
+- `tokens:compare-report` returns comparison rows with `entryScoreRank`, current score fields, and latest metric summary fields
 - `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, and `--limit`
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
 
@@ -204,7 +212,7 @@ Report notes:
 2. Use `pnpm import:min` for the common manual intake path, or `pnpm import` when you also want group or metric args.
 3. Use `pnpm import:file` when the intake data already exists as one local JSON object.
 4. Add optional metric observations during import when you have them.
-5. Inspect one saved token with `pnpm token:show` or `pnpm token:compare`, or inspect recent tokens with `pnpm tokens:report`.
+5. Inspect one saved token with `pnpm token:show` or `pnpm token:compare`, or inspect recent tokens with `pnpm tokens:report` / `pnpm tokens:compare-report`.
 6. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
 7. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
 
@@ -221,6 +229,7 @@ It currently checks:
 - Manual import with metric persistence
 - `token:show`
 - `token:compare`
+- `tokens:compare-report`
 - `metric:show`
 - Trend update
 - Metrics report

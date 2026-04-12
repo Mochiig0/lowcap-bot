@@ -408,6 +408,39 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("tokens compare report", async () => {
+      const parsed = await runCliJson<{
+        count: number;
+        items: Array<{
+          mint: string;
+          latestMetricObservedAt: string | null;
+        }>;
+      }>(
+        "tokens compare report",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.count === 0) {
+        throw new Error("tokens compare report returned no rows");
+      }
+
+      const reportItem = parsed.items.find((item) => item.mint === context.metricMint);
+      if (!reportItem) {
+        throw new Error("tokens compare report did not include metric token");
+      }
+
+      if (!reportItem.latestMetricObservedAt) {
+        throw new Error("tokens compare report did not include latest metric summary");
+      }
+    });
+
     await runStep("metric show", async () => {
       if (context.metricId === null) {
         throw new Error("metric show missing smoke metric id");

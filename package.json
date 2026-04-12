@@ -22,6 +22,7 @@
     "token:compare": "tsx src/cli/tokenCompare.ts",
     "metric:add": "tsx src/cli/metricAdd.ts",
     "tokens:report": "tsx src/cli/tokensReport.ts",
+    "tokens:compare-report": "tsx src/cli/tokensCompareReport.ts",
     "metric:show": "tsx src/cli/metricShow.ts",
     "metrics:report": "tsx src/cli/metricsReport.ts",
     "smoke": "node --import tsx src/cli/smokeTest.ts",
