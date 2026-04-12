@@ -104,6 +104,7 @@ It:
 It:
 
 - accepts only the common minimum fields
+- parses `mint`, `name`, `symbol`, and optional `source`, `desc`, and `dev`
 - forwards them into `src/cli/import.ts`
 - reuses the existing scoring, persistence, and notification flow
 - does not add new schema, ingestion, or automation behavior
@@ -116,6 +117,7 @@ It:
 
 - reads one local JSON object from `--file`
 - validates the supported `import` fields
+- handles file-read and JSON-shape validation before delegation
 - forwards them into `src/cli/import.ts`
 - does not fetch external data or introduce scheduler behavior
 

@@ -114,7 +114,9 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `token:rescore` recomputes current hard reject and score fields
 - `metric:add` appends one metric row without mutating token fields
 - `import:min` forwards the minimum manual intake fields into `import`
+- `import:min` parses `mint`, `name`, `symbol`, and optional `source`, `desc`, `dev`, then delegates to `src/cli/import.ts`
 - `import:file` reads one JSON object and forwards supported fields into `import`
+- `import:file` parses `--file`, reads and validates one JSON object, then delegates the supported fields to `src/cli/import.ts`
 - `import:file` expects exactly one JSON object with required `mint`, `name`, and `symbol`
 - `import:file` also accepts optional `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`
 - `token:show` returns `latestMetric` and `metricsCount`
