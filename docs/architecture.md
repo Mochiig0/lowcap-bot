@@ -153,6 +153,22 @@ Not a runtime commitment today:
 - no adapter worker process
 - no scheduler, queue, or background orchestration
 
+Source-adapter operating rules:
+
+- add source adapters one source at a time, with one source-specific raw event shape per adapter
+- do not rush into a generic or multi-source adapter runtime while only one source-specific adapter exists
+- keep source-specific parse and mapping logic inside the adapter, not inside `import:mint` or `import:mint:file`
+- keep database writes centered on delegation into `import:mint` rather than adapter-owned write logic
+- do not broaden `import:mint:file` beyond the current minimal handoff payload wrapper shape
+- do not add scoring, notify, enrich, rescore, or metric creation behavior to source adapters
+- do not add pre-dedupe, parallel ingest, queueing, or worker-style runtime behavior before a clear operational need exists
+
+Before adding another source adapter, confirm that:
+
+- the source has a stable mint-first signal that can still normalize into `mint` plus optional `source`
+- the adapter can stay thinner than the full `pnpm import` path and delegate token creation into `import:mint`
+- the required behavior does not actually belong in read-only review/report flows, enrich/rescore stages, or future detector runtime design
+
 ### Enrich Flow
 
 `src/cli/tokenEnrich.ts` updates the current token fields after mint-only intake.
