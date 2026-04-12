@@ -45,3 +45,5 @@ Why this is now the most natural next step:
 - ML-based scoring
 
 The codebase is not at that stage yet; the current roadmap should stay aligned with the existing MVP architecture.
+
+For deferred ideas with high later value, see `docs/future-features.md`.
