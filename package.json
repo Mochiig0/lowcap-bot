@@ -16,6 +16,7 @@
     "import:min": "tsx src/cli/importMin.ts",
     "import:file": "tsx src/cli/importFile.ts",
     "trend:update": "tsx src/cli/updateTrend.ts",
+    "token:enrich": "tsx src/cli/tokenEnrich.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
     "tokens:report": "tsx src/cli/tokensReport.ts",
     "metric:show": "tsx src/cli/metricShow.ts",

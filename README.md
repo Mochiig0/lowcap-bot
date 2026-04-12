@@ -8,6 +8,7 @@ The current focus is manual operation: import a token candidate, score its narra
 
 - Manually import a token candidate with `pnpm import`
 - Create a mint-only token record with `pnpm import:mint`
+- Enrich a mint-only token record with `pnpm token:enrich`
 - Manually intake a token candidate with the thin `pnpm import:min` wrapper
 - Manually intake one JSON object from a file with `pnpm import:file`
 - Normalize text and run hard reject checks
@@ -96,6 +97,12 @@ Create one mint-only token record:
 
 ```bash
 pnpm import:mint -- --mint <MINT> --source manual
+```
+
+Enrich one existing token record:
+
+```bash
+pnpm token:enrich -- --mint <MINT> --name <NAME> --symbol <SYMBOL> --desc "manual enrich"
 ```
 
 Import one token candidate with the minimal wrapper:
