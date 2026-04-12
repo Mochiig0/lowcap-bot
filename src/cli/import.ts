@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { db } from "../db.js";
+import { db } from "./db.js";
 import { notifyTelegram } from "../notify/telegram.js";
 import { buildTargetText } from "../scoring/normalize.js";
 import { checkHardReject } from "../scoring/hardReject.js";

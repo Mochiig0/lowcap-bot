@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
-import { db } from "../db.js";
+import { db } from "./db.js";
 
 const execFileAsync = promisify(execFile);
 const TREND_PATH = "data/trend.json";
