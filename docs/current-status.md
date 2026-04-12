@@ -114,7 +114,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `import:min` forwards the minimum manual intake fields into `import`
 - `import:file` reads one JSON object and forwards supported fields into `import`
 - `token:show` returns `latestMetric` and `metricsCount`
-- `token:compare` returns `entrySnapshot`, current token fields, `latestMetric`, and `recentMetrics`
+- `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `latestMetric`, and `recentMetrics`
 - `tokens:report` supports `rank`, `source`, and `hardRejected` filters
 - `tokens:report` returns `latestMetricObservedAt` and `metricsCount`
 - `tokens:compare-report` supports `rank`, `source`, `metadataStatus`, and `limit`

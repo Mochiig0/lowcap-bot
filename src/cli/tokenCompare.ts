@@ -141,6 +141,11 @@ async function run(): Promise<void> {
       importedAt: true,
       enrichedAt: true,
       rescoredAt: true,
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
       metrics: {
         orderBy: [
           { observedAt: "desc" },
@@ -174,6 +179,7 @@ async function run(): Promise<void> {
   }
 
   const recentMetrics = token.metrics.map(toMetricView);
+  const metricsCount = token._count.metrics;
 
   console.log(
     JSON.stringify(
@@ -195,6 +201,8 @@ async function run(): Promise<void> {
           enrichedAt: token.enrichedAt?.toISOString() ?? null,
           rescoredAt: token.rescoredAt?.toISOString() ?? null,
         },
+        metricsCount,
+        hasMetrics: metricsCount >= 1,
         latestMetric: recentMetrics[0] ?? null,
         recentMetrics,
       },
