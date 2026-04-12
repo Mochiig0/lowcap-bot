@@ -39,7 +39,9 @@ function readRequiredArg(input: Partial<MetricAddArgs>, key: "mint"): string {
 }
 
 function parseOptionalNumberArg(value: string, key: string): number | undefined {
-  if (value === "") return undefined;
+  if (value === "") {
+    printUsageAndExit(`Invalid number for ${key}: ${value}`);
+  }
 
   const parsed = Number(value);
   if (Number.isNaN(parsed)) {
