@@ -25,6 +25,16 @@ type MetricView = {
   rawJson: unknown;
 };
 
+type EntryCompareView = {
+  name: string | null;
+  symbol: string | null;
+  description: string | null;
+  scoreTotal: number | null;
+  scoreRank: string | null;
+  hardRejected: boolean | null;
+  hardRejectReason: string | null;
+};
+
 function printUsageAndExit(message?: string): never {
   if (message) {
     console.error(`Error: ${message}`);
@@ -76,6 +86,46 @@ function parseArgs(argv: string[]): TokenCompareArgs {
 
   return {
     mint: readRequiredArg(out, "mint"),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readOptionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function readOptionalNumber(value: unknown): number | null {
+  return typeof value === "number" && !Number.isNaN(value) ? value : null;
+}
+
+function readOptionalBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function extractEntryCompareView(entrySnapshot: unknown): EntryCompareView {
+  if (!isRecord(entrySnapshot)) {
+    return {
+      name: null,
+      symbol: null,
+      description: null,
+      scoreTotal: null,
+      scoreRank: null,
+      hardRejected: null,
+      hardRejectReason: null,
+    };
+  }
+
+  return {
+    name: readOptionalString(entrySnapshot.name),
+    symbol: readOptionalString(entrySnapshot.symbol),
+    description: readOptionalString(entrySnapshot.description),
+    scoreTotal: readOptionalNumber(entrySnapshot.scoreTotal),
+    scoreRank: readOptionalString(entrySnapshot.scoreRank),
+    hardRejected: readOptionalBoolean(entrySnapshot.hardRejected),
+    hardRejectReason: readOptionalString(entrySnapshot.hardRejectReason),
   };
 }
 
@@ -180,6 +230,15 @@ async function run(): Promise<void> {
 
   const recentMetrics = token.metrics.map(toMetricView);
   const metricsCount = token._count.metrics;
+  const entryCompare = extractEntryCompareView(token.entrySnapshot);
+  const entryVsCurrentChanged =
+    entryCompare.name !== token.name ||
+    entryCompare.symbol !== token.symbol ||
+    entryCompare.description !== token.description ||
+    entryCompare.scoreTotal !== token.scoreTotal ||
+    entryCompare.scoreRank !== token.scoreRank ||
+    entryCompare.hardRejected !== token.hardRejected ||
+    entryCompare.hardRejectReason !== token.hardRejectReason;
 
   console.log(
     JSON.stringify(
@@ -203,6 +262,7 @@ async function run(): Promise<void> {
         },
         metricsCount,
         hasMetrics: metricsCount >= 1,
+        entryVsCurrentChanged,
         latestMetric: recentMetrics[0] ?? null,
         recentMetrics,
       },
