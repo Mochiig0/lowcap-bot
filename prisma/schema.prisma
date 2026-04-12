@@ -19,18 +19,23 @@ model Dev {
 model Token {
   id               Int      @id @default(autoincrement())
   mint             String   @unique
-  name             String
-  symbol           String
+  name             String?
+  symbol           String?
   description      String?
   source           String?
   groupKey         String?
   groupNote        String?
-  normalizedText   String
+  normalizedText   String?
   hardRejected     Boolean  @default(false)
   hardRejectReason String?
   scoreTotal       Int      @default(0)
   scoreRank        String   @default("C")
-  scoreBreakdown   Json
+  scoreBreakdown   Json?
+  entrySnapshot    Json?
+  importedAt       DateTime @default(now())
+  enrichedAt       DateTime?
+  rescoredAt       DateTime?
+  metadataStatus   String   @default("mint_only")
   devId            Int?
   dev              Dev?     @relation(fields: [devId], references: [id])
   metrics          Metric[]
@@ -39,19 +44,27 @@ model Token {
 
   @@index([scoreRank])
   @@index([groupKey])
+  @@index([metadataStatus])
 }
 
 model Metric {
-  id            Int      @id @default(autoincrement())
-  tokenId       Int
-  token         Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  id                   Int      @id @default(autoincrement())
+  tokenId              Int
+  token                Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
 
   // MVPで保存する観測値
+  launchPrice           Float?
+  peakPrice15m          Float?
+  peakPrice1h           Float?
   maxMultiple15m Float?
-  peakFdv24h     Float?
-  volume24h      Float?
-  peakFdv7d      Float?
-  volume7d       Float?
+  maxMultiple1h         Float?
+  peakFdv24h            Float?
+  volume24h             Float?
+  peakFdv7d             Float?
+  volume7d              Float?
+  timeToPeakMinutes     Int?
+  alertedAt             DateTime?
+  peakMultipleFromAlert Float?
 
   observedAt    DateTime @default(now())
   source        String?
