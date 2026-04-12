@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { db } from "../db.js";
+import { db } from "./db.js";
 
 type MetricShowArgs = {
   id: number;
