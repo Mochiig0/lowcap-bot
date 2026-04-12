@@ -166,8 +166,25 @@ Source-adapter operating rules:
 Before adding another source adapter, confirm that:
 
 - the source has a stable mint-first signal that can still normalize into `mint` plus optional `source`
+- the source really has a distinct raw event shape rather than just another file wrapper around the same handoff payload
+- there is a repeated manual need to ingest that source shape directly, not just a one-off local conversion
 - the adapter can stay thinner than the full `pnpm import` path and delegate token creation into `import:mint`
+- the adapter can still be kept as one source, one shape, and one thin wrapper
 - the required behavior does not actually belong in read-only review/report flows, enrich/rescore stages, or future detector runtime design
+
+Do not add a second source adapter yet when:
+
+- the request is really pushing toward generic or multi-source adapter behavior
+- the request starts mixing detector loop, queue, worker, or scheduler concerns into the adapter
+- the request wants pre-dedupe, parallel ingest, retry orchestration, or resumable runtime behavior
+- the request really wants the richer scoring, notify, metric, or full-import path instead of mint-only normalization
+
+Route requests away from a new adapter when they are really asking for:
+
+- detector runtime or polling logic
+- queue, worker, retry, or resume behavior
+- read-only review, comparison, or reporting improvements
+- enrich, rescore, metric, or notify expansion after mint-only intake
 
 ### Enrich Flow
 
