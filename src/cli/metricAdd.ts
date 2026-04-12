@@ -51,6 +51,11 @@ function parseOptionalNumberArg(value: string, key: string): number | undefined 
   return parsed;
 }
 
+function parseOptionalStringArg(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+}
+
 function parseArgs(argv: string[]): MetricAddArgs {
   const out: Partial<MetricAddArgs> = {};
 
@@ -68,7 +73,7 @@ function parseArgs(argv: string[]): MetricAddArgs {
         out.mint = value;
         break;
       case "--source":
-        out.source = value === "" ? undefined : value;
+        out.source = parseOptionalStringArg(value);
         break;
       case "--launchPrice":
         out.launchPrice = parseOptionalNumberArg(value, key);
