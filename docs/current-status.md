@@ -7,7 +7,7 @@ This repository is an MVP for mint-driven token accumulation, enrichment, rescor
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash
-pnpm import -- --mint <MINT> --name <NAME> --symbol <SYM> [--desc ...] [--dev ...] [--groupKey ...] [--groupNote ...] [--source ...]
+pnpm import -- --mint <MINT> --name <NAME> --symbol <SYM> [--desc ...] [--dev ...] [--groupKey ...] [--groupNote ...] [--source ...] [--maxMultiple15m ...] [--peakFdv24h ...] [--volume24h ...] [--peakFdv7d ...] [--volume7d ...] [--metricSource ...] [--observedAt ...]
 ```
 
 ```bash
