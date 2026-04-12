@@ -1,0 +1,11 @@
+{
+  "source": "future-launch-feed-sample",
+  "eventType": "token_detected",
+  "detectedAt": "2026-04-13T00:00:00.000Z",
+  "payload": {
+    "mintAddress": "So11111111111111111111111111111111111111112",
+    "symbolHint": "WSOL",
+    "nameHint": "Wrapped SOL",
+    "channelMessageId": "sample-123"
+  }
+}

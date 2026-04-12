@@ -68,6 +68,91 @@ It:
 - returns `created: false` on normal sequential re-runs for an existing mint
 - can still hit a unique-constraint race on `mint` if the same mint is submitted concurrently
 
+### Mint-Only Ingest Boundary
+
+The mint-only ingest boundary is currently limited to `pnpm import:mint` and `pnpm import:mint:file`.
+
+Within that boundary:
+
+- `pnpm import:mint` owns the minimum mint-only token base creation
+- `pnpm import:mint:file` owns file read, JSON validation, sequential iteration, and delegation into `pnpm import:mint`
+- the accepted ingest payload is still intentionally narrow: `mint` plus optional `source`
+
+Outside that boundary:
+
+- future detector or source-adapter code should only discover or normalize mint-first intake candidates, then hand off into `import:mint` or `import:mint:file`
+- detector or adapter code should not take over scoring, notify, metric creation, enrich, or rescore responsibilities
+- detector or adapter code should not introduce worker, scheduler, or queue behavior at this stage
+
+Boundary rules:
+
+- keep semi-automatic mint intake separate from read-only CLI responsibilities such as `token:compare`, `tokens:compare-report`, and `metrics:report`
+- keep Telegram notify on the full `pnpm import` path only
+- keep detect-to-mint-only handoff narrow: produce mint-first inputs, then delegate into the existing mint-only entrypoints
+- avoid mixing review/report logic into ingest wrappers, and avoid mixing ingest-side mutation into read-only inspection CLIs
+
+Minimal handoff payload:
+
+- the current minimum detector-to-ingest payload candidate is `mint` plus optional `source`
+- ingest should only require the minimum information needed to create the mint-only token base
+- do not put score fields, notify-related fields, enriched metadata, metric fields, or review status into this handoff payload
+
+Payload shape split:
+
+- `import:mint` accepts CLI args for one mint-only intake: `mint` plus optional `source`
+- `import:mint:file` accepts one file-backed wrapper shape: `{ "items": [{ "mint": "...", "source"?: "..." }] }`
+- future detector or source-adapter code does not need to own the file wrapper shape itself; it only needs to produce the same minimum mint-first payload before handoff
+- `examples/detect-mint-handoff.sample.json` is only a concrete sample of that minimum handoff contract, not a runtime API or a replacement for the `import:mint:file` wrapper shape
+- `examples/source-event-to-mint-handoff.sample.json` is a source-side mapping example: the raw source event is adapter input, while the minimal handoff payload is the separate ingest contract
+- `pnpm import:mint:source-file` is one source-specific adapter wrapper outside the ingest boundary; it normalizes one raw event object before delegating into `import:mint`
+
+Detect-to-mint-only handoff principles:
+
+- hand off only the minimum stable identifier and optional source attribution
+- keep payload semantics independent from scoring, review, and notification decisions
+- prefer extending downstream stages such as enrich, rescore, metric, or read-only review instead of widening the ingest payload too early
+
+Current batch error-handling policy:
+
+- `import:mint:file` should currently be treated as sequential and fail-fast
+- duplicate mints in one batch are not rejected up front; they are processed in order, so later duplicates normally surface as `created: false`
+- re-running the same batch should currently be expected to shift results toward `existingCount` rather than produce a special rerun mode
+- success output is only the current summary shape: `{ file, count, createdCount, existingCount, items }`
+- there is no `failedCount` or partial-success summary contract today
+- validation errors or child import failures currently end the run with a non-zero exit before any final batch summary is emitted
+
+Current expectations for future detector or source-adapter code:
+
+- treat the current handoff as "submit minimum mint-first inputs and observe process success or failure", not as a resumable batch job API
+- do not assume retry, resume, queueing, worker recovery, or per-item failure accounting at this boundary yet
+- keep retry or resume policy outside the current mint-only ingest boundary until that behavior is explicitly designed
+
+Detector / source-adapter responsibility memo:
+
+- detector responsibility: identify mint-first intake candidates early and decide what should be handed off for mint-only accumulation
+- source-adapter responsibility: normalize source-specific input into the minimum handoff payload shape expected by the mint-only ingest boundary
+- mint-only ingest responsibility: accept the minimum mint-first payload, create the mint-only token base, and return the current batch or single-item result
+
+Keep out of detector or adapter scope for now:
+
+- scoring or hard-reject decisions
+- Telegram notify behavior
+- enrich or rescore behavior
+- metric creation or outcome tracking
+- review, comparison, or report concerns
+
+Minimal connection image:
+
+- detector finds a candidate
+- source adapter normalizes it to `mint` plus optional `source`
+- ingest hands that payload into `import:mint` or into the file-backed `import:mint:file` wrapper shape when batching is needed
+
+Not a runtime commitment today:
+
+- no detector runtime loop
+- no adapter worker process
+- no scheduler, queue, or background orchestration
+
 ### Enrich Flow
 
 `src/cli/tokenEnrich.ts` updates the current token fields after mint-only intake.
@@ -261,6 +346,39 @@ It also restores `data/trend.json` after the run and cleans up smoke-prefixed da
   - trend keywords with `generatedAt` and `ttlHours`
 
 ## Data Model
+
+### Schema Growth Guardrails
+
+Until a real runtime needs them, avoid expanding the Prisma schema for detector-, review-, or alert-oriented concepts too early.
+
+Do not add new schema fields yet for things like:
+
+- review status or review notes
+- extra alert-tracking fields beyond the current metric fields
+- source trace or detector-specific metadata
+- expanded scam flag / scam score columns beyond the current hard-reject and score fields
+- extra helper columns that only support manual observation or review workflow
+
+Why not now:
+
+- the current mint-only ingest boundary is intentionally narrow
+- detector, scheduler, queue, and worker runtime behavior does not exist yet
+- read-only comparison/report flows should stay separate from ingest and schema growth
+- adding columns before a stable runtime need exists would harden concepts that are still operationally unclear
+
+What to use instead for now:
+
+- docs for boundary and operational rules
+- source-side payloads or local files for pre-ingest context
+- temporary operational notes when the information is only for manual review
+- later runtime design review when a field becomes necessary for persistence, querying, or handoff contracts
+
+If one future addition becomes necessary first, the most natural candidate is a narrowly scoped ingest-provenance field only after source attribution needs to be queried or replayed reliably across runs.
+
+Schema-change gate:
+
+- add a new field only if the value must survive process boundaries, must be queried repeatedly, and cannot be kept cleaner in docs, payloads, or downstream runtime design
+- avoid adding fields that mix ingest, review, scoring, and notification concerns into the same model too early
 
 ### Dev
 

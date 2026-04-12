@@ -18,6 +18,10 @@ type SmokeContext = {
   smokeId: string;
   basicMint: string;
   mintOnlyMint: string;
+  mintBatchMints: [string, string];
+  mintBatchDuplicateMint: string;
+  mintBatchRerunMints: [string, string];
+  mintSourceEventMint: string;
   minMint: string;
   fileMint: string;
   metricMint: string;
@@ -26,6 +30,10 @@ type SmokeContext = {
   trendRaw: string;
   trendGeneratedAt: string;
   fileImportPath: string;
+  mintBatchFilePath: string;
+  mintBatchDuplicateFilePath: string;
+  mintBatchRerunFilePath: string;
+  mintSourceEventFilePath: string;
 };
 
 function logStep(message: string): void {
@@ -116,6 +124,10 @@ async function cleanup(context: SmokeContext): Promise<void> {
         in: [
           context.basicMint,
           context.mintOnlyMint,
+          ...context.mintBatchMints,
+          context.mintBatchDuplicateMint,
+          ...context.mintBatchRerunMints,
+          context.mintSourceEventMint,
           context.minMint,
           context.fileMint,
           context.metricMint,
@@ -144,6 +156,10 @@ async function cleanup(context: SmokeContext): Promise<void> {
         in: [
           context.basicMint,
           context.mintOnlyMint,
+          ...context.mintBatchMints,
+          context.mintBatchDuplicateMint,
+          ...context.mintBatchRerunMints,
+          context.mintSourceEventMint,
           context.minMint,
           context.fileMint,
           context.metricMint,
@@ -159,6 +175,10 @@ async function cleanup(context: SmokeContext): Promise<void> {
   });
 
   await rm(context.fileImportPath, { force: true });
+  await rm(context.mintBatchFilePath, { force: true });
+  await rm(context.mintBatchDuplicateFilePath, { force: true });
+  await rm(context.mintBatchRerunFilePath, { force: true });
+  await rm(context.mintSourceEventFilePath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -171,6 +191,16 @@ async function run(): Promise<void> {
     smokeId,
     basicMint: `${smokeId}_BASIC`,
     mintOnlyMint: `${smokeId}_MINTONLY`,
+    mintBatchMints: [
+      `${smokeId}_MINTBATCH1`,
+      `${smokeId}_MINTBATCH2`,
+    ],
+    mintBatchDuplicateMint: `${smokeId}_MINTBATCH_DUP`,
+    mintBatchRerunMints: [
+      `${smokeId}_MINTBATCH_RERUN1`,
+      `${smokeId}_MINTBATCH_RERUN2`,
+    ],
+    mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
     metricMint: `${smokeId}_METRIC`,
@@ -179,6 +209,10 @@ async function run(): Promise<void> {
     trendRaw: await readFile(TREND_PATH, "utf-8"),
     trendGeneratedAt: "",
     fileImportPath: `/tmp/${smokeId}-import-file.json`,
+    mintBatchFilePath: `/tmp/${smokeId}-import-mint-file.json`,
+    mintBatchDuplicateFilePath: `/tmp/${smokeId}-import-mint-file-duplicate.json`,
+    mintBatchRerunFilePath: `/tmp/${smokeId}-import-mint-file-rerun.json`,
+    mintSourceEventFilePath: `/tmp/${smokeId}-import-mint-source-file.json`,
   };
 
   try {
@@ -265,6 +299,320 @@ async function run(): Promise<void> {
 
       if (second.created !== false) {
         throw new Error("mint-only rerun did not return created=false");
+      }
+    });
+
+    await runStep("mint-only batch file import", async () => {
+      await writeFile(
+        context.mintBatchFilePath,
+        `${JSON.stringify(
+          {
+            items: context.mintBatchMints.map((mint) => ({
+              mint,
+              source: "smoke-test",
+            })),
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const parsed = await runCliJson<{
+        count: number;
+        createdCount: number;
+        existingCount: number;
+        items: Array<{
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+          requestedSource: string | null;
+        }>;
+      }>(
+        "mint-only batch file import",
+        "src/cli/importMintFile.ts",
+        [
+          "--file",
+          context.mintBatchFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.count !== 2) {
+        throw new Error("mint-only batch file import returned unexpected count");
+      }
+
+      if (parsed.createdCount !== 2 || parsed.existingCount !== 0) {
+        throw new Error("mint-only batch file import returned unexpected summary");
+      }
+
+      for (const mint of context.mintBatchMints) {
+        const item = parsed.items.find((entry) => entry.mint === mint);
+        if (!item) {
+          throw new Error("mint-only batch file import summary missed an item");
+        }
+
+        if (item.metadataStatus !== "mint_only") {
+          throw new Error("mint-only batch file import returned unexpected metadataStatus");
+        }
+
+        if (item.created !== true || item.requestedSource !== "smoke-test") {
+          throw new Error("mint-only batch file import returned unexpected item summary");
+        }
+      }
+
+      const tokens = await db.token.findMany({
+        where: {
+          mint: {
+            in: context.mintBatchMints,
+          },
+        },
+        select: {
+          mint: true,
+          source: true,
+          metadataStatus: true,
+        },
+      });
+
+      if (tokens.length !== 2) {
+        throw new Error("mint-only batch file import did not save both tokens");
+      }
+
+      for (const token of tokens) {
+        if (token.source !== "smoke-test") {
+          throw new Error("mint-only batch file import did not persist source");
+        }
+
+        if (token.metadataStatus !== "mint_only") {
+          throw new Error("mint-only batch file import did not persist mint_only status");
+        }
+      }
+    });
+
+    await runStep("mint-only batch file duplicate mint", async () => {
+      await writeFile(
+        context.mintBatchDuplicateFilePath,
+        `${JSON.stringify(
+          {
+            items: [
+              {
+                mint: context.mintBatchDuplicateMint,
+                source: "smoke-test",
+              },
+              {
+                mint: context.mintBatchDuplicateMint,
+                source: "smoke-test",
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const parsed = await runCliJson<{
+        count: number;
+        createdCount: number;
+        existingCount: number;
+        items: Array<{
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+          requestedSource: string | null;
+        }>;
+      }>(
+        "mint-only batch file duplicate mint",
+        "src/cli/importMintFile.ts",
+        [
+          "--file",
+          context.mintBatchDuplicateFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.count !== 2) {
+        throw new Error("mint-only batch duplicate returned unexpected count");
+      }
+
+      if (parsed.createdCount !== 1 || parsed.existingCount !== 1) {
+        throw new Error("mint-only batch duplicate returned unexpected summary");
+      }
+
+      if (parsed.items.length !== 2) {
+        throw new Error("mint-only batch duplicate returned unexpected item count");
+      }
+
+      const [first, second] = parsed.items;
+
+      if (
+        first.mint !== context.mintBatchDuplicateMint ||
+        first.metadataStatus !== "mint_only" ||
+        first.created !== true ||
+        first.requestedSource !== "smoke-test"
+      ) {
+        throw new Error("mint-only batch duplicate first item was unexpected");
+      }
+
+      if (
+        second.mint !== context.mintBatchDuplicateMint ||
+        second.metadataStatus !== "mint_only" ||
+        second.created !== false ||
+        second.requestedSource !== "smoke-test"
+      ) {
+        throw new Error("mint-only batch duplicate second item was unexpected");
+      }
+    });
+
+    await runStep("mint-only batch file rerun", async () => {
+      await writeFile(
+        context.mintBatchRerunFilePath,
+        `${JSON.stringify(
+          {
+            items: context.mintBatchRerunMints.map((mint) => ({
+              mint,
+              source: "smoke-test",
+            })),
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const first = await runCliJson<{
+        count: number;
+        createdCount: number;
+        existingCount: number;
+      }>(
+        "mint-only batch file rerun first pass",
+        "src/cli/importMintFile.ts",
+        [
+          "--file",
+          context.mintBatchRerunFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (first.count !== 2 || first.createdCount !== 2 || first.existingCount !== 0) {
+        throw new Error("mint-only batch rerun first pass returned unexpected summary");
+      }
+
+      const second = await runCliJson<{
+        count: number;
+        createdCount: number;
+        existingCount: number;
+        items: Array<{
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+          requestedSource: string | null;
+        }>;
+      }>(
+        "mint-only batch file rerun second pass",
+        "src/cli/importMintFile.ts",
+        [
+          "--file",
+          context.mintBatchRerunFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (second.count !== 2 || second.createdCount !== 0 || second.existingCount !== 2) {
+        throw new Error("mint-only batch rerun second pass returned unexpected summary");
+      }
+
+      for (const item of second.items) {
+        if (!context.mintBatchRerunMints.includes(item.mint)) {
+          throw new Error("mint-only batch rerun returned unexpected mint");
+        }
+
+        if (
+          item.metadataStatus !== "mint_only" ||
+          item.created !== false ||
+          item.requestedSource !== "smoke-test"
+        ) {
+          throw new Error("mint-only batch rerun returned unexpected item summary");
+        }
+      }
+    });
+
+    await runStep("mint-only source event file import", async () => {
+      await writeFile(
+        context.mintSourceEventFilePath,
+        `${JSON.stringify(
+          {
+            source: "smoke-test-source-event",
+            eventType: "token_detected",
+            detectedAt: "2026-04-13T00:00:00.000Z",
+            payload: {
+              mintAddress: context.mintSourceEventMint,
+              symbolHint: "SMKS",
+              nameHint: "smoke source event",
+              channelMessageId: "smoke-source-event-1",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const parsed = await runCliJson<{
+        handoffPayload: {
+          mint: string;
+          source: string;
+        };
+        result: {
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+        };
+      }>(
+        "mint-only source event file import",
+        "src/cli/importMintSourceFile.ts",
+        [
+          "--file",
+          context.mintSourceEventFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.handoffPayload.mint !== context.mintSourceEventMint) {
+        throw new Error("mint-only source event handoff returned unexpected mint");
+      }
+
+      if (parsed.handoffPayload.source !== "smoke-test-source-event") {
+        throw new Error("mint-only source event handoff returned unexpected source");
+      }
+
+      if (
+        parsed.result.mint !== context.mintSourceEventMint ||
+        parsed.result.metadataStatus !== "mint_only" ||
+        parsed.result.created !== true
+      ) {
+        throw new Error("mint-only source event import returned unexpected result");
+      }
+
+      const token = await db.token.findUnique({
+        where: { mint: context.mintSourceEventMint },
+        select: {
+          mint: true,
+          source: true,
+          metadataStatus: true,
+        },
+      });
+
+      if (!token) {
+        throw new Error("mint-only source event import did not save the token");
+      }
+
+      if (token.source !== "smoke-test-source-event") {
+        throw new Error("mint-only source event import did not persist source");
+      }
+
+      if (token.metadataStatus !== "mint_only") {
+        throw new Error("mint-only source event import did not persist mint_only status");
       }
     });
 

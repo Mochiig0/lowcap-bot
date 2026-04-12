@@ -8,6 +8,8 @@ The current focus is manual operation: import a token candidate, score its narra
 
 - Manually import a token candidate with `pnpm import`
 - Create a mint-only token record with `pnpm import:mint`
+- Create multiple mint-only token records from one JSON file with `pnpm import:mint:file`
+- Create one mint-only token record from one source-specific raw event file with `pnpm import:mint:source-file`
 - Enrich a mint-only token record with `pnpm token:enrich`
 - Rescore one token from current fields with `pnpm token:rescore`
 - Append one metric row with `pnpm metric:add`
@@ -103,6 +105,22 @@ Create one mint-only token record:
 pnpm import:mint -- --mint <MINT> --source manual
 ```
 
+Create multiple mint-only token records from one JSON file:
+
+```bash
+pnpm import:mint:file -- --file ./examples/import-mint-file.sample.json
+```
+
+Sample payload: `examples/import-mint-file.sample.json`
+
+Create one mint-only token record from one source-specific raw event file:
+
+```bash
+pnpm import:mint:source-file -- --file ./examples/import-mint-source-file.sample.json
+```
+
+Sample payload: `examples/import-mint-source-file.sample.json`
+
 Enrich one existing token record:
 
 ```bash
@@ -138,6 +156,12 @@ Sample payload: `examples/import-file.sample.json`
 Metric sample payload: `examples/import-file-with-metric.sample.json`
 
 `import:file` expects exactly one JSON object. Required fields are `mint`, `name`, and `symbol`. Supported optional fields are `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`.
+
+`import:mint:file` expects exactly one JSON object with an `items` array. Each item must contain `mint` and may contain `source`.
+
+On success, `import:mint:file` returns JSON with `file`, `count`, `createdCount`, `existingCount`, and `items`. It processes items sequentially, so duplicate mints in the same file typically return `created: true` for the first item and `created: false` for later duplicates. Re-running the same file returns `existingCount` for already imported mints. There is no `failedCount` summary today; validation errors or child import failures exit non-zero before a final summary is printed.
+
+`import:mint:source-file` expects one source-specific raw event object, normalizes it to the same minimal handoff payload used by `import:mint`, and returns `{ file, sourceEvent, handoffPayload, result }`. It is not a replacement for `import:mint:file`, which still accepts only the file-backed `{ items: [...] }` handoff wrapper.
 
 Import with one metric observation:
 
@@ -205,6 +229,9 @@ Import notes:
 - `pnpm import:min` is a thin wrapper that parses the minimum manual fields and delegates them to `src/cli/import.ts`.
 - `pnpm import:file` is a thin wrapper that reads a file, parses and validates one JSON object, then delegates supported fields to `src/cli/import.ts`.
 - `pnpm import:mint` is a separate mint-only entrypoint that creates the initial token base without running the full import flow.
+- `pnpm import:mint:file` is a thin wrapper that reads a file, validates `{ items: [{ mint, source? }] }`, and delegates each item sequentially to `src/cli/importMint.ts`.
+- `pnpm import:mint:file` success output is `{ file, count, createdCount, existingCount, items }`; duplicate mints and file re-runs are reflected through per-item `created` plus `createdCount` / `existingCount`.
+- `pnpm import:mint:source-file` is a source-specific adapter wrapper that reads one raw event, normalizes it to `{ mint, source? }`, and delegates the result into `src/cli/importMint.ts`.
 
 Report notes:
 
@@ -225,10 +252,11 @@ Report notes:
 1. Refresh trend keywords if needed.
 2. Use `pnpm import:min` for the common manual intake path, or `pnpm import` when you also want group or metric args.
 3. Use `pnpm import:file` when the intake data already exists as one local JSON object.
-4. Add optional metric observations during import when you have them.
-5. Inspect one saved token with `pnpm token:show` or `pnpm token:compare`, or inspect recent tokens with `pnpm tokens:report` / `pnpm tokens:compare-report`.
-6. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
-7. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
+4. Use `pnpm import:mint:file` when mint-only intake data already exists as one local JSON object with an `items` array.
+5. Add optional metric observations during import when you have them.
+6. Inspect one saved token with `pnpm token:show` or `pnpm token:compare`, or inspect recent tokens with `pnpm tokens:report` / `pnpm tokens:compare-report`.
+7. Inspect stored metric rows with `pnpm metric:show` or `pnpm metrics:report`.
+8. Run `pnpm smoke` after changes to confirm the core CLI flows still work.
 
 ## What `pnpm smoke` Checks
 
@@ -239,6 +267,8 @@ It currently checks:
 - TypeScript typecheck
 - Basic manual import
 - Mint-only import rerun returning `created: false` on sequential re-run
+- Mint-only batch file import
+- Mint-only source-event file import
 - Minimal wrapper import
 - File wrapper import
 - Manual import with metric persistence
@@ -261,6 +291,7 @@ Operational behavior:
 - `src/index.ts` is a CLI guide hub, not a router
 - `pnpm import:min` is a thin wrapper over `pnpm import` for the common manual intake case
 - `pnpm import:file` is a thin wrapper over `pnpm import` for one local JSON object
+- `pnpm import:mint:file` is a thin wrapper over `pnpm import:mint` for one local JSON object with an `items` array
 - the main operational entrypoint is still `pnpm import`
 - trend scoring depends on a fresh `data/trend.json`
 - this repo is still optimized for manual operation, not automation
