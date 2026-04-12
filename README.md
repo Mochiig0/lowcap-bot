@@ -238,9 +238,11 @@ It currently checks:
 
 - TypeScript typecheck
 - Basic manual import
+- Mint-only import rerun returning `created: false` on sequential re-run
 - Minimal wrapper import
 - File wrapper import
 - Manual import with metric persistence
+- `metric:add` append-only behavior for repeated submissions
 - `token:show`
 - `token:compare`
 - `tokens:compare-report`

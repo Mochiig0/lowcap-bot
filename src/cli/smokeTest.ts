@@ -17,6 +17,7 @@ type CommandResult = {
 type SmokeContext = {
   smokeId: string;
   basicMint: string;
+  mintOnlyMint: string;
   minMint: string;
   fileMint: string;
   metricMint: string;
@@ -112,7 +113,13 @@ async function cleanup(context: SmokeContext): Promise<void> {
   const tokens = await db.token.findMany({
     where: {
       mint: {
-        in: [context.basicMint, context.minMint, context.fileMint, context.metricMint],
+        in: [
+          context.basicMint,
+          context.mintOnlyMint,
+          context.minMint,
+          context.fileMint,
+          context.metricMint,
+        ],
       },
     },
     select: {
@@ -134,7 +141,13 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await db.token.deleteMany({
     where: {
       mint: {
-        in: [context.basicMint, context.minMint, context.fileMint, context.metricMint],
+        in: [
+          context.basicMint,
+          context.mintOnlyMint,
+          context.minMint,
+          context.fileMint,
+          context.metricMint,
+        ],
       },
     },
   });
@@ -157,6 +170,7 @@ async function run(): Promise<void> {
   const context: SmokeContext = {
     smokeId,
     basicMint: `${smokeId}_BASIC`,
+    mintOnlyMint: `${smokeId}_MINTONLY`,
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
     metricMint: `${smokeId}_METRIC`,
@@ -203,6 +217,54 @@ async function run(): Promise<void> {
       });
       if (!token) {
         throw new Error("basic import token was not saved");
+      }
+    });
+
+    await runStep("mint-only rerun", async () => {
+      const first = await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "mint-only first import",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.mintOnlyMint,
+          "--source",
+          "smoke-test",
+        ],
+        context.smokeId,
+      );
+
+      if (first.mint !== context.mintOnlyMint) {
+        throw new Error("mint-only first import returned unexpected mint");
+      }
+
+      if (first.created !== true) {
+        throw new Error("mint-only first import did not create the token");
+      }
+
+      const second = await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "mint-only rerun",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.mintOnlyMint,
+          "--source",
+          "smoke-test",
+        ],
+        context.smokeId,
+      );
+
+      if (second.mint !== context.mintOnlyMint) {
+        throw new Error("mint-only rerun returned unexpected mint");
+      }
+
+      if (second.created !== false) {
+        throw new Error("mint-only rerun did not return created=false");
       }
     });
 
@@ -355,6 +417,72 @@ async function run(): Promise<void> {
       }
 
       context.metricId = metricToken.metrics[0].id;
+    });
+
+    await runStep("metric append-only", async () => {
+      const before = await db.metric.count({
+        where: {
+          token: {
+            mint: context.metricMint,
+          },
+        },
+      });
+
+      const first = await runCliJson<{
+        id: number;
+        mint: string;
+      }>(
+        "metric append-only first",
+        "src/cli/metricAdd.ts",
+        [
+          "--mint",
+          context.metricMint,
+          "--maxMultiple15m",
+          "2.4",
+          "--source",
+          "smoke-test",
+        ],
+        context.smokeId,
+      );
+
+      const second = await runCliJson<{
+        id: number;
+        mint: string;
+      }>(
+        "metric append-only second",
+        "src/cli/metricAdd.ts",
+        [
+          "--mint",
+          context.metricMint,
+          "--maxMultiple15m",
+          "2.4",
+          "--source",
+          "smoke-test",
+        ],
+        context.smokeId,
+      );
+
+      if (first.mint !== context.metricMint || second.mint !== context.metricMint) {
+        throw new Error("metric append-only returned unexpected mint");
+      }
+
+      if (first.id === second.id) {
+        throw new Error("metric append-only reused the same metric id");
+      }
+
+      const after = await db.metric.count({
+        where: {
+          token: {
+            mint: context.metricMint,
+          },
+        },
+      });
+
+      if (after !== before + 2) {
+        throw new Error("metric append-only did not create two new rows");
+      }
+
+      context.metricId = second.id;
     });
 
     await runStep("token show", async () => {

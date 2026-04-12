@@ -269,7 +269,7 @@ Notes:
 - `token:show` includes the latest metric summary when one exists
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
-- smoke runs a lightweight operational check for typecheck, `import`, `import:min`, `import:file`, metric save, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report
+- smoke runs a lightweight operational check for typecheck, `import`, sequential `import:mint` re-run behavior, `import:min`, `import:file`, metric save, `metric:add` append-only behavior, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report
 - `pnpm test` runs the current pure-function tests for normalization, hard reject matching, score calculation, and trend keyword parsing
 - smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
 
