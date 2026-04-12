@@ -7,7 +7,36 @@ type MetricsReportArgs = {
   tokenId?: number;
   source?: string;
   rank?: string;
+  sortBy?: SortField;
+  sortOrder: SortOrder;
   limit: number;
+};
+
+type SortField =
+  | "observedAt"
+  | "peakFdv24h"
+  | "maxMultiple15m"
+  | "timeToPeakMinutes";
+
+type SortOrder = "asc" | "desc";
+
+type MetricReportItem = {
+  id: number;
+  token: {
+    mint: string;
+    name: string | null;
+    symbol: string | null;
+    scoreRank: string;
+    scoreTotal: number;
+  };
+  source: string | null;
+  observedAt: string;
+  maxMultiple15m: number | null;
+  peakFdv24h: number | null;
+  volume24h: number | null;
+  peakFdv7d: number | null;
+  volume7d: number | null;
+  timeToPeakMinutes: number | null;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -18,7 +47,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--limit 20]",
+      "pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -50,8 +79,55 @@ function parseIdArg(value: string, key: string): number {
   return parsed;
 }
 
+function parseSortFieldArg(value: string, key: string): SortField {
+  const sortFields: SortField[] = [
+    "observedAt",
+    "peakFdv24h",
+    "maxMultiple15m",
+    "timeToPeakMinutes",
+  ];
+
+  if (sortFields.includes(value as SortField)) {
+    return value as SortField;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
+function parseSortOrderArg(value: string, key: string): SortOrder {
+  if (value === "asc" || value === "desc") {
+    return value;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
+function compareNullableNumbers(
+  left: number | null,
+  right: number | null,
+  sortOrder: SortOrder,
+): number {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  if (left === right) return 0;
+  return sortOrder === "asc" ? left - right : right - left;
+}
+
+function compareObservedAt(
+  left: string,
+  right: string,
+  sortOrder: SortOrder,
+): number {
+  if (left === right) return 0;
+  return sortOrder === "asc"
+    ? left.localeCompare(right)
+    : right.localeCompare(left);
+}
+
 function parseArgs(argv: string[]): MetricsReportArgs {
   const out: Partial<MetricsReportArgs> = {
+    sortOrder: "desc",
     limit: 20,
   };
 
@@ -76,6 +152,12 @@ function parseArgs(argv: string[]): MetricsReportArgs {
         break;
       case "--rank":
         out.rank = value === "" ? undefined : value;
+        break;
+      case "--sortBy":
+        out.sortBy = parseSortFieldArg(value, key);
+        break;
+      case "--sortOrder":
+        out.sortOrder = parseSortOrderArg(value, key);
         break;
       case "--limit":
         out.limit = parseLimitArg(value, key);
@@ -107,7 +189,10 @@ async function run(): Promise<void> {
           }
         : {}),
     },
-    orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+    orderBy:
+      args.sortBy === "observedAt"
+        ? [{ observedAt: args.sortOrder }, { id: args.sortOrder }]
+        : [{ observedAt: "desc" }, { id: "desc" }],
     take: args.limit,
     include: {
       token: {
@@ -122,6 +207,50 @@ async function run(): Promise<void> {
     },
   });
 
+  const items: MetricReportItem[] = metrics.map((metric) => ({
+    id: metric.id,
+    token: metric.token,
+    source: metric.source ?? null,
+    observedAt: metric.observedAt.toISOString(),
+    maxMultiple15m: metric.maxMultiple15m,
+    peakFdv24h: metric.peakFdv24h,
+    volume24h: metric.volume24h,
+    peakFdv7d: metric.peakFdv7d,
+    volume7d: metric.volume7d,
+    timeToPeakMinutes: metric.timeToPeakMinutes,
+  }));
+
+  if (
+    args.sortBy &&
+    args.sortBy !== "observedAt"
+  ) {
+    const sortBy = args.sortBy;
+
+    items.sort((left, right) => {
+      const byTarget = compareNullableNumbers(
+        left[sortBy],
+        right[sortBy],
+        args.sortOrder,
+      );
+
+      if (byTarget !== 0) {
+        return byTarget;
+      }
+
+      const byObservedAt = compareObservedAt(
+        left.observedAt,
+        right.observedAt,
+        "desc",
+      );
+
+      if (byObservedAt !== 0) {
+        return byObservedAt;
+      }
+
+      return right.id - left.id;
+    });
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -131,19 +260,11 @@ async function run(): Promise<void> {
           tokenId: args.tokenId ?? null,
           source: args.source ?? null,
           rank: args.rank ?? null,
+          sortBy: args.sortBy ?? null,
+          sortOrder: args.sortOrder,
           limit: args.limit,
         },
-        items: metrics.map((metric) => ({
-          id: metric.id,
-          token: metric.token,
-          source: metric.source ?? null,
-          observedAt: metric.observedAt.toISOString(),
-          maxMultiple15m: metric.maxMultiple15m,
-          peakFdv24h: metric.peakFdv24h,
-          volume24h: metric.volume24h,
-          peakFdv7d: metric.peakFdv7d,
-          volume7d: metric.volume7d,
-        })),
+        items,
       },
       null,
       2,
