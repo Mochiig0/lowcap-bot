@@ -35,6 +35,8 @@ type EntryCompareView = {
   hardRejectReason: string | null;
 };
 
+type ChangedField = keyof EntryCompareView;
+
 function printUsageAndExit(message?: string): never {
   if (message) {
     console.error(`Error: ${message}`);
@@ -127,6 +129,23 @@ function extractEntryCompareView(entrySnapshot: unknown): EntryCompareView {
     hardRejected: readOptionalBoolean(entrySnapshot.hardRejected),
     hardRejectReason: readOptionalString(entrySnapshot.hardRejectReason),
   };
+}
+
+function listChangedFields(
+  entryCompare: EntryCompareView,
+  currentToken: EntryCompareView,
+): ChangedField[] {
+  const fields: ChangedField[] = [
+    "name",
+    "symbol",
+    "description",
+    "scoreTotal",
+    "scoreRank",
+    "hardRejected",
+    "hardRejectReason",
+  ];
+
+  return fields.filter((field) => entryCompare[field] !== currentToken[field]);
 }
 
 function toMetricView(metric: {
@@ -231,14 +250,17 @@ async function run(): Promise<void> {
   const recentMetrics = token.metrics.map(toMetricView);
   const metricsCount = token._count.metrics;
   const entryCompare = extractEntryCompareView(token.entrySnapshot);
-  const entryVsCurrentChanged =
-    entryCompare.name !== token.name ||
-    entryCompare.symbol !== token.symbol ||
-    entryCompare.description !== token.description ||
-    entryCompare.scoreTotal !== token.scoreTotal ||
-    entryCompare.scoreRank !== token.scoreRank ||
-    entryCompare.hardRejected !== token.hardRejected ||
-    entryCompare.hardRejectReason !== token.hardRejectReason;
+  const currentCompare: EntryCompareView = {
+    name: token.name,
+    symbol: token.symbol,
+    description: token.description,
+    scoreTotal: token.scoreTotal,
+    scoreRank: token.scoreRank,
+    hardRejected: token.hardRejected,
+    hardRejectReason: token.hardRejectReason,
+  };
+  const changedFields = listChangedFields(entryCompare, currentCompare);
+  const entryVsCurrentChanged = changedFields.length > 0;
 
   console.log(
     JSON.stringify(
@@ -263,6 +285,7 @@ async function run(): Promise<void> {
         metricsCount,
         hasMetrics: metricsCount >= 1,
         entryVsCurrentChanged,
+        changedFields,
         latestMetric: recentMetrics[0] ?? null,
         recentMetrics,
       },

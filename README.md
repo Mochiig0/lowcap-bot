@@ -200,7 +200,7 @@ pnpm test
 Report notes:
 
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
-- `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `latestMetric`, and up to 3 `recentMetrics`
+- `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and up to 3 `recentMetrics`
 - `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
 - `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `metricsCount`, and latest metric summary fields
 - `tokens:compare-report` supports `--hardRejected` for filtering by current reject state
