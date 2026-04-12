@@ -199,6 +199,13 @@ Run the pure-function tests:
 pnpm test
 ```
 
+Import notes:
+
+- `pnpm import` is the full import path and owns scoring, persistence, optional metric persistence, and conditional notify.
+- `pnpm import:min` is a thin wrapper that parses the minimum manual fields and delegates them to `src/cli/import.ts`.
+- `pnpm import:file` is a thin wrapper that reads a file, parses and validates one JSON object, then delegates supported fields to `src/cli/import.ts`.
+- `pnpm import:mint` is a separate mint-only entrypoint that creates the initial token base without running the full import flow.
+
 Report notes:
 
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
