@@ -11,6 +11,7 @@ type TokensCompareReportArgs = {
 
 type EntrySnapshotView = {
   scoreRank: string | null;
+  scoreTotal: number | null;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -85,15 +86,21 @@ function readOptionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function readOptionalNumber(value: unknown): number | null {
+  return typeof value === "number" && !Number.isNaN(value) ? value : null;
+}
+
 function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
   if (!isRecord(entrySnapshot)) {
     return {
       scoreRank: null,
+      scoreTotal: null,
     };
   }
 
   return {
     scoreRank: readOptionalString(entrySnapshot.scoreRank),
+    scoreTotal: readOptionalNumber(entrySnapshot.scoreTotal),
   };
 }
 
@@ -117,6 +124,11 @@ async function run(): Promise<void> {
       scoreRank: true,
       scoreTotal: true,
       entrySnapshot: true,
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
       metrics: {
         orderBy: [
           { observedAt: "desc" },
@@ -153,8 +165,10 @@ async function run(): Promise<void> {
             symbol: token.symbol,
             metadataStatus: token.metadataStatus,
             entryScoreRank: entrySnapshot.scoreRank,
+            entryScoreTotal: entrySnapshot.scoreTotal,
             currentScoreRank: token.scoreRank,
             currentScoreTotal: token.scoreTotal,
+            metricsCount: token._count.metrics,
             latestMetricObservedAt: latestMetric
               ? latestMetric.observedAt.toISOString()
               : null,

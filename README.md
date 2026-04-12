@@ -202,7 +202,7 @@ Report notes:
 - `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `latestMetric`, and up to 3 `recentMetrics`
 - `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
-- `tokens:compare-report` returns comparison rows with `entryScoreRank`, current score fields, and latest metric summary fields
+- `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `metricsCount`, and latest metric summary fields
 - `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, and `--limit`
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
 
