@@ -44,6 +44,14 @@ This repo is a CLI-first, mint-driven accumulation MVP. It is not an always-on b
 - Do not route full-import responsibilities into mint-only entrypoints.
 - Do not add schema fields early just to support temporary detector, review, or alert ideas.
 
+## Read-Only Pause Point
+
+- Treat `tokens:report`, `token:show`, `metrics:report`, and `metric:show` as sufficient lightweight inspection views for now.
+- Treat `tokens:compare-report` and `token:compare` as sufficient compare views for now.
+- Do not turn `token:show` into `token:compare`.
+- Do not turn `tokens:report` into `tokens:compare-report`.
+- Do not keep adding token-deep context to `metric:show` unless a clear operating bottleneck appears.
+
 ## Source-Adapter Rules
 
 - Add source adapters one source at a time, with one source-specific raw event shape per adapter.
