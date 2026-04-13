@@ -14,3 +14,4 @@ dev.db
 .DS_Store
 .vscode/
 .codex
+hand-off-prompt.txt
