@@ -1,8 +1,11 @@
 import {
+  type CoreDictionary,
+  type LearnedDictionary,
   isTrendFresh,
   loadCoreDictionary,
   loadLearnedDictionary,
   loadTrendDictionary,
+  type TrendDictionary,
   type WeightedKeyword,
 } from "./dictionaries.js";
 
@@ -32,6 +35,13 @@ export type ScoreResult = {
     trendCapped: boolean;
     trendOnly: boolean;
   };
+};
+
+type ScoreTextDependencies = {
+  core: CoreDictionary;
+  trend: TrendDictionary;
+  learned: LearnedDictionary;
+  trendFresh?: boolean;
 };
 
 function scoreKeywords(
@@ -101,12 +111,12 @@ function rankFromTotal(total: number, trendOnly: boolean): "S" | "A" | "B" | "C"
   return "C";
 }
 
-export async function scoreText(text: string): Promise<ScoreResult> {
-  const [core, trend, learned] = await Promise.all([
-    loadCoreDictionary(),
-    loadTrendDictionary(),
-    loadLearnedDictionary(),
-  ]);
+export function scoreTextWithDependencies(
+  text: string,
+  dependencies: ScoreTextDependencies,
+): ScoreResult {
+  const { core, trend, learned } = dependencies;
+  const trendFresh = dependencies.trendFresh ?? isTrendFresh(trend);
 
   const coreRes = scoreKeywords(text, "core", core.keywords);
   const learnedKeywordRes = scoreKeywords(text, "learned_keyword", learned.keywords);
@@ -126,7 +136,6 @@ export async function scoreText(text: string): Promise<ScoreResult> {
     }
   }
 
-  const trendFresh = isTrendFresh(trend);
   const trendRes = trendFresh
     ? scoreKeywords(text, "trend", trend.keywords)
     : { score: 0, hits: [] as ScoreHit[] };
@@ -164,4 +173,14 @@ export async function scoreText(text: string): Promise<ScoreResult> {
       trendOnly,
     },
   };
+}
+
+export async function scoreText(text: string): Promise<ScoreResult> {
+  const [core, trend, learned] = await Promise.all([
+    loadCoreDictionary(),
+    loadTrendDictionary(),
+    loadLearnedDictionary(),
+  ]);
+
+  return scoreTextWithDependencies(text, { core, trend, learned });
 }

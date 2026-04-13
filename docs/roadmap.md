@@ -6,17 +6,42 @@ Move from a manual MVP import tool to a usable scoring pipeline with observable 
 
 ## Next Minimal Task
 
-Extend comparison-oriented read-only inspection without changing the mint-driven accumulation write path.
+Clarify source-adapter operating rules before adding another source-specific adapter.
 
 Why this is now the most natural next step:
 
-- mint-only import, enrich, rescore, metric append, and comparison views are now in place
-- the repo can already capture "entry vs current vs outcome" for one token and as a compact multi-token report
-- the next safe step is to add more read-only comparison depth before moving into automation or notify logic
+- `pnpm import:mint:file` now exists as a thin batch mint-only ingest wrapper over `pnpm import:mint`
+- `pnpm import:mint:source-file` now exists as a thin source-specific adapter runtime that normalizes one raw source event into `{ mint, source? }` before delegating to `pnpm import:mint`
+- both entrypoints keep scoring, notify, metric, enrich, and rescore responsibilities out of the mint-only path
+- the next safe step is to document when another source-specific adapter is justified before adding more adapters or broader runtime concepts
 
 ## Short-Term
 
-- Add the next read-only comparison slice only if it helps manual review:
+- Keep `import:mint:file` narrow as the first Phase 5 semi-automation entrypoint:
+  - file-backed only
+  - sequential only
+  - delegates to `import:mint`
+  - does not add scoring, notify, metric, enrich, or rescore behavior
+- Keep `import:mint:source-file` narrow as the first source-specific adapter runtime:
+  - one source-specific raw event shape only
+  - one file at a time
+  - normalizes into `{ mint, source? }`
+  - delegates to `import:mint`
+  - does not add scoring, notify, metric, enrich, or rescore behavior
+- Pause Phase 5 runtime expansion here for now:
+  - `import:mint:file` and `import:mint:source-file` are enough as the current mint-only semi-auto runtime
+  - do not add a second source adapter until the documented admission criteria are actually met
+  - do not move into a generic or multi-source adapter runtime yet
+  - keep detector, queue, worker, and scheduler runtime work in a later phase
+  - expand runtime entrypoints again only when a real new source need appears
+- Pause read-only lightweight-view expansion here for now:
+  - `tokens:report`, `token:show`, `metrics:report`, and `metric:show` are enough as the current lightweight inspection set
+  - `tokens:compare-report` and `token:compare` are enough as the current compare-view set
+  - do not turn `token:show` into `token:compare`, or `tokens:report` into `tokens:compare-report`
+  - do not keep adding token-deep context to `metric:show`
+  - expand read-only fields, filters, or summaries again only when a real operating bottleneck appears
+- Clarify source-adapter operating rules in docs before adding another detector-shaped entrypoint or external-source adapter
+- Add the next read-only comparison slice only if it helps manual review and does not change the write path:
   - richer comparison report fields
   - comparison filters or sort controls
   - focused report variants for outcomes
@@ -26,6 +51,7 @@ Why this is now the most natural next step:
 
 ## Mid-Term
 
+- Define how a future detect-to-mint-only path should hand off into the existing `import:mint` / `import:mint:file` boundary without bypassing source-adapter normalization
 - Add tests for:
   - scoring breakdown and rank thresholds
   - import CLI behavior
@@ -44,6 +70,8 @@ Why this is now the most natural next step:
 ## Explicit Non-Goals Today
 
 - Full bot automation
+- Detector runtime, scheduler, queue, or worker orchestration
+- Multi-source or generic adapter runtime
 - Real-time trading logic
 - Complex UI
 - ML-based scoring

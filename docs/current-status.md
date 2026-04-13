@@ -55,7 +55,7 @@ pnpm token:compare -- --mint <MINT>
 ```
 
 ```bash
-pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--hardRejected <true|false>] [--limit 20]
+pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--limit 20]
 ```
 
 ```bash
@@ -156,7 +156,10 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - re-running the same `import:mint:file` payload returns `existingCount` for already imported mints
 - `import:mint:file` does not return `failedCount` today; validation errors or child import failures exit non-zero before a final summary
 - `import:mint:source-file` reads one source-specific raw event object, normalizes it to `{ mint, source? }`, and delegates the result to `import:mint`
+- `import:mint:source-file` expects `source`, `eventType`, `detectedAt`, and `payload.mintAddress`
 - `import:mint:source-file` returns `{ file, sourceEvent, handoffPayload, result }`
+- re-running the same `import:mint:source-file` payload currently mirrors `import:mint`, so `result.created` returns `false` for an already imported mint
+- `import:mint:source-file` exits non-zero on source-event shape validation errors or child import failures
 - `import:mint:source-file` keeps source-specific parse and mapping outside the `import:mint` / `import:mint:file` ingest boundary
 - `token:enrich` updates current token fields without rescoring
 - `token:rescore` recomputes current hard reject and score fields
@@ -168,18 +171,21 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `import:file` parses `--file`, reads and validates one JSON object, then delegates the supported fields to `src/cli/import.ts`
 - `import:file` expects exactly one JSON object with required `mint`, `name`, and `symbol`
 - `import:file` also accepts optional `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`
-- `token:show` returns `latestMetric` and `metricsCount`
+- `token:show` returns `metadataStatus`, `latestMetric`, and `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and `recentMetrics`
-- `tokens:report` supports `rank`, `source`, and `hardRejected` filters
-- `tokens:report` returns `latestMetricObservedAt` and `metricsCount`
+- `tokens:report` supports `rank`, `source`, `metadataStatus`, `hasMetrics`, and `hardRejected` filters
+- `tokens:report` returns `metadataStatus`, `latestMetricObservedAt`, and `metricsCount`
 - `tokens:compare-report` supports `rank`, `source`, `metadataStatus`, and `limit`
 - `tokens:compare-report` supports `hardRejected` for current-token reject-state filtering
 - `tokens:compare-report` supports `hasMetrics` and `minMetricsCount` for observation-count filtering
+- `tokens:compare-report` supports `entryVsCurrentChanged` for entry-vs-current change filtering
+- `tokens:compare-report` supports `changedField` for single-field change filtering
+- `tokens:compare-report` supports `minChangedFieldsCount` for minimum entry-vs-current change-count filtering
 - `tokens:compare-report` supports `minEntryScoreTotal` and `minCurrentScoreTotal` for score-threshold filtering
 - `tokens:compare-report` supports `entryScoreRank` and `currentScoreRank` for exact rank filtering
-- `tokens:compare-report` supports `sortBy` and `sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`
-- `tokens:compare-report` returns entry-vs-outcome summary rows across multiple tokens, including `entryScoreTotal` and `metricsCount`
-- `metrics:report` supports `mint`, `tokenId`, `source`, `rank`, `hasPeakFdv24h`, `hasMaxMultiple15m`, `hasTimeToPeakMinutes`, `hasVolume24h`, `hasPeakPrice15m`, `sortBy`, and `sortOrder`; items include `peakPrice15m`; `null` sort targets are placed last
+- `tokens:compare-report` supports `sortBy` and `sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `changedFieldsCount`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`
+- `tokens:compare-report` returns entry-vs-outcome summary rows across multiple tokens, including `entryScoreTotal`, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, and `metricsCount`
+- `metrics:report` supports `mint`, `tokenId`, `source`, `rank`, `hasPeakFdv24h`, `hasPeakFdv7d`, `hasMaxMultiple15m`, `hasTimeToPeakMinutes`, `hasVolume24h`, `hasVolume7d`, `hasPeakPrice15m`, `sortBy`, and `sortOrder`; sortable fields include `observedAt`, `peakFdv24h`, `peakFdv7d`, `maxMultiple15m`, `volume7d`, and `timeToPeakMinutes`; items include `peakPrice15m`; `null` sort targets are placed last
 - Telegram notification for `S` rank tokens that are not hard rejected
 
 ## Partially Implemented
@@ -322,7 +328,7 @@ Notes:
 - `import:file` is a thin wrapper for one local JSON object and does not introduce automatic ingestion
 - `import:mint:file` is a thin wrapper for one local JSON object with an `items` array and does not add scoring, notify, or metric behavior
 - `import:mint:source-file` is a source-specific raw-event adapter and does not add scoring, notify, or metric behavior
-- `token:show` includes the latest metric summary when one exists
+- `token:show` includes `metadataStatus` plus the latest metric summary when one exists
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
 - smoke runs a lightweight operational check for typecheck, `import`, sequential `import:mint` re-run behavior, `import:mint:file`, `import:mint:source-file`, `import:min`, `import:file`, metric save, `metric:add` append-only behavior, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report

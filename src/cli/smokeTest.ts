@@ -22,6 +22,7 @@ type SmokeContext = {
   mintBatchDuplicateMint: string;
   mintBatchRerunMints: [string, string];
   mintSourceEventMint: string;
+  mintHappyPathMint: string;
   minMint: string;
   fileMint: string;
   metricMint: string;
@@ -34,6 +35,7 @@ type SmokeContext = {
   mintBatchDuplicateFilePath: string;
   mintBatchRerunFilePath: string;
   mintSourceEventFilePath: string;
+  mintHappyPathFilePath: string;
 };
 
 function logStep(message: string): void {
@@ -128,6 +130,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintBatchDuplicateMint,
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
+          context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
           context.metricMint,
@@ -160,6 +163,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintBatchDuplicateMint,
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
+          context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
           context.metricMint,
@@ -179,6 +183,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.mintBatchDuplicateFilePath, { force: true });
   await rm(context.mintBatchRerunFilePath, { force: true });
   await rm(context.mintSourceEventFilePath, { force: true });
+  await rm(context.mintHappyPathFilePath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -201,6 +206,7 @@ async function run(): Promise<void> {
       `${smokeId}_MINTBATCH_RERUN2`,
     ],
     mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
+    mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
     metricMint: `${smokeId}_METRIC`,
@@ -213,6 +219,7 @@ async function run(): Promise<void> {
     mintBatchDuplicateFilePath: `/tmp/${smokeId}-import-mint-file-duplicate.json`,
     mintBatchRerunFilePath: `/tmp/${smokeId}-import-mint-file-rerun.json`,
     mintSourceEventFilePath: `/tmp/${smokeId}-import-mint-source-file.json`,
+    mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
   };
 
   try {
@@ -614,6 +621,272 @@ async function run(): Promise<void> {
       if (token.metadataStatus !== "mint_only") {
         throw new Error("mint-only source event import did not persist mint_only status");
       }
+
+      const rerun = await runCliJson<{
+        handoffPayload: {
+          mint: string;
+          source: string;
+        };
+        result: {
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+        };
+      }>(
+        "mint-only source event file rerun",
+        "src/cli/importMintSourceFile.ts",
+        [
+          "--file",
+          context.mintSourceEventFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        rerun.handoffPayload.mint !== context.mintSourceEventMint ||
+        rerun.handoffPayload.source !== "smoke-test-source-event"
+      ) {
+        throw new Error("mint-only source event rerun returned unexpected handoff payload");
+      }
+
+      if (
+        rerun.result.mint !== context.mintSourceEventMint ||
+        rerun.result.metadataStatus !== "mint_only" ||
+        rerun.result.created !== false
+      ) {
+        throw new Error("mint-only source event rerun did not return created=false");
+      }
+    });
+
+    await runStep("mint-driven happy path", async () => {
+      await writeFile(
+        context.mintHappyPathFilePath,
+        `${JSON.stringify(
+          {
+            source: "smoke-happy-path-source",
+            eventType: "token_detected",
+            detectedAt: "2026-04-13T00:00:00.000Z",
+            payload: {
+              mintAddress: context.mintHappyPathMint,
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const imported = await runCliJson<{
+        handoffPayload: {
+          mint: string;
+          source: string;
+        };
+        result: {
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+        };
+      }>(
+        "mint-driven happy path import",
+        "src/cli/importMintSourceFile.ts",
+        [
+          "--file",
+          context.mintHappyPathFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        imported.handoffPayload.mint !== context.mintHappyPathMint ||
+        imported.handoffPayload.source !== "smoke-happy-path-source"
+      ) {
+        throw new Error("mint-driven happy path import returned unexpected handoff payload");
+      }
+
+      if (
+        imported.result.mint !== context.mintHappyPathMint ||
+        imported.result.metadataStatus !== "mint_only" ||
+        imported.result.created !== true
+      ) {
+        throw new Error("mint-driven happy path import returned unexpected result");
+      }
+
+      const importedToken = await db.token.findUnique({
+        where: { mint: context.mintHappyPathMint },
+        select: {
+          mint: true,
+          source: true,
+          metadataStatus: true,
+        },
+      });
+
+      if (!importedToken) {
+        throw new Error("mint-driven happy path did not create a token");
+      }
+
+      if (importedToken.source !== "smoke-happy-path-source") {
+        throw new Error("mint-driven happy path did not persist source");
+      }
+
+      if (importedToken.metadataStatus !== "mint_only") {
+        throw new Error("mint-driven happy path did not persist mint_only status");
+      }
+
+      const enriched = await runCliJson<{
+        mint: string;
+        name: string;
+        symbol: string;
+        description: string | null;
+        source: string | null;
+        metadataStatus: string;
+      }>(
+        "mint-driven happy path enrich",
+        "src/cli/tokenEnrich.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+          "--name",
+          "smoke happy path token",
+          "--symbol",
+          "SMKHP",
+          "--desc",
+          "smoke happy path enrich",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        enriched.mint !== context.mintHappyPathMint ||
+        enriched.name !== "smoke happy path token" ||
+        enriched.symbol !== "SMKHP" ||
+        enriched.description !== "smoke happy path enrich"
+      ) {
+        throw new Error("mint-driven happy path enrich returned unexpected fields");
+      }
+
+      if (
+        enriched.source !== "smoke-happy-path-source" ||
+        enriched.metadataStatus !== "enriched"
+      ) {
+        throw new Error("mint-driven happy path enrich returned unexpected status or source");
+      }
+
+      const rescored = await runCliJson<{
+        mint: string;
+        scoreTotal: number;
+        scoreRank: string;
+        hardRejected: boolean;
+        rescoredAt: string | null;
+      }>(
+        "mint-driven happy path rescore",
+        "src/cli/tokenRescore.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+        ],
+        context.smokeId,
+      );
+
+      if (rescored.mint !== context.mintHappyPathMint) {
+        throw new Error("mint-driven happy path rescore returned unexpected mint");
+      }
+
+      if (
+        typeof rescored.scoreTotal !== "number" ||
+        typeof rescored.scoreRank !== "string" ||
+        typeof rescored.hardRejected !== "boolean" ||
+        !rescored.rescoredAt
+      ) {
+        throw new Error("mint-driven happy path rescore did not return score fields");
+      }
+
+      const metric = await runCliJson<{
+        id: number;
+        mint: string;
+        source: string;
+        peakFdv24h: number | null;
+        volume24h: number | null;
+      }>(
+        "mint-driven happy path metric",
+        "src/cli/metricAdd.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+          "--source",
+          "smoke-happy-path-metric",
+          "--peakFdv24h",
+          "180000",
+          "--volume24h",
+          "42000",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        metric.mint !== context.mintHappyPathMint ||
+        metric.source !== "smoke-happy-path-metric" ||
+        metric.peakFdv24h !== 180000 ||
+        metric.volume24h !== 42000
+      ) {
+        throw new Error("mint-driven happy path metric:add returned unexpected fields");
+      }
+
+      const compared = await runCliJson<{
+        mint: string;
+        currentToken: {
+          source: string | null;
+          name: string | null;
+          symbol: string | null;
+          scoreTotal: number | null;
+          scoreRank: string | null;
+        };
+        metricsCount: number;
+        latestMetric: {
+          id: number;
+          source: string | null;
+          peakFdv24h: number | null;
+          volume24h: number | null;
+        } | null;
+      }>(
+        "mint-driven happy path compare",
+        "src/cli/tokenCompare.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+        ],
+        context.smokeId,
+      );
+
+      if (compared.mint !== context.mintHappyPathMint) {
+        throw new Error("mint-driven happy path compare returned unexpected mint");
+      }
+
+      if (
+        compared.currentToken.source !== "smoke-happy-path-source" ||
+        compared.currentToken.name !== "smoke happy path token" ||
+        compared.currentToken.symbol !== "SMKHP"
+      ) {
+        throw new Error("mint-driven happy path compare did not reflect enriched fields");
+      }
+
+      if (
+        compared.currentToken.scoreTotal !== rescored.scoreTotal ||
+        compared.currentToken.scoreRank !== rescored.scoreRank
+      ) {
+        throw new Error("mint-driven happy path compare did not reflect rescored fields");
+      }
+
+      if (compared.metricsCount !== 1 || !compared.latestMetric) {
+        throw new Error("mint-driven happy path compare did not reflect appended metric");
+      }
+
+      if (
+        compared.latestMetric.source !== "smoke-happy-path-metric" ||
+        compared.latestMetric.peakFdv24h !== 180000 ||
+        compared.latestMetric.volume24h !== 42000
+      ) {
+        throw new Error("mint-driven happy path compare returned unexpected latestMetric");
+      }
     });
 
     await runStep("minimal import", async () => {
@@ -740,6 +1013,10 @@ async function run(): Promise<void> {
           "180000",
           "--volume24h",
           "42000",
+          "--peakFdv7d",
+          "240000",
+          "--volume7d",
+          "96000",
           "--metricSource",
           "smoke-test",
         ],
@@ -836,6 +1113,7 @@ async function run(): Promise<void> {
     await runStep("token show", async () => {
       const parsed = await runCliJson<{
         mint: string;
+        metadataStatus: string;
         latestMetric: { id: number } | null;
       }>(
         "token show",
@@ -849,6 +1127,10 @@ async function run(): Promise<void> {
 
       if (parsed.mint !== context.metricMint) {
         throw new Error("token show returned unexpected mint");
+      }
+
+      if (parsed.metadataStatus !== "mint_only") {
+        throw new Error("token show did not include metadataStatus");
       }
 
       if (!parsed.latestMetric) {
@@ -884,11 +1166,123 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("tokens report", async () => {
+      const parsed = await runCliJson<{
+        count: number;
+        items: Array<{
+          mint: string;
+          metadataStatus: string;
+          latestMetricObservedAt: string | null;
+        }>;
+      }>(
+        "tokens report",
+        "src/cli/tokensReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (parsed.count === 0) {
+        throw new Error("tokens report returned no rows");
+      }
+
+      const reportItem = parsed.items.find((item) => item.mint === context.metricMint);
+      if (!reportItem) {
+        throw new Error("tokens report did not include metric token");
+      }
+
+      if (reportItem.metadataStatus !== "mint_only") {
+        throw new Error("tokens report returned unexpected metadataStatus");
+      }
+
+      if (!reportItem.latestMetricObservedAt) {
+        throw new Error("tokens report did not include latestMetricObservedAt");
+      }
+
+      const filteredByMetadataStatus = await runCliJson<{
+        count: number;
+        filters: {
+          metadataStatus: string | null;
+        };
+        items: Array<{
+          metadataStatus: string;
+        }>;
+      }>(
+        "tokens report metadata status",
+        "src/cli/tokensReport.ts",
+        [
+          "--metadataStatus",
+          "mint_only",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (filteredByMetadataStatus.filters.metadataStatus !== "mint_only") {
+        throw new Error("tokens report did not echo metadataStatus filter");
+      }
+
+      if (
+        filteredByMetadataStatus.items.some(
+          (item) => item.metadataStatus !== "mint_only",
+        )
+      ) {
+        throw new Error(
+          "tokens report metadataStatus filter returned rows with a different status",
+        );
+      }
+
+      const filteredByHasMetrics = await runCliJson<{
+        count: number;
+        filters: {
+          hasMetrics: boolean | null;
+        };
+        items: Array<{
+          mint: string;
+          latestMetricObservedAt: string | null;
+          metricsCount: number;
+        }>;
+      }>(
+        "tokens report has metrics",
+        "src/cli/tokensReport.ts",
+        [
+          "--hasMetrics",
+          "false",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (filteredByHasMetrics.filters.hasMetrics !== false) {
+        throw new Error("tokens report did not echo hasMetrics filter");
+      }
+
+      if (
+        filteredByHasMetrics.items.some(
+          (item) =>
+            item.latestMetricObservedAt !== null || item.metricsCount !== 0,
+        )
+      ) {
+        throw new Error(
+          "tokens report hasMetrics=false filter returned rows that already have metrics",
+        );
+      }
+    });
+
     await runStep("tokens compare report", async () => {
       const parsed = await runCliJson<{
         count: number;
         items: Array<{
           mint: string;
+          entryVsCurrentChanged: boolean;
+          changedFields: string[];
+          changedFieldsCount: number;
           latestMetricObservedAt: string | null;
         }>;
       }>(
@@ -914,6 +1308,147 @@ async function run(): Promise<void> {
 
       if (!reportItem.latestMetricObservedAt) {
         throw new Error("tokens compare report did not include latest metric summary");
+      }
+
+      if (typeof reportItem.entryVsCurrentChanged !== "boolean") {
+        throw new Error("tokens compare report did not include entryVsCurrentChanged");
+      }
+
+      if (!Number.isInteger(reportItem.changedFieldsCount)) {
+        throw new Error("tokens compare report did not include changedFieldsCount");
+      }
+
+      if (!Array.isArray(reportItem.changedFields)) {
+        throw new Error("tokens compare report did not include changedFields");
+      }
+
+      if (reportItem.changedFields.length !== reportItem.changedFieldsCount) {
+        throw new Error(
+          "tokens compare report changedFields length did not match changedFieldsCount",
+        );
+      }
+
+      const changedOnly = await runCliJson<{
+        count: number;
+        items: Array<{
+          entryVsCurrentChanged: boolean;
+        }>;
+      }>(
+        "tokens compare report changed only",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--entryVsCurrentChanged",
+          "true",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        changedOnly.items.some(
+          (item) => item.entryVsCurrentChanged !== true,
+        )
+      ) {
+        throw new Error(
+          "tokens compare report entryVsCurrentChanged filter returned unchanged rows",
+        );
+      }
+
+      const sortedByChangedFields = await runCliJson<{
+        count: number;
+        items: Array<{
+          changedFieldsCount: number;
+        }>;
+      }>(
+        "tokens compare report sort by changed fields",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--sortBy",
+          "changedFieldsCount",
+          "--sortOrder",
+          "desc",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      for (let i = 1; i < sortedByChangedFields.items.length; i += 1) {
+        if (
+          sortedByChangedFields.items[i - 1].changedFieldsCount <
+          sortedByChangedFields.items[i].changedFieldsCount
+        ) {
+          throw new Error(
+            "tokens compare report changedFieldsCount sort returned out-of-order rows",
+          );
+        }
+      }
+
+      const changedThreshold = await runCliJson<{
+        count: number;
+        items: Array<{
+          changedFieldsCount: number;
+        }>;
+      }>(
+        "tokens compare report min changed fields",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--minChangedFieldsCount",
+          "4",
+          "--sortBy",
+          "changedFieldsCount",
+          "--sortOrder",
+          "desc",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        changedThreshold.items.some(
+          (item) => item.changedFieldsCount < 4,
+        )
+      ) {
+        throw new Error(
+          "tokens compare report minChangedFieldsCount filter returned rows below the threshold",
+        );
+      }
+
+      const changedFieldOnly = await runCliJson<{
+        count: number;
+        items: Array<{
+          changedFields: string[];
+        }>;
+      }>(
+        "tokens compare report changed field",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--changedField",
+          "scoreRank",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        changedFieldOnly.items.some(
+          (item) => !item.changedFields.includes("scoreRank"),
+        )
+      ) {
+        throw new Error(
+          "tokens compare report changedField filter returned rows without the requested field",
+        );
       }
     });
 
@@ -976,7 +1511,11 @@ async function run(): Promise<void> {
     await runStep("metrics report", async () => {
       const parsed = await runCliJson<{
         count: number;
-        items: Array<{ token: { mint: string } }>;
+        items: Array<{
+          token: { mint: string };
+          peakFdv7d: number | null;
+          volume7d: number | null;
+        }>;
       }>(
         "metrics report",
         "src/cli/metricsReport.ts",
@@ -995,6 +1534,74 @@ async function run(): Promise<void> {
 
       if (!parsed.items.some((item) => item.token.mint === context.metricMint)) {
         throw new Error("metrics report did not include the smoke metric token");
+      }
+
+      const with7d = await runCliJson<{
+        count: number;
+        items: Array<{
+          peakFdv7d: number | null;
+          volume7d: number | null;
+        }>;
+      }>(
+        "metrics report with 7d presence",
+        "src/cli/metricsReport.ts",
+        [
+          "--mint",
+          context.metricMint,
+          "--hasPeakFdv7d",
+          "true",
+          "--hasVolume7d",
+          "true",
+          "--limit",
+          "5",
+        ],
+        context.smokeId,
+      );
+
+      if (with7d.count < 1) {
+        throw new Error("metrics report 7d presence filter returned no rows");
+      }
+
+      if (
+        with7d.items.some(
+          (item) => item.peakFdv7d === null || item.volume7d === null,
+        )
+      ) {
+        throw new Error(
+          "metrics report 7d presence filter returned rows missing 7d values",
+        );
+      }
+
+      const sortedByPeakFdv7d = await runCliJson<{
+        count: number;
+        items: Array<{
+          peakFdv7d: number | null;
+        }>;
+      }>(
+        "metrics report sort by peak fdv 7d",
+        "src/cli/metricsReport.ts",
+        [
+          "--hasPeakFdv7d",
+          "true",
+          "--sortBy",
+          "peakFdv7d",
+          "--sortOrder",
+          "desc",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      for (let i = 1; i < sortedByPeakFdv7d.items.length; i += 1) {
+        if (
+          (sortedByPeakFdv7d.items[i - 1].peakFdv7d ?? -Infinity) <
+          (sortedByPeakFdv7d.items[i].peakFdv7d ?? -Infinity)
+        ) {
+          throw new Error(
+            "metrics report peakFdv7d sort returned out-of-order rows",
+          );
+        }
       }
     });
 

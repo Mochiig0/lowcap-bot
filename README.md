@@ -161,7 +161,7 @@ Metric sample payload: `examples/import-file-with-metric.sample.json`
 
 On success, `import:mint:file` returns JSON with `file`, `count`, `createdCount`, `existingCount`, and `items`. It processes items sequentially, so duplicate mints in the same file typically return `created: true` for the first item and `created: false` for later duplicates. Re-running the same file returns `existingCount` for already imported mints. There is no `failedCount` summary today; validation errors or child import failures exit non-zero before a final summary is printed.
 
-`import:mint:source-file` expects one source-specific raw event object, normalizes it to the same minimal handoff payload used by `import:mint`, and returns `{ file, sourceEvent, handoffPayload, result }`. It is not a replacement for `import:mint:file`, which still accepts only the file-backed `{ items: [...] }` handoff wrapper.
+`import:mint:source-file` expects one source-specific raw event object with `source`, `eventType`, `detectedAt`, and `payload.mintAddress`, normalizes it to the same minimal handoff payload used by `import:mint`, and returns `{ file, sourceEvent, handoffPayload, result }`. It is not a replacement for `import:mint:file`, which still accepts only the file-backed `{ items: [...] }` handoff wrapper. Re-running the same source event currently mirrors `import:mint`, so `result.created` becomes `false` for an already imported mint; shape validation or child import failures exit non-zero before a success JSON payload is printed.
 
 Import with one metric observation:
 
@@ -235,17 +235,97 @@ Import notes:
 
 Report notes:
 
-- `token:show` returns one token as JSON and includes `latestMetric` plus `metricsCount`
+- `token:show` returns one token as JSON and includes `metadataStatus`, `latestMetric`, and `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and up to 3 `recentMetrics`
-- `tokens:report` returns filtered rows as JSON and includes `latestMetricObservedAt` plus `metricsCount`
-- `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `metricsCount`, and latest metric summary fields
+- `tokens:report` supports `--metadataStatus` for filtering current tokens by `mint_only`, `partial`, or `enriched`
+- `tokens:report` supports `--hasMetrics` for filtering current tokens by whether they already have at least one metric row
+- `tokens:report` returns filtered rows as JSON and includes `metadataStatus`, `latestMetricObservedAt`, and `metricsCount`
+- `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, `metricsCount`, and latest metric summary fields
 - `tokens:compare-report` supports `--hardRejected` for filtering by current reject state
 - `tokens:compare-report` supports `--hasMetrics` and `--minMetricsCount` for filtering by observation count
+- `tokens:compare-report` supports `--entryVsCurrentChanged` for filtering by whether current fields diverged from the entry snapshot
+- `tokens:compare-report` supports `--changedField` for filtering by one specific changed field
+- `tokens:compare-report` supports `--minChangedFieldsCount` for filtering by the minimum number of entry-vs-current field changes
 - `tokens:compare-report` supports `--minEntryScoreTotal` and `--minCurrentScoreTotal` for score-threshold filtering
 - `tokens:compare-report` supports `--entryScoreRank` and `--currentScoreRank` for exact rank filtering
-- `tokens:compare-report` supports `--sortBy` and `--sortOrder`; `null` sort targets are placed last
-- `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, `--hasPeakFdv24h`, `--hasMaxMultiple15m`, `--hasTimeToPeakMinutes`, `--hasVolume24h`, `--hasPeakPrice15m`, `--sortBy`, `--sortOrder`, and `--limit`; items include `peakPrice15m`; `null` sort targets are placed last
+- `tokens:compare-report` supports `--sortBy` and `--sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `changedFieldsCount`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`; `null` sort targets are placed last
+- `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, `--hasPeakFdv24h`, `--hasPeakFdv7d`, `--hasMaxMultiple15m`, `--hasTimeToPeakMinutes`, `--hasVolume24h`, `--hasVolume7d`, `--hasPeakPrice15m`, `--sortBy`, and `--sortOrder`; sortable fields include `observedAt`, `peakFdv24h`, `peakFdv7d`, `maxMultiple15m`, `volume7d`, and `timeToPeakMinutes`; items include `peakPrice15m`; `null` sort targets are placed last
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
+
+Change-screening recipes:
+
+```bash
+pnpm tokens:compare-report -- --entryVsCurrentChanged true --limit 20
+pnpm tokens:compare-report -- --entryVsCurrentChanged true --sortBy changedFieldsCount --sortOrder desc --limit 20
+pnpm tokens:compare-report -- --changedField scoreRank --limit 20
+```
+
+For one token's full diff, continue with `pnpm token:compare -- --mint <MINT>`.
+
+Queue-style token recipes:
+
+```bash
+pnpm tokens:report -- --metadataStatus mint_only --limit 20
+pnpm tokens:report -- --metadataStatus enriched --hasMetrics false --limit 20
+pnpm tokens:report -- --hasMetrics true --limit 20
+```
+
+For one token's deeper view, continue with `pnpm token:compare -- --mint <MINT>`. For cross-token comparison, continue with `pnpm tokens:compare-report`.
+
+7d metric-screening recipes:
+
+```bash
+pnpm metrics:report -- --hasPeakFdv7d true --limit 20
+pnpm metrics:report -- --hasPeakFdv7d true --sortBy peakFdv7d --sortOrder desc --limit 20
+pnpm metrics:report -- --hasVolume7d true --sortBy volume7d --sortOrder desc --limit 20
+```
+
+For one metric row, continue with `pnpm metric:show -- --id <ID>`. For token-level context, continue with `pnpm token:compare -- --mint <MINT>`.
+
+## Which CLI To Use
+
+- Use the full import lane (`pnpm import`, `pnpm import:min`, `pnpm import:file`) when you already have curated metadata and want the full import behavior, including scoring and conditional notify on `pnpm import`.
+- Use `pnpm import:mint` when you want to accumulate the mint first and fill details later.
+- Use `pnpm import:mint:file` when you want to batch the minimal handoff payload `{ "items": [{ "mint": "...", "source"?: "..." }] }`.
+- Use `pnpm import:mint:source-file` when you want to send one raw source event through its source-specific parser and mapper before handing off to `import:mint`.
+- Use `pnpm token:enrich`, `pnpm token:rescore`, and `pnpm metric:add` after mint-only intake when you want later metadata fill, score recalculation, or metric append.
+- Use the read-only lane (`pnpm token:compare`, `pnpm tokens:compare-report`, `pnpm metrics:report`, `pnpm token:show`, `pnpm metric:show`, `pnpm tokens:report`) when you only want to inspect saved data.
+
+Short cautions:
+
+- Do not put raw source events into `import:mint:file`; that wrapper only accepts the minimal `{ "items": [...] }` handoff payload.
+- Do not expect side effects from read-only CLIs; comparison, show, and report commands stay read-only.
+- Do not expect scoring, notify, enrich, rescore, or metric creation from the mint-driven ingest entrypoints themselves.
+
+## Command To Sample File
+
+- `pnpm import:file -- --file ...` -> `examples/import-file.sample.json`
+- `pnpm import:file -- --file ...` with metric fields -> `examples/import-file-with-metric.sample.json`
+- `pnpm import:mint:file -- --file ...` -> `examples/import-mint-file.sample.json`
+- `pnpm import:mint:source-file -- --file ...` -> `examples/import-mint-source-file.sample.json`
+
+Shape cautions:
+
+- Do not put a raw source event file into `import:mint:file`; use the source adapter sample for `import:mint:source-file`.
+- Do not treat the minimal handoff payload as the input shape for `import:mint:source-file`; that adapter expects the raw source event shape and normalizes it before handoff.
+
+## Mint-Driven Happy Path Quickstart
+
+1. Start with one raw source event file and run `pnpm import:mint:source-file -- --file ./examples/import-mint-source-file.sample.json`.
+2. Fill current token metadata with `pnpm token:enrich -- --mint <MINT> --name <NAME> --symbol <SYMBOL> --desc "manual enrich"`.
+3. Recompute score fields with `pnpm token:rescore -- --mint <MINT>`.
+4. Append one outcome observation with `pnpm metric:add -- --mint <MINT> --peakFdv24h 180000 --volume24h 42000`.
+5. Confirm the result with `pnpm token:compare -- --mint <MINT>` or `pnpm token:show -- --mint <MINT>`.
+
+Sample references:
+
+- For step 1, use `examples/import-mint-source-file.sample.json`.
+- If you already have the minimal `{ "items": [...] }` handoff payload instead of a raw source event, use `examples/import-mint-file.sample.json` with `pnpm import:mint:file`.
+
+Quick cautions:
+
+- Do not expect scoring, notify, or metric creation during the mint-only ingest step; those happen later or on the full import path.
+- Do not expect updates from `token:compare`, `token:show`, or other read-only commands.
 
 ## Typical Workflow
 

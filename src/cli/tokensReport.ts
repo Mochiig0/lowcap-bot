@@ -5,6 +5,8 @@ import { db } from "./db.js";
 type TokensReportArgs = {
   rank?: string;
   source?: string;
+  metadataStatus?: "mint_only" | "partial" | "enriched";
+  hasMetrics?: boolean;
   hardRejected?: boolean;
   limit: number;
 };
@@ -17,7 +19,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--hardRejected <true|false>] [--limit 20]",
+      "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -42,6 +44,17 @@ function parseBooleanArg(value: string, key: string): boolean {
   printUsageAndExit(`Invalid boolean for ${key}: ${value}`);
 }
 
+function parseMetadataStatusArg(
+  value: string,
+  key: string,
+): "mint_only" | "partial" | "enriched" {
+  if (value === "mint_only" || value === "partial" || value === "enriched") {
+    return value;
+  }
+
+  printUsageAndExit(`Invalid metadataStatus for ${key}: ${value}`);
+}
+
 function parseArgs(argv: string[]): TokensReportArgs {
   const out: Partial<TokensReportArgs> = {
     limit: 20,
@@ -62,6 +75,12 @@ function parseArgs(argv: string[]): TokensReportArgs {
         break;
       case "--source":
         out.source = value === "" ? undefined : value;
+        break;
+      case "--metadataStatus":
+        out.metadataStatus = parseMetadataStatusArg(value, key);
+        break;
+      case "--hasMetrics":
+        out.hasMetrics = parseBooleanArg(value, key);
         break;
       case "--hardRejected":
         out.hardRejected = parseBooleanArg(value, key);
@@ -87,6 +106,10 @@ async function run(): Promise<void> {
     where: {
       ...(args.rank ? { scoreRank: args.rank } : {}),
       ...(args.source ? { source: args.source } : {}),
+      ...(args.metadataStatus ? { metadataStatus: args.metadataStatus } : {}),
+      ...(args.hasMetrics !== undefined
+        ? { metrics: args.hasMetrics ? { some: {} } : { none: {} } }
+        : {}),
       ...(args.hardRejected !== undefined
         ? { hardRejected: args.hardRejected }
         : {}),
@@ -124,7 +147,9 @@ async function run(): Promise<void> {
         filters: {
           rank: args.rank ?? null,
           source: args.source ?? null,
+          hasMetrics: args.hasMetrics ?? null,
           hardRejected: args.hardRejected ?? null,
+          metadataStatus: args.metadataStatus ?? null,
           limit: args.limit,
         },
         items: tokens.map((token) => ({
@@ -135,6 +160,7 @@ async function run(): Promise<void> {
           scoreTotal: token.scoreTotal,
           hardRejected: token.hardRejected,
           hardRejectReason: token.hardRejectReason,
+          metadataStatus: token.metadataStatus,
           source: token.source ?? null,
           metricsCount: token._count.metrics,
           latestMetricObservedAt: token.metrics[0]

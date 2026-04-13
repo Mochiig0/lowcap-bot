@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "mint": "TESTMINTA",
+      "source": "manual"
+    },
+    {
+      "mint": "TESTMINTB",
+      "source": "manual"
+    }
+  ]
+}

@@ -8,6 +8,9 @@ type TokensCompareReportArgs = {
   metadataStatus?: string;
   hardRejected?: boolean;
   hasMetrics?: boolean;
+  entryVsCurrentChanged?: boolean;
+  changedField?: ChangedField;
+  minChangedFieldsCount?: number;
   minMetricsCount?: number;
   minEntryScoreTotal?: number;
   minCurrentScoreTotal?: number;
@@ -19,10 +22,19 @@ type TokensCompareReportArgs = {
 };
 
 type ScoreRank = "S" | "A" | "B" | "C";
+type ChangedField =
+  | "name"
+  | "symbol"
+  | "description"
+  | "scoreTotal"
+  | "scoreRank"
+  | "hardRejected"
+  | "hardRejectReason";
 
 type SortField =
   | "entryScoreTotal"
   | "currentScoreTotal"
+  | "changedFieldsCount"
   | "metricsCount"
   | "latestPeakFdv24h"
   | "latestMaxMultiple15m"
@@ -31,8 +43,13 @@ type SortField =
 type SortOrder = "asc" | "desc";
 
 type EntrySnapshotView = {
+  name: string | null;
+  symbol: string | null;
+  description: string | null;
   scoreRank: string | null;
   scoreTotal: number | null;
+  hardRejected: boolean | null;
+  hardRejectReason: string | null;
 };
 
 type CompareReportItem = {
@@ -44,6 +61,9 @@ type CompareReportItem = {
   entryScoreTotal: number | null;
   currentScoreRank: string;
   currentScoreTotal: number;
+  entryVsCurrentChanged: boolean;
+  changedFields: ChangedField[];
+  changedFieldsCount: number;
   metricsCount: number;
   latestMetricObservedAt: string | null;
   latestPeakFdv24h: number | null;
@@ -59,7 +79,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasMetrics <true|false>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -114,6 +134,7 @@ function parseSortFieldArg(value: string, key: string): SortField {
   const sortFields: SortField[] = [
     "entryScoreTotal",
     "currentScoreTotal",
+    "changedFieldsCount",
     "metricsCount",
     "latestPeakFdv24h",
     "latestMaxMultiple15m",
@@ -140,6 +161,24 @@ function parseScoreRankArg(value: string, key: string): ScoreRank {
 
   if (scoreRanks.includes(value as ScoreRank)) {
     return value as ScoreRank;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
+function parseChangedFieldArg(value: string, key: string): ChangedField {
+  const changedFields: ChangedField[] = [
+    "name",
+    "symbol",
+    "description",
+    "scoreTotal",
+    "scoreRank",
+    "hardRejected",
+    "hardRejectReason",
+  ];
+
+  if (changedFields.includes(value as ChangedField)) {
+    return value as ChangedField;
   }
 
   printUsageAndExit(`Invalid value for ${key}: ${value}`);
@@ -175,6 +214,15 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--hasMetrics":
         out.hasMetrics = parseBooleanArg(value, key);
+        break;
+      case "--entryVsCurrentChanged":
+        out.entryVsCurrentChanged = parseBooleanArg(value, key);
+        break;
+      case "--changedField":
+        out.changedField = parseChangedFieldArg(value, key);
+        break;
+      case "--minChangedFieldsCount":
+        out.minChangedFieldsCount = parseNonNegativeIntArg(value, key);
         break;
       case "--minMetricsCount":
         out.minMetricsCount = parseNonNegativeIntArg(value, key);
@@ -225,15 +273,55 @@ function readOptionalNumber(value: unknown): number | null {
 function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
   if (!isRecord(entrySnapshot)) {
     return {
+      name: null,
+      symbol: null,
+      description: null,
       scoreRank: null,
       scoreTotal: null,
+      hardRejected: null,
+      hardRejectReason: null,
     };
   }
 
   return {
+    name: readOptionalString(entrySnapshot.name),
+    symbol: readOptionalString(entrySnapshot.symbol),
+    description: readOptionalString(entrySnapshot.description),
     scoreRank: readOptionalString(entrySnapshot.scoreRank),
     scoreTotal: readOptionalNumber(entrySnapshot.scoreTotal),
+    hardRejected:
+      typeof entrySnapshot.hardRejected === "boolean"
+        ? entrySnapshot.hardRejected
+        : null,
+    hardRejectReason: readOptionalString(entrySnapshot.hardRejectReason),
   };
+}
+
+type CurrentCompareView = {
+  name: string | null;
+  symbol: string | null;
+  description: string | null;
+  scoreTotal: number | null;
+  scoreRank: string | null;
+  hardRejected: boolean | null;
+  hardRejectReason: string | null;
+};
+
+function listChangedFields(
+  entrySnapshot: EntrySnapshotView,
+  currentToken: CurrentCompareView,
+): ChangedField[] {
+  const fields: ChangedField[] = [
+    "name",
+    "symbol",
+    "description",
+    "scoreTotal",
+    "scoreRank",
+    "hardRejected",
+    "hardRejectReason",
+  ];
+
+  return fields.filter((field) => entrySnapshot[field] !== currentToken[field]);
 }
 
 function compareNullableNumbers(
@@ -269,7 +357,10 @@ async function run(): Promise<void> {
       mint: true,
       name: true,
       symbol: true,
+      description: true,
       metadataStatus: true,
+      hardRejected: true,
+      hardRejectReason: true,
       scoreRank: true,
       scoreTotal: true,
       entrySnapshot: true,
@@ -297,6 +388,16 @@ async function run(): Promise<void> {
   const items = tokens.map((token): CompareReportItem => {
     const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
     const latestMetric = token.metrics[0] ?? null;
+    const changedFields = listChangedFields(entrySnapshot, {
+      name: token.name,
+      symbol: token.symbol,
+      description: token.description,
+      scoreTotal: token.scoreTotal,
+      scoreRank: token.scoreRank,
+      hardRejected: token.hardRejected,
+      hardRejectReason: token.hardRejectReason,
+    });
+    const changedFieldsCount = changedFields.length;
 
     return {
       mint: token.mint,
@@ -307,6 +408,9 @@ async function run(): Promise<void> {
       entryScoreTotal: entrySnapshot.scoreTotal,
       currentScoreRank: token.scoreRank,
       currentScoreTotal: token.scoreTotal,
+      entryVsCurrentChanged: changedFieldsCount > 0,
+      changedFields,
+      changedFieldsCount,
       metricsCount: token._count.metrics,
       latestMetricObservedAt: latestMetric
         ? latestMetric.observedAt.toISOString()
@@ -323,6 +427,27 @@ async function run(): Promise<void> {
     }
 
     if (args.hasMetrics === false && item.metricsCount > 0) {
+      return false;
+    }
+
+    if (
+      args.entryVsCurrentChanged !== undefined &&
+      item.entryVsCurrentChanged !== args.entryVsCurrentChanged
+    ) {
+      return false;
+    }
+
+    if (
+      args.changedField !== undefined &&
+      !item.changedFields.includes(args.changedField)
+    ) {
+      return false;
+    }
+
+    if (
+      args.minChangedFieldsCount !== undefined &&
+      item.changedFieldsCount < args.minChangedFieldsCount
+    ) {
       return false;
     }
 
@@ -393,6 +518,9 @@ async function run(): Promise<void> {
           metadataStatus: args.metadataStatus ?? null,
           hardRejected: args.hardRejected ?? null,
           hasMetrics: args.hasMetrics ?? null,
+          entryVsCurrentChanged: args.entryVsCurrentChanged ?? null,
+          changedField: args.changedField ?? null,
+          minChangedFieldsCount: args.minChangedFieldsCount ?? null,
           minMetricsCount: args.minMetricsCount ?? null,
           minEntryScoreTotal: args.minEntryScoreTotal ?? null,
           minCurrentScoreTotal: args.minCurrentScoreTotal ?? null,

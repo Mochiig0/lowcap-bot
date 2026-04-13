@@ -124,6 +124,7 @@ async function run(): Promise<void> {
         symbol: token.symbol,
         description: token.description,
         source: token.source ?? null,
+        metadataStatus: token.metadataStatus,
         groupKey: token.groupKey ?? null,
         groupNote: token.groupNote ?? null,
         normalizedText: token.normalizedText,
