@@ -13,3 +13,4 @@ dev.db
 # OS / editor
 .DS_Store
 .vscode/
+.codex
