@@ -8,6 +8,7 @@ type TokensReportArgs = {
   metadataStatus?: "mint_only" | "partial" | "enriched";
   hasMetrics?: boolean;
   hardRejected?: boolean;
+  createdAfter?: Date;
   limit: number;
 };
 
@@ -19,7 +20,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--limit 20]",
+      "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--createdAfter <ISO8601>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -42,6 +43,19 @@ function parseBooleanArg(value: string, key: string): boolean {
   if (value === "true") return true;
   if (value === "false") return false;
   printUsageAndExit(`Invalid boolean for ${key}: ${value}`);
+}
+
+function parseDateArg(value: string, key: string): Date {
+  if (value === "") {
+    printUsageAndExit(`Invalid ISO8601 date for ${key}: ${value}`);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    printUsageAndExit(`Invalid ISO8601 date for ${key}: ${value}`);
+  }
+
+  return parsed;
 }
 
 function parseMetadataStatusArg(
@@ -85,6 +99,9 @@ function parseArgs(argv: string[]): TokensReportArgs {
       case "--hardRejected":
         out.hardRejected = parseBooleanArg(value, key);
         break;
+      case "--createdAfter":
+        out.createdAfter = parseDateArg(value, key);
+        break;
       case "--limit":
         out.limit = parseLimitArg(value, key);
         break;
@@ -112,6 +129,9 @@ async function run(): Promise<void> {
         : {}),
       ...(args.hardRejected !== undefined
         ? { hardRejected: args.hardRejected }
+        : {}),
+      ...(args.createdAfter
+        ? { createdAt: { gte: args.createdAfter } }
         : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -150,6 +170,7 @@ async function run(): Promise<void> {
           hasMetrics: args.hasMetrics ?? null,
           hardRejected: args.hardRejected ?? null,
           metadataStatus: args.metadataStatus ?? null,
+          createdAfter: args.createdAfter?.toISOString() ?? null,
           limit: args.limit,
         },
         items: tokens.map((token) => ({

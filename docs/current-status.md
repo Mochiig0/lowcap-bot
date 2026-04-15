@@ -55,7 +55,7 @@ pnpm token:compare -- --mint <MINT>
 ```
 
 ```bash
-pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--limit 20]
+pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--createdAfter <ISO8601>] [--limit 20]
 ```
 
 ```bash
@@ -173,7 +173,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `import:file` also accepts optional `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`
 - `token:show` returns `metadataStatus`, `latestMetric`, and `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and `recentMetrics`
-- `tokens:report` supports `rank`, `source`, `metadataStatus`, `hasMetrics`, and `hardRejected` filters
+- `tokens:report` supports `rank`, `source`, `metadataStatus`, `hasMetrics`, `hardRejected`, and `createdAfter` filters
 - `tokens:report` returns `metadataStatus`, `latestMetricObservedAt`, and `metricsCount`
 - `tokens:compare-report` supports `rank`, `source`, `metadataStatus`, and `limit`
 - `tokens:compare-report` supports `hardRejected` for current-token reject-state filtering

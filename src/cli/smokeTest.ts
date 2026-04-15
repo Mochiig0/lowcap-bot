@@ -1273,6 +1273,44 @@ async function run(): Promise<void> {
           "tokens report hasMetrics=false filter returned rows that already have metrics",
         );
       }
+
+      const createdAfter = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const filteredByCreatedAfter = await runCliJson<{
+        count: number;
+        filters: {
+          createdAfter: string | null;
+        };
+        items: Array<{
+          mint: string;
+          createdAt: string;
+        }>;
+      }>(
+        "tokens report created after",
+        "src/cli/tokensReport.ts",
+        [
+          "--source",
+          "smoke-test",
+          "--createdAfter",
+          createdAfter,
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (filteredByCreatedAfter.filters.createdAfter !== createdAfter) {
+        throw new Error("tokens report did not echo createdAfter filter");
+      }
+
+      if (
+        filteredByCreatedAfter.items.some(
+          (item) => new Date(item.createdAt).getTime() < new Date(createdAfter).getTime(),
+        )
+      ) {
+        throw new Error(
+          "tokens report createdAfter filter returned rows created before the requested timestamp",
+        );
+      }
     });
 
     await runStep("tokens compare report", async () => {

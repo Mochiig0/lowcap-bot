@@ -240,6 +240,7 @@ Report notes:
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and up to 3 `recentMetrics`
 - `tokens:report` supports `--metadataStatus` for filtering current tokens by `mint_only`, `partial`, or `enriched`
 - `tokens:report` supports `--hasMetrics` for filtering current tokens by whether they already have at least one metric row
+- `tokens:report` supports `--createdAfter <ISO8601>` for filtering current tokens to rows created at or after one timestamp
 - `tokens:report` returns filtered rows as JSON and includes `metadataStatus`, `latestMetricObservedAt`, and `metricsCount`
 - `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, `metricsCount`, and latest metric summary fields
 - `tokens:compare-report` supports `--hardRejected` for filtering by current reject state
@@ -269,6 +270,7 @@ Queue-style token recipes:
 pnpm tokens:report -- --metadataStatus mint_only --limit 20
 pnpm tokens:report -- --metadataStatus enriched --hasMetrics false --limit 20
 pnpm tokens:report -- --hasMetrics true --limit 20
+pnpm tokens:report -- --source manual --metadataStatus mint_only --createdAfter 2026-04-16T00:00:00.000Z --limit 20
 ```
 
 For one token's deeper view, continue with `pnpm token:compare -- --mint <MINT>`. For cross-token comparison, continue with `pnpm tokens:compare-report`.
