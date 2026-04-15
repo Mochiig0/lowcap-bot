@@ -160,6 +160,7 @@ Metric sample payload: `examples/import-file-with-metric.sample.json`
 `import:mint:file` expects exactly one JSON object with an `items` array. Each item must contain `mint` and may contain `source`.
 
 On success, `import:mint:file` returns JSON with `file`, `count`, `createdCount`, `existingCount`, and `items`. It processes items sequentially, so duplicate mints in the same file typically return `created: true` for the first item and `created: false` for later duplicates. Re-running the same file returns `existingCount` for already imported mints. There is no `failedCount` summary today; validation errors or child import failures exit non-zero before a final summary is printed.
+After a batch run, pick one `items[].mint` with `created: true` when you want to continue the mint-driven flow, then use that mint with `pnpm token:show`, `pnpm token:enrich`, and `pnpm token:rescore`.
 
 `import:mint:source-file` expects one source-specific raw event object with `source`, `eventType`, `detectedAt`, and `payload.mintAddress`, normalizes it to the same minimal handoff payload used by `import:mint`, and returns `{ file, sourceEvent, handoffPayload, result }`. It is not a replacement for `import:mint:file`, which still accepts only the file-backed `{ items: [...] }` handoff wrapper. Re-running the same source event currently mirrors `import:mint`, so `result.created` becomes `false` for an already imported mint; shape validation or child import failures exit non-zero before a success JSON payload is printed.
 
