@@ -6,6 +6,10 @@ type TokenShowArgs = {
   mint: string;
 };
 
+function hasText(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function printUsageAndExit(message?: string): never {
   if (message) {
     console.error(`Error: ${message}`);
@@ -123,6 +127,11 @@ async function run(): Promise<void> {
         name: token.name,
         symbol: token.symbol,
         description: token.description,
+        hasCurrentText:
+          hasText(token.name) ||
+          hasText(token.symbol) ||
+          hasText(token.description) ||
+          hasText(token.normalizedText),
         source: token.source ?? null,
         metadataStatus: token.metadataStatus,
         groupKey: token.groupKey ?? null,

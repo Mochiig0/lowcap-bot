@@ -1111,8 +1111,40 @@ async function run(): Promise<void> {
     });
 
     await runStep("token show", async () => {
+      const mintOnly = await runCliJson<{
+        mint: string;
+        hasCurrentText: boolean;
+        metadataStatus: string;
+        latestMetric: { id: number } | null;
+      }>(
+        "token show mint-only",
+        "src/cli/tokenShow.ts",
+        [
+          "--mint",
+          context.mintOnlyMint,
+        ],
+        context.smokeId,
+      );
+
+      if (mintOnly.mint !== context.mintOnlyMint) {
+        throw new Error("token show returned unexpected mint for mint-only token");
+      }
+
+      if (mintOnly.metadataStatus !== "mint_only") {
+        throw new Error("token show did not include metadataStatus for mint-only token");
+      }
+
+      if (mintOnly.hasCurrentText !== false) {
+        throw new Error("token show returned unexpected hasCurrentText for mint-only token");
+      }
+
+      if (mintOnly.latestMetric) {
+        throw new Error("token show returned unexpected latestMetric for mint-only token");
+      }
+
       const parsed = await runCliJson<{
         mint: string;
+        hasCurrentText: boolean;
         metadataStatus: string;
         latestMetric: { id: number } | null;
       }>(
@@ -1131,6 +1163,10 @@ async function run(): Promise<void> {
 
       if (parsed.metadataStatus !== "mint_only") {
         throw new Error("token show did not include metadataStatus");
+      }
+
+      if (parsed.hasCurrentText !== true) {
+        throw new Error("token show returned unexpected hasCurrentText for token with current text");
       }
 
       if (!parsed.latestMetric) {

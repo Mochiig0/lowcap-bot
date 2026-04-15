@@ -171,7 +171,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `import:file` parses `--file`, reads and validates one JSON object, then delegates the supported fields to `src/cli/import.ts`
 - `import:file` expects exactly one JSON object with required `mint`, `name`, and `symbol`
 - `import:file` also accepts optional `desc`, `dev`, `groupKey`, `groupNote`, `source`, `maxMultiple15m`, `peakFdv24h`, `volume24h`, `peakFdv7d`, `volume7d`, `metricSource`, and `observedAt`
-- `token:show` returns `metadataStatus`, `latestMetric`, and `metricsCount`
+- `token:show` returns `metadataStatus`, `hasCurrentText`, `latestMetric`, and `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and `recentMetrics`
 - `tokens:report` supports `rank`, `source`, `metadataStatus`, `hasMetrics`, `hardRejected`, and `createdAfter` filters
 - `tokens:report` returns `metadataStatus`, `latestMetricObservedAt`, and `metricsCount`

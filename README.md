@@ -236,7 +236,7 @@ Import notes:
 
 Report notes:
 
-- `token:show` returns one token as JSON and includes `metadataStatus`, `latestMetric`, and `metricsCount`
+- `token:show` returns one token as JSON and includes `metadataStatus`, `hasCurrentText`, `latestMetric`, and `metricsCount`
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and up to 3 `recentMetrics`
 - `tokens:report` supports `--metadataStatus` for filtering current tokens by `mint_only`, `partial`, or `enriched`
 - `tokens:report` supports `--hasMetrics` for filtering current tokens by whether they already have at least one metric row
