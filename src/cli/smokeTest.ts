@@ -22,6 +22,7 @@ type SmokeContext = {
   mintBatchDuplicateMint: string;
   mintBatchRerunMints: [string, string];
   mintSourceEventMint: string;
+  detectRunnerMint: string;
   mintHappyPathMint: string;
   minMint: string;
   fileMint: string;
@@ -35,6 +36,7 @@ type SmokeContext = {
   mintBatchDuplicateFilePath: string;
   mintBatchRerunFilePath: string;
   mintSourceEventFilePath: string;
+  detectRunnerFilePath: string;
   mintHappyPathFilePath: string;
 };
 
@@ -130,6 +132,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintBatchDuplicateMint,
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
+          context.detectRunnerMint,
           context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
@@ -163,6 +166,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintBatchDuplicateMint,
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
+          context.detectRunnerMint,
           context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
@@ -183,6 +187,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.mintBatchDuplicateFilePath, { force: true });
   await rm(context.mintBatchRerunFilePath, { force: true });
   await rm(context.mintSourceEventFilePath, { force: true });
+  await rm(context.detectRunnerFilePath, { force: true });
   await rm(context.mintHappyPathFilePath, { force: true });
 }
 
@@ -206,6 +211,7 @@ async function run(): Promise<void> {
       `${smokeId}_MINTBATCH_RERUN2`,
     ],
     mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
+    detectRunnerMint: `H${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "2").padEnd(43, "3").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
@@ -219,6 +225,7 @@ async function run(): Promise<void> {
     mintBatchDuplicateFilePath: `/tmp/${smokeId}-import-mint-file-duplicate.json`,
     mintBatchRerunFilePath: `/tmp/${smokeId}-import-mint-file-rerun.json`,
     mintSourceEventFilePath: `/tmp/${smokeId}-import-mint-source-file.json`,
+    detectRunnerFilePath: `/tmp/${smokeId}-detect-dexscreener-file.json`,
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
   };
 
@@ -655,6 +662,192 @@ async function run(): Promise<void> {
         rerun.result.created !== false
       ) {
         throw new Error("mint-only source event rerun did not return created=false");
+      }
+    });
+
+    await runStep("detect dexscreener dry-run and write", async () => {
+      await writeFile(
+        context.detectRunnerFilePath,
+        `${JSON.stringify(
+          {
+            source: "dexscreener-token-profiles-latest-v1",
+            eventType: "token_detected",
+            detectedAt: "2026-04-16T13:35:37.123Z",
+            payload: {
+              mintAddress: context.detectRunnerMint,
+              chainId: "solana",
+              tokenAddress: context.detectRunnerMint,
+              url: "https://dexscreener.com/solana/smoke-detect-runner",
+              updatedAt: "2026-04-16T13:35:37.123Z",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const dryRun = await runCliJson<{
+        dryRun: boolean;
+        writeEnabled: boolean;
+        processedCount: number;
+        acceptedCount: number;
+        rejectedCount: number;
+        importedCount: number;
+        existingCount: number;
+        items: Array<{
+          handoffPayload?: {
+            mint: string;
+            source?: string;
+          };
+          detectorResult: {
+            ok: boolean;
+            mint?: string;
+            source?: string;
+          };
+          importResult?: {
+            created: boolean;
+          };
+        }>;
+      }>(
+        "detect dexscreener dry-run",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        dryRun.dryRun !== true ||
+        dryRun.writeEnabled !== false ||
+        dryRun.processedCount !== 1 ||
+        dryRun.acceptedCount !== 1 ||
+        dryRun.rejectedCount !== 0 ||
+        dryRun.importedCount !== 0 ||
+        dryRun.existingCount !== 0 ||
+        dryRun.items.length !== 1
+      ) {
+        throw new Error("detect dexscreener dry-run returned unexpected summary");
+      }
+
+      if (
+        dryRun.items[0].handoffPayload?.mint !== context.detectRunnerMint ||
+        dryRun.items[0].handoffPayload?.source !== "dexscreener-token-profiles-latest-v1" ||
+        dryRun.items[0].detectorResult.ok !== true ||
+        dryRun.items[0].detectorResult.mint !== context.detectRunnerMint ||
+        dryRun.items[0].importResult !== undefined
+      ) {
+        throw new Error("detect dexscreener dry-run returned unexpected item fields");
+      }
+
+      const tokenBeforeWrite = await db.token.findUnique({
+        where: { mint: context.detectRunnerMint },
+        select: { id: true },
+      });
+
+      if (tokenBeforeWrite) {
+        throw new Error("detect dexscreener dry-run unexpectedly wrote a token");
+      }
+
+      const written = await runCliJson<{
+        dryRun: boolean;
+        writeEnabled: boolean;
+        processedCount: number;
+        acceptedCount: number;
+        rejectedCount: number;
+        importedCount: number;
+        existingCount: number;
+        items: Array<{
+          handoffPayload?: {
+            mint: string;
+            source?: string;
+          };
+          importResult?: {
+            mint: string;
+            metadataStatus: string;
+            created: boolean;
+          };
+        }>;
+      }>(
+        "detect dexscreener write",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerFilePath,
+          "--write",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        written.dryRun !== false ||
+        written.writeEnabled !== true ||
+        written.processedCount !== 1 ||
+        written.acceptedCount !== 1 ||
+        written.rejectedCount !== 0 ||
+        written.importedCount !== 1 ||
+        written.existingCount !== 0 ||
+        written.items.length !== 1
+      ) {
+        throw new Error("detect dexscreener write returned unexpected summary");
+      }
+
+      if (
+        written.items[0].handoffPayload?.mint !== context.detectRunnerMint ||
+        written.items[0].importResult?.mint !== context.detectRunnerMint ||
+        written.items[0].importResult?.metadataStatus !== "mint_only" ||
+        written.items[0].importResult?.created !== true
+      ) {
+        throw new Error("detect dexscreener write returned unexpected item fields");
+      }
+
+      const writtenToken = await db.token.findUnique({
+        where: { mint: context.detectRunnerMint },
+        select: {
+          mint: true,
+          source: true,
+          metadataStatus: true,
+        },
+      });
+
+      if (!writtenToken) {
+        throw new Error("detect dexscreener write did not create a token");
+      }
+
+      if (
+        writtenToken.source !== "dexscreener-token-profiles-latest-v1" ||
+        writtenToken.metadataStatus !== "mint_only"
+      ) {
+        throw new Error("detect dexscreener write did not persist mint-first fields");
+      }
+
+      const rerun = await runCliJson<{
+        importedCount: number;
+        existingCount: number;
+        items: Array<{
+          importResult?: {
+            created: boolean;
+          };
+        }>;
+      }>(
+        "detect dexscreener write rerun",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerFilePath,
+          "--write",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        rerun.importedCount !== 0 ||
+        rerun.existingCount !== 1 ||
+        rerun.items[0]?.importResult?.created !== false
+      ) {
+        throw new Error("detect dexscreener write rerun did not report existing token");
       }
     });
 

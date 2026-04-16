@@ -3,9 +3,13 @@ import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+import { db } from "./db.js";
+import { importMint, type ImportMintResult } from "./importMintShared.js";
 import {
   evaluateDetectorCandidate,
+  type AcceptResult,
   type DetectorCandidate,
+  type RejectResult,
 } from "../scoring/evaluateDetectorCandidate.js";
 
 const SOURCE = "dexscreener-token-profiles-latest-v1";
@@ -15,6 +19,7 @@ const API_URL = "https://api.dexscreener.com/token-profiles/latest/v1";
 type DetectDexscreenerTokenProfilesArgs = {
   file?: string;
   limit: number;
+  write: boolean;
 };
 
 type SourceEvent = {
@@ -42,6 +47,20 @@ type LoadedInput = {
   events: SourceEvent[];
 };
 
+type MinimalHandoffPayload = {
+  mint: string;
+  source?: string;
+};
+
+type DetectItemResult = {
+  index: number;
+  sourceEvent: SourceEvent;
+  detectorCandidate: DetectorCandidate;
+  detectorResult: AcceptResult | RejectResult;
+  handoffPayload?: MinimalHandoffPayload;
+  importResult?: ImportMintResult;
+};
+
 function printUsageAndExit(message?: string): never {
   if (message) {
     console.error(`Error: ${message}`);
@@ -50,12 +69,13 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>]",
+      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write]",
       "",
       "Defaults:",
       `- fetches ${API_URL}`,
       "- filters to chainId=solana",
       "- evaluates up to --limit 1 items as a dry-run only",
+      "- writes accepted items into import:mint only when --write is set",
     ].join("\n"),
   );
   process.exit(1);
@@ -77,13 +97,18 @@ function parsePositiveIntegerArg(value: string, key: string): number {
 function parseArgs(argv: string[]): DetectDexscreenerTokenProfilesArgs {
   const out: Partial<DetectDexscreenerTokenProfilesArgs> = {
     limit: 1,
+    write: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
-    const value = argv[i + 1];
+    if (key === "--write") {
+      out.write = true;
+      continue;
+    }
 
     if (!key.startsWith("--")) continue;
+    const value = argv[i + 1];
     if (value === undefined || value.startsWith("--")) {
       printUsageAndExit(`Missing value for ${key}`);
     }
@@ -344,6 +369,10 @@ function buildDetectorCandidate(sourceEvent: SourceEvent): DetectorCandidate {
   };
 }
 
+function buildMinimalHandoffPayload(result: AcceptResult): MinimalHandoffPayload {
+  return result.source ? { mint: result.mint, source: result.source } : { mint: result.mint };
+}
+
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
@@ -351,24 +380,44 @@ async function run(): Promise<void> {
     ? await loadFromFile(resolve(process.cwd(), args.file))
     : await loadFromApi();
   const selectedEvents = input.events.slice(0, args.limit);
-  const items = selectedEvents.map((sourceEvent, index) => {
+  const items: DetectItemResult[] = [];
+  let importedCount = 0;
+  let existingCount = 0;
+
+  for (const [index, sourceEvent] of selectedEvents.entries()) {
     const detectorCandidate = buildDetectorCandidate(sourceEvent);
     const detectorResult = evaluateDetectorCandidate(detectorCandidate);
-
-    return {
+    const item: DetectItemResult = {
       index,
       sourceEvent,
       detectorCandidate,
       detectorResult,
     };
-  });
+
+    if (detectorResult.ok) {
+      item.handoffPayload = buildMinimalHandoffPayload(detectorResult);
+
+      if (args.write) {
+        item.importResult = await importMint(item.handoffPayload);
+        if (item.importResult.created) {
+          importedCount += 1;
+        } else {
+          existingCount += 1;
+        }
+      }
+    }
+
+    items.push(item);
+  }
+
   const acceptedCount = items.filter((item) => item.detectorResult.ok).length;
   const rejectedCount = items.length - acceptedCount;
 
   console.log(
     JSON.stringify(
       {
-        dryRun: true,
+        dryRun: !args.write,
+        writeEnabled: args.write,
         mode: input.mode,
         ...(input.file ? { file: input.file } : {}),
         ...(input.apiUrl ? { apiUrl: input.apiUrl } : {}),
@@ -381,6 +430,8 @@ async function run(): Promise<void> {
         skippedCount: Math.max(input.solanaCount - items.length, 0),
         acceptedCount,
         rejectedCount,
+        importedCount,
+        existingCount,
         items,
       },
       null,
@@ -396,4 +447,6 @@ run().catch((error) => {
     console.error(String(error));
   }
   process.exitCode = 1;
+}).finally(async () => {
+  await db.$disconnect();
 });

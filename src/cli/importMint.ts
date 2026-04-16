@@ -1,31 +1,9 @@
 import "dotenv/config";
 
 import { db } from "./db.js";
+import { importMint, type ImportMintInput } from "./importMintShared.js";
 
-type ImportMintArgs = {
-  mint: string;
-  source?: string;
-};
-
-type EntrySnapshot = {
-  stage: "mint_only";
-  capturedAt: string;
-  name: null;
-  symbol: null;
-  description: null;
-  dev: null;
-  links: {
-    website: null;
-    x: null;
-    telegram: null;
-  };
-  scoreRank: null;
-  scoreTotal: null;
-  scoreBreakdown: null;
-  hardRejected: null;
-  price: null;
-  fdv: null;
-};
+type ImportMintArgs = ImportMintInput;
 
 function printUsageAndExit(message?: string): never {
   if (message) {
@@ -82,81 +60,14 @@ function parseArgs(argv: string[]): ImportMintArgs {
   };
 }
 
-function buildEntrySnapshot(capturedAt: string): EntrySnapshot {
-  return {
-    stage: "mint_only",
-    capturedAt,
-    name: null,
-    symbol: null,
-    description: null,
-    dev: null,
-    links: {
-      website: null,
-      x: null,
-      telegram: null,
-    },
-    scoreRank: null,
-    scoreTotal: null,
-    scoreBreakdown: null,
-    hardRejected: null,
-    price: null,
-    fdv: null,
-  };
-}
-
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
-
-  const existing = await db.token.findUnique({
-    where: { mint: args.mint },
-    select: {
-      mint: true,
-      metadataStatus: true,
-      importedAt: true,
-    },
-  });
-
-  if (existing) {
-    console.log(
-      JSON.stringify(
-        {
-          mint: existing.mint,
-          metadataStatus: existing.metadataStatus,
-          importedAt: existing.importedAt.toISOString(),
-          created: false,
-        },
-        null,
-        2,
-      ),
-    );
-    return;
-  }
-
-  const importedAt = new Date();
-  const token = await db.token.create({
-    data: {
-      mint: args.mint,
-      source: args.source,
-      importedAt,
-      metadataStatus: "mint_only",
-      entrySnapshot: buildEntrySnapshot(importedAt.toISOString()),
-    },
-    select: {
-      mint: true,
-      metadataStatus: true,
-      importedAt: true,
-    },
-  });
+  const result = await importMint(args);
 
   console.log(
     JSON.stringify(
-      {
-        mint: token.mint,
-        metadataStatus: token.metadataStatus,
-        importedAt: token.importedAt.toISOString(),
-        created: true,
-      },
+      result,
       null,
       2,
     ),

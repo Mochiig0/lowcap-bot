@@ -10,6 +10,8 @@ The current focus is manual operation: import a token candidate, score its narra
 - Create a mint-only token record with `pnpm import:mint`
 - Create multiple mint-only token records from one JSON file with `pnpm import:mint:file`
 - Create one mint-only token record from one source-specific raw event file with `pnpm import:mint:source-file`
+- Dry-run one DexScreener token-profiles detection pass with `pnpm detect:dexscreener:token-profiles`
+- Optionally hand off accepted DexScreener candidates into `pnpm import:mint` with `pnpm detect:dexscreener:token-profiles -- --write`
 - Enrich a mint-only token record with `pnpm token:enrich`
 - Rescore one token from current fields with `pnpm token:rescore`
 - Append one metric row with `pnpm metric:add`
@@ -33,7 +35,7 @@ The current focus is manual operation: import a token candidate, score its narra
 
 - Always-on bot runtime
 - Scheduler / worker / queue
-- Automatic launch detection or automatic ingestion
+- Always-on automatic launch detection or ingestion runtime
 - Full test framework
 - Review UI or broader operational UI
 
@@ -123,13 +125,19 @@ Fixed first raw source fixture for the auto-ingest MVP, captured from DexScreene
 
 Generic adapter-shape sample: `examples/import-mint-source-file.sample.json`
 
-Dry-run the first auto-ingest source through detector accept/reject without DB writes:
+Run the first auto-ingest source through detector accept/reject:
 
 ```bash
 pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json
 ```
 
-Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, and evaluates up to `--limit 1`.
+Write accepted items into the mint-first boundary:
+
+```bash
+pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json --write
+```
+
+Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, and stays dry-run unless `--write` is set.
 
 Enrich one existing token record:
 
@@ -243,6 +251,7 @@ Import notes:
 - `pnpm import:mint:file` is a thin wrapper that reads a file, validates `{ items: [{ mint, source? }] }`, and delegates each item sequentially to `src/cli/importMint.ts`.
 - `pnpm import:mint:file` success output is `{ file, count, createdCount, existingCount, items }`; duplicate mints and file re-runs are reflected through per-item `created` plus `createdCount` / `existingCount`.
 - `pnpm import:mint:source-file` is a source-specific adapter wrapper that reads one raw event, normalizes it to `{ mint, source? }`, and delegates the result into `src/cli/importMint.ts`.
+- `pnpm detect:dexscreener:token-profiles` is a single-source runner for DexScreener token profiles latest v1; by default it only evaluates candidates, and with `--write` it hands accepted `{ mint, source? }` payloads into the same mint-first boundary used by `import:mint`.
 
 Report notes:
 
@@ -306,6 +315,7 @@ For one metric row, continue with `pnpm metric:show -- --id <ID>`. For token-lev
 - Use `pnpm import:mint` when you want to accumulate the mint first and fill details later.
 - Use `pnpm import:mint:file` when you want to batch the minimal handoff payload `{ "items": [{ "mint": "...", "source"?: "..." }] }`.
 - Use `pnpm import:mint:source-file` when you want to send one raw source event through its source-specific parser and mapper before handing off to `import:mint`.
+- Use `pnpm detect:dexscreener:token-profiles` when you want the single-source DexScreener runner to fetch or read one-source input, evaluate candidates, and optionally hand accepted items into `import:mint` with `--write`.
 - Use `pnpm token:enrich`, `pnpm token:rescore`, and `pnpm metric:add` after mint-only intake when you want later metadata fill, score recalculation, or metric append.
 - Use the read-only lane (`pnpm token:compare`, `pnpm tokens:compare-report`, `pnpm metrics:report`, `pnpm token:show`, `pnpm metric:show`, `pnpm tokens:report`) when you only want to inspect saved data.
 

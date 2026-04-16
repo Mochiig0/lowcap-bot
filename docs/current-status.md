@@ -2,7 +2,7 @@
 
 ## Summary
 
-This repository is an MVP for mint-driven token accumulation, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification still exists only on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules.
+This repository is an MVP for mint-driven token accumulation, single-source DexScreener candidate detection, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification still exists only on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules.
 
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
@@ -20,6 +20,10 @@ pnpm import:mint:file -- --file <PATH>
 
 ```bash
 pnpm import:mint:source-file -- --file <PATH>
+```
+
+```bash
+pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write]
 ```
 
 ```bash
@@ -76,18 +80,19 @@ A minimal smoke-test path is also available:
 pnpm smoke
 ```
 
-There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
+There is no always-on bot, scheduler, queue worker, or background automatic ingestion runtime yet.
 
 ## Current Operational Flow
 
 ### Mint-Driven Accumulation MVP
 
 1. Start with `pnpm import:mint` to create the minimum token base and initial `entrySnapshot`.
-2. Use `pnpm import:mint:file` when mint-only intake already exists as one local JSON object with an `items` array.
-3. Use `pnpm import:mint:source-file` when one source-specific raw event file needs to be normalized into the same mint-only boundary.
-4. Use `pnpm token:enrich` to fill current token fields after mint-only intake.
-5. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
-6. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
+2. Use `pnpm detect:dexscreener:token-profiles` when one DexScreener token-profiles pass should be evaluated as a dry-run or handed off into `import:mint` with `--write`.
+3. Use `pnpm import:mint:file` when mint-only intake already exists as one local JSON object with an `items` array.
+4. Use `pnpm import:mint:source-file` when one source-specific raw event file needs to be normalized into the same mint-only boundary.
+5. Use `pnpm token:enrich` to fill current token fields after mint-only intake.
+6. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
+7. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
 
 ### Full Import Path
 
@@ -115,6 +120,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - Mint-only accumulation CLI in `src/cli/importMint.ts`
 - Mint-only batch file wrapper CLI in `src/cli/importMintFile.ts`
 - Source-specific mint-only adapter CLI in `src/cli/importMintSourceFile.ts`
+- DexScreener single-source detect runner CLI in `src/cli/detectDexscreenerTokenProfiles.ts`
 - Token enrichment CLI in `src/cli/tokenEnrich.ts`
 - Token rescore CLI in `src/cli/tokenRescore.ts`
 - Manual metric append CLI in `src/cli/metricAdd.ts`
@@ -161,6 +167,10 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - re-running the same `import:mint:source-file` payload currently mirrors `import:mint`, so `result.created` returns `false` for an already imported mint
 - `import:mint:source-file` exits non-zero on source-event shape validation errors or child import failures
 - `import:mint:source-file` keeps source-specific parse and mapping outside the `import:mint` / `import:mint:file` ingest boundary
+- `detect:dexscreener:token-profiles` fetches DexScreener token profiles latest v1 by default, or reads one local file with `--file`
+- `detect:dexscreener:token-profiles` filters to `chainId=solana`, normalizes the current source-event shape, and evaluates `source_event_hint` candidates
+- `detect:dexscreener:token-profiles` stays dry-run by default
+- `detect:dexscreener:token-profiles --write` hands accepted `{ mint, source? }` payloads into the same mint-first boundary used by `import:mint`
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
@@ -198,7 +208,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 ## Not Implemented
 
-- Automatic import from external sources
+- Always-on import from external sources
 - Background processing or scheduled jobs
 - Full test framework
 - Migrations directory and versioned DB history
@@ -207,13 +217,14 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 
 ## Current Constraints
 
-- Input is manual and one-token-at-a-time through CLI args
+- Input is still one-shot CLI-driven; the DexScreener runner can fetch one source pass, but there is no always-on runtime
 - Scoring is entirely rule-based and file-backed
 - Trend scoring is currently ineffective unless `data/trend.json` is refreshed
 - Metrics are only stored when optional metric args are supplied manually
 - In `pnpm import`, optional metric number/date args still treat empty strings as `undefined` instead of usage errors
 - Trend updates must be triggered manually through the CLI
 - CLI output is JSON-first and intended for manual inspection, not a long-running app runtime
+- The DexScreener detect runner is one-shot and sequential; it is not a queue, worker, scheduler, or retry loop
 - Comparison views are read-only summaries and do not include automatic interpretation
 - Comparison and report CLIs are read-only and do not send Telegram notifications
 
@@ -330,10 +341,11 @@ Notes:
 - `import:file` is a thin wrapper for one local JSON object and does not introduce automatic ingestion
 - `import:mint:file` is a thin wrapper for one local JSON object with an `items` array and does not add scoring, notify, or metric behavior
 - `import:mint:source-file` is a source-specific raw-event adapter and does not add scoring, notify, or metric behavior
+- `detect:dexscreener:token-profiles` is a single-source runner; default output is dry-run JSON, and `--write` only hands accepted `{ mint, source? }` payloads into `import:mint`
 - `token:show` includes `metadataStatus` plus the latest metric summary when one exists
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
-- smoke runs a lightweight operational check for typecheck, `import`, sequential `import:mint` re-run behavior, `import:mint:file`, `import:mint:source-file`, `import:min`, `import:file`, metric save, `metric:add` append-only behavior, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report
+- smoke runs a lightweight operational check for typecheck, `import`, sequential `import:mint` re-run behavior, `import:mint:file`, `import:mint:source-file`, `detect:dexscreener:token-profiles` dry-run/write behavior, `import:min`, `import:file`, metric save, `metric:add` append-only behavior, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report
 - `pnpm test` runs the current pure-function tests for normalization, hard reject matching, score calculation, and trend keyword parsing
 - smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
 

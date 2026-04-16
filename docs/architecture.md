@@ -8,6 +8,7 @@ The main operational paths are now split between:
 
 - `pnpm import` for full manual import with optional notify
 - `pnpm import:mint` for minimum mint-first accumulation
+- `pnpm detect:dexscreener:token-profiles` for single-source detect dry-run or optional mint-first handoff
 - `pnpm token:enrich` for filling current token fields after mint-only intake
 - `pnpm token:rescore` for recomputing hard reject and score fields from current text
 - `pnpm metric:add` for adding outcome observations after intake
@@ -17,7 +18,7 @@ The main operational paths are now split between:
 
 `pnpm import:file` is another thin wrapper that reads one local JSON object and forwards supported fields into the same import flow.
 
-This repository is not yet an always-on bot. It does not currently include automatic ingestion, a scheduler, workers, or a queue.
+This repository is not yet an always-on bot. It does not currently include a scheduler, workers, a queue, or a background ingestion runtime.
 
 ## Main Flows
 
@@ -42,10 +43,11 @@ Current manual-operation note:
 The mint-driven accumulation path is intentionally staged:
 
 1. `src/cli/importMint.ts`
-2. `src/cli/tokenEnrich.ts`
-3. `src/cli/tokenRescore.ts`
-4. `src/cli/metricAdd.ts`
-5. `src/cli/tokenCompare.ts` / `src/cli/tokensCompareReport.ts` for read-only inspection
+2. `src/cli/detectDexscreenerTokenProfiles.ts`
+3. `src/cli/tokenEnrich.ts`
+4. `src/cli/tokenRescore.ts`
+5. `src/cli/metricAdd.ts`
+6. `src/cli/tokenCompare.ts` / `src/cli/tokensCompareReport.ts` for read-only inspection
 
 Current intent:
 
@@ -83,6 +85,7 @@ Outside that boundary:
 - future detector or source-adapter code should only discover or normalize mint-first intake candidates, then hand off into `import:mint` or `import:mint:file`
 - detector or adapter code should not take over scoring, notify, metric creation, enrich, or rescore responsibilities
 - detector or adapter code should not introduce worker, scheduler, or queue behavior at this stage
+- `detect:dexscreener:token-profiles --write` is allowed to hand accepted `{ mint, source? }` payloads into `import:mint` because it stays inside that mint-first boundary
 
 Boundary rules:
 
