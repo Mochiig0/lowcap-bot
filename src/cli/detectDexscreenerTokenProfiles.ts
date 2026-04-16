@@ -19,7 +19,10 @@ const API_URL = "https://api.dexscreener.com/token-profiles/latest/v1";
 type DetectDexscreenerTokenProfilesArgs = {
   file?: string;
   limit: number;
+  watch: boolean;
   write: boolean;
+  intervalSeconds: number;
+  maxIterations?: number;
 };
 
 type SourceEvent = {
@@ -61,6 +64,17 @@ type DetectItemResult = {
   importResult?: ImportMintResult;
 };
 
+type DetectCycleResult = LoadedInput & {
+  cycle: number;
+  processedCount: number;
+  skippedCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  importedCount: number;
+  existingCount: number;
+  items: DetectItemResult[];
+};
+
 function printUsageAndExit(message?: string): never {
   if (message) {
     console.error(`Error: ${message}`);
@@ -69,13 +83,15 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write]",
+      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
       "",
       "Defaults:",
       `- fetches ${API_URL}`,
       "- filters to chainId=solana",
       "- evaluates up to --limit 1 items as a dry-run only",
       "- writes accepted items into import:mint only when --write is set",
+      "- loops only when --watch is set",
+      "- waits --intervalSeconds 1 between watch cycles",
     ].join("\n"),
   );
   process.exit(1);
@@ -97,13 +113,19 @@ function parsePositiveIntegerArg(value: string, key: string): number {
 function parseArgs(argv: string[]): DetectDexscreenerTokenProfilesArgs {
   const out: Partial<DetectDexscreenerTokenProfilesArgs> = {
     limit: 1,
+    watch: false,
     write: false,
+    intervalSeconds: 1,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
-    if (key === "--write") {
-      out.write = true;
+    if (key === "--watch" || key === "--write") {
+      if (key === "--watch") {
+        out.watch = true;
+      } else {
+        out.write = true;
+      }
       continue;
     }
 
@@ -120,6 +142,12 @@ function parseArgs(argv: string[]): DetectDexscreenerTokenProfilesArgs {
       case "--limit":
         out.limit = parsePositiveIntegerArg(value, key);
         break;
+      case "--intervalSeconds":
+        out.intervalSeconds = parsePositiveIntegerArg(value, key);
+        break;
+      case "--maxIterations":
+        out.maxIterations = parsePositiveIntegerArg(value, key);
+        break;
       default:
         printUsageAndExit(`Unknown arg: ${key}`);
     }
@@ -127,7 +155,17 @@ function parseArgs(argv: string[]): DetectDexscreenerTokenProfilesArgs {
     i += 1;
   }
 
+  if (!out.watch && (argv.includes("--intervalSeconds") || argv.includes("--maxIterations"))) {
+    printUsageAndExit("--intervalSeconds and --maxIterations require --watch");
+  }
+
   return out as DetectDexscreenerTokenProfilesArgs;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolveSleep) => {
+    setTimeout(resolveSleep, ms);
+  });
 }
 
 function ensureObject(
@@ -373,12 +411,28 @@ function buildMinimalHandoffPayload(result: AcceptResult): MinimalHandoffPayload
   return result.source ? { mint: result.mint, source: result.source } : { mint: result.mint };
 }
 
-async function run(): Promise<void> {
-  const argv = process.argv.slice(2).filter((arg) => arg !== "--");
-  const args = parseArgs(argv);
-  const input = args.file
-    ? await loadFromFile(resolve(process.cwd(), args.file))
-    : await loadFromApi();
+function logCycleSummary(result: DetectCycleResult): void {
+  console.error(
+    [
+      `[detect:dexscreener:token-profiles] cycle=${result.cycle}`,
+      `processed=${result.processedCount}`,
+      `accepted=${result.acceptedCount}`,
+      `rejected=${result.rejectedCount}`,
+      `imported=${result.importedCount}`,
+      `existing=${result.existingCount}`,
+    ].join(" "),
+  );
+}
+
+async function loadInput(args: DetectDexscreenerTokenProfilesArgs): Promise<LoadedInput> {
+  return args.file ? loadFromFile(resolve(process.cwd(), args.file)) : loadFromApi();
+}
+
+async function runCycle(
+  args: DetectDexscreenerTokenProfilesArgs,
+  cycle: number,
+): Promise<DetectCycleResult> {
+  const input = await loadInput(args);
   const selectedEvents = input.events.slice(0, args.limit);
   const items: DetectItemResult[] = [];
   let importedCount = 0;
@@ -411,33 +465,93 @@ async function run(): Promise<void> {
   }
 
   const acceptedCount = items.filter((item) => item.detectorResult.ok).length;
-  const rejectedCount = items.length - acceptedCount;
 
-  console.log(
-    JSON.stringify(
-      {
-        dryRun: !args.write,
-        writeEnabled: args.write,
-        mode: input.mode,
-        ...(input.file ? { file: input.file } : {}),
-        ...(input.apiUrl ? { apiUrl: input.apiUrl } : {}),
-        source: SOURCE,
-        eventType: EVENT_TYPE,
-        requestedLimit: args.limit,
-        inputCount: input.inputCount,
-        solanaCount: input.solanaCount,
-        processedCount: items.length,
-        skippedCount: Math.max(input.solanaCount - items.length, 0),
-        acceptedCount,
-        rejectedCount,
-        importedCount,
-        existingCount,
-        items,
-      },
-      null,
-      2,
-    ),
-  );
+  return {
+    ...input,
+    cycle,
+    processedCount: items.length,
+    skippedCount: Math.max(input.solanaCount - items.length, 0),
+    acceptedCount,
+    rejectedCount: items.length - acceptedCount,
+    importedCount,
+    existingCount,
+    items,
+  };
+}
+
+function buildOutput(
+  args: DetectDexscreenerTokenProfilesArgs,
+  cycles: DetectCycleResult[],
+): Record<string, unknown> {
+  const flattenedItems = cycles.flatMap((cycle) => cycle.items);
+  const firstCycle = cycles[0];
+
+  return {
+    dryRun: !args.write,
+    writeEnabled: args.write,
+    watchEnabled: args.watch,
+    mode: firstCycle?.mode ?? (args.file ? "file" : "fetch"),
+    ...(firstCycle?.file ? { file: firstCycle.file } : {}),
+    ...(firstCycle?.apiUrl ? { apiUrl: firstCycle.apiUrl } : {}),
+    source: SOURCE,
+    eventType: EVENT_TYPE,
+    requestedLimit: args.limit,
+    ...(args.watch ? { intervalSeconds: args.intervalSeconds } : {}),
+    ...(args.watch && args.maxIterations ? { maxIterations: args.maxIterations } : {}),
+    cycleCount: cycles.length,
+    inputCount: cycles.reduce((sum, cycle) => sum + cycle.inputCount, 0),
+    solanaCount: cycles.reduce((sum, cycle) => sum + cycle.solanaCount, 0),
+    processedCount: cycles.reduce((sum, cycle) => sum + cycle.processedCount, 0),
+    skippedCount: cycles.reduce((sum, cycle) => sum + cycle.skippedCount, 0),
+    acceptedCount: cycles.reduce((sum, cycle) => sum + cycle.acceptedCount, 0),
+    rejectedCount: cycles.reduce((sum, cycle) => sum + cycle.rejectedCount, 0),
+    importedCount: cycles.reduce((sum, cycle) => sum + cycle.importedCount, 0),
+    existingCount: cycles.reduce((sum, cycle) => sum + cycle.existingCount, 0),
+    items: flattenedItems,
+    ...(args.watch
+      ? {
+          cycles: cycles.map((cycle) => ({
+            cycle: cycle.cycle,
+            inputCount: cycle.inputCount,
+            solanaCount: cycle.solanaCount,
+            processedCount: cycle.processedCount,
+            skippedCount: cycle.skippedCount,
+            acceptedCount: cycle.acceptedCount,
+            rejectedCount: cycle.rejectedCount,
+            importedCount: cycle.importedCount,
+            existingCount: cycle.existingCount,
+            items: cycle.items,
+          })),
+        }
+      : {}),
+  };
+}
+
+async function run(): Promise<void> {
+  const argv = process.argv.slice(2).filter((arg) => arg !== "--");
+  const args = parseArgs(argv);
+  const cycles: DetectCycleResult[] = [];
+  const shouldCollectCycles = !args.watch || args.maxIterations !== undefined;
+  const watchIterationCount = args.watch ? (args.maxIterations ?? Number.POSITIVE_INFINITY) : 1;
+
+  for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
+    const result = await runCycle(args, cycle);
+    if (shouldCollectCycles) {
+      cycles.push(result);
+    }
+
+    if (args.watch) {
+      logCycleSummary(result);
+    }
+
+    if (!args.watch || cycle === watchIterationCount) {
+      break;
+    }
+
+    await sleep(args.intervalSeconds * 1000);
+  }
+
+  console.log(JSON.stringify(buildOutput(args, cycles), null, 2));
 }
 
 run().catch((error) => {

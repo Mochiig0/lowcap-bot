@@ -137,7 +137,13 @@ Write accepted items into the mint-first boundary:
 pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json --write
 ```
 
-Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, and stays dry-run unless `--write` is set.
+Repeat the same detect cycle in simple polling mode:
+
+```bash
+pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json --watch --maxIterations 2
+```
+
+Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, and loops only when `--watch` is set.
 
 Enrich one existing token record:
 

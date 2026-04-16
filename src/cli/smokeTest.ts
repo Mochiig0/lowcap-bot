@@ -849,6 +849,86 @@ async function run(): Promise<void> {
       ) {
         throw new Error("detect dexscreener write rerun did not report existing token");
       }
+
+      const watched = await runCliJson<{
+        dryRun: boolean;
+        writeEnabled: boolean;
+        watchEnabled: boolean;
+        intervalSeconds: number;
+        cycleCount: number;
+        processedCount: number;
+        acceptedCount: number;
+        rejectedCount: number;
+        importedCount: number;
+        existingCount: number;
+        items: Array<{
+          handoffPayload?: {
+            mint: string;
+            source?: string;
+          };
+          detectorResult: {
+            ok: boolean;
+            mint?: string;
+          };
+          importResult?: {
+            created: boolean;
+          };
+        }>;
+        cycles: Array<{
+          cycle: number;
+          processedCount: number;
+          acceptedCount: number;
+          rejectedCount: number;
+          importedCount: number;
+          existingCount: number;
+          items: Array<{
+            handoffPayload?: {
+              mint: string;
+            };
+          }>;
+        }>;
+      }>(
+        "detect dexscreener watch dry-run",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerFilePath,
+          "--watch",
+          "--maxIterations",
+          "2",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        watched.dryRun !== true ||
+        watched.writeEnabled !== false ||
+        watched.watchEnabled !== true ||
+        watched.intervalSeconds !== 1 ||
+        watched.cycleCount !== 2 ||
+        watched.processedCount !== 2 ||
+        watched.acceptedCount !== 2 ||
+        watched.rejectedCount !== 0 ||
+        watched.importedCount !== 0 ||
+        watched.existingCount !== 0 ||
+        watched.items.length !== 2 ||
+        watched.cycles.length !== 2
+      ) {
+        throw new Error("detect dexscreener watch dry-run returned unexpected summary");
+      }
+
+      if (
+        watched.cycles[0]?.cycle !== 1 ||
+        watched.cycles[1]?.cycle !== 2 ||
+        watched.cycles[0]?.processedCount !== 1 ||
+        watched.cycles[1]?.processedCount !== 1 ||
+        watched.cycles[0]?.acceptedCount !== 1 ||
+        watched.cycles[1]?.acceptedCount !== 1 ||
+        watched.cycles[0]?.items[0]?.handoffPayload?.mint !== context.detectRunnerMint ||
+        watched.cycles[1]?.items[0]?.handoffPayload?.mint !== context.detectRunnerMint
+      ) {
+        throw new Error("detect dexscreener watch dry-run returned unexpected cycle detail");
+      }
     });
 
     await runStep("mint-driven happy path", async () => {

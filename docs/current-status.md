@@ -2,7 +2,7 @@
 
 ## Summary
 
-This repository is an MVP for mint-driven token accumulation, single-source DexScreener candidate detection, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification still exists only on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules.
+This repository is an MVP for mint-driven token accumulation, single-source DexScreener candidate detection with one-shot or simple polling execution, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification still exists only on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules.
 
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
@@ -23,7 +23,7 @@ pnpm import:mint:source-file -- --file <PATH>
 ```
 
 ```bash
-pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write]
+pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
 ```
 
 ```bash
