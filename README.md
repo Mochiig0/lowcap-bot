@@ -13,6 +13,7 @@ The current focus is manual operation: import a token candidate, score its narra
 - Dry-run one DexScreener token-profiles detection pass with `pnpm detect:dexscreener:token-profiles`
 - Optionally hand off accepted DexScreener candidates into `pnpm import:mint` with `pnpm detect:dexscreener:token-profiles -- --write`
 - Persist a simple source checkpoint during `pnpm detect:dexscreener:token-profiles -- --watch --write`
+- Start the single-source DexScreener watch runner through `bash ./scripts/run-detect-dexscreener-watch.sh`
 - Enrich a mint-only token record with `pnpm token:enrich`
 - Rescore one token from current fields with `pnpm token:rescore`
 - Append one metric row with `pnpm metric:add`
@@ -149,6 +150,14 @@ Persist a checkpoint cursor while watching and writing:
 ```bash
 pnpm detect:dexscreener:token-profiles -- --watch --write --checkpointFile /tmp/lowcap-bot-dexscreener-checkpoint.json
 ```
+
+Use the fixed run script when you want the repo entrypoint that a `systemd --user` service can call, or when you want the same command line manually:
+
+```bash
+bash ./scripts/run-detect-dexscreener-watch.sh
+```
+
+The script keeps the source-specific checkpoint path fixed by default and forwards any extra detect-runner args, so short manual checks can still use options like `--file ... --maxIterations 1`.
 
 Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, only reads or updates a checkpoint during `--watch --write`, and in watch mode records per-cycle failures instead of stopping immediately.
 

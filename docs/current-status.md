@@ -174,6 +174,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:dexscreener:token-profiles --watch --write` may persist one source-specific checkpoint cursor, defaulting to `data/checkpoints/dexscreener-token-profiles-latest-v1.json`
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
+- `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
@@ -220,14 +221,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 
 ## Current Constraints
 
-- Input is still one-shot CLI-driven; the DexScreener runner can fetch one source pass, but there is no always-on runtime
+- Input is still CLI-driven; the DexScreener runner can poll one source in a single process, but there is no bundled service unit, queue, or scheduler
 - Scoring is entirely rule-based and file-backed
 - Trend scoring is currently ineffective unless `data/trend.json` is refreshed
 - Metrics are only stored when optional metric args are supplied manually
 - In `pnpm import`, optional metric number/date args still treat empty strings as `undefined` instead of usage errors
 - Trend updates must be triggered manually through the CLI
 - CLI output is JSON-first and intended for manual inspection, not a long-running app runtime
-- The DexScreener detect runner is one-shot and sequential; it is not a queue, worker, scheduler, or retry loop
+- The DexScreener detect runner is still single-process and sequential; watch mode is a simple polling loop, not a queue, worker, scheduler, or retry runtime
 - Comparison views are read-only summaries and do not include automatic interpretation
 - Comparison and report CLIs are read-only and do not send Telegram notifications
 
