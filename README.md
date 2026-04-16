@@ -241,6 +241,8 @@ Report notes:
 - `tokens:report` supports `--metadataStatus` for filtering current tokens by `mint_only`, `partial`, or `enriched`
 - `tokens:report` supports `--hasMetrics` for filtering current tokens by whether they already have at least one metric row
 - `tokens:report` supports `--createdAfter <ISO8601>` for filtering current tokens to rows created at or after one timestamp
+- `--createdAfter` is a strict UTC comparison against stored `createdAt`, so a token imported moments ago in local time can still fall on the previous UTC date
+- For immediate follow-up checks after `import:mint:file`, use a timestamp slightly earlier than the returned `importedAt` or keep a few minutes of buffer in the `--createdAfter` value
 - `tokens:report` returns filtered rows as JSON and includes `metadataStatus`, `latestMetricObservedAt`, and `metricsCount`
 - `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, `metricsCount`, and latest metric summary fields
 - `tokens:compare-report` supports `--hardRejected` for filtering by current reject state
