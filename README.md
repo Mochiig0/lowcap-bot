@@ -159,6 +159,12 @@ bash ./scripts/run-detect-dexscreener-watch.sh
 
 The script keeps the source-specific checkpoint path fixed by default and forwards any extra detect-runner args, so short manual checks can still use options like `--file ... --maxIterations 1`.
 
+Check whether `systemd --user` is actually usable before trying the sample service:
+
+```bash
+bash ./scripts/check-systemd-user.sh
+```
+
 Sample `systemd --user` unit file: `ops/systemd/lowcap-bot-dexscreener-watch.service`
 
 ```bash
@@ -167,6 +173,18 @@ cp ./ops/systemd/lowcap-bot-dexscreener-watch.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now lowcap-bot-dexscreener-watch.service
 journalctl --user -u lowcap-bot-dexscreener-watch.service -f
+```
+
+If the preflight reports that `systemd --user` is not ready, keep the same runner and switch only the launcher:
+
+```bash
+tmux new -s lowcap-bot-watch 'cd /home/mochi/projects/lowcap-bot && bash ./scripts/run-detect-dexscreener-watch.sh'
+```
+
+If `tmux` is also unavailable, run the same script in the foreground:
+
+```bash
+bash ./scripts/run-detect-dexscreener-watch.sh
 ```
 
 Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, only reads or updates a checkpoint during `--watch --write`, and in watch mode records per-cycle failures instead of stopping immediately.
