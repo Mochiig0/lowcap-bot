@@ -1437,13 +1437,13 @@ async function run(): Promise<void> {
           mint: string;
           createdAt: string;
           updatedAt: string;
+          enrichedAt: string | null;
+          rescoredAt: string | null;
         }>;
       }>(
         "tokens report created after",
         "src/cli/tokensReport.ts",
         [
-          "--source",
-          "smoke-test",
           "--createdAfter",
           createdAfter,
           "--limit",
@@ -1472,6 +1472,26 @@ async function run(): Promise<void> {
         )
       ) {
         throw new Error("tokens report did not include a valid updatedAt");
+      }
+
+      const mintOnlyReportItem = filteredByCreatedAfter.items.find(
+        (item) => item.mint === context.metricMint,
+      );
+      if (!mintOnlyReportItem) {
+        throw new Error("tokens report createdAfter check did not include mint-only metric token");
+      }
+      if (mintOnlyReportItem.enrichedAt !== null || mintOnlyReportItem.rescoredAt !== null) {
+        throw new Error("tokens report mint-only row unexpectedly included enrich/rescore timestamps");
+      }
+
+      const enrichedReportItem = filteredByCreatedAfter.items.find(
+        (item) => item.mint === context.mintHappyPathMint,
+      );
+      if (!enrichedReportItem) {
+        throw new Error("tokens report createdAfter check did not include enriched smoke token");
+      }
+      if (!enrichedReportItem.enrichedAt || !enrichedReportItem.rescoredAt) {
+        throw new Error("tokens report enriched/rescored row did not include enrich/rescore timestamps");
       }
     });
 

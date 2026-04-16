@@ -189,6 +189,8 @@ async function run(): Promise<void> {
             : null,
           createdAt: token.createdAt.toISOString(),
           updatedAt: token.updatedAt.toISOString(),
+          enrichedAt: token.enrichedAt?.toISOString() ?? null,
+          rescoredAt: token.rescoredAt?.toISOString() ?? null,
           devWallet: token.dev?.wallet ?? null,
         })),
       },

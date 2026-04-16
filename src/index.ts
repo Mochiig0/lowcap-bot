@@ -52,7 +52,7 @@ const lines = [
   "  Example: pnpm metric:add -- --mint TESTMINT --peakFdv24h 180000 --volume24h 42000",
   "",
   "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--createdAfter <ISO8601>] [--limit 20]",
-  "  Show current token inventory rows as JSON, including createdAt and updatedAt.",
+  "  Show current token inventory rows as JSON, including createdAt, updatedAt, enrichedAt, and rescoredAt.",
   "  Example: pnpm tokens:report -- --source manual --metadataStatus mint_only --createdAfter 2026-04-16T00:00:00.000Z --limit 10",
   "",
   "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--limit 20]",
