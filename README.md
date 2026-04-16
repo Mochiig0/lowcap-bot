@@ -245,6 +245,7 @@ Report notes:
 - For immediate follow-up checks after `import:mint:file`, use a timestamp slightly earlier than the returned `importedAt` or keep a few minutes of buffer in the `--createdAfter` value
 - `tokens:report` returns filtered rows as JSON and includes `metadataStatus`, `latestMetricObservedAt`, `metricsCount`, and `updatedAt`
 - `token:enrich` requires `--mint`; `name` / `symbol` may be omitted when the token already has stored values, and only specified fields are updated
+- `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, `metricsCount`, and latest metric summary fields
 - `tokens:compare-report` supports `--hardRejected` for filtering by current reject state
 - `tokens:compare-report` supports `--hasMetrics` and `--minMetricsCount` for filtering by observation count

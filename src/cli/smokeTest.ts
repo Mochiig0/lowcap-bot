@@ -732,6 +732,54 @@ async function run(): Promise<void> {
         throw new Error("mint-driven happy path did not persist mint_only status");
       }
 
+      const sourceOnlyPatched = await runCliJson<{
+        mint: string;
+        source: string | null;
+        metadataStatus: string;
+      }>(
+        "mint-driven happy path source-only enrich patch",
+        "src/cli/tokenEnrich.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+          "--source",
+          "smoke-happy-path-source-patched",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        sourceOnlyPatched.mint !== context.mintHappyPathMint ||
+        sourceOnlyPatched.source !== "smoke-happy-path-source-patched" ||
+        sourceOnlyPatched.metadataStatus !== "mint_only"
+      ) {
+        throw new Error("mint-driven happy path source-only enrich patch returned unexpected fields");
+      }
+
+      const sourceOnlyPatchedShow = await runCliJson<{
+        mint: string;
+        source: string | null;
+        metadataStatus: string;
+        normalizedText: string | null;
+      }>(
+        "mint-driven happy path source-only enrich patch show",
+        "src/cli/tokenShow.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        sourceOnlyPatchedShow.mint !== context.mintHappyPathMint ||
+        sourceOnlyPatchedShow.source !== "smoke-happy-path-source-patched" ||
+        sourceOnlyPatchedShow.metadataStatus !== "mint_only" ||
+        sourceOnlyPatchedShow.normalizedText !== null
+      ) {
+        throw new Error("mint-driven happy path source-only enrich patch did not preserve mint-only state");
+      }
+
       const enriched = await runCliJson<{
         mint: string;
         name: string;
@@ -765,7 +813,7 @@ async function run(): Promise<void> {
       }
 
       if (
-        enriched.source !== "smoke-happy-path-source" ||
+        enriched.source !== "smoke-happy-path-source-patched" ||
         enriched.metadataStatus !== "enriched"
       ) {
         throw new Error("mint-driven happy path enrich returned unexpected status or source");
@@ -800,7 +848,7 @@ async function run(): Promise<void> {
       }
 
       if (
-        patched.source !== "smoke-happy-path-source" ||
+        patched.source !== "smoke-happy-path-source-patched" ||
         patched.metadataStatus !== "enriched"
       ) {
         throw new Error("mint-driven happy path enrich patch returned unexpected status or source");
@@ -897,7 +945,7 @@ async function run(): Promise<void> {
       }
 
       if (
-        compared.currentToken.source !== "smoke-happy-path-source" ||
+        compared.currentToken.source !== "smoke-happy-path-source-patched" ||
         compared.currentToken.name !== "smoke happy path token" ||
         compared.currentToken.symbol !== "SMKHP"
       ) {

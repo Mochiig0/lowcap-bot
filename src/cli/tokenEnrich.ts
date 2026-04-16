@@ -89,6 +89,17 @@ function computeMetadataStatus(params: {
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
+  const hasTextFieldUpdate =
+    args.name !== undefined ||
+    args.symbol !== undefined ||
+    args.desc !== undefined;
+  const hasSourceUpdate = args.source !== undefined;
+
+  if (!hasTextFieldUpdate && !hasSourceUpdate) {
+    printUsageAndExit(
+      "No fields to update: provide at least one of --name, --symbol, --desc, or --source",
+    );
+  }
 
   const existing = await db.token.findUnique({
     where: { mint: args.mint },
@@ -108,44 +119,54 @@ async function run(): Promise<void> {
   }
 
   const enrichedAt = new Date();
-  const nextName = args.name ?? existing.name ?? undefined;
-  const nextSymbol = args.symbol ?? existing.symbol ?? undefined;
-  const nextDescription = args.desc ?? existing.description ?? undefined;
+  const data: {
+    name?: string;
+    symbol?: string;
+    description?: string;
+    source?: string | null;
+    normalizedText?: string;
+    enrichedAt: Date;
+    metadataStatus?: "partial" | "enriched";
+  } = {
+    ...(args.name !== undefined ? { name: args.name } : {}),
+    ...(args.symbol !== undefined ? { symbol: args.symbol } : {}),
+    ...(args.desc !== undefined ? { description: args.desc } : {}),
+    ...(hasSourceUpdate ? { source: args.source } : { source: existing.source }),
+    enrichedAt,
+  };
 
-  if (!nextName) {
-    printUsageAndExit(
-      `Token is not ready for enrich: name is required for mint ${args.mint}`,
-    );
+  if (hasTextFieldUpdate) {
+    const nextName = args.name ?? existing.name ?? undefined;
+    const nextSymbol = args.symbol ?? existing.symbol ?? undefined;
+    const nextDescription = args.desc ?? existing.description ?? undefined;
+
+    if (!nextName) {
+      printUsageAndExit(
+        `Token is not ready for enrich: name is required for mint ${args.mint}`,
+      );
+    }
+
+    if (!nextSymbol) {
+      printUsageAndExit(
+        `Token is not ready for enrich: symbol is required for mint ${args.mint}`,
+      );
+    }
+
+    data.metadataStatus = computeMetadataStatus({
+      name: nextName,
+      symbol: nextSymbol,
+      description: nextDescription,
+    });
+    data.normalizedText = buildTargetText({
+      name: nextName,
+      symbol: nextSymbol,
+      description: nextDescription,
+    });
   }
-
-  if (!nextSymbol) {
-    printUsageAndExit(
-      `Token is not ready for enrich: symbol is required for mint ${args.mint}`,
-    );
-  }
-
-  const metadataStatus = computeMetadataStatus({
-    name: nextName,
-    symbol: nextSymbol,
-    description: nextDescription,
-  });
-  const normalizedText = buildTargetText({
-    name: nextName,
-    symbol: nextSymbol,
-    description: nextDescription,
-  });
 
   const token = await db.token.update({
     where: { mint: args.mint },
-    data: {
-      ...(args.name !== undefined ? { name: args.name } : {}),
-      ...(args.symbol !== undefined ? { symbol: args.symbol } : {}),
-      ...(args.desc !== undefined ? { description: args.desc } : {}),
-      source: args.source ?? existing.source,
-      normalizedText,
-      enrichedAt,
-      metadataStatus,
-    },
+    data,
     select: {
       mint: true,
       name: true,

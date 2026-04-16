@@ -162,6 +162,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `import:mint:source-file` exits non-zero on source-event shape validation errors or child import failures
 - `import:mint:source-file` keeps source-specific parse and mapping outside the `import:mint` / `import:mint:file` ingest boundary
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
+- `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
 - `metric:add` appends one metric row without mutating token fields
 - `metric:add` is append-only; repeated submissions with the same values still create new `Metric` rows
