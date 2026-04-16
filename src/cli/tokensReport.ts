@@ -188,6 +188,7 @@ async function run(): Promise<void> {
             ? token.metrics[0].observedAt.toISOString()
             : null,
           createdAt: token.createdAt.toISOString(),
+          updatedAt: token.updatedAt.toISOString(),
           devWallet: token.dev?.wallet ?? null,
         })),
       },

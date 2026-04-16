@@ -1319,6 +1319,7 @@ async function run(): Promise<void> {
         items: Array<{
           mint: string;
           createdAt: string;
+          updatedAt: string;
         }>;
       }>(
         "tokens report created after",
@@ -1346,6 +1347,14 @@ async function run(): Promise<void> {
         throw new Error(
           "tokens report createdAfter filter returned rows created before the requested timestamp",
         );
+      }
+
+      if (
+        filteredByCreatedAfter.items.some(
+          (item) => typeof item.updatedAt !== "string" || Number.isNaN(new Date(item.updatedAt).getTime()),
+        )
+      ) {
+        throw new Error("tokens report did not include a valid updatedAt");
       }
     });
 
