@@ -176,6 +176,7 @@ There is no always-on bot, scheduler, queue worker, or automatic ingestion yet.
 - `token:compare` returns `entrySnapshot`, current token fields, `metricsCount`, `hasMetrics`, `entryVsCurrentChanged`, `changedFields`, `latestMetric`, and `recentMetrics`
 - `tokens:report` supports `rank`, `source`, `metadataStatus`, `hasMetrics`, `hardRejected`, and `createdAfter` filters
 - `tokens:report` returns `metadataStatus`, `latestMetricObservedAt`, `metricsCount`, and `updatedAt`
+- `tokens:report --source ...` filters on the current token `source`, so a later `token:enrich --source ...` correction moves the token into the new source cohort; use `createdAfter` or the mint itself when you need to follow the original batch
 - `tokens:compare-report` supports `rank`, `source`, `metadataStatus`, and `limit`
 - `tokens:compare-report` supports `hardRejected` for current-token reject-state filtering
 - `tokens:compare-report` supports `hasMetrics` and `minMetricsCount` for observation-count filtering

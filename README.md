@@ -244,6 +244,7 @@ Report notes:
 - `--createdAfter` is a strict UTC comparison against stored `createdAt`, so a token imported moments ago in local time can still fall on the previous UTC date
 - For immediate follow-up checks after `import:mint:file`, use a timestamp slightly earlier than the returned `importedAt` or keep a few minutes of buffer in the `--createdAfter` value
 - `tokens:report` returns filtered rows as JSON and includes `metadataStatus`, `latestMetricObservedAt`, `metricsCount`, and `updatedAt`
+- `tokens:report --source ...` filters on the current token `source`, so `token:enrich --source ...` moves that token into the new report cohort; when you need to track the original batch, combine `--createdAfter` or the mint itself with the report check
 - `token:enrich` requires `--mint`; `name` / `symbol` may be omitted when the token already has stored values, and only specified fields are updated
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `tokens:compare-report` returns comparison rows with `entryScoreRank`, `entryScoreTotal`, current score fields, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, `metricsCount`, and latest metric summary fields
