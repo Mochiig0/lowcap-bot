@@ -40,6 +40,8 @@ type SmokeContext = {
   detectRunnerFilePath: string;
   detectRunnerCheckpointFilePath: string;
   detectRunnerCheckpointPath: string;
+  detectRunnerInvalidFilePath: string;
+  detectRunnerInvalidCheckpointPath: string;
   mintHappyPathFilePath: string;
 };
 
@@ -124,6 +126,39 @@ async function runCliJson<T>(
   }
 }
 
+async function runCliFailure(
+  step: string,
+  scriptPath: string,
+  args: string[],
+): Promise<CommandResult> {
+  try {
+    await execFileAsync(process.execPath, [
+      "--import",
+      "tsx",
+      scriptPath,
+      ...args,
+    ], {
+      cwd: process.cwd(),
+      env: process.env,
+    });
+  } catch (error) {
+    const output = error as {
+      stdout?: string | Buffer;
+      stderr?: string | Buffer;
+      message?: string;
+    };
+
+    return {
+      stdout: String(output.stdout ?? "").trim(),
+      stderr:
+        String(output.stderr ?? "").trim() ||
+        (error instanceof Error ? error.message : String(error)),
+    };
+  }
+
+  throw new Error(`${step} unexpectedly succeeded`);
+}
+
 async function cleanup(context: SmokeContext): Promise<void> {
   const tokens = await db.token.findMany({
     where: {
@@ -195,6 +230,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerFilePath, { force: true });
   await rm(context.detectRunnerCheckpointFilePath, { force: true });
   await rm(context.detectRunnerCheckpointPath, { force: true });
+  await rm(context.detectRunnerInvalidFilePath, { force: true });
+  await rm(context.detectRunnerInvalidCheckpointPath, { force: true });
   await rm(context.mintHappyPathFilePath, { force: true });
 }
 
@@ -236,6 +273,8 @@ async function run(): Promise<void> {
     detectRunnerFilePath: `/tmp/${smokeId}-detect-dexscreener-file.json`,
     detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
     detectRunnerCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-checkpoint.json`,
+    detectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-dexscreener-invalid-file.json`,
+    detectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-invalid-checkpoint.json`,
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
   };
 
@@ -1076,6 +1115,105 @@ async function run(): Promise<void> {
         rerunWithCheckpoint.cycles[0]?.checkpointFilteredCount !== 1
       ) {
         throw new Error("detect dexscreener checkpoint rerun did not skip the seen item");
+      }
+
+      await writeFile(
+        context.detectRunnerInvalidFilePath,
+        `${JSON.stringify(
+          {
+            source: "dexscreener-token-profiles-latest-v1",
+            eventType: "token_detected",
+            detectedAt: "2026-04-16T13:35:37.123Z",
+            payload: {
+              chainId: "solana",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      await runCliFailure(
+        "detect dexscreener invalid one-shot",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerInvalidFilePath,
+        ],
+      );
+
+      const watchedInvalid = await runCliJson<{
+        checkpointEnabled: boolean;
+        checkpointBefore?: string;
+        checkpointAfter?: string;
+        checkpointUpdated?: boolean;
+        failedCount: number;
+        processedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycles: Array<{
+          cycle: number;
+          failed: boolean;
+          errorMessage?: string;
+          processedCount: number;
+          importedCount: number;
+          existingCount: number;
+          checkpointBefore?: string;
+          checkpointAfter?: string;
+        }>;
+      }>(
+        "detect dexscreener watch invalid input",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerInvalidFilePath,
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "2",
+          "--checkpointFile",
+          context.detectRunnerInvalidCheckpointPath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        watchedInvalid.checkpointEnabled !== true ||
+        watchedInvalid.checkpointBefore !== undefined ||
+        watchedInvalid.checkpointAfter !== undefined ||
+        watchedInvalid.checkpointUpdated !== false ||
+        watchedInvalid.failedCount !== 2 ||
+        watchedInvalid.processedCount !== 0 ||
+        watchedInvalid.importedCount !== 0 ||
+        watchedInvalid.existingCount !== 0 ||
+        watchedInvalid.cycles.length !== 2
+      ) {
+        throw new Error("detect dexscreener watch invalid input returned unexpected summary");
+      }
+
+      if (
+        watchedInvalid.cycles[0]?.cycle !== 1 ||
+        watchedInvalid.cycles[1]?.cycle !== 2 ||
+        watchedInvalid.cycles[0]?.failed !== true ||
+        watchedInvalid.cycles[1]?.failed !== true ||
+        !watchedInvalid.cycles[0]?.errorMessage?.includes('"mintAddress" must be a non-empty string') ||
+        !watchedInvalid.cycles[1]?.errorMessage?.includes('"mintAddress" must be a non-empty string') ||
+        watchedInvalid.cycles[0]?.processedCount !== 0 ||
+        watchedInvalid.cycles[1]?.processedCount !== 0 ||
+        watchedInvalid.cycles[0]?.checkpointBefore !== undefined ||
+        watchedInvalid.cycles[1]?.checkpointAfter !== undefined
+      ) {
+        throw new Error("detect dexscreener watch invalid input did not continue after cycle failures");
+      }
+
+      try {
+        await readFile(context.detectRunnerInvalidCheckpointPath, "utf-8");
+        throw new Error("detect dexscreener watch invalid input unexpectedly wrote a checkpoint");
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+          throw error;
+        }
       }
     });
 

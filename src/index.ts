@@ -20,7 +20,7 @@ const lines = [
   '  Example: pnpm import:mint:source-file -- --file ./examples/import-mint-source-file.sample.json',
   "",
   "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
-  "  Dry-run by default; with --watch --write, repeat the cycle and persist a simple checkpoint cursor for the source feed.",
+  "  Dry-run by default; with --watch --write, repeat the cycle, persist a simple checkpoint cursor, and continue after cycle-level errors.",
   '  Example: pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json',
   "",
   "pnpm token:enrich -- --mint <MINT> [--name <NAME>] [--symbol <SYMBOL>] [--desc <TEXT>] [--source <SOURCE>]",

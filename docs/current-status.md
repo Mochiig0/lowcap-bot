@@ -173,6 +173,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:dexscreener:token-profiles --write` hands accepted `{ mint, source? }` payloads into the same mint-first boundary used by `import:mint`
 - `detect:dexscreener:token-profiles --watch --write` may persist one source-specific checkpoint cursor, defaulting to `data/checkpoints/dexscreener-token-profiles-latest-v1.json`
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
+- in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields

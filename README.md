@@ -150,7 +150,7 @@ Persist a checkpoint cursor while watching and writing:
 pnpm detect:dexscreener:token-profiles -- --watch --write --checkpointFile /tmp/lowcap-bot-dexscreener-checkpoint.json
 ```
 
-Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, and only reads or updates a checkpoint during `--watch --write`.
+Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, only reads or updates a checkpoint during `--watch --write`, and in watch mode records per-cycle failures instead of stopping immediately.
 
 Enrich one existing token record:
 

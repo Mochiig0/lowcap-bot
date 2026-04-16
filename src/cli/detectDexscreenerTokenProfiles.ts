@@ -68,6 +68,8 @@ type DetectItemResult = {
 
 type DetectCycleResult = LoadedInput & {
   cycle: number;
+  failed: boolean;
+  errorMessage?: string;
   processedCount: number;
   skippedCount: number;
   acceptedCount: number;
@@ -91,27 +93,43 @@ type SourceEventWithCursor = {
   sourceEvent: SourceEvent;
 };
 
+class CliUsageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CliUsageError";
+  }
+}
+
+function getUsageText(): string {
+  return [
+    "Usage:",
+    "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
+    "",
+    "Defaults:",
+    `- fetches ${API_URL}`,
+    "- filters to chainId=solana",
+    "- evaluates up to --limit 1 items as a dry-run only",
+    "- writes accepted items into import:mint only when --write is set",
+    "- loops only when --watch is set",
+    "- waits --intervalSeconds 1 between watch cycles",
+    `- checkpointing defaults to ${DEFAULT_CHECKPOINT_FILE} and is active only with --watch --write`,
+  ].join("\n");
+}
+
 function printUsageAndExit(message?: string): never {
-  if (message) {
-    console.error(`Error: ${message}`);
+  throw new CliUsageError(message ?? "");
+}
+
+function formatErrorMessage(error: unknown): string {
+  if (error instanceof CliUsageError) {
+    return error.message;
   }
 
-  console.log(
-    [
-      "Usage:",
-      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
-      "",
-      "Defaults:",
-      `- fetches ${API_URL}`,
-      "- filters to chainId=solana",
-      "- evaluates up to --limit 1 items as a dry-run only",
-      "- writes accepted items into import:mint only when --write is set",
-      "- loops only when --watch is set",
-      "- waits --intervalSeconds 1 between watch cycles",
-      `- checkpointing defaults to ${DEFAULT_CHECKPOINT_FILE} and is active only with --watch --write`,
-    ].join("\n"),
-  );
-  process.exit(1);
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
 }
 
 function parsePositiveIntegerArg(value: string, key: string): number {
@@ -523,6 +541,7 @@ function logCycleSummary(result: DetectCycleResult): void {
   console.error(
     [
       `[detect:dexscreener:token-profiles] cycle=${result.cycle}`,
+      `failed=${result.failed}`,
       `processed=${result.processedCount}`,
       `accepted=${result.acceptedCount}`,
       `rejected=${result.rejectedCount}`,
@@ -530,6 +549,7 @@ function logCycleSummary(result: DetectCycleResult): void {
       `existing=${result.existingCount}`,
       `checkpointBefore=${result.checkpointBefore ?? "none"}`,
       `checkpointAfter=${result.checkpointAfter ?? "none"}`,
+      ...(result.errorMessage ? [`error=${JSON.stringify(result.errorMessage)}`] : []),
     ].join(" "),
   );
 }
@@ -599,6 +619,7 @@ async function runCycle(
   return {
     ...input,
     cycle,
+    failed: false,
     processedCount: items.length,
     skippedCount: Math.max(input.solanaCount - items.length, 0),
     acceptedCount,
@@ -614,6 +635,47 @@ async function runCycle(
       ? Math.max(eventsWithCursor.length - eligibleEvents.length, 0)
       : 0,
     items,
+  };
+}
+
+function createFailedCycleResult(
+  args: DetectDexscreenerTokenProfilesArgs,
+  cycle: number,
+  checkpointBefore: CursorValue | undefined,
+  error: unknown,
+): DetectCycleResult {
+  return {
+    mode: args.file ? "file" : "fetch",
+    ...(args.file ? { file: resolve(process.cwd(), args.file) } : {}),
+    ...(!args.file ? { apiUrl: API_URL } : {}),
+    inputCount: 0,
+    solanaCount: 0,
+    events: [],
+    cycle,
+    failed: true,
+    errorMessage: formatErrorMessage(error),
+    processedCount: 0,
+    skippedCount: 0,
+    acceptedCount: 0,
+    rejectedCount: 0,
+    importedCount: 0,
+    existingCount: 0,
+    checkpointBefore: checkpointBefore?.value,
+    checkpointAfter: checkpointBefore?.value,
+    checkpointFilteredCount: 0,
+    items: [],
+  };
+}
+
+function markCycleFailed(
+  cycle: DetectCycleResult,
+  error: unknown,
+): DetectCycleResult {
+  return {
+    ...cycle,
+    failed: true,
+    errorMessage: formatErrorMessage(error),
+    checkpointAfter: cycle.checkpointBefore,
   };
 }
 
@@ -650,6 +712,7 @@ function buildOutput(
     ...(args.watch ? { intervalSeconds: args.intervalSeconds } : {}),
     ...(args.watch && args.maxIterations ? { maxIterations: args.maxIterations } : {}),
     cycleCount: cycles.length,
+    failedCount: cycles.filter((cycle) => cycle.failed).length,
     inputCount: cycles.reduce((sum, cycle) => sum + cycle.inputCount, 0),
     solanaCount: cycles.reduce((sum, cycle) => sum + cycle.solanaCount, 0),
     processedCount: cycles.reduce((sum, cycle) => sum + cycle.processedCount, 0),
@@ -663,6 +726,8 @@ function buildOutput(
       ? {
           cycles: cycles.map((cycle) => ({
             cycle: cycle.cycle,
+            failed: cycle.failed,
+            errorMessage: cycle.errorMessage,
             inputCount: cycle.inputCount,
             solanaCount: cycle.solanaCount,
             processedCount: cycle.processedCount,
@@ -695,23 +760,40 @@ async function run(): Promise<void> {
   const initialCheckpointCursor = checkpointCursor?.value;
 
   for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
-    const result = await runCycle(args, cycle, checkpointCursor);
+    let result: DetectCycleResult | undefined;
 
-    if (
-      checkpointEnabled &&
-      checkpointFilePath &&
-      result.checkpointAfter &&
-      result.checkpointAfter !== checkpointCursor?.value
-    ) {
-      checkpointCursor = normalizeCursorValue(result.checkpointAfter, checkpointFilePath);
-      await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
+    try {
+      result = await runCycle(args, cycle, checkpointCursor);
+
+      if (
+        checkpointEnabled &&
+        checkpointFilePath &&
+        result.checkpointAfter &&
+        result.checkpointAfter !== checkpointCursor?.value
+      ) {
+        const nextCheckpointCursor = normalizeCursorValue(
+          result.checkpointAfter,
+          checkpointFilePath,
+        );
+        await writeCheckpointCursor(checkpointFilePath, nextCheckpointCursor);
+        checkpointCursor = nextCheckpointCursor;
+      }
+    } catch (error) {
+      if (!args.watch) {
+        throw error;
+      }
+
+      result =
+        typeof result === "undefined"
+          ? createFailedCycleResult(args, cycle, checkpointCursor, error)
+          : markCycleFailed(result, error);
     }
 
     if (shouldCollectCycles) {
       cycles.push(result);
     }
 
-    if (args.watch) {
+    if (args.watch && result) {
       logCycleSummary(result);
     }
 
@@ -738,7 +820,12 @@ async function run(): Promise<void> {
 }
 
 run().catch((error) => {
-  if (error instanceof Error) {
+  if (error instanceof CliUsageError) {
+    if (error.message) {
+      console.error(`Error: ${error.message}`);
+    }
+    console.log(getUsageText());
+  } else if (error instanceof Error) {
     console.error(error.message);
   } else {
     console.error(String(error));
