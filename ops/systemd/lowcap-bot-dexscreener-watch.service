@@ -1,0 +1,15 @@
+[Unit]
+Description=lowcap-bot DexScreener watch runner
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mochi/projects/lowcap-bot
+Environment=DATABASE_URL=file:/home/mochi/projects/lowcap-bot/prisma/dev.db
+ExecStart=/home/mochi/projects/lowcap-bot/scripts/run-detect-dexscreener-watch.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

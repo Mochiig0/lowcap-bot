@@ -175,6 +175,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
+- `ops/systemd/lowcap-bot-dexscreener-watch.service` is a repo-local sample `systemd --user` unit that points at the run script; install and enablement are still manual
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
@@ -221,7 +222,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 
 ## Current Constraints
 
-- Input is still CLI-driven; the DexScreener runner can poll one source in a single process, but there is no bundled service unit, queue, or scheduler
+- Input is still CLI-driven; the DexScreener runner can poll one source in a single process, and the repo now includes only a sample `systemd --user` unit, not a bundled installed service, queue, or scheduler
 - Scoring is entirely rule-based and file-backed
 - Trend scoring is currently ineffective unless `data/trend.json` is refreshed
 - Metrics are only stored when optional metric args are supplied manually
