@@ -717,6 +717,7 @@ async function run(): Promise<void> {
           mint: true,
           source: true,
           metadataStatus: true,
+          enrichedAt: true,
         },
       });
 
@@ -732,10 +733,15 @@ async function run(): Promise<void> {
         throw new Error("mint-driven happy path did not persist mint_only status");
       }
 
+      if (importedToken.enrichedAt !== null) {
+        throw new Error("mint-driven happy path mint-only token unexpectedly had enrichedAt");
+      }
+
       const sourceOnlyPatched = await runCliJson<{
         mint: string;
         source: string | null;
         metadataStatus: string;
+        enrichedAt: string | null;
       }>(
         "mint-driven happy path source-only enrich patch",
         "src/cli/tokenEnrich.ts",
@@ -751,9 +757,25 @@ async function run(): Promise<void> {
       if (
         sourceOnlyPatched.mint !== context.mintHappyPathMint ||
         sourceOnlyPatched.source !== "smoke-happy-path-source-patched" ||
-        sourceOnlyPatched.metadataStatus !== "mint_only"
+        sourceOnlyPatched.metadataStatus !== "mint_only" ||
+        sourceOnlyPatched.enrichedAt !== null
       ) {
         throw new Error("mint-driven happy path source-only enrich patch returned unexpected fields");
+      }
+
+      const sourceOnlyPatchedToken = await db.token.findUnique({
+        where: { mint: context.mintHappyPathMint },
+        select: {
+          enrichedAt: true,
+        },
+      });
+
+      if (!sourceOnlyPatchedToken) {
+        throw new Error("mint-driven happy path source-only enrich patch did not keep the token");
+      }
+
+      if (sourceOnlyPatchedToken.enrichedAt !== null) {
+        throw new Error("mint-driven happy path source-only enrich patch unexpectedly changed enrichedAt");
       }
 
       const sourceOnlyPatchedShow = await runCliJson<{

@@ -111,6 +111,7 @@ async function run(): Promise<void> {
       description: true,
       source: true,
       importedAt: true,
+      enrichedAt: true,
     },
   });
 
@@ -125,14 +126,13 @@ async function run(): Promise<void> {
     description?: string;
     source?: string | null;
     normalizedText?: string;
-    enrichedAt: Date;
+    enrichedAt?: Date;
     metadataStatus?: "partial" | "enriched";
   } = {
     ...(args.name !== undefined ? { name: args.name } : {}),
     ...(args.symbol !== undefined ? { symbol: args.symbol } : {}),
     ...(args.desc !== undefined ? { description: args.desc } : {}),
     ...(hasSourceUpdate ? { source: args.source } : { source: existing.source }),
-    enrichedAt,
   };
 
   if (hasTextFieldUpdate) {
@@ -162,6 +162,7 @@ async function run(): Promise<void> {
       symbol: nextSymbol,
       description: nextDescription,
     });
+    data.enrichedAt = enrichedAt;
   }
 
   const token = await db.token.update({
