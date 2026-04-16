@@ -40,7 +40,7 @@ const lines = [
   '  Example: pnpm trend:update -- --keywords "ai,anime,base" --ttlHours 24',
   "",
   "pnpm token:show -- --mint <MINT>",
-  "  Show one saved Token's current snapshot as JSON, including hasCurrentText.",
+  "  Show one saved Token's current snapshot as JSON, including hasCurrentText, enrichedAt, and rescoredAt.",
   "  Example: pnpm token:show -- --mint TESTMINT",
   "",
   "pnpm token:compare -- --mint <MINT>",

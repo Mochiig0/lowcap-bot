@@ -1221,6 +1221,8 @@ async function run(): Promise<void> {
         hasCurrentText: boolean;
         metadataStatus: string;
         latestMetric: { id: number } | null;
+        enrichedAt: string | null;
+        rescoredAt: string | null;
       }>(
         "token show mint-only",
         "src/cli/tokenShow.ts",
@@ -1247,26 +1249,32 @@ async function run(): Promise<void> {
         throw new Error("token show returned unexpected latestMetric for mint-only token");
       }
 
+      if (mintOnly.enrichedAt !== null || mintOnly.rescoredAt !== null) {
+        throw new Error("token show returned unexpected enrich/rescore timestamps for mint-only token");
+      }
+
       const parsed = await runCliJson<{
         mint: string;
         hasCurrentText: boolean;
         metadataStatus: string;
         latestMetric: { id: number } | null;
+        enrichedAt: string | null;
+        rescoredAt: string | null;
       }>(
         "token show",
         "src/cli/tokenShow.ts",
         [
           "--mint",
-          context.metricMint,
+          context.mintHappyPathMint,
         ],
         context.smokeId,
       );
 
-      if (parsed.mint !== context.metricMint) {
+      if (parsed.mint !== context.mintHappyPathMint) {
         throw new Error("token show returned unexpected mint");
       }
 
-      if (parsed.metadataStatus !== "mint_only") {
+      if (parsed.metadataStatus !== "enriched") {
         throw new Error("token show did not include metadataStatus");
       }
 
@@ -1276,6 +1284,10 @@ async function run(): Promise<void> {
 
       if (!parsed.latestMetric) {
         throw new Error("token show did not include latestMetric");
+      }
+
+      if (!parsed.enrichedAt || !parsed.rescoredAt) {
+        throw new Error("token show did not include enrich/rescore timestamps for updated token");
       }
     });
 

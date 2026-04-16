@@ -145,6 +145,8 @@ async function run(): Promise<void> {
         devWallet: token.dev?.wallet ?? null,
         metricsCount: token._count.metrics,
         latestMetric,
+        enrichedAt: token.enrichedAt?.toISOString() ?? null,
+        rescoredAt: token.rescoredAt?.toISOString() ?? null,
         createdAt: token.createdAt.toISOString(),
         updatedAt: token.updatedAt.toISOString(),
       },
