@@ -2,7 +2,7 @@
 
 ## Summary
 
-This repository is an MVP for mint-driven token accumulation, single-source DexScreener candidate detection with one-shot or simple polling execution, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification still exists only on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules.
+This repository is an MVP for mint-driven token accumulation, single-source DexScreener candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification still exists only on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules.
 
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
@@ -23,7 +23,7 @@ pnpm import:mint:source-file -- --file <PATH>
 ```
 
 ```bash
-pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
+pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]
 ```
 
 ```bash
@@ -171,6 +171,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:dexscreener:token-profiles` filters to `chainId=solana`, normalizes the current source-event shape, and evaluates `source_event_hint` candidates
 - `detect:dexscreener:token-profiles` stays dry-run by default
 - `detect:dexscreener:token-profiles --write` hands accepted `{ mint, source? }` payloads into the same mint-first boundary used by `import:mint`
+- `detect:dexscreener:token-profiles --watch --write` may persist one source-specific checkpoint cursor, defaulting to `data/checkpoints/dexscreener-token-profiles-latest-v1.json`
+- checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields

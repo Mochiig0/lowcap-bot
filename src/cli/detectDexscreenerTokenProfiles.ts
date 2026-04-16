@@ -1,7 +1,7 @@
 import "dotenv/config";
 
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 import { db } from "./db.js";
 import { importMint, type ImportMintResult } from "./importMintShared.js";
@@ -15,6 +15,7 @@ import {
 const SOURCE = "dexscreener-token-profiles-latest-v1";
 const EVENT_TYPE = "token_detected";
 const API_URL = "https://api.dexscreener.com/token-profiles/latest/v1";
+const DEFAULT_CHECKPOINT_FILE = "data/checkpoints/dexscreener-token-profiles-latest-v1.json";
 
 type DetectDexscreenerTokenProfilesArgs = {
   file?: string;
@@ -23,6 +24,7 @@ type DetectDexscreenerTokenProfilesArgs = {
   write: boolean;
   intervalSeconds: number;
   maxIterations?: number;
+  checkpointFile?: string;
 };
 
 type SourceEvent = {
@@ -72,7 +74,21 @@ type DetectCycleResult = LoadedInput & {
   rejectedCount: number;
   importedCount: number;
   existingCount: number;
+  checkpointBefore?: string;
+  checkpointAfter?: string;
+  checkpointFilteredCount: number;
   items: DetectItemResult[];
+};
+
+type CursorValue = {
+  value: string;
+  timestampMs: number;
+};
+
+type SourceEventWithCursor = {
+  cursor: CursorValue;
+  originalIndex: number;
+  sourceEvent: SourceEvent;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -83,7 +99,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+      "pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
       "",
       "Defaults:",
       `- fetches ${API_URL}`,
@@ -92,6 +108,7 @@ function printUsageAndExit(message?: string): never {
       "- writes accepted items into import:mint only when --write is set",
       "- loops only when --watch is set",
       "- waits --intervalSeconds 1 between watch cycles",
+      `- checkpointing defaults to ${DEFAULT_CHECKPOINT_FILE} and is active only with --watch --write`,
     ].join("\n"),
   );
   process.exit(1);
@@ -148,6 +165,9 @@ function parseArgs(argv: string[]): DetectDexscreenerTokenProfilesArgs {
       case "--maxIterations":
         out.maxIterations = parsePositiveIntegerArg(value, key);
         break;
+      case "--checkpointFile":
+        out.checkpointFile = value;
+        break;
       default:
         printUsageAndExit(`Unknown arg: ${key}`);
     }
@@ -159,6 +179,10 @@ function parseArgs(argv: string[]): DetectDexscreenerTokenProfilesArgs {
     printUsageAndExit("--intervalSeconds and --maxIterations require --watch");
   }
 
+  if (out.checkpointFile && (!out.watch || !out.write)) {
+    printUsageAndExit("--checkpointFile requires both --watch and --write");
+  }
+
   return out as DetectDexscreenerTokenProfilesArgs;
 }
 
@@ -166,6 +190,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolveSleep) => {
     setTimeout(resolveSleep, ms);
   });
+}
+
+function isCheckpointEnabled(args: DetectDexscreenerTokenProfilesArgs): boolean {
+  return args.watch && args.write;
+}
+
+function resolveCheckpointFilePath(args: DetectDexscreenerTokenProfilesArgs): string {
+  return resolve(process.cwd(), args.checkpointFile ?? DEFAULT_CHECKPOINT_FILE);
 }
 
 function ensureObject(
@@ -185,6 +217,18 @@ function normalizeOptionalString(value: unknown): string | undefined {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeCursorValue(value: string, context: string): CursorValue {
+  const timestampMs = Date.parse(value);
+  if (Number.isNaN(timestampMs)) {
+    throw new Error(`Invalid checkpoint cursor timestamp in ${context}: ${value}`);
+  }
+
+  return {
+    value: new Date(timestampMs).toISOString(),
+    timestampMs,
+  };
 }
 
 function readRequiredString(
@@ -411,6 +455,70 @@ function buildMinimalHandoffPayload(result: AcceptResult): MinimalHandoffPayload
   return result.source ? { mint: result.mint, source: result.source } : { mint: result.mint };
 }
 
+function readSourceEventCursor(
+  sourceEvent: SourceEvent,
+  context: string,
+): CursorValue {
+  const raw = normalizeOptionalString(sourceEvent.payload.updatedAt) ?? sourceEvent.detectedAt;
+  return normalizeCursorValue(raw, context);
+}
+
+async function readCheckpointCursor(filePath: string): Promise<CursorValue | undefined> {
+  let raw: string;
+
+  try {
+    raw = await readFile(filePath, "utf-8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return undefined;
+    }
+
+    throw new Error(
+      `Failed to read checkpoint file ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error(
+      `Invalid JSON in checkpoint file ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const input = ensureObject(
+    parsed,
+    filePath,
+    `Invalid JSON in checkpoint file ${filePath}: expected one object`,
+  );
+  const source = readRequiredString(input, "source", filePath);
+  const cursor = readRequiredString(input, "cursor", filePath);
+
+  if (source !== SOURCE) {
+    throw new Error(`Invalid checkpoint file ${filePath}: "source" must be "${SOURCE}"`);
+  }
+
+  return normalizeCursorValue(cursor, filePath);
+}
+
+async function writeCheckpointCursor(filePath: string, cursor: CursorValue): Promise<void> {
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(
+    filePath,
+    `${JSON.stringify(
+      {
+        source: SOURCE,
+        cursor: cursor.value,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf-8",
+  );
+}
+
 function logCycleSummary(result: DetectCycleResult): void {
   console.error(
     [
@@ -420,6 +528,8 @@ function logCycleSummary(result: DetectCycleResult): void {
       `rejected=${result.rejectedCount}`,
       `imported=${result.importedCount}`,
       `existing=${result.existingCount}`,
+      `checkpointBefore=${result.checkpointBefore ?? "none"}`,
+      `checkpointAfter=${result.checkpointAfter ?? "none"}`,
     ].join(" "),
   );
 }
@@ -431,14 +541,34 @@ async function loadInput(args: DetectDexscreenerTokenProfilesArgs): Promise<Load
 async function runCycle(
   args: DetectDexscreenerTokenProfilesArgs,
   cycle: number,
+  checkpointBefore?: CursorValue,
 ): Promise<DetectCycleResult> {
   const input = await loadInput(args);
-  const selectedEvents = input.events.slice(0, args.limit);
+  const checkpointEnabled = isCheckpointEnabled(args);
+  const eventsWithCursor = input.events.map((sourceEvent, originalIndex) => ({
+    cursor: readSourceEventCursor(sourceEvent, `cycle ${cycle} item ${originalIndex}`),
+    originalIndex,
+    sourceEvent,
+  })) satisfies SourceEventWithCursor[];
+  const eligibleEvents = checkpointEnabled && checkpointBefore
+    ? eventsWithCursor.filter((entry) => entry.cursor.timestampMs > checkpointBefore.timestampMs)
+    : eventsWithCursor;
+  const orderedEvents = checkpointEnabled
+    ? [...eligibleEvents].sort((left, right) => {
+        if (left.cursor.timestampMs !== right.cursor.timestampMs) {
+          return left.cursor.timestampMs - right.cursor.timestampMs;
+        }
+
+        return left.originalIndex - right.originalIndex;
+      })
+    : eligibleEvents;
+  const selectedEntries = orderedEvents.slice(0, args.limit);
   const items: DetectItemResult[] = [];
   let importedCount = 0;
   let existingCount = 0;
 
-  for (const [index, sourceEvent] of selectedEvents.entries()) {
+  for (const [index, entry] of selectedEntries.entries()) {
+    const { sourceEvent } = entry;
     const detectorCandidate = buildDetectorCandidate(sourceEvent);
     const detectorResult = evaluateDetectorCandidate(detectorCandidate);
     const item: DetectItemResult = {
@@ -475,6 +605,14 @@ async function runCycle(
     rejectedCount: items.length - acceptedCount,
     importedCount,
     existingCount,
+    checkpointBefore: checkpointBefore?.value,
+    checkpointAfter:
+      checkpointEnabled && selectedEntries.length > 0
+        ? selectedEntries[selectedEntries.length - 1].cursor.value
+        : checkpointBefore?.value,
+    checkpointFilteredCount: checkpointEnabled
+      ? Math.max(eventsWithCursor.length - eligibleEvents.length, 0)
+      : 0,
     items,
   };
 }
@@ -482,14 +620,27 @@ async function runCycle(
 function buildOutput(
   args: DetectDexscreenerTokenProfilesArgs,
   cycles: DetectCycleResult[],
+  checkpointFilePath: string | undefined,
+  initialCheckpointCursor: string | undefined,
+  finalCheckpointCursor: string | undefined,
 ): Record<string, unknown> {
   const flattenedItems = cycles.flatMap((cycle) => cycle.items);
   const firstCycle = cycles[0];
+  const checkpointEnabled = isCheckpointEnabled(args);
 
   return {
     dryRun: !args.write,
     writeEnabled: args.write,
     watchEnabled: args.watch,
+    checkpointEnabled,
+    ...(checkpointFilePath ? { checkpointFile: checkpointFilePath } : {}),
+    ...(checkpointEnabled
+      ? {
+          checkpointBefore: initialCheckpointCursor,
+          checkpointAfter: finalCheckpointCursor,
+          checkpointUpdated: initialCheckpointCursor !== finalCheckpointCursor,
+        }
+      : {}),
     mode: firstCycle?.mode ?? (args.file ? "file" : "fetch"),
     ...(firstCycle?.file ? { file: firstCycle.file } : {}),
     ...(firstCycle?.apiUrl ? { apiUrl: firstCycle.apiUrl } : {}),
@@ -520,6 +671,9 @@ function buildOutput(
             rejectedCount: cycle.rejectedCount,
             importedCount: cycle.importedCount,
             existingCount: cycle.existingCount,
+            checkpointBefore: cycle.checkpointBefore,
+            checkpointAfter: cycle.checkpointAfter,
+            checkpointFilteredCount: cycle.checkpointFilteredCount,
             items: cycle.items,
           })),
         }
@@ -533,9 +687,26 @@ async function run(): Promise<void> {
   const cycles: DetectCycleResult[] = [];
   const shouldCollectCycles = !args.watch || args.maxIterations !== undefined;
   const watchIterationCount = args.watch ? (args.maxIterations ?? Number.POSITIVE_INFINITY) : 1;
+  const checkpointEnabled = isCheckpointEnabled(args);
+  const checkpointFilePath = checkpointEnabled ? resolveCheckpointFilePath(args) : undefined;
+  let checkpointCursor = checkpointFilePath
+    ? await readCheckpointCursor(checkpointFilePath)
+    : undefined;
+  const initialCheckpointCursor = checkpointCursor?.value;
 
   for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
-    const result = await runCycle(args, cycle);
+    const result = await runCycle(args, cycle, checkpointCursor);
+
+    if (
+      checkpointEnabled &&
+      checkpointFilePath &&
+      result.checkpointAfter &&
+      result.checkpointAfter !== checkpointCursor?.value
+    ) {
+      checkpointCursor = normalizeCursorValue(result.checkpointAfter, checkpointFilePath);
+      await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
+    }
+
     if (shouldCollectCycles) {
       cycles.push(result);
     }
@@ -551,7 +722,19 @@ async function run(): Promise<void> {
     await sleep(args.intervalSeconds * 1000);
   }
 
-  console.log(JSON.stringify(buildOutput(args, cycles), null, 2));
+  console.log(
+    JSON.stringify(
+      buildOutput(
+        args,
+        cycles,
+        checkpointFilePath,
+        initialCheckpointCursor,
+        checkpointCursor?.value,
+      ),
+      null,
+      2,
+    ),
+  );
 }
 
 run().catch((error) => {

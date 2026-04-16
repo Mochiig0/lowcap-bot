@@ -23,6 +23,7 @@ type SmokeContext = {
   mintBatchRerunMints: [string, string];
   mintSourceEventMint: string;
   detectRunnerMint: string;
+  detectRunnerCheckpointMint: string;
   mintHappyPathMint: string;
   minMint: string;
   fileMint: string;
@@ -37,6 +38,8 @@ type SmokeContext = {
   mintBatchRerunFilePath: string;
   mintSourceEventFilePath: string;
   detectRunnerFilePath: string;
+  detectRunnerCheckpointFilePath: string;
+  detectRunnerCheckpointPath: string;
   mintHappyPathFilePath: string;
 };
 
@@ -133,6 +136,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
           context.detectRunnerMint,
+          context.detectRunnerCheckpointMint,
           context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
@@ -167,6 +171,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
           context.detectRunnerMint,
+          context.detectRunnerCheckpointMint,
           context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
@@ -188,6 +193,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.mintBatchRerunFilePath, { force: true });
   await rm(context.mintSourceEventFilePath, { force: true });
   await rm(context.detectRunnerFilePath, { force: true });
+  await rm(context.detectRunnerCheckpointFilePath, { force: true });
+  await rm(context.detectRunnerCheckpointPath, { force: true });
   await rm(context.mintHappyPathFilePath, { force: true });
 }
 
@@ -212,6 +219,7 @@ async function run(): Promise<void> {
     ],
     mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
     detectRunnerMint: `H${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "2").padEnd(43, "3").slice(0, 43)}`,
+    detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
@@ -226,6 +234,8 @@ async function run(): Promise<void> {
     mintBatchRerunFilePath: `/tmp/${smokeId}-import-mint-file-rerun.json`,
     mintSourceEventFilePath: `/tmp/${smokeId}-import-mint-source-file.json`,
     detectRunnerFilePath: `/tmp/${smokeId}-detect-dexscreener-file.json`,
+    detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
+    detectRunnerCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-checkpoint.json`,
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
   };
 
@@ -928,6 +938,144 @@ async function run(): Promise<void> {
         watched.cycles[1]?.items[0]?.handoffPayload?.mint !== context.detectRunnerMint
       ) {
         throw new Error("detect dexscreener watch dry-run returned unexpected cycle detail");
+      }
+
+      await writeFile(
+        context.detectRunnerCheckpointFilePath,
+        `${JSON.stringify(
+          {
+            source: "dexscreener-token-profiles-latest-v1",
+            eventType: "token_detected",
+            detectedAt: "2026-04-16T13:35:37.123Z",
+            payload: {
+              mintAddress: context.detectRunnerCheckpointMint,
+              chainId: "solana",
+              tokenAddress: context.detectRunnerCheckpointMint,
+              url: "https://dexscreener.com/solana/smoke-detect-runner-checkpoint",
+              updatedAt: "2026-04-16T13:35:37.123Z",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const watchedWithCheckpoint = await runCliJson<{
+        checkpointEnabled: boolean;
+        checkpointFile?: string;
+        checkpointBefore?: string;
+        checkpointAfter?: string;
+        processedCount: number;
+        acceptedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycles: Array<{
+          cycle: number;
+          processedCount: number;
+          acceptedCount: number;
+          importedCount: number;
+          existingCount: number;
+          checkpointBefore?: string;
+          checkpointAfter?: string;
+          checkpointFilteredCount: number;
+        }>;
+      }>(
+        "detect dexscreener watch write checkpoint",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerCheckpointFilePath,
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "2",
+          "--checkpointFile",
+          context.detectRunnerCheckpointPath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        watchedWithCheckpoint.checkpointEnabled !== true ||
+        watchedWithCheckpoint.checkpointFile !== context.detectRunnerCheckpointPath ||
+        watchedWithCheckpoint.checkpointBefore !== undefined ||
+        watchedWithCheckpoint.checkpointAfter !== "2026-04-16T13:35:37.123Z" ||
+        watchedWithCheckpoint.processedCount !== 1 ||
+        watchedWithCheckpoint.acceptedCount !== 1 ||
+        watchedWithCheckpoint.importedCount !== 1 ||
+        watchedWithCheckpoint.existingCount !== 0 ||
+        watchedWithCheckpoint.cycles.length !== 2
+      ) {
+        throw new Error("detect dexscreener watch write checkpoint returned unexpected summary");
+      }
+
+      if (
+        watchedWithCheckpoint.cycles[0]?.processedCount !== 1 ||
+        watchedWithCheckpoint.cycles[0]?.importedCount !== 1 ||
+        watchedWithCheckpoint.cycles[0]?.checkpointBefore !== undefined ||
+        watchedWithCheckpoint.cycles[0]?.checkpointAfter !== "2026-04-16T13:35:37.123Z" ||
+        watchedWithCheckpoint.cycles[0]?.checkpointFilteredCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.processedCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.acceptedCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.importedCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.existingCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.checkpointBefore !== "2026-04-16T13:35:37.123Z" ||
+        watchedWithCheckpoint.cycles[1]?.checkpointAfter !== "2026-04-16T13:35:37.123Z" ||
+        watchedWithCheckpoint.cycles[1]?.checkpointFilteredCount !== 1
+      ) {
+        throw new Error("detect dexscreener watch write checkpoint returned unexpected cycle detail");
+      }
+
+      const checkpointRaw = await readFile(context.detectRunnerCheckpointPath, "utf-8");
+      const checkpointParsed = JSON.parse(checkpointRaw) as {
+        source?: string;
+        cursor?: string;
+      };
+
+      if (
+        checkpointParsed.source !== "dexscreener-token-profiles-latest-v1" ||
+        checkpointParsed.cursor !== "2026-04-16T13:35:37.123Z"
+      ) {
+        throw new Error("detect dexscreener checkpoint file did not persist the expected cursor");
+      }
+
+      const rerunWithCheckpoint = await runCliJson<{
+        checkpointBefore?: string;
+        checkpointAfter?: string;
+        processedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycles: Array<{
+          processedCount: number;
+          checkpointFilteredCount: number;
+        }>;
+      }>(
+        "detect dexscreener checkpoint rerun",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerCheckpointFilePath,
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "1",
+          "--checkpointFile",
+          context.detectRunnerCheckpointPath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        rerunWithCheckpoint.checkpointBefore !== "2026-04-16T13:35:37.123Z" ||
+        rerunWithCheckpoint.checkpointAfter !== "2026-04-16T13:35:37.123Z" ||
+        rerunWithCheckpoint.processedCount !== 0 ||
+        rerunWithCheckpoint.importedCount !== 0 ||
+        rerunWithCheckpoint.existingCount !== 0 ||
+        rerunWithCheckpoint.cycles[0]?.processedCount !== 0 ||
+        rerunWithCheckpoint.cycles[0]?.checkpointFilteredCount !== 1
+      ) {
+        throw new Error("detect dexscreener checkpoint rerun did not skip the seen item");
       }
     });
 

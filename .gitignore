@@ -10,6 +10,9 @@ dev.db
 # logs
 *.log
 
+# local runner state
+data/checkpoints/
+
 # OS / editor
 .DS_Store
 .vscode/

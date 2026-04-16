@@ -12,6 +12,7 @@ The current focus is manual operation: import a token candidate, score its narra
 - Create one mint-only token record from one source-specific raw event file with `pnpm import:mint:source-file`
 - Dry-run one DexScreener token-profiles detection pass with `pnpm detect:dexscreener:token-profiles`
 - Optionally hand off accepted DexScreener candidates into `pnpm import:mint` with `pnpm detect:dexscreener:token-profiles -- --write`
+- Persist a simple source checkpoint during `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - Enrich a mint-only token record with `pnpm token:enrich`
 - Rescore one token from current fields with `pnpm token:rescore`
 - Append one metric row with `pnpm metric:add`
@@ -143,7 +144,13 @@ Repeat the same detect cycle in simple polling mode:
 pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json --watch --maxIterations 2
 ```
 
-Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, and loops only when `--watch` is set.
+Persist a checkpoint cursor while watching and writing:
+
+```bash
+pnpm detect:dexscreener:token-profiles -- --watch --write --checkpointFile /tmp/lowcap-bot-dexscreener-checkpoint.json
+```
+
+Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, and only reads or updates a checkpoint during `--watch --write`.
 
 Enrich one existing token record:
 
