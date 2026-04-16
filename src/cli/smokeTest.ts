@@ -771,6 +771,41 @@ async function run(): Promise<void> {
         throw new Error("mint-driven happy path enrich returned unexpected status or source");
       }
 
+      const patched = await runCliJson<{
+        mint: string;
+        name: string;
+        symbol: string;
+        description: string | null;
+        source: string | null;
+        metadataStatus: string;
+      }>(
+        "mint-driven happy path enrich patch",
+        "src/cli/tokenEnrich.ts",
+        [
+          "--mint",
+          context.mintHappyPathMint,
+          "--desc",
+          "smoke happy path enrich patch",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        patched.mint !== context.mintHappyPathMint ||
+        patched.name !== "smoke happy path token" ||
+        patched.symbol !== "SMKHP" ||
+        patched.description !== "smoke happy path enrich patch"
+      ) {
+        throw new Error("mint-driven happy path enrich patch returned unexpected fields");
+      }
+
+      if (
+        patched.source !== "smoke-happy-path-source" ||
+        patched.metadataStatus !== "enriched"
+      ) {
+        throw new Error("mint-driven happy path enrich patch returned unexpected status or source");
+      }
+
       const rescored = await runCliJson<{
         mint: string;
         scoreTotal: number;

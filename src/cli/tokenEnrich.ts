@@ -5,8 +5,8 @@ import { buildTargetText } from "../scoring/normalize.js";
 
 type TokenEnrichArgs = {
   mint: string;
-  name: string;
-  symbol: string;
+  name?: string;
+  symbol?: string;
   desc?: string;
   source?: string;
 };
@@ -19,16 +19,13 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm token:enrich -- --mint <MINT> --name <NAME> --symbol <SYMBOL> [--desc <TEXT>] [--source <SOURCE>]",
+      "pnpm token:enrich -- --mint <MINT> [--name <NAME>] [--symbol <SYMBOL>] [--desc <TEXT>] [--source <SOURCE>]",
     ].join("\n"),
   );
   process.exit(1);
 }
 
-function readRequiredArg(
-  input: Partial<TokenEnrichArgs>,
-  key: keyof Pick<TokenEnrichArgs, "mint" | "name" | "symbol">,
-): string {
+function readRequiredArg(input: Partial<TokenEnrichArgs>, key: "mint"): string {
   const value = input[key];
   if (typeof value !== "string" || value.trim().length === 0) {
     printUsageAndExit(`Missing required arg: --${key}`);
@@ -74,8 +71,8 @@ function parseArgs(argv: string[]): TokenEnrichArgs {
 
   return {
     mint: readRequiredArg(out, "mint"),
-    name: readRequiredArg(out, "name"),
-    symbol: readRequiredArg(out, "symbol"),
+    name: out.name,
+    symbol: out.symbol,
     desc: out.desc,
     source: out.source,
   };
@@ -98,6 +95,8 @@ async function run(): Promise<void> {
     select: {
       id: true,
       mint: true,
+      name: true,
+      symbol: true,
       description: true,
       source: true,
       importedAt: true,
@@ -109,24 +108,39 @@ async function run(): Promise<void> {
   }
 
   const enrichedAt = new Date();
+  const nextName = args.name ?? existing.name ?? undefined;
+  const nextSymbol = args.symbol ?? existing.symbol ?? undefined;
   const nextDescription = args.desc ?? existing.description ?? undefined;
+
+  if (!nextName) {
+    printUsageAndExit(
+      `Token is not ready for enrich: name is required for mint ${args.mint}`,
+    );
+  }
+
+  if (!nextSymbol) {
+    printUsageAndExit(
+      `Token is not ready for enrich: symbol is required for mint ${args.mint}`,
+    );
+  }
+
   const metadataStatus = computeMetadataStatus({
-    name: args.name,
-    symbol: args.symbol,
+    name: nextName,
+    symbol: nextSymbol,
     description: nextDescription,
   });
   const normalizedText = buildTargetText({
-    name: args.name,
-    symbol: args.symbol,
+    name: nextName,
+    symbol: nextSymbol,
     description: nextDescription,
   });
 
   const token = await db.token.update({
     where: { mint: args.mint },
     data: {
-      name: args.name,
-      symbol: args.symbol,
-      description: args.desc,
+      ...(args.name !== undefined ? { name: args.name } : {}),
+      ...(args.symbol !== undefined ? { symbol: args.symbol } : {}),
+      ...(args.desc !== undefined ? { description: args.desc } : {}),
       source: args.source ?? existing.source,
       normalizedText,
       enrichedAt,
