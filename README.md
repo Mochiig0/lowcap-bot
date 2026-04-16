@@ -116,10 +116,20 @@ Sample payload: `examples/import-mint-file.sample.json`
 Create one mint-only token record from one source-specific raw event file:
 
 ```bash
-pnpm import:mint:source-file -- --file ./examples/import-mint-source-file.sample.json
+pnpm import:mint:source-file -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json
 ```
 
-Sample payload: `examples/import-mint-source-file.sample.json`
+Fixed first raw source fixture for the auto-ingest MVP, captured from DexScreener token profiles latest v1: `fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json`
+
+Generic adapter-shape sample: `examples/import-mint-source-file.sample.json`
+
+Dry-run the first auto-ingest source through detector accept/reject without DB writes:
+
+```bash
+pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json
+```
+
+Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, and evaluates up to `--limit 1`.
 
 Enrich one existing token record:
 
@@ -319,7 +329,7 @@ Shape cautions:
 
 ## Mint-Driven Happy Path Quickstart
 
-1. Start with one raw source event file and run `pnpm import:mint:source-file -- --file ./examples/import-mint-source-file.sample.json`.
+1. Start with one raw source event file and run `pnpm import:mint:source-file -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json`.
 2. Fill current token metadata with `pnpm token:enrich -- --mint <MINT> --name <NAME> --symbol <SYMBOL> --desc "manual enrich"`.
 3. Recompute score fields with `pnpm token:rescore -- --mint <MINT>`.
 4. Append one outcome observation with `pnpm metric:add -- --mint <MINT> --peakFdv24h 180000 --volume24h 42000`.
@@ -327,7 +337,8 @@ Shape cautions:
 
 Sample references:
 
-- For step 1, use `examples/import-mint-source-file.sample.json`.
+- For step 1, use the fixed first-source fixture `fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json`.
+- For a generic source-adapter shape example, use `examples/import-mint-source-file.sample.json`.
 - If you already have the minimal `{ "items": [...] }` handoff payload instead of a raw source event, use `examples/import-mint-file.sample.json` with `pnpm import:mint:file`.
 
 Quick cautions:

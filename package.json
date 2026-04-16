@@ -15,6 +15,7 @@
     "import:mint": "tsx src/cli/importMint.ts",
     "import:mint:file": "tsx src/cli/importMintFile.ts",
     "import:mint:source-file": "tsx src/cli/importMintSourceFile.ts",
+    "detect:dexscreener:token-profiles": "tsx src/cli/detectDexscreenerTokenProfiles.ts",
     "import:min": "tsx src/cli/importMin.ts",
     "import:file": "tsx src/cli/importFile.ts",
     "trend:update": "tsx src/cli/updateTrend.ts",

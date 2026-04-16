@@ -1,0 +1,23 @@
+{
+  "source": "dexscreener-token-profiles-latest-v1",
+  "eventType": "token_detected",
+  "detectedAt": "2026-04-16T13:35:37.123Z",
+  "payload": {
+    "mintAddress": "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW",
+    "chainId": "solana",
+    "tokenAddress": "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW",
+    "url": "https://dexscreener.com/solana/pzcekaaq5csrxfhu2bfqvfxjm7cmm1qhj4mjud894ww",
+    "icon": "https://cdn.dexscreener.com/cms/images/P2ryCv9aqWWeAjFB?width=64&height=64&fit=crop&quality=95&format=auto",
+    "header": "https://cdn.dexscreener.com/cms/images/YE0ozc1pa3KitawP?width=600&height=200&fit=crop&quality=95&format=auto",
+    "openGraph": "https://cdn.dexscreener.com/token-images/og/solana/PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW?timestamp=1776348000000",
+    "description": "OFFICIAL $ROAR ON SOLANA BLOCKCHAIN | Launched on METEORA",
+    "links": [
+      {
+        "type": "twitter",
+        "url": "https://x.com/AngelAlbar11756"
+      }
+    ],
+    "cto": false,
+    "updatedAt": "2026-04-16T13:35:37.123Z"
+  }
+}
