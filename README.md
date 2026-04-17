@@ -159,6 +159,8 @@ bash ./scripts/run-detect-dexscreener-watch.sh
 
 The script keeps the source-specific checkpoint path fixed by default and forwards any extra detect-runner args, so short manual checks can still use options like `--file ... --maxIterations 1`.
 
+For live runs, the script also defaults `--intervalSeconds` to `5` to reduce idle polling noise after catch-up. You can still override that default by passing extra args such as `--intervalSeconds 1`.
+
 Check whether `systemd --user` is actually usable before trying the sample service:
 
 ```bash

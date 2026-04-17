@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECKPOINT_FILE="${LOWCAP_DEXSCREENER_CHECKPOINT_FILE:-$REPO_ROOT/data/checkpoints/dexscreener-token-profiles-latest-v1.json}"
+INTERVAL_SECONDS="${LOWCAP_DEXSCREENER_INTERVAL_SECONDS:-5}"
 
 cd "$REPO_ROOT"
 
@@ -19,5 +20,6 @@ fi
 exec pnpm detect:dexscreener:token-profiles -- \
   --watch \
   --write \
+  --intervalSeconds "$INTERVAL_SECONDS" \
   --checkpointFile "$CHECKPOINT_FILE" \
   "$@"
