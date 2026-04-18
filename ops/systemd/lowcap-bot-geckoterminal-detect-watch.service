@@ -1,0 +1,17 @@
+[Unit]
+Description=lowcap-bot GeckoTerminal detect watch runner
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mochi/projects/lowcap-bot
+Environment=DATABASE_URL=file:/home/mochi/projects/lowcap-bot/prisma/dev.db
+Environment=LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60
+Environment=LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/home/mochi/projects/lowcap-bot/data/checkpoints/geckoterminal-new-pools.json
+ExecStart=/home/mochi/projects/lowcap-bot/scripts/run-geckoterminal-detect-watch.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

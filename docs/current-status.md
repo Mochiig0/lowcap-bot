@@ -202,8 +202,12 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
+- `scripts/run-geckoterminal-detect-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm detect:geckoterminal:new-pools -- --watch --write`
+- `scripts/run-geckoterminal-metric-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm metric:snapshot:geckoterminal -- --watch --write`
 - `scripts/check-systemd-user.sh` is the repo-local preflight for deciding whether to use the sample `systemd --user` unit or fall back to `tmux` / foreground execution
 - `ops/systemd/lowcap-bot-dexscreener-watch.service` is a repo-local sample `systemd --user` unit that points at the run script; install and enablement are still manual
+- `ops/systemd/lowcap-bot-geckoterminal-detect-watch.service` is a repo-local sample `systemd --user` unit for the GeckoTerminal detect watch run script; install and enablement are still manual
+- `ops/systemd/lowcap-bot-geckoterminal-metric-watch.service` is a repo-local sample `systemd --user` unit for the GeckoTerminal metric snapshot watch run script; install and enablement are still manual
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
@@ -257,7 +261,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 
 ## Current Constraints
 
-- Input is still CLI-driven; the DexScreener runner can poll one source in a single process, and the repo now includes only a sample `systemd --user` unit, not a bundled installed service, queue, or scheduler
+- Input is still CLI-driven; the DexScreener detect runner plus the GeckoTerminal detect and metric watch runners can each poll one source in a single process, and the repo now includes only sample `systemd --user` units, not bundled installed services, queues, or schedulers
 - Environment-dependent service startup still exists; use `scripts/check-systemd-user.sh` before picking the `systemd --user` sample versus the `tmux` / foreground fallback
 - Scoring is entirely rule-based and file-backed
 - Trend scoring is currently ineffective unless `data/trend.json` is refreshed
@@ -317,6 +321,46 @@ File intake import:
 
 ```bash
 pnpm import:file -- --file ./tmp/token.json
+```
+
+GeckoTerminal detect watch runner:
+
+```bash
+bash ./scripts/run-geckoterminal-detect-watch.sh
+```
+
+GeckoTerminal metric watch runner:
+
+```bash
+bash ./scripts/run-geckoterminal-metric-watch.sh
+```
+
+GeckoTerminal detect watch sample user service:
+
+```bash
+install -D -m 644 ./ops/systemd/lowcap-bot-geckoterminal-detect-watch.service ~/.config/systemd/user/lowcap-bot-geckoterminal-detect-watch.service
+systemctl --user daemon-reload
+systemctl --user enable --now lowcap-bot-geckoterminal-detect-watch.service
+```
+
+GeckoTerminal metric watch sample user service:
+
+```bash
+install -D -m 644 ./ops/systemd/lowcap-bot-geckoterminal-metric-watch.service ~/.config/systemd/user/lowcap-bot-geckoterminal-metric-watch.service
+systemctl --user daemon-reload
+systemctl --user enable --now lowcap-bot-geckoterminal-metric-watch.service
+```
+
+GeckoTerminal detect watch tmux fallback:
+
+```bash
+tmux new -s lowcap-bot-gecko-detect 'cd /home/mochi/projects/lowcap-bot && bash ./scripts/run-geckoterminal-detect-watch.sh'
+```
+
+GeckoTerminal metric watch tmux fallback:
+
+```bash
+tmux new -s lowcap-bot-gecko-metric 'cd /home/mochi/projects/lowcap-bot && bash ./scripts/run-geckoterminal-metric-watch.sh'
 ```
 
 Import with metrics:
