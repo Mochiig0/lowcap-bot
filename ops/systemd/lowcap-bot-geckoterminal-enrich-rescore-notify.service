@@ -7,10 +7,10 @@ After=network-online.target
 Type=simple
 WorkingDirectory=/home/mochi/projects/lowcap-bot
 Environment=DATABASE_URL=file:/home/mochi/projects/lowcap-bot/prisma/dev.db
-Environment=LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS=900
-Environment=LOWCAP_GECKOTERMINAL_ENRICH_LIMIT=10
-Environment=LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES=120
-Environment=LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS=420
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS=300
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_LIMIT=5
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES=60
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS=180
 ExecStart=/home/mochi/projects/lowcap-bot/scripts/run-geckoterminal-enrich-rescore-notify.sh
 Restart=always
 RestartSec=5
