@@ -26,6 +26,7 @@ type SmokeContext = {
   geckoterminalDetectRunnerMint: string;
   geckoterminalDetectRunnerCheckpointMint: string;
   geckoterminalDetectRunnerRetryMint: string;
+  geckoterminalDetectRunnerTimeoutRetryMint: string;
   geckoterminalDetectRunnerCooldownMint: string;
   detectRunnerCheckpointMint: string;
   detectRunnerIdleLogMint: string;
@@ -53,6 +54,7 @@ type SmokeContext = {
   geckoterminalDetectRunnerCheckpointFilePath: string;
   geckoterminalDetectRunnerCheckpointPath: string;
   geckoterminalDetectRunnerRetryCheckpointPath: string;
+  geckoterminalDetectRunnerTimeoutRetryCheckpointPath: string;
   geckoterminalDetectRunnerCooldownCheckpointPath: string;
   geckoterminalDetectRunnerInvalidFilePath: string;
   geckoterminalDetectRunnerInvalidCheckpointPath: string;
@@ -236,6 +238,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.geckoterminalDetectRunnerMint,
           context.geckoterminalDetectRunnerCheckpointMint,
           context.geckoterminalDetectRunnerRetryMint,
+          context.geckoterminalDetectRunnerTimeoutRetryMint,
           context.geckoterminalDetectRunnerCooldownMint,
           context.detectRunnerCheckpointMint,
           context.detectRunnerIdleLogMint,
@@ -313,6 +316,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerCheckpointFilePath, { force: true });
   await rm(context.detectRunnerCheckpointPath, { force: true });
   await rm(context.geckoterminalDetectRunnerRetryCheckpointPath, { force: true });
+  await rm(context.geckoterminalDetectRunnerTimeoutRetryCheckpointPath, { force: true });
   await rm(context.geckoterminalDetectRunnerCooldownCheckpointPath, { force: true });
   await rm(context.detectRunnerIdleLogFilePath, { force: true });
   await rm(context.detectRunnerIdleLogCheckpointPath, { force: true });
@@ -348,6 +352,7 @@ async function run(): Promise<void> {
     geckoterminalDetectRunnerMint: `L${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "5").padEnd(43, "6").slice(0, 43)}`,
     geckoterminalDetectRunnerCheckpointMint: `M${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "6").padEnd(43, "7").slice(0, 43)}`,
     geckoterminalDetectRunnerRetryMint: `N${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "7").padEnd(43, "8").slice(0, 43)}`,
+    geckoterminalDetectRunnerTimeoutRetryMint: `Q${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "9").padEnd(43, "A").slice(0, 43)}`,
     geckoterminalDetectRunnerCooldownMint: `P${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "8").padEnd(43, "9").slice(0, 43)}`,
     detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
     detectRunnerIdleLogMint: `K${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "4").padEnd(43, "5").slice(0, 43)}`,
@@ -381,6 +386,7 @@ async function run(): Promise<void> {
     geckoterminalDetectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint-file.json`,
     geckoterminalDetectRunnerCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint.json`,
     geckoterminalDetectRunnerRetryCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-retry-checkpoint.json`,
+    geckoterminalDetectRunnerTimeoutRetryCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-timeout-retry-checkpoint.json`,
     geckoterminalDetectRunnerCooldownCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-cooldown-checkpoint.json`,
     geckoterminalDetectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-geckoterminal-invalid-file.json`,
     geckoterminalDetectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-invalid-checkpoint.json`,
@@ -2108,6 +2114,175 @@ async function run(): Promise<void> {
             "retryPoolAddress11111111111111111111111111111111"
         ) {
           throw new Error("detect geckoterminal retry checkpoint file did not persist the expected cursor");
+        }
+
+        const timeoutRetryPayload = {
+          data: [
+            {
+              id: "solana_timeout_retry_pool",
+              type: "pool",
+              attributes: {
+                address: "timeoutRetryPoolAddress1111111111111111111111111",
+                name: "GECKOTIMEOUT / SOL",
+                pool_created_at: "2026-04-18T03:45:54Z",
+              },
+              relationships: {
+                base_token: {
+                  data: {
+                    id: `solana_${context.geckoterminalDetectRunnerTimeoutRetryMint}`,
+                    type: "token",
+                  },
+                },
+                quote_token: {
+                  data: {
+                    id: "solana_So11111111111111111111111111111111111111112",
+                    type: "token",
+                  },
+                },
+                dex: {
+                  data: {
+                    id: "pumpswap",
+                    type: "dex",
+                  },
+                },
+              },
+            },
+          ],
+          included: [
+            {
+              id: `solana_${context.geckoterminalDetectRunnerTimeoutRetryMint}`,
+              type: "token",
+              attributes: {
+                address: context.geckoterminalDetectRunnerTimeoutRetryMint,
+                symbol: "GECKOTO",
+                decimals: 6,
+              },
+            },
+            {
+              id: "solana_So11111111111111111111111111111111111111112",
+              type: "token",
+              attributes: {
+                address: "So11111111111111111111111111111111111111112",
+                symbol: "SOL",
+                decimals: 9,
+              },
+            },
+            {
+              id: "pumpswap",
+              type: "dex",
+              attributes: {
+                name: "PumpSwap",
+              },
+            },
+          ],
+        };
+
+        process.env.GECKOTERMINAL_NEW_POOLS_API_URL =
+          `data:application/json,${encodeURIComponent(JSON.stringify(timeoutRetryPayload))}`;
+        process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE =
+          "The operation was aborted due to timeout";
+
+        const watchedTimeoutRetry = await runCliJsonWithStderr<{
+          checkpointEnabled: boolean;
+          checkpointBefore?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointAfter?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointUpdated?: boolean;
+          failedCount: number;
+          processedCount: number;
+          acceptedCount: number;
+          importedCount: number;
+          existingCount: number;
+          rateLimitRetryCount: number;
+          rateLimitRetrySuccessCount: number;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            rateLimitRetried: boolean;
+            rateLimitRetrySucceeded: boolean;
+            processedCount: number;
+            importedCount: number;
+            checkpointAfter?: {
+              poolCreatedAt: string;
+              poolAddress: string;
+            };
+          }>;
+        }>(
+          "detect geckoterminal watch retry on timeout",
+          "src/cli/detectGeckoterminalNewPools.ts",
+          [
+            "--write",
+            "--watch",
+            "--maxIterations",
+            "1",
+            "--checkpointFile",
+            context.geckoterminalDetectRunnerTimeoutRetryCheckpointPath,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchedTimeoutRetry.parsed.checkpointEnabled !== true ||
+          watchedTimeoutRetry.parsed.checkpointBefore !== undefined ||
+          watchedTimeoutRetry.parsed.checkpointAfter?.poolCreatedAt !==
+            "2026-04-18T03:45:54.000Z" ||
+          watchedTimeoutRetry.parsed.checkpointAfter?.poolAddress !==
+            "timeoutRetryPoolAddress1111111111111111111111111" ||
+          watchedTimeoutRetry.parsed.checkpointUpdated !== true ||
+          watchedTimeoutRetry.parsed.failedCount !== 0 ||
+          watchedTimeoutRetry.parsed.processedCount !== 1 ||
+          watchedTimeoutRetry.parsed.acceptedCount !== 1 ||
+          watchedTimeoutRetry.parsed.importedCount !== 1 ||
+          watchedTimeoutRetry.parsed.existingCount !== 0 ||
+          watchedTimeoutRetry.parsed.rateLimitRetryCount !== 1 ||
+          watchedTimeoutRetry.parsed.rateLimitRetrySuccessCount !== 1 ||
+          watchedTimeoutRetry.parsed.cycles.length !== 1 ||
+          watchedTimeoutRetry.parsed.cycles[0]?.failed !== false ||
+          watchedTimeoutRetry.parsed.cycles[0]?.rateLimitRetried !== true ||
+          watchedTimeoutRetry.parsed.cycles[0]?.rateLimitRetrySucceeded !== true ||
+          watchedTimeoutRetry.parsed.cycles[0]?.processedCount !== 1 ||
+          watchedTimeoutRetry.parsed.cycles[0]?.importedCount !== 1 ||
+          watchedTimeoutRetry.parsed.cycles[0]?.checkpointAfter?.poolCreatedAt !==
+            "2026-04-18T03:45:54.000Z"
+        ) {
+          throw new Error("detect geckoterminal timeout retry returned unexpected summary");
+        }
+
+        if (
+          !watchedTimeoutRetry.stderr.includes("rateLimitRetried=true") ||
+          !watchedTimeoutRetry.stderr.includes("rateLimitRetrySucceeded=true")
+        ) {
+          throw new Error(
+            "detect geckoterminal timeout retry did not log expected stderr summary",
+          );
+        }
+
+        const timeoutRetryCheckpointRaw = await readFile(
+          context.geckoterminalDetectRunnerTimeoutRetryCheckpointPath,
+          "utf-8",
+        );
+        const timeoutRetryCheckpointParsed = JSON.parse(timeoutRetryCheckpointRaw) as {
+          source?: string;
+          cursor?: {
+            poolCreatedAt?: string;
+            poolAddress?: string;
+          };
+        };
+
+        if (
+          timeoutRetryCheckpointParsed.source !== "geckoterminal.new_pools" ||
+          timeoutRetryCheckpointParsed.cursor?.poolCreatedAt !== "2026-04-18T03:45:54.000Z" ||
+          timeoutRetryCheckpointParsed.cursor?.poolAddress !==
+            "timeoutRetryPoolAddress1111111111111111111111111"
+        ) {
+          throw new Error(
+            "detect geckoterminal timeout retry checkpoint file did not persist the expected cursor",
+          );
         }
 
         const cooldownPayload = {

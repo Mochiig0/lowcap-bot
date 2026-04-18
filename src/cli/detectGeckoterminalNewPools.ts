@@ -148,6 +148,7 @@ function getUsageText(): string {
     "- writes accepted items into import:mint only when --write is set",
     "- loops only when --watch is set",
     "- waits --intervalSeconds 1 between watch cycles",
+    "- watch mode retries one fetch-only 429 or timeout-like failure once after a short backoff",
     "- watch mode adds extra cooldown only after failed 429 or timeout-like cycles",
     `- checkpointing defaults to ${DEFAULT_CHECKPOINT_FILE} and is active only with --watch --write`,
   ].join("\n");
@@ -327,11 +328,7 @@ function getApiUrl(): string {
   return process.env.GECKOTERMINAL_NEW_POOLS_API_URL ?? API_URL;
 }
 
-function isRateLimitErrorMessage(message: string | undefined): boolean {
-  return typeof message === "string" && message.includes("429 Too Many Requests");
-}
-
-function isFailureCooldownErrorMessage(message: string | undefined): boolean {
+function isRetryableWatchErrorMessage(message: string | undefined): boolean {
   if (typeof message !== "string") {
     return false;
   }
@@ -343,6 +340,10 @@ function isFailureCooldownErrorMessage(message: string | undefined): boolean {
     normalized.includes("operation was aborted") ||
     normalized.includes("timeout")
   );
+}
+
+function isFailureCooldownErrorMessage(message: string | undefined): boolean {
+  return isRetryableWatchErrorMessage(message);
 }
 
 function parsePositiveIntegerEnv(value: string | undefined, key: string): number | undefined {
@@ -853,7 +854,7 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
         await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
       }
     } catch (error) {
-      if (!args.file && isRateLimitErrorMessage(formatErrorMessage(error))) {
+      if (!args.file && isRetryableWatchErrorMessage(formatErrorMessage(error))) {
         await sleep(RATE_LIMIT_RETRY_DELAY_MS);
 
         try {
