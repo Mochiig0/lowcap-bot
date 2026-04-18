@@ -24,6 +24,7 @@ type SmokeContext = {
   mintSourceEventMint: string;
   detectRunnerMint: string;
   detectRunnerCheckpointMint: string;
+  detectRunnerIdleLogMint: string;
   mintHappyPathMint: string;
   minMint: string;
   fileMint: string;
@@ -40,6 +41,8 @@ type SmokeContext = {
   detectRunnerFilePath: string;
   detectRunnerCheckpointFilePath: string;
   detectRunnerCheckpointPath: string;
+  detectRunnerIdleLogFilePath: string;
+  detectRunnerIdleLogCheckpointPath: string;
   detectRunnerInvalidFilePath: string;
   detectRunnerInvalidCheckpointPath: string;
   mintHappyPathFilePath: string;
@@ -126,6 +129,45 @@ async function runCliJson<T>(
   }
 }
 
+async function runCliJsonWithStderr<T>(
+  step: string,
+  scriptPath: string,
+  args: string[],
+  smokeId: string,
+): Promise<{ parsed: T; stderr: string }> {
+  const outputPath = `/tmp/${smokeId}-${step.replace(/\s+/g, "-")}.stdout.json`;
+  const stderrPath = `/tmp/${smokeId}-${step.replace(/\s+/g, "-")}.stderr.log`;
+  const command = [
+    "node",
+    "--import",
+    "tsx",
+    scriptPath,
+    ...args,
+  ]
+    .map(shellEscape)
+    .join(" ");
+
+  try {
+    await runCommand(step, "bash", [
+      "-lc",
+      `${command} > ${shellEscape(outputPath)} 2> ${shellEscape(stderrPath)}`,
+    ]);
+
+    const [raw, stderr] = await Promise.all([
+      readFile(outputPath, "utf-8"),
+      readFile(stderrPath, "utf-8"),
+    ]);
+
+    return {
+      parsed: parseJson<T>(step, raw),
+      stderr: stderr.trim(),
+    };
+  } finally {
+    await rm(outputPath, { force: true });
+    await rm(stderrPath, { force: true });
+  }
+}
+
 async function runCliFailure(
   step: string,
   scriptPath: string,
@@ -172,6 +214,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintSourceEventMint,
           context.detectRunnerMint,
           context.detectRunnerCheckpointMint,
+          context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
@@ -207,6 +250,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintSourceEventMint,
           context.detectRunnerMint,
           context.detectRunnerCheckpointMint,
+          context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
           context.minMint,
           context.fileMint,
@@ -230,6 +274,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerFilePath, { force: true });
   await rm(context.detectRunnerCheckpointFilePath, { force: true });
   await rm(context.detectRunnerCheckpointPath, { force: true });
+  await rm(context.detectRunnerIdleLogFilePath, { force: true });
+  await rm(context.detectRunnerIdleLogCheckpointPath, { force: true });
   await rm(context.detectRunnerInvalidFilePath, { force: true });
   await rm(context.detectRunnerInvalidCheckpointPath, { force: true });
   await rm(context.mintHappyPathFilePath, { force: true });
@@ -257,6 +303,7 @@ async function run(): Promise<void> {
     mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
     detectRunnerMint: `H${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "2").padEnd(43, "3").slice(0, 43)}`,
     detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
+    detectRunnerIdleLogMint: `K${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "4").padEnd(43, "5").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
@@ -273,6 +320,8 @@ async function run(): Promise<void> {
     detectRunnerFilePath: `/tmp/${smokeId}-detect-dexscreener-file.json`,
     detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
     detectRunnerCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-checkpoint.json`,
+    detectRunnerIdleLogFilePath: `/tmp/${smokeId}-detect-dexscreener-idle-log-file.json`,
+    detectRunnerIdleLogCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-idle-log-checkpoint.json`,
     detectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-dexscreener-invalid-file.json`,
     detectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-invalid-checkpoint.json`,
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
@@ -1115,6 +1164,76 @@ async function run(): Promise<void> {
         rerunWithCheckpoint.cycles[0]?.checkpointFilteredCount !== 1
       ) {
         throw new Error("detect dexscreener checkpoint rerun did not skip the seen item");
+      }
+
+      await writeFile(
+        context.detectRunnerIdleLogFilePath,
+        `${JSON.stringify(
+          {
+            source: "dexscreener-token-profiles-latest-v1",
+            eventType: "token_detected",
+            detectedAt: "2026-04-16T13:45:37.123Z",
+            payload: {
+              mintAddress: context.detectRunnerIdleLogMint,
+              chainId: "solana",
+              tokenAddress: context.detectRunnerIdleLogMint,
+              url: "https://dexscreener.com/solana/smoke-detect-runner-idle-log",
+              updatedAt: "2026-04-16T13:45:37.123Z",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const watchedWithIdleLogs = await runCliJsonWithStderr<{
+        processedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycles: Array<{
+          cycle: number;
+          processedCount: number;
+          importedCount: number;
+          existingCount: number;
+        }>;
+      }>(
+        "detect dexscreener watch idle log throttle",
+        "src/cli/detectDexscreenerTokenProfiles.ts",
+        [
+          "--file",
+          context.detectRunnerIdleLogFilePath,
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "3",
+          "--checkpointFile",
+          context.detectRunnerIdleLogCheckpointPath,
+        ],
+        context.smokeId,
+      );
+      const watchedWithIdleLogsJson = watchedWithIdleLogs.parsed;
+
+      if (
+        watchedWithIdleLogsJson.processedCount !== 1 ||
+        watchedWithIdleLogsJson.importedCount !== 1 ||
+        watchedWithIdleLogsJson.existingCount !== 0 ||
+        watchedWithIdleLogsJson.cycles.length !== 3 ||
+        watchedWithIdleLogsJson.cycles[0]?.processedCount !== 1 ||
+        watchedWithIdleLogsJson.cycles[1]?.processedCount !== 0 ||
+        watchedWithIdleLogsJson.cycles[2]?.processedCount !== 0
+      ) {
+        throw new Error("detect dexscreener watch idle log throttle returned unexpected summary");
+      }
+
+      if (
+        !watchedWithIdleLogs.stderr.includes("cycle=1") ||
+        !watchedWithIdleLogs.stderr.includes("cycle=2") ||
+        watchedWithIdleLogs.stderr.includes("cycle=3") ||
+        !watchedWithIdleLogs.stderr.includes("idleStreak=2") ||
+        !watchedWithIdleLogs.stderr.includes("suppressedIdleCycles=1")
+      ) {
+        throw new Error("detect dexscreener watch idle log throttle did not throttle idle stderr logs");
       }
 
       await writeFile(

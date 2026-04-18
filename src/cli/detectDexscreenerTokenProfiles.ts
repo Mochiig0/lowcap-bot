@@ -16,6 +16,7 @@ const SOURCE = "dexscreener-token-profiles-latest-v1";
 const EVENT_TYPE = "token_detected";
 const API_URL = "https://api.dexscreener.com/token-profiles/latest/v1";
 const DEFAULT_CHECKPOINT_FILE = "data/checkpoints/dexscreener-token-profiles-latest-v1.json";
+const LOG_PREFIX = "[detect:dexscreener:token-profiles]";
 
 type DetectDexscreenerTokenProfilesArgs = {
   file?: string;
@@ -91,6 +92,11 @@ type SourceEventWithCursor = {
   cursor: CursorValue;
   originalIndex: number;
   sourceEvent: SourceEvent;
+};
+
+type WatchLogState = {
+  consecutiveIdleCount: number;
+  lastIdleResult?: DetectCycleResult;
 };
 
 class CliUsageError extends Error {
@@ -540,7 +546,7 @@ async function writeCheckpointCursor(filePath: string, cursor: CursorValue): Pro
 function logCycleSummary(result: DetectCycleResult): void {
   console.error(
     [
-      `[detect:dexscreener:token-profiles] cycle=${result.cycle}`,
+      `${LOG_PREFIX} cycle=${result.cycle}`,
       `failed=${result.failed}`,
       `processed=${result.processedCount}`,
       `accepted=${result.acceptedCount}`,
@@ -552,6 +558,63 @@ function logCycleSummary(result: DetectCycleResult): void {
       ...(result.errorMessage ? [`error=${JSON.stringify(result.errorMessage)}`] : []),
     ].join(" "),
   );
+}
+
+function isIdleCycle(result: DetectCycleResult): boolean {
+  return (
+    result.failed === false &&
+    result.processedCount === 0 &&
+    result.acceptedCount === 0 &&
+    result.importedCount === 0 &&
+    result.existingCount === 0
+  );
+}
+
+function logIdleStreakSummary(
+  result: DetectCycleResult,
+  consecutiveIdleCount: number,
+): void {
+  console.error(
+    [
+      `${LOG_PREFIX} idleStreak=${consecutiveIdleCount}`,
+      `suppressedIdleCycles=${consecutiveIdleCount - 1}`,
+      `lastCycle=${result.cycle}`,
+      `checkpointBefore=${result.checkpointBefore ?? "none"}`,
+      `checkpointAfter=${result.checkpointAfter ?? "none"}`,
+    ].join(" "),
+  );
+}
+
+function flushWatchLogState(state: WatchLogState): WatchLogState {
+  if (state.lastIdleResult && state.consecutiveIdleCount > 1) {
+    logIdleStreakSummary(state.lastIdleResult, state.consecutiveIdleCount);
+  }
+
+  return {
+    consecutiveIdleCount: 0,
+  };
+}
+
+function logWatchCycleSummary(
+  result: DetectCycleResult,
+  state: WatchLogState,
+): WatchLogState {
+  if (isIdleCycle(result)) {
+    const nextState: WatchLogState = {
+      consecutiveIdleCount: state.consecutiveIdleCount + 1,
+      lastIdleResult: result,
+    };
+
+    if (nextState.consecutiveIdleCount === 1) {
+      logCycleSummary(result);
+    }
+
+    return nextState;
+  }
+
+  const resetState = flushWatchLogState(state);
+  logCycleSummary(result);
+  return resetState;
 }
 
 async function loadInput(args: DetectDexscreenerTokenProfilesArgs): Promise<LoadedInput> {
@@ -758,6 +821,9 @@ async function run(): Promise<void> {
     ? await readCheckpointCursor(checkpointFilePath)
     : undefined;
   const initialCheckpointCursor = checkpointCursor?.value;
+  let watchLogState: WatchLogState = {
+    consecutiveIdleCount: 0,
+  };
 
   for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
     let result: DetectCycleResult | undefined;
@@ -794,7 +860,7 @@ async function run(): Promise<void> {
     }
 
     if (args.watch && result) {
-      logCycleSummary(result);
+      watchLogState = logWatchCycleSummary(result, watchLogState);
     }
 
     if (!args.watch || cycle === watchIterationCount) {
@@ -802,6 +868,10 @@ async function run(): Promise<void> {
     }
 
     await sleep(args.intervalSeconds * 1000);
+  }
+
+  if (args.watch) {
+    watchLogState = flushWatchLogState(watchLogState);
   }
 
   console.log(
