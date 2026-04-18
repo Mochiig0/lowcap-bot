@@ -1,0 +1,62 @@
+{
+  "data": [
+    {
+      "id": "solana_CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc",
+      "type": "pool",
+      "attributes": {
+        "address": "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc",
+        "name": "WTF / SOL",
+        "pool_created_at": "2026-04-18T02:13:55Z"
+      },
+      "relationships": {
+        "base_token": {
+          "data": {
+            "id": "solana_2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+            "type": "token"
+          }
+        },
+        "quote_token": {
+          "data": {
+            "id": "solana_So11111111111111111111111111111111111111112",
+            "type": "token"
+          }
+        },
+        "dex": {
+          "data": {
+            "id": "pump-fun",
+            "type": "dex"
+          }
+        }
+      }
+    }
+  ],
+  "included": [
+    {
+      "id": "solana_2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+      "type": "token",
+      "attributes": {
+        "address": "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+        "name": "WTF Are Agents Buying?",
+        "symbol": "WTF",
+        "decimals": 6
+      }
+    },
+    {
+      "id": "solana_So11111111111111111111111111111111111111112",
+      "type": "token",
+      "attributes": {
+        "address": "So11111111111111111111111111111111111111112",
+        "name": "Wrapped SOL",
+        "symbol": "SOL",
+        "decimals": 9
+      }
+    },
+    {
+      "id": "pump-fun",
+      "type": "dex",
+      "attributes": {
+        "name": "Pump.fun"
+      }
+    }
+  ]
+}
