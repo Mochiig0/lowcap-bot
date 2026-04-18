@@ -90,7 +90,7 @@ Outside that boundary:
 Boundary rules:
 
 - keep semi-automatic mint intake separate from read-only CLI responsibilities such as `token:compare`, `tokens:compare-report`, and `metrics:report`
-- keep Telegram notify on the full `pnpm import` path only
+- keep Telegram notify out of detect/source adapters and mint-only ingest; the current exception is the bounded one-shot `pnpm token:enrich-rescore:geckoterminal --write --notify` path after post-rescore eligibility is recomputed
 - keep detect-to-mint-only handoff narrow: produce mint-first inputs, then delegate into the existing mint-only entrypoints
 - avoid mixing review/report logic into ingest wrappers, and avoid mixing ingest-side mutation into read-only inspection CLIs
 
@@ -187,7 +187,7 @@ Route requests away from a new adapter when they are really asking for:
 - detector runtime or polling logic
 - queue, worker, retry, or resume behavior
 - read-only review, comparison, or reporting improvements
-- enrich, rescore, metric, or notify expansion after mint-only intake
+- generic watch/scheduler/queue-driven enrich, rescore, metric, or notify expansion after mint-only intake
 
 ### Enrich Flow
 
@@ -210,6 +210,12 @@ It:
 - rebuilds normalized text
 - reruns hard reject checks and score calculation
 - stores updated score fields on `Token`
+
+### GeckoTerminal Enrich Plus Rescore Batch
+
+`src/cli/tokenEnrichRescoreGeckoterminal.ts` selects recent GeckoTerminal-origin tokens, fetches one token snapshot per token, previews enrich plus rescore by default, and writes only with `--write`.
+
+With `--write --notify`, it may reuse the existing Telegram notify helper, but only when the pre-update token was not already `S` and non-hard-rejected, and the post-rescore state becomes `S` and non-hard-rejected.
 
 ### Metric Append Flow
 

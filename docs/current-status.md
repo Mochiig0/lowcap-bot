@@ -43,7 +43,7 @@ pnpm token:rescore -- --mint <MINT>
 ```
 
 ```bash
-pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write]
+pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write] [--notify]
 ```
 
 ```bash
@@ -219,7 +219,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `token:rescore` recomputes current hard reject and score fields
 - `token:enrich-rescore:geckoterminal` fetches one live GeckoTerminal token snapshot per selected token, previews enrich plus rescore by default, and writes both stages only with `--write`
 - `token:enrich-rescore:geckoterminal` selects recent GeckoTerminal-origin tokens by `firstSeenSourceSnapshot.detectedAt` when present, otherwise by `Token.createdAt`
-- `token:enrich-rescore:geckoterminal` fills name and symbol from GeckoTerminal when available, keeps description unchanged, rescoring from the post-enrich text snapshot, and reports whether the result would qualify as an `S` non-hard-reject notify candidate without sending Telegram
+- `token:enrich-rescore:geckoterminal` fills name and symbol from GeckoTerminal when available, keeps description unchanged, rescoring from the post-enrich text snapshot, and reports notify preview fields in dry-run
+- `token:enrich-rescore:geckoterminal --write --notify` reuses the existing Telegram notify boundary only when the token was not already `S` and non-hard-rejected before the batch, but becomes `S` and non-hard-rejected after rescore
 - `metric:add` appends one metric row without mutating token fields
 - `metric:add` is append-only; repeated submissions with the same values still create new `Metric` rows
 - `metric:snapshot:geckoterminal` fetches one live GeckoTerminal token snapshot per selected token and stays dry-run by default

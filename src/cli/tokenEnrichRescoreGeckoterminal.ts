@@ -13,6 +13,7 @@ import {
   rescoreTokenByMint,
   type TokenRescorePreview,
 } from "./tokenRescoreShared.js";
+import { buildScoreNotifyMessage, notifyTelegram } from "../notify/telegram.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const GECKOTERMINAL_NETWORK = "solana";
@@ -25,6 +26,7 @@ type JsonObject = Record<string, unknown>;
 
 type Args = {
   write: boolean;
+  notify: boolean;
   mint?: string;
   limit: number;
   sinceMinutes: number;
@@ -44,6 +46,9 @@ type SelectedToken = {
   name: string | null;
   symbol: string | null;
   description: string | null;
+  groupKey: string | null;
+  scoreRank: string;
+  hardRejected: boolean;
   createdAt: string;
   importedAt: string;
   enrichedAt: string | null;
@@ -69,6 +74,9 @@ type ProcessedItem = {
     name: string | null;
     symbol: string | null;
     description: string | null;
+    groupKey: string | null;
+    scoreRank: string;
+    hardRejected: boolean;
     createdAt: string;
     importedAt: string;
     enrichedAt: string | null;
@@ -103,6 +111,10 @@ type ProcessedItem = {
     hardRejectReason: string | null;
   };
   notifyCandidate: boolean;
+  notifyEligibleBefore: boolean;
+  notifyEligibleAfter: boolean;
+  notifyWouldSend: boolean;
+  notifySent: boolean;
   writeSummary: {
     dryRun: boolean;
     enrichUpdated: boolean;
@@ -115,6 +127,7 @@ type Output = {
   mode: "single" | "recent_batch";
   dryRun: boolean;
   writeEnabled: boolean;
+  notifyEnabled: boolean;
   source: string;
   selection: {
     mint: string | null;
@@ -130,6 +143,8 @@ type Output = {
     enrichWriteCount: number;
     rescoreWriteCount: number;
     notifyCandidateCount: number;
+    notifyWouldSendCount: number;
+    notifySentCount: number;
   };
   items: ProcessedItem[];
 };
@@ -144,7 +159,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write]",
+    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write] [--notify]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${GECKOTERMINAL_TOKEN_API_URL}/{mint}?include=top_pools`,
@@ -152,7 +167,8 @@ function getUsageText(): string {
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     "- stays dry-run by default and writes Token enrich/rescore updates only when --write is set",
-    "- fetches name and symbol from GeckoTerminal token snapshots, keeps description unchanged, and does not notify",
+    "- --notify is allowed only with --write and only sends when the token newly enters S-rank and non-hard-rejected state after rescore",
+    "- fetches name and symbol from GeckoTerminal token snapshots and keeps description unchanged",
   ].join("\n");
 }
 
@@ -178,6 +194,7 @@ function parseArgs(argv: string[]): Args {
   const normalizedArgv = argv.filter((value) => value !== "--");
   const out: Args = {
     write: false,
+    notify: false,
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
   };
@@ -191,6 +208,11 @@ function parseArgs(argv: string[]): Args {
 
     if (key === "--write") {
       out.write = true;
+      continue;
+    }
+
+    if (key === "--notify") {
+      out.notify = true;
       continue;
     }
 
@@ -214,6 +236,10 @@ function parseArgs(argv: string[]): Args {
     }
 
     i += 1;
+  }
+
+  if (out.notify && !out.write) {
+    throw new CliUsageError("--notify requires --write");
   }
 
   return out;
@@ -278,6 +304,9 @@ function buildSelectedToken(token: {
   name: string | null;
   symbol: string | null;
   description: string | null;
+  groupKey: string | null;
+  scoreRank: string;
+  hardRejected: boolean;
   metadataStatus: string;
   createdAt: Date;
   importedAt: Date;
@@ -301,6 +330,9 @@ function buildSelectedToken(token: {
     name: token.name,
     symbol: token.symbol,
     description: token.description,
+    groupKey: token.groupKey,
+    scoreRank: token.scoreRank,
+    hardRejected: token.hardRejected,
     createdAt: token.createdAt.toISOString(),
     importedAt: token.importedAt.toISOString(),
     enrichedAt: token.enrichedAt?.toISOString() ?? null,
@@ -328,6 +360,9 @@ async function selectTokens(args: Args): Promise<{
         name: true,
         symbol: true,
         description: true,
+        groupKey: true,
+        scoreRank: true,
+        hardRejected: true,
         metadataStatus: true,
         createdAt: true,
         importedAt: true,
@@ -363,6 +398,9 @@ async function selectTokens(args: Args): Promise<{
       name: true,
       symbol: true,
       description: true,
+      groupKey: true,
+      scoreRank: true,
+      hardRejected: true,
       metadataStatus: true,
       createdAt: true,
       importedAt: true,
@@ -446,10 +484,62 @@ function buildCurrentEnrichPreview(token: SelectedToken): TokenEnrichPreview {
   };
 }
 
+function isNotifyEligibleFromScore(scoreRank: string, hardRejected: boolean): boolean {
+  return scoreRank === "S" && !hardRejected;
+}
+
+function buildTokenOutput(token: SelectedToken): ProcessedItem["token"] {
+  return {
+    id: token.id,
+    mint: token.mint,
+    currentSource: token.currentSource,
+    originSource: token.originSource,
+    metadataStatus: token.metadataStatus,
+    name: token.name,
+    symbol: token.symbol,
+    description: token.description,
+    groupKey: token.groupKey,
+    scoreRank: token.scoreRank,
+    hardRejected: token.hardRejected,
+    createdAt: token.createdAt,
+    importedAt: token.importedAt,
+    enrichedAt: token.enrichedAt,
+    rescoredAt: token.rescoredAt,
+    selectionAnchorAt: token.selectionAnchorAt,
+    selectionAnchorKind: token.selectionAnchorKind,
+    isGeckoterminalOrigin: token.isGeckoterminalOrigin,
+  };
+}
+
 async function processToken(token: SelectedToken, args: Args): Promise<ProcessedItem> {
+  const baseToken = buildTokenOutput(token);
+  const selectedReason =
+    token.selectionAnchorKind === "firstSeenDetectedAt"
+      ? "firstSeenSourceSnapshot.detectedAt"
+      : "Token.createdAt";
+  const notifyEligibleBefore = isNotifyEligibleFromScore(token.scoreRank, token.hardRejected);
+
+  let snapshot: SnapshotMetadata | undefined;
+  let enrichPlan: ProcessedItem["enrichPlan"];
+  let rescorePreview:
+    | {
+        ready: boolean;
+        normalizedText: string;
+        scoreTotal: number;
+        scoreRank: string;
+        hardRejected: boolean;
+        hardRejectReason: string | null;
+      }
+    | undefined;
+  let notifyEligibleAfter = false;
+  let notifyWouldSend = false;
+  let notifySent = false;
+  let enrichUpdated = false;
+  let rescoreUpdated = false;
+
   try {
     const raw = await fetchTokenSnapshotRaw(token.mint);
-    const snapshot = parseSnapshotMetadata(raw);
+    snapshot = parseSnapshotMetadata(raw);
     const patch = {
       ...(snapshot.name !== null && snapshot.name !== token.name ? { name: snapshot.name } : {}),
       ...(snapshot.symbol !== null && snapshot.symbol !== token.symbol
@@ -458,7 +548,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     };
     const hasPatch = Object.keys(patch).length > 0;
 
-    const enrichPlan = hasPatch
+    const enrichPlanResult = hasPatch
       ? buildTokenEnrichPlan(
           {
             mint: token.mint,
@@ -474,70 +564,73 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         )
       : null;
 
-    const enrichPreview = enrichPlan?.preview ?? buildCurrentEnrichPreview(token);
-    const rescorePreview = await buildTokenRescorePreview({
+    const enrichPreview = enrichPlanResult?.preview ?? buildCurrentEnrichPreview(token);
+    enrichPlan = {
+      hasPatch,
+      willUpdate: enrichPlanResult?.hasChange ?? false,
+      patch,
+      preview: {
+        metadataStatus: enrichPreview.metadataStatus,
+        name: enrichPreview.name,
+        symbol: enrichPreview.symbol,
+        description: enrichPreview.description,
+      },
+    };
+    const builtRescorePreview = await buildTokenRescorePreview({
       mint: token.mint,
       name: enrichPreview.name,
       symbol: enrichPreview.symbol,
       description: enrichPreview.description,
     });
+    rescorePreview = {
+      ready: true,
+      normalizedText: builtRescorePreview.normalizedText,
+      scoreTotal: builtRescorePreview.scoreTotal,
+      scoreRank: builtRescorePreview.scoreRank,
+      hardRejected: builtRescorePreview.hardRejected,
+      hardRejectReason: builtRescorePreview.hardRejectReason,
+    };
+    notifyEligibleAfter = isNotifyEligibleFromScore(
+      builtRescorePreview.scoreRank,
+      builtRescorePreview.hardRejected,
+    );
+    notifyWouldSend = !notifyEligibleBefore && notifyEligibleAfter;
 
-    let enrichUpdated = false;
-    let rescoreUpdated = false;
     if (args.write) {
-      if (enrichPlan?.hasChange) {
+      if (enrichPlanResult?.hasChange) {
         await enrichTokenByMint(token.mint, patch);
         enrichUpdated = true;
       }
 
-      await rescoreTokenByMint(token.mint);
+      const writtenRescore = await rescoreTokenByMint(token.mint);
       rescoreUpdated = true;
+
+      if (args.notify && notifyWouldSend) {
+        notifySent = await notifyTelegram(
+          buildScoreNotifyMessage({
+            title: "S-rank token enriched and rescored",
+            mint: token.mint,
+            name: enrichPreview.name,
+            symbol: enrichPreview.symbol,
+            scoreTotal: writtenRescore.scoreTotal,
+            groupKey: token.groupKey,
+          }),
+        );
+      }
     }
 
     return {
-      token: {
-        id: token.id,
-        mint: token.mint,
-        currentSource: token.currentSource,
-        originSource: token.originSource,
-        metadataStatus: token.metadataStatus,
-        name: token.name,
-        symbol: token.symbol,
-        description: token.description,
-        createdAt: token.createdAt,
-        importedAt: token.importedAt,
-        enrichedAt: token.enrichedAt,
-        rescoredAt: token.rescoredAt,
-        selectionAnchorAt: token.selectionAnchorAt,
-        selectionAnchorKind: token.selectionAnchorKind,
-        isGeckoterminalOrigin: token.isGeckoterminalOrigin,
-      },
-      selectedReason:
-        token.selectionAnchorKind === "firstSeenDetectedAt"
-          ? "firstSeenSourceSnapshot.detectedAt"
-          : "Token.createdAt",
+      token: baseToken,
+      selectedReason,
       status: "ok",
       fetchedSnapshot: snapshot,
-      enrichPlan: {
-        hasPatch,
-        willUpdate: enrichPlan?.hasChange ?? false,
-        patch,
-        preview: {
-          metadataStatus: enrichPreview.metadataStatus,
-          name: enrichPreview.name,
-          symbol: enrichPreview.symbol,
-          description: enrichPreview.description,
-        },
-      },
-      rescorePreview: {
-        ready: true,
-        normalizedText: rescorePreview.normalizedText,
-        scoreTotal: rescorePreview.scoreTotal,
-        scoreRank: rescorePreview.scoreRank,
-        hardRejected: rescorePreview.hardRejected,
-        hardRejectReason: rescorePreview.hardRejectReason,
-      },
-      notifyCandidate: rescorePreview.scoreRank === "S" && !rescorePreview.hardRejected,
+      enrichPlan,
+      rescorePreview,
+      notifyCandidate: notifyEligibleAfter,
+      notifyEligibleBefore,
+      notifyEligibleAfter,
+      notifyWouldSend,
+      notifySent,
       writeSummary: {
         dryRun: !args.write,
         enrichUpdated,
@@ -546,33 +639,21 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     };
   } catch (error) {
     return {
-      token: {
-        id: token.id,
-        mint: token.mint,
-        currentSource: token.currentSource,
-        originSource: token.originSource,
-        metadataStatus: token.metadataStatus,
-        name: token.name,
-        symbol: token.symbol,
-        description: token.description,
-        createdAt: token.createdAt,
-        importedAt: token.importedAt,
-        enrichedAt: token.enrichedAt,
-        rescoredAt: token.rescoredAt,
-        selectionAnchorAt: token.selectionAnchorAt,
-        selectionAnchorKind: token.selectionAnchorKind,
-        isGeckoterminalOrigin: token.isGeckoterminalOrigin,
-      },
-      selectedReason:
-        token.selectionAnchorKind === "firstSeenDetectedAt"
-          ? "firstSeenSourceSnapshot.detectedAt"
-          : "Token.createdAt",
+      token: baseToken,
+      selectedReason,
       status: "error",
-      notifyCandidate: false,
+      fetchedSnapshot: snapshot,
+      enrichPlan,
+      rescorePreview,
+      notifyCandidate: notifyEligibleAfter,
+      notifyEligibleBefore,
+      notifyEligibleAfter,
+      notifyWouldSend,
+      notifySent,
       writeSummary: {
         dryRun: !args.write,
-        enrichUpdated: false,
-        rescoreUpdated: false,
+        enrichUpdated,
+        rescoreUpdated,
       },
       error: error instanceof Error ? error.message : String(error),
     };
@@ -592,6 +673,7 @@ async function main(): Promise<void> {
     mode: selection.mode,
     dryRun: !args.write,
     writeEnabled: args.write,
+    notifyEnabled: args.notify,
     source: GECKOTERMINAL_NEW_POOLS_SOURCE,
     selection: {
       mint: args.mint ?? null,
@@ -607,6 +689,8 @@ async function main(): Promise<void> {
       enrichWriteCount: items.filter((item) => item.writeSummary.enrichUpdated).length,
       rescoreWriteCount: items.filter((item) => item.writeSummary.rescoreUpdated).length,
       notifyCandidateCount: items.filter((item) => item.notifyCandidate).length,
+      notifyWouldSendCount: items.filter((item) => item.notifyWouldSend).length,
+      notifySentCount: items.filter((item) => item.notifySent).length,
     },
     items,
   };

@@ -59,6 +59,7 @@ type SmokeContext = {
   mintHappyPathFilePath: string;
   metricSnapshotFilePath: string;
   geckoEnrichRescoreFilePath: string;
+  telegramCaptureFilePath: string;
 };
 
 function logStep(message: string): void {
@@ -304,6 +305,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.mintHappyPathFilePath, { force: true });
   await rm(context.metricSnapshotFilePath, { force: true });
   await rm(context.geckoEnrichRescoreFilePath, { force: true });
+  await rm(context.telegramCaptureFilePath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -366,6 +368,7 @@ async function run(): Promise<void> {
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
     metricSnapshotFilePath: `/tmp/${smokeId}-metric-snapshot.json`,
     geckoEnrichRescoreFilePath: `/tmp/${smokeId}-gecko-enrich-rescore.json`,
+    telegramCaptureFilePath: `/tmp/${smokeId}-telegram-capture.jsonl`,
   };
 
   try {
@@ -2808,6 +2811,7 @@ async function run(): Promise<void> {
 
     await runStep("geckoterminal enrich rescore batch", async () => {
       const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+      const previousTelegramCaptureFile = process.env.LOWCAP_TELEGRAM_CAPTURE_FILE;
 
       await runCliJson<{
         mint: string;
@@ -2833,7 +2837,7 @@ async function run(): Promise<void> {
               type: "token",
               attributes: {
                 address: context.geckoEnrichRescoreMint,
-                name: "smoke gecko enrich token",
+                name: "pokemon dog newinfo",
                 symbol: "SMGET",
               },
             },
@@ -2844,13 +2848,17 @@ async function run(): Promise<void> {
         "utf-8",
       );
 
+      await writeFile(context.telegramCaptureFilePath, "", "utf-8");
+
       try {
         process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoEnrichRescoreFilePath;
+        process.env.LOWCAP_TELEGRAM_CAPTURE_FILE = context.telegramCaptureFilePath;
 
         const dryRun = await runCliJson<{
           mode: string;
           dryRun: boolean;
           writeEnabled: boolean;
+          notifyEnabled: boolean;
           selection: {
             selectedCount: number;
           };
@@ -2861,6 +2869,8 @@ async function run(): Promise<void> {
             enrichWriteCount: number;
             rescoreWriteCount: number;
             notifyCandidateCount: number;
+            notifyWouldSendCount: number;
+            notifySentCount: number;
           };
           items: Array<{
             token: {
@@ -2886,6 +2896,10 @@ async function run(): Promise<void> {
               hardRejected: boolean;
             };
             notifyCandidate: boolean;
+            notifyEligibleBefore: boolean;
+            notifyEligibleAfter: boolean;
+            notifyWouldSend: boolean;
+            notifySent: boolean;
             writeSummary: {
               dryRun: boolean;
               enrichUpdated: boolean;
@@ -2908,26 +2922,33 @@ async function run(): Promise<void> {
           dryRun.mode !== "recent_batch" ||
           dryRun.dryRun !== true ||
           dryRun.writeEnabled !== false ||
+          dryRun.notifyEnabled !== false ||
           dryRun.selection.selectedCount !== 1 ||
           dryRun.summary.selectedCount !== 1 ||
           dryRun.summary.okCount !== 1 ||
           dryRun.summary.errorCount !== 0 ||
           dryRun.summary.enrichWriteCount !== 0 ||
           dryRun.summary.rescoreWriteCount !== 0 ||
+          dryRun.summary.notifyWouldSendCount !== 1 ||
+          dryRun.summary.notifySentCount !== 0 ||
           dryRun.items.length !== 1 ||
           dryRun.items[0]?.token.mint !== context.geckoEnrichRescoreMint ||
           dryRun.items[0]?.token.metadataStatus !== "mint_only" ||
           dryRun.items[0]?.selectedReason !== "Token.createdAt" ||
           dryRun.items[0]?.status !== "ok" ||
-          dryRun.items[0]?.fetchedSnapshot?.name !== "smoke gecko enrich token" ||
+          dryRun.items[0]?.fetchedSnapshot?.name !== "pokemon dog newinfo" ||
           dryRun.items[0]?.fetchedSnapshot?.symbol !== "SMGET" ||
           dryRun.items[0]?.enrichPlan?.hasPatch !== true ||
           dryRun.items[0]?.enrichPlan?.willUpdate !== true ||
           dryRun.items[0]?.enrichPlan?.preview.metadataStatus !== "partial" ||
           dryRun.items[0]?.rescorePreview?.ready !== true ||
-          typeof dryRun.items[0]?.rescorePreview?.scoreRank !== "string" ||
+          dryRun.items[0]?.rescorePreview?.scoreRank !== "S" ||
           typeof dryRun.items[0]?.rescorePreview?.hardRejected !== "boolean" ||
-          typeof dryRun.items[0]?.notifyCandidate !== "boolean" ||
+          dryRun.items[0]?.notifyCandidate !== true ||
+          dryRun.items[0]?.notifyEligibleBefore !== false ||
+          dryRun.items[0]?.notifyEligibleAfter !== true ||
+          dryRun.items[0]?.notifyWouldSend !== true ||
+          dryRun.items[0]?.notifySent !== false ||
           dryRun.items[0]?.writeSummary.dryRun !== true ||
           dryRun.items[0]?.writeSummary.enrichUpdated !== false ||
           dryRun.items[0]?.writeSummary.rescoreUpdated !== false
@@ -2961,11 +2982,14 @@ async function run(): Promise<void> {
           mode: string;
           dryRun: boolean;
           writeEnabled: boolean;
+          notifyEnabled: boolean;
           summary: {
             okCount: number;
             errorCount: number;
             enrichWriteCount: number;
             rescoreWriteCount: number;
+            notifyWouldSendCount: number;
+            notifySentCount: number;
           };
           items: Array<{
             token: {
@@ -2980,6 +3004,11 @@ async function run(): Promise<void> {
               scoreRank: string;
               hardRejected: boolean;
             };
+            notifyCandidate: boolean;
+            notifyEligibleBefore: boolean;
+            notifyEligibleAfter: boolean;
+            notifyWouldSend: boolean;
+            notifySent: boolean;
             writeSummary: {
               dryRun: boolean;
               enrichUpdated: boolean;
@@ -2993,6 +3022,7 @@ async function run(): Promise<void> {
             "--mint",
             context.geckoEnrichRescoreMint,
             "--write",
+            "--notify",
           ],
           context.smokeId,
         );
@@ -3001,22 +3031,43 @@ async function run(): Promise<void> {
           written.mode !== "single" ||
           written.dryRun !== false ||
           written.writeEnabled !== true ||
+          written.notifyEnabled !== true ||
           written.summary.okCount !== 1 ||
           written.summary.errorCount !== 0 ||
           written.summary.enrichWriteCount !== 1 ||
           written.summary.rescoreWriteCount !== 1 ||
+          written.summary.notifyWouldSendCount !== 1 ||
+          written.summary.notifySentCount !== 1 ||
           written.items.length !== 1 ||
           written.items[0]?.token.mint !== context.geckoEnrichRescoreMint ||
           written.items[0]?.status !== "ok" ||
           written.items[0]?.enrichPlan?.willUpdate !== true ||
           written.items[0]?.rescorePreview?.ready !== true ||
-          typeof written.items[0]?.rescorePreview?.scoreRank !== "string" ||
+          written.items[0]?.rescorePreview?.scoreRank !== "S" ||
           typeof written.items[0]?.rescorePreview?.hardRejected !== "boolean" ||
+          written.items[0]?.notifyCandidate !== true ||
+          written.items[0]?.notifyEligibleBefore !== false ||
+          written.items[0]?.notifyEligibleAfter !== true ||
+          written.items[0]?.notifyWouldSend !== true ||
+          written.items[0]?.notifySent !== true ||
           written.items[0]?.writeSummary.dryRun !== false ||
           written.items[0]?.writeSummary.enrichUpdated !== true ||
           written.items[0]?.writeSummary.rescoreUpdated !== true
         ) {
           throw new Error("geckoterminal enrich rescore write returned unexpected summary");
+        }
+
+        const firstNotifyCapture = (await readFile(context.telegramCaptureFilePath, "utf-8"))
+          .trim()
+          .split("\n")
+          .filter((line) => line.length > 0);
+
+        if (
+          firstNotifyCapture.length !== 1 ||
+          !firstNotifyCapture[0]?.includes("S-rank token enriched and rescored") ||
+          !firstNotifyCapture[0]?.includes(context.geckoEnrichRescoreMint)
+        ) {
+          throw new Error("geckoterminal enrich rescore notify did not capture exactly one message");
         }
 
         const updatedToken = await db.token.findUnique({
@@ -3039,7 +3090,7 @@ async function run(): Promise<void> {
         if (
           !updatedToken ||
           updatedToken.source !== "geckoterminal.new_pools" ||
-          updatedToken.name !== "smoke gecko enrich token" ||
+          updatedToken.name !== "pokemon dog newinfo" ||
           updatedToken.symbol !== "SMGET" ||
           updatedToken.description !== null ||
           updatedToken.metadataStatus !== "partial" ||
@@ -3047,16 +3098,74 @@ async function run(): Promise<void> {
           !updatedToken.rescoredAt ||
           typeof updatedToken.normalizedText !== "string" ||
           typeof updatedToken.scoreTotal !== "number" ||
-          typeof updatedToken.scoreRank !== "string" ||
+          updatedToken.scoreRank !== "S" ||
           typeof updatedToken.hardRejected !== "boolean"
         ) {
           throw new Error("geckoterminal enrich rescore write did not persist expected token fields");
+        }
+
+        const rerun = await runCliJson<{
+          summary: {
+            notifyWouldSendCount: number;
+            notifySentCount: number;
+          };
+          items: Array<{
+            status: string;
+            notifyEligibleBefore: boolean;
+            notifyEligibleAfter: boolean;
+            notifyWouldSend: boolean;
+            notifySent: boolean;
+            writeSummary: {
+              enrichUpdated: boolean;
+              rescoreUpdated: boolean;
+            };
+          }>;
+        }>(
+          "geckoterminal enrich rescore rerun notify",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--mint",
+            context.geckoEnrichRescoreMint,
+            "--write",
+            "--notify",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          rerun.summary.notifyWouldSendCount !== 0 ||
+          rerun.summary.notifySentCount !== 0 ||
+          rerun.items.length !== 1 ||
+          rerun.items[0]?.status !== "ok" ||
+          rerun.items[0]?.notifyEligibleBefore !== true ||
+          rerun.items[0]?.notifyEligibleAfter !== true ||
+          rerun.items[0]?.notifyWouldSend !== false ||
+          rerun.items[0]?.notifySent !== false ||
+          rerun.items[0]?.writeSummary.enrichUpdated !== false ||
+          rerun.items[0]?.writeSummary.rescoreUpdated !== true
+        ) {
+          throw new Error("geckoterminal enrich rescore rerun notify unexpectedly duplicated a send");
+        }
+
+        const finalNotifyCapture = (await readFile(context.telegramCaptureFilePath, "utf-8"))
+          .trim()
+          .split("\n")
+          .filter((line) => line.length > 0);
+
+        if (finalNotifyCapture.length !== 1) {
+          throw new Error("geckoterminal enrich rescore rerun notify changed capture count");
         }
       } finally {
         if (previousSnapshotFile === undefined) {
           delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
         } else {
           process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+
+        if (previousTelegramCaptureFile === undefined) {
+          delete process.env.LOWCAP_TELEGRAM_CAPTURE_FILE;
+        } else {
+          process.env.LOWCAP_TELEGRAM_CAPTURE_FILE = previousTelegramCaptureFile;
         }
       }
     });

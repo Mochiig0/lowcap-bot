@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { db } from "./db.js";
-import { notifyTelegram } from "../notify/telegram.js";
+import { buildScoreNotifyMessage, notifyTelegram } from "../notify/telegram.js";
 import { buildTargetText } from "../scoring/normalize.js";
 import { checkHardReject } from "../scoring/hardReject.js";
 import { scoreText } from "../scoring/score.js";
@@ -265,13 +265,14 @@ async function run(): Promise<void> {
 
   if (score.rank === "S" && !hardReject.rejected) {
     await notifyTelegram(
-      [
-        "[Lowcap MVP] S-rank token imported",
-        `mint: ${token.mint}`,
-        `name: ${token.name} (${token.symbol})`,
-        `score: ${score.total}`,
-        `group: ${token.groupKey ?? "-"}`,
-      ].join("\n"),
+      buildScoreNotifyMessage({
+        title: "S-rank token imported",
+        mint: token.mint,
+        name: token.name,
+        symbol: token.symbol,
+        scoreTotal: score.total,
+        groupKey: token.groupKey,
+      }),
     );
   }
 
