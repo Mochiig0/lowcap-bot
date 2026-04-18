@@ -24,6 +24,7 @@ type SmokeContext = {
   mintSourceEventMint: string;
   detectRunnerMint: string;
   geckoterminalDetectRunnerMint: string;
+  geckoterminalDetectRunnerCheckpointMint: string;
   detectRunnerCheckpointMint: string;
   detectRunnerIdleLogMint: string;
   mintHappyPathMint: string;
@@ -41,6 +42,10 @@ type SmokeContext = {
   mintSourceEventFilePath: string;
   detectRunnerFilePath: string;
   geckoterminalDetectRunnerFilePath: string;
+  geckoterminalDetectRunnerCheckpointFilePath: string;
+  geckoterminalDetectRunnerCheckpointPath: string;
+  geckoterminalDetectRunnerInvalidFilePath: string;
+  geckoterminalDetectRunnerInvalidCheckpointPath: string;
   detectRunnerCheckpointFilePath: string;
   detectRunnerCheckpointPath: string;
   detectRunnerIdleLogFilePath: string;
@@ -216,6 +221,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.mintSourceEventMint,
           context.detectRunnerMint,
           context.geckoterminalDetectRunnerMint,
+          context.geckoterminalDetectRunnerCheckpointMint,
           context.detectRunnerCheckpointMint,
           context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
@@ -306,6 +312,7 @@ async function run(): Promise<void> {
     mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
     detectRunnerMint: `H${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "2").padEnd(43, "3").slice(0, 43)}`,
     geckoterminalDetectRunnerMint: `L${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "5").padEnd(43, "6").slice(0, 43)}`,
+    geckoterminalDetectRunnerCheckpointMint: `M${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "6").padEnd(43, "7").slice(0, 43)}`,
     detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
     detectRunnerIdleLogMint: `K${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "4").padEnd(43, "5").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
@@ -323,6 +330,10 @@ async function run(): Promise<void> {
     mintSourceEventFilePath: `/tmp/${smokeId}-import-mint-source-file.json`,
     detectRunnerFilePath: `/tmp/${smokeId}-detect-dexscreener-file.json`,
     geckoterminalDetectRunnerFilePath: `/tmp/${smokeId}-detect-geckoterminal-file.json`,
+    geckoterminalDetectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint-file.json`,
+    geckoterminalDetectRunnerCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint.json`,
+    geckoterminalDetectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-geckoterminal-invalid-file.json`,
+    geckoterminalDetectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-invalid-checkpoint.json`,
     detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
     detectRunnerCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-checkpoint.json`,
     detectRunnerIdleLogFilePath: `/tmp/${smokeId}-detect-dexscreener-idle-log-file.json`,
@@ -1490,6 +1501,86 @@ async function run(): Promise<void> {
         throw new Error("detect geckoterminal dry-run returned unexpected item fields");
       }
 
+      const watched = await runCliJson<{
+        dryRun: boolean;
+        writeEnabled: boolean;
+        watchEnabled: boolean;
+        checkpointEnabled: boolean;
+        intervalSeconds: number;
+        maxIterations: number;
+        cycleCount: number;
+        inputCount: number;
+        processedCount: number;
+        acceptedCount: number;
+        rejectedCount: number;
+        importedCount: number;
+        existingCount: number;
+        items: Array<{
+          handoffPayload?: {
+            mint: string;
+            source?: string;
+          };
+        }>;
+        cycles: Array<{
+          cycle: number;
+          inputCount: number;
+          processedCount: number;
+          acceptedCount: number;
+          rejectedCount: number;
+          items: Array<{
+            handoffPayload?: {
+              mint: string;
+            };
+          }>;
+        }>;
+      }>(
+        "detect geckoterminal watch dry-run",
+        "src/cli/detectGeckoterminalNewPools.ts",
+        [
+          "--file",
+          context.geckoterminalDetectRunnerFilePath,
+          "--watch",
+          "--maxIterations",
+          "2",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        watched.dryRun !== true ||
+        watched.writeEnabled !== false ||
+        watched.watchEnabled !== true ||
+        watched.checkpointEnabled !== false ||
+        watched.intervalSeconds !== 1 ||
+        watched.maxIterations !== 2 ||
+        watched.cycleCount !== 2 ||
+        watched.inputCount !== 2 ||
+        watched.processedCount !== 2 ||
+        watched.acceptedCount !== 2 ||
+        watched.rejectedCount !== 0 ||
+        watched.importedCount !== 0 ||
+        watched.existingCount !== 0 ||
+        watched.items.length !== 2 ||
+        watched.cycles.length !== 2
+      ) {
+        throw new Error("detect geckoterminal watch dry-run returned unexpected summary");
+      }
+
+      if (
+        watched.cycles[0]?.cycle !== 1 ||
+        watched.cycles[1]?.cycle !== 2 ||
+        watched.cycles[0]?.inputCount !== 1 ||
+        watched.cycles[1]?.inputCount !== 1 ||
+        watched.cycles[0]?.processedCount !== 1 ||
+        watched.cycles[1]?.processedCount !== 1 ||
+        watched.cycles[0]?.acceptedCount !== 1 ||
+        watched.cycles[1]?.acceptedCount !== 1 ||
+        watched.cycles[0]?.items[0]?.handoffPayload?.mint !== context.geckoterminalDetectRunnerMint ||
+        watched.cycles[1]?.items[0]?.handoffPayload?.mint !== context.geckoterminalDetectRunnerMint
+      ) {
+        throw new Error("detect geckoterminal watch dry-run returned unexpected cycle detail");
+      }
+
       const tokenBeforeWrite = await db.token.findUnique({
         where: { mint: context.geckoterminalDetectRunnerMint },
         select: { id: true },
@@ -1617,6 +1708,286 @@ async function run(): Promise<void> {
 
       if (rerun.importResult?.created !== false) {
         throw new Error("detect geckoterminal write rerun did not report existing token");
+      }
+
+      await writeFile(
+        context.geckoterminalDetectRunnerCheckpointFilePath,
+        `${JSON.stringify(
+          {
+            data: [
+              {
+                id: "solana_9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC",
+                type: "pool",
+                attributes: {
+                  address: "9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC",
+                  name: "GECKOCP / SOL",
+                  pool_created_at: "2026-04-18T02:35:54Z",
+                },
+                relationships: {
+                  base_token: {
+                    data: {
+                      id: `solana_${context.geckoterminalDetectRunnerCheckpointMint}`,
+                      type: "token",
+                    },
+                  },
+                  quote_token: {
+                    data: {
+                      id: "solana_So11111111111111111111111111111111111111112",
+                      type: "token",
+                    },
+                  },
+                  dex: {
+                    data: {
+                      id: "pumpswap",
+                      type: "dex",
+                    },
+                  },
+                },
+              },
+            ],
+            included: [
+              {
+                id: `solana_${context.geckoterminalDetectRunnerCheckpointMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoterminalDetectRunnerCheckpointMint,
+                  symbol: "GECKOCP",
+                  decimals: 6,
+                },
+              },
+              {
+                id: "solana_So11111111111111111111111111111111111111112",
+                type: "token",
+                attributes: {
+                  address: "So11111111111111111111111111111111111111112",
+                  symbol: "SOL",
+                  decimals: 9,
+                },
+              },
+              {
+                id: "pumpswap",
+                type: "dex",
+                attributes: {
+                  name: "PumpSwap",
+                },
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const watchedWithCheckpoint = await runCliJson<{
+        checkpointEnabled: boolean;
+        checkpointFile?: string;
+        checkpointBefore?: {
+          poolCreatedAt: string;
+          poolAddress: string;
+        };
+        checkpointAfter?: {
+          poolCreatedAt: string;
+          poolAddress: string;
+        };
+        processedCount: number;
+        acceptedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycles: Array<{
+          cycle: number;
+          processedCount: number;
+          acceptedCount: number;
+          importedCount: number;
+          existingCount: number;
+          checkpointBefore?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointAfter?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointFilteredCount: number;
+        }>;
+      }>(
+        "detect geckoterminal watch write checkpoint",
+        "src/cli/detectGeckoterminalNewPools.ts",
+        [
+          "--file",
+          context.geckoterminalDetectRunnerCheckpointFilePath,
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "2",
+          "--checkpointFile",
+          context.geckoterminalDetectRunnerCheckpointPath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        watchedWithCheckpoint.checkpointEnabled !== true ||
+        watchedWithCheckpoint.checkpointFile !== context.geckoterminalDetectRunnerCheckpointPath ||
+        watchedWithCheckpoint.checkpointBefore !== undefined ||
+        watchedWithCheckpoint.checkpointAfter?.poolCreatedAt !== "2026-04-18T02:35:54.000Z" ||
+        watchedWithCheckpoint.checkpointAfter?.poolAddress !==
+          "9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC" ||
+        watchedWithCheckpoint.processedCount !== 1 ||
+        watchedWithCheckpoint.acceptedCount !== 1 ||
+        watchedWithCheckpoint.importedCount !== 1 ||
+        watchedWithCheckpoint.existingCount !== 0 ||
+        watchedWithCheckpoint.cycles.length !== 2
+      ) {
+        throw new Error("detect geckoterminal watch write checkpoint returned unexpected summary");
+      }
+
+      if (
+        watchedWithCheckpoint.cycles[0]?.processedCount !== 1 ||
+        watchedWithCheckpoint.cycles[0]?.importedCount !== 1 ||
+        watchedWithCheckpoint.cycles[0]?.checkpointBefore !== undefined ||
+        watchedWithCheckpoint.cycles[0]?.checkpointAfter?.poolCreatedAt !==
+          "2026-04-18T02:35:54.000Z" ||
+        watchedWithCheckpoint.cycles[0]?.checkpointAfter?.poolAddress !==
+          "9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC" ||
+        watchedWithCheckpoint.cycles[0]?.checkpointFilteredCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.processedCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.acceptedCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.importedCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.existingCount !== 0 ||
+        watchedWithCheckpoint.cycles[1]?.checkpointBefore?.poolCreatedAt !==
+          "2026-04-18T02:35:54.000Z" ||
+        watchedWithCheckpoint.cycles[1]?.checkpointAfter?.poolCreatedAt !==
+          "2026-04-18T02:35:54.000Z" ||
+        watchedWithCheckpoint.cycles[1]?.checkpointFilteredCount !== 1
+      ) {
+        throw new Error("detect geckoterminal watch write checkpoint returned unexpected cycle detail");
+      }
+
+      const geckoCheckpointRaw = await readFile(
+        context.geckoterminalDetectRunnerCheckpointPath,
+        "utf-8",
+      );
+      const geckoCheckpointParsed = JSON.parse(geckoCheckpointRaw) as {
+        source?: string;
+        cursor?: {
+          poolCreatedAt?: string;
+          poolAddress?: string;
+        };
+      };
+
+      if (
+        geckoCheckpointParsed.source !== "geckoterminal.new_pools" ||
+        geckoCheckpointParsed.cursor?.poolCreatedAt !== "2026-04-18T02:35:54.000Z" ||
+        geckoCheckpointParsed.cursor?.poolAddress !==
+          "9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC"
+      ) {
+        throw new Error("detect geckoterminal checkpoint file did not persist the expected cursor");
+      }
+
+      await writeFile(
+        context.geckoterminalDetectRunnerInvalidFilePath,
+        `${JSON.stringify(
+          {
+            data: [
+              {
+                id: "invalid_pool",
+                type: "pool",
+                attributes: {},
+                relationships: {},
+              },
+            ],
+            included: [],
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const watchedInvalid = await runCliJson<{
+        checkpointEnabled: boolean;
+        checkpointBefore?: {
+          poolCreatedAt: string;
+          poolAddress: string;
+        };
+        checkpointAfter?: {
+          poolCreatedAt: string;
+          poolAddress: string;
+        };
+        checkpointUpdated?: boolean;
+        failedCount: number;
+        processedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycles: Array<{
+          cycle: number;
+          failed: boolean;
+          errorMessage?: string;
+          processedCount: number;
+          importedCount: number;
+          existingCount: number;
+          checkpointBefore?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointAfter?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+        }>;
+      }>(
+        "detect geckoterminal watch invalid input",
+        "src/cli/detectGeckoterminalNewPools.ts",
+        [
+          "--file",
+          context.geckoterminalDetectRunnerInvalidFilePath,
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "2",
+          "--checkpointFile",
+          context.geckoterminalDetectRunnerInvalidCheckpointPath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        watchedInvalid.checkpointEnabled !== true ||
+        watchedInvalid.checkpointBefore !== undefined ||
+        watchedInvalid.checkpointAfter !== undefined ||
+        watchedInvalid.checkpointUpdated !== false ||
+        watchedInvalid.failedCount !== 2 ||
+        watchedInvalid.processedCount !== 0 ||
+        watchedInvalid.importedCount !== 0 ||
+        watchedInvalid.existingCount !== 0 ||
+        watchedInvalid.cycles.length !== 2
+      ) {
+        throw new Error("detect geckoterminal watch invalid input returned unexpected summary");
+      }
+
+      if (
+        watchedInvalid.cycles[0]?.cycle !== 1 ||
+        watchedInvalid.cycles[1]?.cycle !== 2 ||
+        watchedInvalid.cycles[0]?.failed !== true ||
+        watchedInvalid.cycles[1]?.failed !== true ||
+        !watchedInvalid.cycles[0]?.errorMessage?.includes("relationships.base_token") ||
+        !watchedInvalid.cycles[1]?.errorMessage?.includes("relationships.base_token") ||
+        watchedInvalid.cycles[0]?.processedCount !== 0 ||
+        watchedInvalid.cycles[1]?.processedCount !== 0 ||
+        watchedInvalid.cycles[0]?.checkpointBefore !== undefined ||
+        watchedInvalid.cycles[1]?.checkpointAfter !== undefined
+      ) {
+        throw new Error("detect geckoterminal watch invalid input did not continue after cycle failures");
+      }
+
+      try {
+        await readFile(context.geckoterminalDetectRunnerInvalidCheckpointPath, "utf-8");
+        throw new Error("detect geckoterminal watch invalid input unexpectedly wrote a checkpoint");
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+          throw error;
+        }
       }
     });
 
