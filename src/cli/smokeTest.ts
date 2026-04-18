@@ -34,6 +34,7 @@ type SmokeContext = {
   metricSnapshotMint: string;
   metricSnapshotGapMint: string;
   metricSnapshotRateLimitMints: [string, string];
+  geckoEnrichRescoreMint: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -57,6 +58,7 @@ type SmokeContext = {
   detectRunnerInvalidCheckpointPath: string;
   mintHappyPathFilePath: string;
   metricSnapshotFilePath: string;
+  geckoEnrichRescoreFilePath: string;
 };
 
 function logStep(message: string): void {
@@ -235,6 +237,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
           ...context.metricSnapshotRateLimitMints,
+          context.geckoEnrichRescoreMint,
         ],
       },
     },
@@ -274,6 +277,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
           ...context.metricSnapshotRateLimitMints,
+          context.geckoEnrichRescoreMint,
         ],
       },
     },
@@ -299,6 +303,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerInvalidCheckpointPath, { force: true });
   await rm(context.mintHappyPathFilePath, { force: true });
   await rm(context.metricSnapshotFilePath, { force: true });
+  await rm(context.geckoEnrichRescoreFilePath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -336,6 +341,7 @@ async function run(): Promise<void> {
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_1`,
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_2`,
     ],
+    geckoEnrichRescoreMint: `${smokeId}_GECKO_ENRICH_RESCORE`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
@@ -359,6 +365,7 @@ async function run(): Promise<void> {
     detectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-invalid-checkpoint.json`,
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
     metricSnapshotFilePath: `/tmp/${smokeId}-metric-snapshot.json`,
+    geckoEnrichRescoreFilePath: `/tmp/${smokeId}-gecko-enrich-rescore.json`,
   };
 
   try {
@@ -2789,6 +2796,261 @@ async function run(): Promise<void> {
           watchMissingToken.cycles[1]?.summary.writtenCount !== 0
         ) {
           throw new Error("metric snapshot geckoterminal watch did not continue after cycle failures");
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+      }
+    });
+
+    await runStep("geckoterminal enrich rescore batch", async () => {
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "geckoterminal enrich rescore import",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.geckoEnrichRescoreMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      await writeFile(
+        context.geckoEnrichRescoreFilePath,
+        `${JSON.stringify(
+          {
+            data: {
+              id: `solana_${context.geckoEnrichRescoreMint}`,
+              type: "token",
+              attributes: {
+                address: context.geckoEnrichRescoreMint,
+                name: "smoke gecko enrich token",
+                symbol: "SMGET",
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      try {
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoEnrichRescoreFilePath;
+
+        const dryRun = await runCliJson<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          selection: {
+            selectedCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+            enrichWriteCount: number;
+            rescoreWriteCount: number;
+            notifyCandidateCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+              metadataStatus: string;
+            };
+            selectedReason: string;
+            status: string;
+            fetchedSnapshot?: {
+              name: string | null;
+              symbol: string | null;
+            };
+            enrichPlan?: {
+              hasPatch: boolean;
+              willUpdate: boolean;
+              preview: {
+                metadataStatus: string;
+              };
+            };
+            rescorePreview?: {
+              ready: boolean;
+              scoreRank: string;
+              hardRejected: boolean;
+            };
+            notifyCandidate: boolean;
+            writeSummary: {
+              dryRun: boolean;
+              enrichUpdated: boolean;
+              rescoreUpdated: boolean;
+            };
+          }>;
+        }>(
+          "geckoterminal enrich rescore dry-run",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--limit",
+            "1",
+            "--sinceMinutes",
+            "5",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          dryRun.mode !== "recent_batch" ||
+          dryRun.dryRun !== true ||
+          dryRun.writeEnabled !== false ||
+          dryRun.selection.selectedCount !== 1 ||
+          dryRun.summary.selectedCount !== 1 ||
+          dryRun.summary.okCount !== 1 ||
+          dryRun.summary.errorCount !== 0 ||
+          dryRun.summary.enrichWriteCount !== 0 ||
+          dryRun.summary.rescoreWriteCount !== 0 ||
+          dryRun.items.length !== 1 ||
+          dryRun.items[0]?.token.mint !== context.geckoEnrichRescoreMint ||
+          dryRun.items[0]?.token.metadataStatus !== "mint_only" ||
+          dryRun.items[0]?.selectedReason !== "Token.createdAt" ||
+          dryRun.items[0]?.status !== "ok" ||
+          dryRun.items[0]?.fetchedSnapshot?.name !== "smoke gecko enrich token" ||
+          dryRun.items[0]?.fetchedSnapshot?.symbol !== "SMGET" ||
+          dryRun.items[0]?.enrichPlan?.hasPatch !== true ||
+          dryRun.items[0]?.enrichPlan?.willUpdate !== true ||
+          dryRun.items[0]?.enrichPlan?.preview.metadataStatus !== "partial" ||
+          dryRun.items[0]?.rescorePreview?.ready !== true ||
+          typeof dryRun.items[0]?.rescorePreview?.scoreRank !== "string" ||
+          typeof dryRun.items[0]?.rescorePreview?.hardRejected !== "boolean" ||
+          typeof dryRun.items[0]?.notifyCandidate !== "boolean" ||
+          dryRun.items[0]?.writeSummary.dryRun !== true ||
+          dryRun.items[0]?.writeSummary.enrichUpdated !== false ||
+          dryRun.items[0]?.writeSummary.rescoreUpdated !== false
+        ) {
+          throw new Error("geckoterminal enrich rescore dry-run returned unexpected summary");
+        }
+
+        const beforeWrite = await db.token.findUnique({
+          where: { mint: context.geckoEnrichRescoreMint },
+          select: {
+            name: true,
+            symbol: true,
+            metadataStatus: true,
+            enrichedAt: true,
+            rescoredAt: true,
+          },
+        });
+
+        if (
+          !beforeWrite ||
+          beforeWrite.name !== null ||
+          beforeWrite.symbol !== null ||
+          beforeWrite.metadataStatus !== "mint_only" ||
+          beforeWrite.enrichedAt !== null ||
+          beforeWrite.rescoredAt !== null
+        ) {
+          throw new Error("geckoterminal enrich rescore dry-run unexpectedly updated the token");
+        }
+
+        const written = await runCliJson<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          summary: {
+            okCount: number;
+            errorCount: number;
+            enrichWriteCount: number;
+            rescoreWriteCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+            enrichPlan?: {
+              willUpdate: boolean;
+            };
+            rescorePreview?: {
+              ready: boolean;
+              scoreRank: string;
+              hardRejected: boolean;
+            };
+            writeSummary: {
+              dryRun: boolean;
+              enrichUpdated: boolean;
+              rescoreUpdated: boolean;
+            };
+          }>;
+        }>(
+          "geckoterminal enrich rescore write",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--mint",
+            context.geckoEnrichRescoreMint,
+            "--write",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          written.mode !== "single" ||
+          written.dryRun !== false ||
+          written.writeEnabled !== true ||
+          written.summary.okCount !== 1 ||
+          written.summary.errorCount !== 0 ||
+          written.summary.enrichWriteCount !== 1 ||
+          written.summary.rescoreWriteCount !== 1 ||
+          written.items.length !== 1 ||
+          written.items[0]?.token.mint !== context.geckoEnrichRescoreMint ||
+          written.items[0]?.status !== "ok" ||
+          written.items[0]?.enrichPlan?.willUpdate !== true ||
+          written.items[0]?.rescorePreview?.ready !== true ||
+          typeof written.items[0]?.rescorePreview?.scoreRank !== "string" ||
+          typeof written.items[0]?.rescorePreview?.hardRejected !== "boolean" ||
+          written.items[0]?.writeSummary.dryRun !== false ||
+          written.items[0]?.writeSummary.enrichUpdated !== true ||
+          written.items[0]?.writeSummary.rescoreUpdated !== true
+        ) {
+          throw new Error("geckoterminal enrich rescore write returned unexpected summary");
+        }
+
+        const updatedToken = await db.token.findUnique({
+          where: { mint: context.geckoEnrichRescoreMint },
+          select: {
+            source: true,
+            name: true,
+            symbol: true,
+            description: true,
+            metadataStatus: true,
+            enrichedAt: true,
+            rescoredAt: true,
+            normalizedText: true,
+            scoreTotal: true,
+            scoreRank: true,
+            hardRejected: true,
+          },
+        });
+
+        if (
+          !updatedToken ||
+          updatedToken.source !== "geckoterminal.new_pools" ||
+          updatedToken.name !== "smoke gecko enrich token" ||
+          updatedToken.symbol !== "SMGET" ||
+          updatedToken.description !== null ||
+          updatedToken.metadataStatus !== "partial" ||
+          !updatedToken.enrichedAt ||
+          !updatedToken.rescoredAt ||
+          typeof updatedToken.normalizedText !== "string" ||
+          typeof updatedToken.scoreTotal !== "number" ||
+          typeof updatedToken.scoreRank !== "string" ||
+          typeof updatedToken.hardRejected !== "boolean"
+        ) {
+          throw new Error("geckoterminal enrich rescore write did not persist expected token fields");
         }
       } finally {
         if (previousSnapshotFile === undefined) {

@@ -23,6 +23,7 @@
     "trend:update": "tsx src/cli/updateTrend.ts",
     "token:enrich": "tsx src/cli/tokenEnrich.ts",
     "token:rescore": "tsx src/cli/tokenRescore.ts",
+    "token:enrich-rescore:geckoterminal": "tsx src/cli/tokenEnrichRescoreGeckoterminal.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
     "token:compare": "tsx src/cli/tokenCompare.ts",
     "metric:add": "tsx src/cli/metricAdd.ts",

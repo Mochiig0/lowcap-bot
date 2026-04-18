@@ -1,9 +1,7 @@
 import "dotenv/config";
 
 import { db } from "./db.js";
-import { checkHardReject } from "../scoring/hardReject.js";
-import { buildTargetText } from "../scoring/normalize.js";
-import { scoreText } from "../scoring/score.js";
+import { rescoreTokenByMint } from "./tokenRescoreShared.js";
 
 type TokenRescoreArgs = {
   mint: string;
@@ -64,58 +62,12 @@ async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
 
-  const existing = await db.token.findUnique({
-    where: { mint: args.mint },
-    select: {
-      mint: true,
-      name: true,
-      symbol: true,
-      description: true,
-      rescoredAt: true,
-    },
-  });
-
-  if (!existing) {
-    printUsageAndExit(`Token not found for mint: ${args.mint}`);
+  let token;
+  try {
+    token = await rescoreTokenByMint(args.mint);
+  } catch (error) {
+    printUsageAndExit(error instanceof Error ? error.message : String(error));
   }
-
-  if (!existing.name || !existing.symbol) {
-    printUsageAndExit(
-      `Token is not ready for rescore: name and symbol are required for mint ${args.mint}`,
-    );
-  }
-
-  const normalizedText = buildTargetText({
-    name: existing.name,
-    symbol: existing.symbol,
-    description: existing.description ?? undefined,
-  });
-  const hardReject = checkHardReject(normalizedText);
-  const score = await scoreText(normalizedText);
-  const rescoredAt = new Date();
-
-  const token = await db.token.update({
-    where: { mint: args.mint },
-    data: {
-      normalizedText,
-      hardRejected: hardReject.rejected,
-      hardRejectReason: hardReject.reason,
-      scoreTotal: score.total,
-      scoreRank: score.rank,
-      scoreBreakdown: score.breakdown,
-      rescoredAt,
-    },
-    select: {
-      mint: true,
-      normalizedText: true,
-      hardRejected: true,
-      hardRejectReason: true,
-      scoreTotal: true,
-      scoreRank: true,
-      scoreBreakdown: true,
-      rescoredAt: true,
-    },
-  });
 
   console.log(
     JSON.stringify(
@@ -127,7 +79,7 @@ async function run(): Promise<void> {
         scoreTotal: token.scoreTotal,
         scoreRank: token.scoreRank,
         scoreBreakdown: token.scoreBreakdown,
-        rescoredAt: token.rescoredAt?.toISOString() ?? null,
+        rescoredAt: token.rescoredAt,
       },
       null,
       2,

@@ -43,6 +43,10 @@ pnpm token:rescore -- --mint <MINT>
 ```
 
 ```bash
+pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write]
+```
+
+```bash
 pnpm metric:add -- --mint <MINT> [--source <SOURCE>] [--launchPrice <NUM>] [--peakPrice15m <NUM>] [--peakPrice1h <NUM>] [--maxMultiple15m <NUM>] [--maxMultiple1h <NUM>] [--peakFdv24h <NUM>] [--volume24h <NUM>] [--timeToPeakMinutes <NUM>]
 ```
 
@@ -106,8 +110,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 6. Use `pnpm import:mint:source-file` when one source-specific raw event file needs to be normalized into the same mint-only boundary.
 7. Use `pnpm token:enrich` to fill current token fields after mint-only intake.
 8. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
-9. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
+9. Use `pnpm token:enrich-rescore:geckoterminal` when recent GeckoTerminal-origin tokens should be fetched once, previewed as enrich plus rescore in dry-run, or updated in one batch with `--write`.
 10. Use `pnpm metric:snapshot:geckoterminal` to fetch one-shot current GeckoTerminal token snapshots for recent GeckoTerminal-origin tokens and append `Metric` rows only with `--write`.
+11. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
 
 ### Full Import Path
 
@@ -140,6 +145,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - GeckoTerminal-vs-DexScreener comparison CLI in `src/cli/compareGeckoterminalDexscreener.ts`
 - Token enrichment CLI in `src/cli/tokenEnrich.ts`
 - Token rescore CLI in `src/cli/tokenRescore.ts`
+- GeckoTerminal enrich-plus-rescore batch CLI in `src/cli/tokenEnrichRescoreGeckoterminal.ts`
 - Manual metric append CLI in `src/cli/metricAdd.ts`
 - GeckoTerminal current metric snapshot CLI in `src/cli/metricSnapshotGeckoterminal.ts`
 - Minimal import wrapper CLI in `src/cli/importMin.ts`
@@ -211,6 +217,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
+- `token:enrich-rescore:geckoterminal` fetches one live GeckoTerminal token snapshot per selected token, previews enrich plus rescore by default, and writes both stages only with `--write`
+- `token:enrich-rescore:geckoterminal` selects recent GeckoTerminal-origin tokens by `firstSeenSourceSnapshot.detectedAt` when present, otherwise by `Token.createdAt`
+- `token:enrich-rescore:geckoterminal` fills name and symbol from GeckoTerminal when available, keeps description unchanged, rescoring from the post-enrich text snapshot, and reports whether the result would qualify as an `S` non-hard-reject notify candidate without sending Telegram
 - `metric:add` appends one metric row without mutating token fields
 - `metric:add` is append-only; repeated submissions with the same values still create new `Metric` rows
 - `metric:snapshot:geckoterminal` fetches one live GeckoTerminal token snapshot per selected token and stays dry-run by default

@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { db } from "./db.js";
-import { buildTargetText } from "../scoring/normalize.js";
+import { enrichTokenByMint } from "./tokenEnrichShared.js";
 
 type TokenEnrichArgs = {
   mint: string;
@@ -78,107 +78,20 @@ function parseArgs(argv: string[]): TokenEnrichArgs {
   };
 }
 
-function computeMetadataStatus(params: {
-  name: string;
-  symbol: string;
-  description?: string;
-}): "partial" | "enriched" {
-  return params.description ? "enriched" : "partial";
-}
-
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
-  const hasTextFieldUpdate =
-    args.name !== undefined ||
-    args.symbol !== undefined ||
-    args.desc !== undefined;
-  const hasSourceUpdate = args.source !== undefined;
-
-  if (!hasTextFieldUpdate && !hasSourceUpdate) {
-    printUsageAndExit(
-      "No fields to update: provide at least one of --name, --symbol, --desc, or --source",
-    );
-  }
-
-  const existing = await db.token.findUnique({
-    where: { mint: args.mint },
-    select: {
-      id: true,
-      mint: true,
-      name: true,
-      symbol: true,
-      description: true,
-      source: true,
-      importedAt: true,
-      enrichedAt: true,
-    },
-  });
-
-  if (!existing) {
-    printUsageAndExit(`Token not found for mint: ${args.mint}`);
-  }
-
-  const enrichedAt = new Date();
-  const data: {
-    name?: string;
-    symbol?: string;
-    description?: string;
-    source?: string | null;
-    normalizedText?: string;
-    enrichedAt?: Date;
-    metadataStatus?: "partial" | "enriched";
-  } = {
-    ...(args.name !== undefined ? { name: args.name } : {}),
-    ...(args.symbol !== undefined ? { symbol: args.symbol } : {}),
-    ...(args.desc !== undefined ? { description: args.desc } : {}),
-    ...(hasSourceUpdate ? { source: args.source } : { source: existing.source }),
-  };
-
-  if (hasTextFieldUpdate) {
-    const nextName = args.name ?? existing.name ?? undefined;
-    const nextSymbol = args.symbol ?? existing.symbol ?? undefined;
-    const nextDescription = args.desc ?? existing.description ?? undefined;
-
-    if (!nextName) {
-      printUsageAndExit(
-        `Token is not ready for enrich: name is required for mint ${args.mint}`,
-      );
-    }
-
-    if (!nextSymbol) {
-      printUsageAndExit(
-        `Token is not ready for enrich: symbol is required for mint ${args.mint}`,
-      );
-    }
-
-    data.metadataStatus = computeMetadataStatus({
-      name: nextName,
-      symbol: nextSymbol,
-      description: nextDescription,
+  let token;
+  try {
+    token = await enrichTokenByMint(args.mint, {
+      ...(args.name !== undefined ? { name: args.name } : {}),
+      ...(args.symbol !== undefined ? { symbol: args.symbol } : {}),
+      ...(args.desc !== undefined ? { desc: args.desc } : {}),
+      ...(args.source !== undefined ? { source: args.source } : {}),
     });
-    data.normalizedText = buildTargetText({
-      name: nextName,
-      symbol: nextSymbol,
-      description: nextDescription,
-    });
-    data.enrichedAt = enrichedAt;
+  } catch (error) {
+    printUsageAndExit(error instanceof Error ? error.message : String(error));
   }
-
-  const token = await db.token.update({
-    where: { mint: args.mint },
-    data,
-    select: {
-      mint: true,
-      name: true,
-      symbol: true,
-      description: true,
-      source: true,
-      metadataStatus: true,
-      importedAt: true,
-      enrichedAt: true,
-    },
-  });
 
   console.log(
     JSON.stringify(
@@ -189,8 +102,8 @@ async function run(): Promise<void> {
         description: token.description,
         source: token.source,
         metadataStatus: token.metadataStatus,
-        importedAt: token.importedAt.toISOString(),
-        enrichedAt: token.enrichedAt?.toISOString() ?? null,
+        importedAt: token.importedAt,
+        enrichedAt: token.enrichedAt,
       },
       null,
       2,
