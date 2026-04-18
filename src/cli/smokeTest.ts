@@ -31,6 +31,8 @@ type SmokeContext = {
   minMint: string;
   fileMint: string;
   metricMint: string;
+  metricSnapshotMint: string;
+  metricSnapshotGapMint: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -53,6 +55,7 @@ type SmokeContext = {
   detectRunnerInvalidFilePath: string;
   detectRunnerInvalidCheckpointPath: string;
   mintHappyPathFilePath: string;
+  metricSnapshotFilePath: string;
 };
 
 function logStep(message: string): void {
@@ -228,6 +231,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.minMint,
           context.fileMint,
           context.metricMint,
+          context.metricSnapshotMint,
+          context.metricSnapshotGapMint,
         ],
       },
     },
@@ -264,6 +269,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.minMint,
           context.fileMint,
           context.metricMint,
+          context.metricSnapshotMint,
+          context.metricSnapshotGapMint,
         ],
       },
     },
@@ -288,6 +295,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerInvalidFilePath, { force: true });
   await rm(context.detectRunnerInvalidCheckpointPath, { force: true });
   await rm(context.mintHappyPathFilePath, { force: true });
+  await rm(context.metricSnapshotFilePath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -319,6 +327,8 @@ async function run(): Promise<void> {
     minMint: `${smokeId}_MIN`,
     fileMint: `${smokeId}_FILE`,
     metricMint: `${smokeId}_METRIC`,
+    metricSnapshotMint: `${smokeId}_METRIC_SNAPSHOT`,
+    metricSnapshotGapMint: `${smokeId}_METRIC_SNAPSHOT_GAP`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
@@ -341,6 +351,7 @@ async function run(): Promise<void> {
     detectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-dexscreener-invalid-file.json`,
     detectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-invalid-checkpoint.json`,
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
+    metricSnapshotFilePath: `/tmp/${smokeId}-metric-snapshot.json`,
   };
 
   try {
@@ -1987,6 +1998,632 @@ async function run(): Promise<void> {
       } catch (error) {
         if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
           throw error;
+        }
+      }
+    });
+
+    await runStep("metric snapshot geckoterminal", async () => {
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "metric snapshot geckoterminal import",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.metricSnapshotMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      await writeFile(
+        context.metricSnapshotFilePath,
+        `${JSON.stringify(
+          {
+            data: {
+              id: `solana_${context.metricSnapshotMint}`,
+              type: "token",
+              attributes: {
+                address: context.metricSnapshotMint,
+                name: "Smoke Metric Snapshot",
+                symbol: "SMS",
+                price_usd: "0.123",
+                fdv_usd: "25000",
+                market_cap_usd: null,
+                total_reserve_in_usd: "1500",
+                volume_usd: {
+                  h24: "1234",
+                },
+              },
+              relationships: {
+                top_pools: {
+                  data: [
+                    {
+                      id: "solana_smoke_pool",
+                      type: "pool",
+                    },
+                  ],
+                },
+              },
+            },
+            included: [
+              {
+                id: "solana_smoke_pool",
+                type: "pool",
+                attributes: {
+                  address: "smoke_pool",
+                  name: "SMS / SOL",
+                  pool_created_at: "2026-04-18T00:00:00Z",
+                  token_price_usd: "0.123",
+                  fdv_usd: "25000",
+                  market_cap_usd: null,
+                  reserve_in_usd: "1500",
+                  volume_usd: {
+                    h24: "321",
+                  },
+                  price_change_percentage: {
+                    h24: "1.5",
+                  },
+                },
+                relationships: {
+                  base_token: {
+                    data: {
+                      id: `solana_${context.metricSnapshotMint}`,
+                      type: "token",
+                    },
+                  },
+                  quote_token: {
+                    data: {
+                      id: "solana_So11111111111111111111111111111111111111112",
+                      type: "token",
+                    },
+                  },
+                  dex: {
+                    data: {
+                      id: "pumpswap",
+                      type: "dex",
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+      process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.metricSnapshotFilePath;
+
+      try {
+        const dryRun = await runCliJson<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            skippedCount: number;
+            errorCount: number;
+            writtenCount: number;
+          };
+          items: Array<{
+            metricCandidate?: {
+              volume24h: number | null;
+            };
+            writeSummary: {
+              metricId: number | null;
+            };
+          }>;
+        }>(
+          "metric snapshot geckoterminal dry-run",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            context.metricSnapshotMint,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          dryRun.mode !== "single" ||
+          dryRun.dryRun !== true ||
+          dryRun.writeEnabled !== false ||
+          dryRun.summary.selectedCount !== 1 ||
+          dryRun.summary.okCount !== 1 ||
+          dryRun.summary.skippedCount !== 0 ||
+          dryRun.summary.errorCount !== 0 ||
+          dryRun.summary.writtenCount !== 0 ||
+          dryRun.items[0]?.metricCandidate?.volume24h !== 1234 ||
+          dryRun.items[0]?.writeSummary.metricId !== null
+        ) {
+          throw new Error("metric snapshot geckoterminal dry-run returned unexpected summary");
+        }
+
+        const metricsBeforeWrite = await db.metric.count({
+          where: {
+            token: {
+              mint: context.metricSnapshotMint,
+            },
+          },
+        });
+
+        if (metricsBeforeWrite !== 0) {
+          throw new Error("metric snapshot geckoterminal dry-run unexpectedly wrote a metric");
+        }
+
+        const oneShotWrite = await runCliJson<{
+          dryRun: boolean;
+          writeEnabled: boolean;
+          summary: {
+            writtenCount: number;
+          };
+          items: Array<{
+            metricCandidate?: {
+              volume24h: number | null;
+            };
+            writeSummary: {
+              metricId: number | null;
+            };
+          }>;
+        }>(
+          "metric snapshot geckoterminal one-shot write",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            context.metricSnapshotMint,
+            "--write",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          oneShotWrite.dryRun !== false ||
+          oneShotWrite.writeEnabled !== true ||
+          oneShotWrite.summary.writtenCount !== 1 ||
+          oneShotWrite.items[0]?.metricCandidate?.volume24h !== 1234 ||
+          typeof oneShotWrite.items[0]?.writeSummary.metricId !== "number"
+        ) {
+          throw new Error("metric snapshot geckoterminal one-shot write returned unexpected summary");
+        }
+
+        const watchDryRun = await runCliJson<{
+          watchEnabled: boolean;
+          intervalSeconds: number;
+          maxIterations?: number;
+          cycleCount: number;
+          failedCount: number;
+          selectedCount: number;
+          okCount: number;
+          skippedCount: number;
+          errorCount: number;
+          writtenCount: number;
+          items: Array<{
+            metricCandidate?: {
+              volume24h: number | null;
+            };
+            writeSummary: {
+              metricId: number | null;
+            };
+          }>;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            summary: {
+              selectedCount: number;
+              okCount: number;
+              skippedCount: number;
+              errorCount: number;
+              writtenCount: number;
+            };
+            items: Array<{
+              metricCandidate?: {
+                volume24h: number | null;
+              };
+            }>;
+          }>;
+        }>(
+          "metric snapshot geckoterminal watch dry-run",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            context.metricSnapshotMint,
+            "--watch",
+            "--intervalSeconds",
+            "1",
+            "--maxIterations",
+            "2",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchDryRun.watchEnabled !== true ||
+          watchDryRun.intervalSeconds !== 1 ||
+          watchDryRun.maxIterations !== 2 ||
+          watchDryRun.cycleCount !== 2 ||
+          watchDryRun.failedCount !== 0 ||
+          watchDryRun.selectedCount !== 2 ||
+          watchDryRun.okCount !== 2 ||
+          watchDryRun.skippedCount !== 0 ||
+          watchDryRun.errorCount !== 0 ||
+          watchDryRun.writtenCount !== 0 ||
+          watchDryRun.items.length !== 2 ||
+          watchDryRun.cycles.length !== 2 ||
+          watchDryRun.cycles[0]?.cycle !== 1 ||
+          watchDryRun.cycles[1]?.cycle !== 2 ||
+          watchDryRun.cycles[0]?.failed !== false ||
+          watchDryRun.cycles[1]?.failed !== false ||
+          watchDryRun.cycles[0]?.summary.okCount !== 1 ||
+          watchDryRun.cycles[0]?.summary.skippedCount !== 0 ||
+          watchDryRun.cycles[1]?.summary.okCount !== 1 ||
+          watchDryRun.cycles[1]?.summary.skippedCount !== 0 ||
+          watchDryRun.cycles[0]?.items[0]?.metricCandidate?.volume24h !== 1234 ||
+          watchDryRun.cycles[1]?.items[0]?.metricCandidate?.volume24h !== 1234
+        ) {
+          throw new Error("metric snapshot geckoterminal watch dry-run returned unexpected summary");
+        }
+
+        const watchWrite = await runCliJson<{
+          dryRun: boolean;
+          writeEnabled: boolean;
+          watchEnabled: boolean;
+          cycleCount: number;
+          failedCount: number;
+          skippedCount: number;
+          writtenCount: number;
+          items: Array<{
+            metricCandidate?: {
+              volume24h: number | null;
+            };
+            writeSummary: {
+              metricId: number | null;
+            };
+          }>;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            summary: {
+              skippedCount: number;
+              writtenCount: number;
+            };
+            items: Array<{
+              writeSummary: {
+                metricId: number | null;
+              };
+              metricCandidate?: {
+                volume24h: number | null;
+              };
+            }>;
+          }>;
+        }>(
+          "metric snapshot geckoterminal watch write",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            context.metricSnapshotMint,
+            "--write",
+            "--watch",
+            "--intervalSeconds",
+            "1",
+            "--maxIterations",
+            "2",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchWrite.dryRun !== false ||
+          watchWrite.writeEnabled !== true ||
+          watchWrite.watchEnabled !== true ||
+          watchWrite.cycleCount !== 2 ||
+          watchWrite.failedCount !== 0 ||
+          watchWrite.skippedCount !== 0 ||
+          watchWrite.writtenCount !== 2 ||
+          watchWrite.items.length !== 2 ||
+          watchWrite.cycles.length !== 2 ||
+          watchWrite.cycles[0]?.summary.writtenCount !== 1 ||
+          watchWrite.cycles[0]?.summary.skippedCount !== 0 ||
+          watchWrite.cycles[1]?.summary.writtenCount !== 1 ||
+          watchWrite.cycles[1]?.summary.skippedCount !== 0 ||
+          typeof watchWrite.cycles[0]?.items[0]?.writeSummary.metricId !== "number" ||
+          typeof watchWrite.cycles[1]?.items[0]?.writeSummary.metricId !== "number" ||
+          watchWrite.cycles[0]?.items[0]?.metricCandidate?.volume24h !== 1234 ||
+          watchWrite.cycles[1]?.items[0]?.metricCandidate?.volume24h !== 1234
+        ) {
+          throw new Error("metric snapshot geckoterminal watch write returned unexpected summary");
+        }
+
+        const writtenMetrics = await db.metric.findMany({
+          where: {
+            token: {
+              mint: context.metricSnapshotMint,
+            },
+          },
+          orderBy: [{ id: "asc" }],
+          select: {
+            source: true,
+            volume24h: true,
+            rawJson: true,
+          },
+        });
+
+        if (
+          writtenMetrics.length !== 3 ||
+          writtenMetrics[0]?.source !== "geckoterminal.token_snapshot" ||
+          writtenMetrics[1]?.source !== "geckoterminal.token_snapshot" ||
+          writtenMetrics[2]?.source !== "geckoterminal.token_snapshot" ||
+          writtenMetrics[0]?.volume24h !== 1234 ||
+          writtenMetrics[1]?.volume24h !== 1234 ||
+          writtenMetrics[2]?.volume24h !== 1234
+        ) {
+          throw new Error("metric snapshot geckoterminal did not append expected metric rows");
+        }
+
+        const rawJsonBytes = writtenMetrics.map((metric) =>
+          Buffer.byteLength(JSON.stringify(metric.rawJson), "utf-8"),
+        );
+
+        if (rawJsonBytes.some((bytes) => bytes <= 0 || bytes > 2048)) {
+          throw new Error("metric snapshot geckoterminal rawJson size was unexpected");
+        }
+
+        await runCliJson<{
+          mint: string;
+          created: boolean;
+        }>(
+          "metric snapshot geckoterminal gap import",
+          "src/cli/importMint.ts",
+          [
+            "--mint",
+            context.metricSnapshotGapMint,
+            "--source",
+            "geckoterminal.new_pools",
+          ],
+          context.smokeId,
+        );
+
+        await writeFile(
+          context.metricSnapshotFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.metricSnapshotGapMint}`,
+                type: "token",
+                attributes: {
+                  address: context.metricSnapshotGapMint,
+                  name: "Smoke Metric Snapshot Gap",
+                  symbol: "SMSG",
+                  price_usd: "0.456",
+                  fdv_usd: "26000",
+                  market_cap_usd: null,
+                  total_reserve_in_usd: "1700",
+                  volume_usd: {
+                    h24: "2345",
+                  },
+                },
+                relationships: {
+                  top_pools: {
+                    data: [
+                      {
+                        id: "solana_smoke_gap_pool",
+                        type: "pool",
+                      },
+                    ],
+                  },
+                },
+              },
+              included: [
+                {
+                  id: "solana_smoke_gap_pool",
+                  type: "pool",
+                  attributes: {
+                    address: "smoke_gap_pool",
+                    name: "SMSG / SOL",
+                    pool_created_at: "2026-04-18T00:10:00Z",
+                    token_price_usd: "0.456",
+                    fdv_usd: "26000",
+                    market_cap_usd: null,
+                    reserve_in_usd: "1700",
+                    volume_usd: {
+                      h24: "456",
+                    },
+                    price_change_percentage: {
+                      h24: "2.5",
+                    },
+                  },
+                  relationships: {
+                    base_token: {
+                      data: {
+                        id: `solana_${context.metricSnapshotGapMint}`,
+                        type: "token",
+                      },
+                    },
+                    quote_token: {
+                      data: {
+                        id: "solana_So11111111111111111111111111111111111111112",
+                        type: "token",
+                      },
+                    },
+                    dex: {
+                      data: {
+                        id: "pumpswap",
+                        type: "dex",
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+
+        const watchWriteWithGap = await runCliJson<{
+          dryRun: boolean;
+          writeEnabled: boolean;
+          watchEnabled: boolean;
+          cycleCount: number;
+          failedCount: number;
+          skippedCount: number;
+          writtenCount: number;
+          items: Array<{
+            status: string;
+            latestObservedAt?: string;
+            minGapMinutes?: number;
+            writeSummary: {
+              metricId: number | null;
+            };
+          }>;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            summary: {
+              skippedCount: number;
+              writtenCount: number;
+            };
+            items: Array<{
+              status: string;
+              latestObservedAt?: string;
+              minGapMinutes?: number;
+              writeSummary: {
+                metricId: number | null;
+              };
+            }>;
+          }>;
+        }>(
+          "metric snapshot geckoterminal watch write min gap",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            context.metricSnapshotGapMint,
+            "--write",
+            "--watch",
+            "--intervalSeconds",
+            "1",
+            "--maxIterations",
+            "2",
+            "--minGapMinutes",
+            "10",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchWriteWithGap.dryRun !== false ||
+          watchWriteWithGap.writeEnabled !== true ||
+          watchWriteWithGap.watchEnabled !== true ||
+          watchWriteWithGap.cycleCount !== 2 ||
+          watchWriteWithGap.failedCount !== 0 ||
+          watchWriteWithGap.skippedCount !== 1 ||
+          watchWriteWithGap.writtenCount !== 1 ||
+          watchWriteWithGap.items.length !== 2 ||
+          watchWriteWithGap.cycles.length !== 2 ||
+          watchWriteWithGap.cycles[0]?.summary.writtenCount !== 1 ||
+          watchWriteWithGap.cycles[0]?.summary.skippedCount !== 0 ||
+          watchWriteWithGap.cycles[0]?.items[0]?.status !== "ok" ||
+          typeof watchWriteWithGap.cycles[0]?.items[0]?.writeSummary.metricId !== "number" ||
+          watchWriteWithGap.cycles[1]?.summary.writtenCount !== 0 ||
+          watchWriteWithGap.cycles[1]?.summary.skippedCount !== 1 ||
+          watchWriteWithGap.cycles[1]?.items[0]?.status !== "skipped_recent_metric" ||
+          typeof watchWriteWithGap.cycles[1]?.items[0]?.latestObservedAt !== "string" ||
+          watchWriteWithGap.cycles[1]?.items[0]?.minGapMinutes !== 10 ||
+          watchWriteWithGap.cycles[1]?.items[0]?.writeSummary.metricId !== null
+        ) {
+          throw new Error("metric snapshot geckoterminal minGap watch returned unexpected summary");
+        }
+
+        const gapMetrics = await db.metric.findMany({
+          where: {
+            token: {
+              mint: context.metricSnapshotGapMint,
+            },
+          },
+          orderBy: [{ id: "asc" }],
+          select: {
+            source: true,
+            volume24h: true,
+          },
+        });
+
+        if (
+          gapMetrics.length !== 1 ||
+          gapMetrics[0]?.source !== "geckoterminal.token_snapshot" ||
+          gapMetrics[0]?.volume24h !== 2345
+        ) {
+          throw new Error("metric snapshot geckoterminal minGap did not prevent duplicate append");
+        }
+
+        const watchMissingToken = await runCliJson<{
+          watchEnabled: boolean;
+          cycleCount: number;
+          failedCount: number;
+          selectedCount: number;
+          okCount: number;
+          skippedCount: number;
+          errorCount: number;
+          writtenCount: number;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            errorMessage?: string;
+            summary: {
+              selectedCount: number;
+              okCount: number;
+              skippedCount: number;
+              errorCount: number;
+              writtenCount: number;
+            };
+          }>;
+        }>(
+          "metric snapshot geckoterminal watch missing token",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            `${context.metricSnapshotMint}_MISSING`,
+            "--watch",
+            "--intervalSeconds",
+            "1",
+            "--maxIterations",
+            "2",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchMissingToken.watchEnabled !== true ||
+          watchMissingToken.cycleCount !== 2 ||
+          watchMissingToken.failedCount !== 2 ||
+          watchMissingToken.selectedCount !== 0 ||
+          watchMissingToken.okCount !== 0 ||
+          watchMissingToken.skippedCount !== 0 ||
+          watchMissingToken.errorCount !== 0 ||
+          watchMissingToken.writtenCount !== 0 ||
+          watchMissingToken.cycles.length !== 2 ||
+          watchMissingToken.cycles[0]?.cycle !== 1 ||
+          watchMissingToken.cycles[1]?.cycle !== 2 ||
+          watchMissingToken.cycles[0]?.failed !== true ||
+          watchMissingToken.cycles[1]?.failed !== true ||
+          !watchMissingToken.cycles[0]?.errorMessage?.includes("Token not found") ||
+          !watchMissingToken.cycles[1]?.errorMessage?.includes("Token not found") ||
+          watchMissingToken.cycles[0]?.summary.selectedCount !== 0 ||
+          watchMissingToken.cycles[0]?.summary.skippedCount !== 0 ||
+          watchMissingToken.cycles[1]?.summary.skippedCount !== 0 ||
+          watchMissingToken.cycles[1]?.summary.writtenCount !== 0
+        ) {
+          throw new Error("metric snapshot geckoterminal watch did not continue after cycle failures");
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
         }
       }
     });

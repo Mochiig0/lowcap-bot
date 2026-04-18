@@ -47,6 +47,10 @@ pnpm metric:add -- --mint <MINT> [--source <SOURCE>] [--launchPrice <NUM>] [--pe
 ```
 
 ```bash
+pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
+```
+
+```bash
 pnpm import:min -- --mint <MINT> --name <NAME> --symbol <SYM> [--source <SOURCE>] [--desc <TEXT>] [--dev <WALLET>]
 ```
 
@@ -103,6 +107,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 7. Use `pnpm token:enrich` to fill current token fields after mint-only intake.
 8. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
 9. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
+10. Use `pnpm metric:snapshot:geckoterminal` to fetch one-shot current GeckoTerminal token snapshots for recent GeckoTerminal-origin tokens and append `Metric` rows only with `--write`.
 
 ### Full Import Path
 
@@ -136,6 +141,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - Token enrichment CLI in `src/cli/tokenEnrich.ts`
 - Token rescore CLI in `src/cli/tokenRescore.ts`
 - Manual metric append CLI in `src/cli/metricAdd.ts`
+- GeckoTerminal current metric snapshot CLI in `src/cli/metricSnapshotGeckoterminal.ts`
 - Minimal import wrapper CLI in `src/cli/importMin.ts`
 - File import wrapper CLI in `src/cli/importFile.ts`
 - Manual trend update CLI in `src/cli/updateTrend.ts`
@@ -203,6 +209,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `token:rescore` recomputes current hard reject and score fields
 - `metric:add` appends one metric row without mutating token fields
 - `metric:add` is append-only; repeated submissions with the same values still create new `Metric` rows
+- `metric:snapshot:geckoterminal` fetches one live GeckoTerminal token snapshot per selected token and stays dry-run by default
+- `metric:snapshot:geckoterminal` selects recent GeckoTerminal-origin tokens by `firstSeenSourceSnapshot.detectedAt` when present, otherwise by `Token.createdAt`
+- `metric:snapshot:geckoterminal --write` appends one `Metric` row per successful snapshot without mutating token fields
+- `metric:snapshot:geckoterminal --watch` repeats the same selection and snapshot cycle at a fixed interval and keeps going after cycle-level failures
+- `metric:snapshot:geckoterminal --minGapMinutes <N>` skips a token before fetch when the newest `Metric` for the same token and metric source is newer than `N` minutes
+- `metric:snapshot:geckoterminal` always saves `observedAt`, `source`, and a sanitized `rawJson` snapshot, and saves `volume24h` only when GeckoTerminal exposes token-level `volume_usd.h24`
+- `metric:snapshot:geckoterminal` keeps FDV, market cap, and reserve/liquidity-style values in `rawJson` only instead of forcing them into mismatched metric schema fields
 - `import:min` forwards the minimum manual intake fields into `import`
 - `import:min` parses `mint`, `name`, `symbol`, and optional `source`, `desc`, `dev`, then delegates to `src/cli/import.ts`
 - `import:file` reads one JSON object and forwards supported fields into `import`
