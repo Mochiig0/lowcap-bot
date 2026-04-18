@@ -1423,10 +1423,20 @@ async function run(): Promise<void> {
         writeEnabled: boolean;
         source: string;
         eventType: string;
+        detectedAt: string;
         mintAddress: string;
         handoffPayload?: {
           mint: string;
           source?: string;
+          firstSeenSourceSnapshot?: {
+            source: string;
+            detectedAt: string;
+            poolCreatedAt?: string;
+            poolAddress?: string;
+            dexName?: string;
+            baseTokenAddress?: string;
+            quoteTokenAddress?: string;
+          };
         };
         detectorResult: {
           ok: boolean;
@@ -1461,6 +1471,18 @@ async function run(): Promise<void> {
       if (
         dryRun.handoffPayload?.mint !== context.geckoterminalDetectRunnerMint ||
         dryRun.handoffPayload?.source !== "geckoterminal.new_pools" ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.source !==
+          "geckoterminal.new_pools" ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.detectedAt !== dryRun.detectedAt ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.poolCreatedAt !==
+          "2026-04-18T02:13:55Z" ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.poolAddress !==
+          "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc" ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.dexName !== "Pump.fun" ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.baseTokenAddress !==
+          context.geckoterminalDetectRunnerMint ||
+        dryRun.handoffPayload?.firstSeenSourceSnapshot?.quoteTokenAddress !==
+          "So11111111111111111111111111111111111111112" ||
         dryRun.detectorResult.ok !== true ||
         dryRun.detectorResult.mint !== context.geckoterminalDetectRunnerMint ||
         dryRun.importResult !== undefined
@@ -1484,6 +1506,15 @@ async function run(): Promise<void> {
         handoffPayload?: {
           mint: string;
           source?: string;
+          firstSeenSourceSnapshot?: {
+            source: string;
+            detectedAt: string;
+            poolCreatedAt?: string;
+            poolAddress?: string;
+            dexName?: string;
+            baseTokenAddress?: string;
+            quoteTokenAddress?: string;
+          };
         };
         importResult?: {
           mint: string;
@@ -1507,6 +1538,9 @@ async function run(): Promise<void> {
         written.writeEnabled !== true ||
         written.handoffPayload?.mint !== context.geckoterminalDetectRunnerMint ||
         written.handoffPayload?.source !== "geckoterminal.new_pools" ||
+        written.handoffPayload?.firstSeenSourceSnapshot?.poolCreatedAt !==
+          "2026-04-18T02:13:55Z" ||
+        written.handoffPayload?.firstSeenSourceSnapshot?.dexName !== "Pump.fun" ||
         written.importResult?.mint !== context.geckoterminalDetectRunnerMint ||
         written.importResult?.metadataStatus !== "mint_only" ||
         written.importResult?.created !== true
@@ -1520,6 +1554,7 @@ async function run(): Promise<void> {
           mint: true,
           source: true,
           metadataStatus: true,
+          entrySnapshot: true,
         },
       });
 
@@ -1532,6 +1567,37 @@ async function run(): Promise<void> {
         writtenToken.metadataStatus !== "mint_only"
       ) {
         throw new Error("detect geckoterminal write did not persist mint-first fields");
+      }
+
+      const entrySnapshot = writtenToken.entrySnapshot as
+        | {
+            firstSeenSourceSnapshot?: {
+              source?: string;
+              detectedAt?: string;
+              poolCreatedAt?: string;
+              poolAddress?: string;
+              dexName?: string;
+              baseTokenAddress?: string;
+              quoteTokenAddress?: string;
+            };
+          }
+        | null;
+
+      if (
+        !entrySnapshot?.firstSeenSourceSnapshot ||
+        entrySnapshot.firstSeenSourceSnapshot.source !== "geckoterminal.new_pools" ||
+        entrySnapshot.firstSeenSourceSnapshot.detectedAt !==
+          written.handoffPayload?.firstSeenSourceSnapshot?.detectedAt ||
+        entrySnapshot.firstSeenSourceSnapshot.poolCreatedAt !== "2026-04-18T02:13:55Z" ||
+        entrySnapshot.firstSeenSourceSnapshot.poolAddress !==
+          "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc" ||
+        entrySnapshot.firstSeenSourceSnapshot.dexName !== "Pump.fun" ||
+        entrySnapshot.firstSeenSourceSnapshot.baseTokenAddress !==
+          context.geckoterminalDetectRunnerMint ||
+        entrySnapshot.firstSeenSourceSnapshot.quoteTokenAddress !==
+          "So11111111111111111111111111111111111111112"
+      ) {
+        throw new Error("detect geckoterminal write did not persist the first-seen source snapshot");
       }
 
       const rerun = await runCliJson<{

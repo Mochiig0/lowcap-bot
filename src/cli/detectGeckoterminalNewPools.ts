@@ -2,7 +2,11 @@ import "dotenv/config";
 
 import { readFile } from "node:fs/promises";
 
-import { importMint, type ImportMintResult } from "./importMintShared.js";
+import {
+  importMint,
+  type FirstSeenSourceSnapshot,
+  type ImportMintResult,
+} from "./importMintShared.js";
 import {
   buildGeckoterminalNewPoolsDetectorCandidate,
   GECKOTERMINAL_NEW_POOLS_EVENT_TYPE,
@@ -11,6 +15,7 @@ import {
 import {
   evaluateDetectorCandidate,
   type AcceptResult,
+  type DetectorCandidate,
   type RejectResult,
 } from "../scoring/evaluateDetectorCandidate.js";
 
@@ -32,6 +37,7 @@ type LoadedInput = {
 type MinimalHandoffPayload = {
   mint: string;
   source?: string;
+  firstSeenSourceSnapshot?: FirstSeenSourceSnapshot;
 };
 
 class CliUsageError extends Error {
@@ -146,10 +152,41 @@ async function loadInput(args: DetectGeckoterminalNewPoolsArgs): Promise<LoadedI
   };
 }
 
-function buildMinimalHandoffPayload(result: AcceptResult): MinimalHandoffPayload {
+function buildMinimalHandoffPayload(
+  candidate: DetectorCandidate,
+  result: AcceptResult,
+): MinimalHandoffPayload {
+  if (candidate.candidateKind !== "source_event_hint") {
+    throw new Error("GeckoTerminal handoff requires a source_event_hint candidate");
+  }
+
   return {
     mint: result.mint,
     source: result.source,
+    firstSeenSourceSnapshot: {
+      source: candidate.source,
+      detectedAt: candidate.detectedAt,
+      poolCreatedAt:
+        typeof candidate.payload.poolCreatedAt === "string"
+          ? candidate.payload.poolCreatedAt
+          : undefined,
+      poolAddress:
+        typeof candidate.payload.poolAddress === "string"
+          ? candidate.payload.poolAddress
+          : undefined,
+      dexName:
+        typeof candidate.payload.dexName === "string"
+          ? candidate.payload.dexName
+          : undefined,
+      baseTokenAddress:
+        typeof candidate.payload.baseTokenAddress === "string"
+          ? candidate.payload.baseTokenAddress
+          : undefined,
+      quoteTokenAddress:
+        typeof candidate.payload.quoteTokenAddress === "string"
+          ? candidate.payload.quoteTokenAddress
+          : undefined,
+    },
   };
 }
 
@@ -161,7 +198,7 @@ async function main(): Promise<void> {
   const candidate = buildGeckoterminalNewPoolsDetectorCandidate(input.raw, detectedAt);
   const detectorResult = evaluateDetectorCandidate(candidate);
   const handoffPayload =
-    detectorResult.ok ? buildMinimalHandoffPayload(detectorResult) : undefined;
+    detectorResult.ok ? buildMinimalHandoffPayload(candidate, detectorResult) : undefined;
   const importResult =
     args.write && handoffPayload ? await importMint(handoffPayload) : undefined;
 

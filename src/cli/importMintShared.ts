@@ -3,6 +3,17 @@ import { db } from "./db.js";
 export type ImportMintInput = {
   mint: string;
   source?: string;
+  firstSeenSourceSnapshot?: FirstSeenSourceSnapshot;
+};
+
+export type FirstSeenSourceSnapshot = {
+  source: string;
+  detectedAt: string;
+  poolCreatedAt?: string;
+  poolAddress?: string;
+  dexName?: string;
+  baseTokenAddress?: string;
+  quoteTokenAddress?: string;
 };
 
 type EntrySnapshot = {
@@ -23,6 +34,7 @@ type EntrySnapshot = {
   hardRejected: null;
   price: null;
   fdv: null;
+  firstSeenSourceSnapshot?: FirstSeenSourceSnapshot;
 };
 
 export type ImportMintResult = {
@@ -32,7 +44,10 @@ export type ImportMintResult = {
   created: boolean;
 };
 
-function buildEntrySnapshot(capturedAt: string): EntrySnapshot {
+function buildEntrySnapshot(
+  capturedAt: string,
+  firstSeenSourceSnapshot?: FirstSeenSourceSnapshot,
+): EntrySnapshot {
   return {
     stage: "mint_only",
     capturedAt,
@@ -51,6 +66,7 @@ function buildEntrySnapshot(capturedAt: string): EntrySnapshot {
     hardRejected: null,
     price: null,
     fdv: null,
+    ...(firstSeenSourceSnapshot ? { firstSeenSourceSnapshot } : {}),
   };
 }
 
@@ -80,7 +96,10 @@ export async function importMint(input: ImportMintInput): Promise<ImportMintResu
       source: input.source,
       importedAt,
       metadataStatus: "mint_only",
-      entrySnapshot: buildEntrySnapshot(importedAt.toISOString()),
+      entrySnapshot: buildEntrySnapshot(
+        importedAt.toISOString(),
+        input.firstSeenSourceSnapshot,
+      ),
     },
     select: {
       mint: true,

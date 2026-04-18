@@ -188,6 +188,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:geckoterminal:new-pools` normalizes the first item with the current pure helper and evaluates one `source_event_hint` candidate
 - `detect:geckoterminal:new-pools` stays dry-run by default
 - `detect:geckoterminal:new-pools --write` hands one accepted `{ mint, source? }` payload into the same mint-first boundary used by `import:mint`
+- `detect:geckoterminal:new-pools --write` also preserves a first-seen source snapshot in `Token.entrySnapshot`, including `source`, `detectedAt`, `poolCreatedAt`, `poolAddress`, `dexName`, `baseTokenAddress`, and `quoteTokenAddress` when those values exist in the source payload
 - `detect:geckoterminal:new-pools` does not add watch, checkpoint, retry, or scheduler behavior
 - `compare:geckoterminal:dexscreener` fetches one live GeckoTerminal candidate, then bounded-polls DexScreener `token-profiles/latest/v1` and reports whether that mint appears during the polling window
 - `compare:geckoterminal:dexscreener` is read-only and does not write, watch, checkpoint, or hand off into `import:mint`
