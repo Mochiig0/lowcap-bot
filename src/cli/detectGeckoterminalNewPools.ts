@@ -36,15 +36,17 @@ function getUsageText(): string {
 }
 
 function parseArgs(argv: string[]): void {
-  if (argv.length === 0) {
+  const normalizedArgv = argv.filter((value) => value !== "--");
+
+  if (normalizedArgv.length === 0) {
     return;
   }
 
-  if (argv.length === 1 && argv[0] === "--help") {
+  if (normalizedArgv.length === 1 && normalizedArgv[0] === "--help") {
     throw new CliUsageError("");
   }
 
-  throw new CliUsageError(`Unknown arg: ${argv[0]}`);
+  throw new CliUsageError(`Unknown arg: ${normalizedArgv[0]}`);
 }
 
 type GeckoterminalOutput = {
