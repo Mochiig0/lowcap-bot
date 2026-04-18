@@ -1,0 +1,62 @@
+{
+  "data": [
+    {
+      "id": "solana_9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC",
+      "type": "pool",
+      "attributes": {
+        "address": "9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC",
+        "name": "Irnstof / SOL",
+        "pool_created_at": "2026-04-18T02:35:54Z"
+      },
+      "relationships": {
+        "base_token": {
+          "data": {
+            "id": "solana_6EqzzoWno2Mwo6QpRQbhFtE6S7MycamKnxUBk13dpump",
+            "type": "token"
+          }
+        },
+        "quote_token": {
+          "data": {
+            "id": "solana_So11111111111111111111111111111111111111112",
+            "type": "token"
+          }
+        },
+        "dex": {
+          "data": {
+            "id": "pumpswap",
+            "type": "dex"
+          }
+        }
+      }
+    }
+  ],
+  "included": [
+    {
+      "id": "solana_6EqzzoWno2Mwo6QpRQbhFtE6S7MycamKnxUBk13dpump",
+      "type": "token",
+      "attributes": {
+        "address": "6EqzzoWno2Mwo6QpRQbhFtE6S7MycamKnxUBk13dpump",
+        "name": "IRAN NUCLEAR STANDOFF",
+        "symbol": "Irnstof",
+        "decimals": 6
+      }
+    },
+    {
+      "id": "solana_So11111111111111111111111111111111111111112",
+      "type": "token",
+      "attributes": {
+        "address": "So11111111111111111111111111111111111111112",
+        "name": "Wrapped SOL",
+        "symbol": "SOL",
+        "decimals": 9
+      }
+    },
+    {
+      "id": "pumpswap",
+      "type": "dex",
+      "attributes": {
+        "name": "PumpSwap"
+      }
+    }
+  ]
+}

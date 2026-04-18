@@ -1,0 +1,62 @@
+{
+  "data": [
+    {
+      "id": "solana_F1sUZyoy5kZ4qWXk3XUQVzfsgBQxBBjVY8Ej1sRHLpT3",
+      "type": "pool",
+      "attributes": {
+        "address": "F1sUZyoy5kZ4qWXk3XUQVzfsgBQxBBjVY8Ej1sRHLpT3",
+        "name": "mɔ / USDC",
+        "pool_created_at": "2026-04-18T02:36:43Z"
+      },
+      "relationships": {
+        "base_token": {
+          "data": {
+            "id": "solana_9DpzCSRchP1vdnjU1aRCwcBzXGdoTyjn1QwqjzjGBo15",
+            "type": "token"
+          }
+        },
+        "quote_token": {
+          "data": {
+            "id": "solana_EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "type": "token"
+          }
+        },
+        "dex": {
+          "data": {
+            "id": "orca",
+            "type": "dex"
+          }
+        }
+      }
+    }
+  ],
+  "included": [
+    {
+      "id": "solana_9DpzCSRchP1vdnjU1aRCwcBzXGdoTyjn1QwqjzjGBo15",
+      "type": "token",
+      "attributes": {
+        "address": "9DpzCSRchP1vdnjU1aRCwcBzXGdoTyjn1QwqjzjGBo15",
+        "name": "777",
+        "symbol": "mɔ",
+        "decimals": 6
+      }
+    },
+    {
+      "id": "solana_EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "type": "token",
+      "attributes": {
+        "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "name": "USD Coin",
+        "symbol": "USDC",
+        "decimals": 6
+      }
+    },
+    {
+      "id": "orca",
+      "type": "dex",
+      "attributes": {
+        "name": "Orca"
+      }
+    }
+  ]
+}

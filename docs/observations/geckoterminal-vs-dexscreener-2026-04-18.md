@@ -48,3 +48,38 @@
 - `base_token` looked like the monitored token side in this sample, but that should not yet be treated as always true.
 - One raw sample is enough to preserve a fixture, but not enough to freeze final adapter rules.
 - The current observation file should be treated as source evaluation context, not production evidence.
+
+## Follow-up Fixtures
+
+Additional live `new_pools` samples were captured at `2026-04-18T02:37:46.000Z` to reduce single-sample bias.
+
+### Sample 2
+
+- Pool name: `Irnstof / SOL`
+- DEX: `PumpSwap`
+- Pool address: `9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC`
+- `pool_created_at`: `2026-04-18T02:35:54Z`
+- Base token: `6EqzzoWno2Mwo6QpRQbhFtE6S7MycamKnxUBk13dpump` / `Irnstof`
+- Quote token: `So11111111111111111111111111111111111111112` / `SOL`
+- Mint candidate if mapped today: base token
+- Confidence: moderate for this sample, because the pool name and quote side still look like the base token is the newly monitored token
+
+### Sample 3
+
+- Pool name: `mɔ / USDC`
+- DEX: `Orca`
+- Pool address: `F1sUZyoy5kZ4qWXk3XUQVzfsgBQxBBjVY8Ej1sRHLpT3`
+- `pool_created_at`: `2026-04-18T02:36:43Z`
+- Base token: `9DpzCSRchP1vdnjU1aRCwcBzXGdoTyjn1QwqjzjGBo15` / `mɔ`
+- Quote token: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` / `USDC`
+- Mint candidate if mapped today: base token
+- Confidence: moderate for this sample, because the non-stablecoin-like quote side moved from `SOL` to `USDC` while the base token still looked like the token under discovery
+
+## Updated Base-Token Judgment
+
+- Across the three preserved fixtures so far, `base_token` remained the most natural mint candidate.
+- Confidence improved from low to moderate because the observation set now includes:
+  - `Pump.fun` with `SOL` quote
+  - `PumpSwap` with `SOL` quote
+  - `Orca` with `USDC` quote
+- Even with that broader sample, `base_token` should still be treated as a candidate rule rather than a fixed invariant until more pair shapes are observed.
