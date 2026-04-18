@@ -1,5 +1,10 @@
 import type { DetectorCandidate } from "./evaluateDetectorCandidate.js";
 
+export type GeckoterminalNewPoolsDetectorCandidate = Extract<
+  DetectorCandidate,
+  { candidateKind: "source_event_hint" }
+>;
+
 export const GECKOTERMINAL_NEW_POOLS_SOURCE = "geckoterminal.new_pools";
 export const GECKOTERMINAL_NEW_POOLS_EVENT_TYPE = "new_pool";
 
@@ -43,7 +48,7 @@ function readIncludedById(
 export function buildGeckoterminalNewPoolsDetectorCandidate(
   raw: unknown,
   detectedAt: string,
-): DetectorCandidate {
+): GeckoterminalNewPoolsDetectorCandidate {
   if (typeof detectedAt !== "string" || detectedAt.trim().length === 0) {
     throw new Error("detectedAt must be a non-empty string");
   }
