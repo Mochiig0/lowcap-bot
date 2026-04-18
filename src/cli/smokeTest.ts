@@ -1206,7 +1206,7 @@ async function run(): Promise<void> {
           "--write",
           "--watch",
           "--maxIterations",
-          "3",
+          "12",
           "--checkpointFile",
           context.detectRunnerIdleLogCheckpointPath,
         ],
@@ -1218,10 +1218,12 @@ async function run(): Promise<void> {
         watchedWithIdleLogsJson.processedCount !== 1 ||
         watchedWithIdleLogsJson.importedCount !== 1 ||
         watchedWithIdleLogsJson.existingCount !== 0 ||
-        watchedWithIdleLogsJson.cycles.length !== 3 ||
+        watchedWithIdleLogsJson.cycles.length !== 12 ||
         watchedWithIdleLogsJson.cycles[0]?.processedCount !== 1 ||
         watchedWithIdleLogsJson.cycles[1]?.processedCount !== 0 ||
-        watchedWithIdleLogsJson.cycles[2]?.processedCount !== 0
+        watchedWithIdleLogsJson.cycles[9]?.processedCount !== 0 ||
+        watchedWithIdleLogsJson.cycles[10]?.processedCount !== 0 ||
+        watchedWithIdleLogsJson.cycles[11]?.processedCount !== 0
       ) {
         throw new Error("detect dexscreener watch idle log throttle returned unexpected summary");
       }
@@ -1230,10 +1232,13 @@ async function run(): Promise<void> {
         !watchedWithIdleLogs.stderr.includes("cycle=1") ||
         !watchedWithIdleLogs.stderr.includes("cycle=2") ||
         watchedWithIdleLogs.stderr.includes("cycle=3") ||
-        !watchedWithIdleLogs.stderr.includes("idleStreak=2") ||
-        !watchedWithIdleLogs.stderr.includes("suppressedIdleCycles=1")
+        !watchedWithIdleLogs.stderr.includes("idleStreak=10") ||
+        !watchedWithIdleLogs.stderr.includes("suppressedIdleCycles=9") ||
+        !watchedWithIdleLogs.stderr.includes("idleStreak=11") ||
+        !watchedWithIdleLogs.stderr.includes("suppressedIdleCycles=10") ||
+        !watchedWithIdleLogs.stderr.includes("heartbeatEveryCycles=10")
       ) {
-        throw new Error("detect dexscreener watch idle log throttle did not throttle idle stderr logs");
+        throw new Error("detect dexscreener watch idle log heartbeat did not throttle idle stderr logs as expected");
       }
 
       await writeFile(

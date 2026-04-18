@@ -189,7 +189,7 @@ If `tmux` is also unavailable, run the same script in the foreground:
 bash ./scripts/run-detect-dexscreener-watch.sh
 ```
 
-Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, only reads or updates a checkpoint during `--watch --write`, records per-cycle failures instead of stopping immediately, and throttles repeated idle-cycle stderr logs in watch mode.
+Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, only reads or updates a checkpoint during `--watch --write`, records per-cycle failures instead of stopping immediately, throttles repeated idle-cycle stderr logs in watch mode, and emits a periodic idle heartbeat while the runner stays idle.
 
 Enrich one existing token record:
 

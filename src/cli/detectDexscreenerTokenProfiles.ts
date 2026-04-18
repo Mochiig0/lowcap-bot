@@ -17,6 +17,7 @@ const EVENT_TYPE = "token_detected";
 const API_URL = "https://api.dexscreener.com/token-profiles/latest/v1";
 const DEFAULT_CHECKPOINT_FILE = "data/checkpoints/dexscreener-token-profiles-latest-v1.json";
 const LOG_PREFIX = "[detect:dexscreener:token-profiles]";
+const IDLE_HEARTBEAT_EVERY_CYCLES = 10;
 
 type DetectDexscreenerTokenProfilesArgs = {
   file?: string;
@@ -96,6 +97,7 @@ type SourceEventWithCursor = {
 
 type WatchLogState = {
   consecutiveIdleCount: number;
+  lastIdleSummaryCount: number;
   lastIdleResult?: DetectCycleResult;
 };
 
@@ -578,6 +580,7 @@ function logIdleStreakSummary(
     [
       `${LOG_PREFIX} idleStreak=${consecutiveIdleCount}`,
       `suppressedIdleCycles=${consecutiveIdleCount - 1}`,
+      `heartbeatEveryCycles=${IDLE_HEARTBEAT_EVERY_CYCLES}`,
       `lastCycle=${result.cycle}`,
       `checkpointBefore=${result.checkpointBefore ?? "none"}`,
       `checkpointAfter=${result.checkpointAfter ?? "none"}`,
@@ -586,12 +589,17 @@ function logIdleStreakSummary(
 }
 
 function flushWatchLogState(state: WatchLogState): WatchLogState {
-  if (state.lastIdleResult && state.consecutiveIdleCount > 1) {
+  if (
+    state.lastIdleResult &&
+    state.consecutiveIdleCount > 1 &&
+    state.consecutiveIdleCount !== state.lastIdleSummaryCount
+  ) {
     logIdleStreakSummary(state.lastIdleResult, state.consecutiveIdleCount);
   }
 
   return {
     consecutiveIdleCount: 0,
+    lastIdleSummaryCount: 0,
   };
 }
 
@@ -602,11 +610,15 @@ function logWatchCycleSummary(
   if (isIdleCycle(result)) {
     const nextState: WatchLogState = {
       consecutiveIdleCount: state.consecutiveIdleCount + 1,
+      lastIdleSummaryCount: state.lastIdleSummaryCount,
       lastIdleResult: result,
     };
 
     if (nextState.consecutiveIdleCount === 1) {
       logCycleSummary(result);
+    } else if (nextState.consecutiveIdleCount % IDLE_HEARTBEAT_EVERY_CYCLES === 0) {
+      logIdleStreakSummary(result, nextState.consecutiveIdleCount);
+      nextState.lastIdleSummaryCount = nextState.consecutiveIdleCount;
     }
 
     return nextState;
@@ -823,6 +835,7 @@ async function run(): Promise<void> {
   const initialCheckpointCursor = checkpointCursor?.value;
   let watchLogState: WatchLogState = {
     consecutiveIdleCount: 0,
+    lastIdleSummaryCount: 0,
   };
 
   for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
