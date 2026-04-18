@@ -33,6 +33,7 @@ type SmokeContext = {
   metricMint: string;
   metricSnapshotMint: string;
   metricSnapshotGapMint: string;
+  metricSnapshotRateLimitMints: [string, string];
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -233,6 +234,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricMint,
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
+          ...context.metricSnapshotRateLimitMints,
         ],
       },
     },
@@ -271,6 +273,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricMint,
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
+          ...context.metricSnapshotRateLimitMints,
         ],
       },
     },
@@ -329,6 +332,10 @@ async function run(): Promise<void> {
     metricMint: `${smokeId}_METRIC`,
     metricSnapshotMint: `${smokeId}_METRIC_SNAPSHOT`,
     metricSnapshotGapMint: `${smokeId}_METRIC_SNAPSHOT_GAP`,
+    metricSnapshotRateLimitMints: [
+      `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_1`,
+      `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_2`,
+    ],
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
@@ -2370,6 +2377,170 @@ async function run(): Promise<void> {
 
         if (rawJsonBytes.some((bytes) => bytes <= 0 || bytes > 2048)) {
           throw new Error("metric snapshot geckoterminal rawJson size was unexpected");
+        }
+
+        for (const mint of context.metricSnapshotRateLimitMints) {
+          await runCliJson<{
+            mint: string;
+            created: boolean;
+          }>(
+            `metric snapshot geckoterminal rate limit import ${mint}`,
+            "src/cli/importMint.ts",
+            [
+              "--mint",
+              mint,
+              "--source",
+              "geckoterminal.new_pools",
+            ],
+            context.smokeId,
+          );
+        }
+
+        const previousSnapshotFileForRateLimit = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        const previousTokenApiUrl = process.env.GECKOTERMINAL_TOKEN_API_URL;
+        const previousInjectedSnapshotError =
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+
+        try {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.metricSnapshotFilePath;
+          delete process.env.GECKOTERMINAL_TOKEN_API_URL;
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE =
+            "GeckoTerminal token snapshot request failed: 429 Too Many Requests";
+
+          const rateLimitedWatch = await runCliJsonWithStderr<{
+            watchEnabled: boolean;
+            cycleCount: number;
+            failedCount: number;
+            selectedCount: number;
+            okCount: number;
+            skippedCount: number;
+            errorCount: number;
+            writtenCount: number;
+            rateLimited: boolean;
+            rateLimitedCount: number;
+            abortedDueToRateLimit: boolean;
+            skippedAfterRateLimit: number;
+            items: Array<{
+              status: string;
+              error?: string;
+              metricCandidate?: {
+                volume24h: number | null;
+              };
+            }>;
+            cycles: Array<{
+              cycle: number;
+              failed: boolean;
+              summary: {
+                selectedCount: number;
+                okCount: number;
+                skippedCount: number;
+                errorCount: number;
+                writtenCount: number;
+                rateLimited: boolean;
+                rateLimitedCount: number;
+                abortedDueToRateLimit: boolean;
+                skippedAfterRateLimit: number;
+              };
+              items: Array<{
+                status: string;
+                error?: string;
+                metricCandidate?: {
+                  volume24h: number | null;
+                };
+              }>;
+            }>;
+          }>(
+            "metric snapshot geckoterminal watch rate limit short circuit",
+            "src/cli/metricSnapshotGeckoterminal.ts",
+            [
+              "--watch",
+              "--intervalSeconds",
+              "1",
+              "--maxIterations",
+              "2",
+              "--limit",
+              "2",
+              "--sinceMinutes",
+              "5",
+            ],
+            context.smokeId,
+          );
+
+          const rateLimitedWatchJson = rateLimitedWatch.parsed;
+          if (
+            rateLimitedWatchJson.watchEnabled !== true ||
+            rateLimitedWatchJson.cycleCount !== 2 ||
+            rateLimitedWatchJson.failedCount !== 0 ||
+            rateLimitedWatchJson.selectedCount !== 4 ||
+            rateLimitedWatchJson.okCount !== 2 ||
+            rateLimitedWatchJson.skippedCount !== 0 ||
+            rateLimitedWatchJson.errorCount !== 1 ||
+            rateLimitedWatchJson.writtenCount !== 0 ||
+            rateLimitedWatchJson.rateLimited !== true ||
+            rateLimitedWatchJson.rateLimitedCount !== 1 ||
+            rateLimitedWatchJson.abortedDueToRateLimit !== true ||
+            rateLimitedWatchJson.skippedAfterRateLimit !== 1 ||
+            rateLimitedWatchJson.items.length !== 3 ||
+            rateLimitedWatchJson.cycles.length !== 2 ||
+            rateLimitedWatchJson.cycles[0]?.cycle !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.failed !== false ||
+            rateLimitedWatchJson.cycles[0]?.summary.selectedCount !== 2 ||
+            rateLimitedWatchJson.cycles[0]?.summary.okCount !== 0 ||
+            rateLimitedWatchJson.cycles[0]?.summary.errorCount !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.summary.rateLimited !== true ||
+            rateLimitedWatchJson.cycles[0]?.summary.rateLimitedCount !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.summary.abortedDueToRateLimit !== true ||
+            rateLimitedWatchJson.cycles[0]?.summary.skippedAfterRateLimit !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.items.length !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.status !== "error" ||
+            !rateLimitedWatchJson.cycles[0]?.items[0]?.error?.includes("429 Too Many Requests") ||
+            rateLimitedWatchJson.cycles[1]?.cycle !== 2 ||
+            rateLimitedWatchJson.cycles[1]?.failed !== false ||
+            rateLimitedWatchJson.cycles[1]?.summary.selectedCount !== 2 ||
+            rateLimitedWatchJson.cycles[1]?.summary.okCount !== 2 ||
+            rateLimitedWatchJson.cycles[1]?.summary.errorCount !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.summary.rateLimited !== false ||
+            rateLimitedWatchJson.cycles[1]?.summary.rateLimitedCount !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.summary.abortedDueToRateLimit !== false ||
+            rateLimitedWatchJson.cycles[1]?.summary.skippedAfterRateLimit !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.items.length !== 2 ||
+            rateLimitedWatchJson.cycles[1]?.items[0]?.metricCandidate?.volume24h !== 1234 ||
+            rateLimitedWatchJson.cycles[1]?.items[1]?.metricCandidate?.volume24h !== 1234
+          ) {
+            throw new Error(
+              "metric snapshot geckoterminal watch rate limit short circuit returned unexpected summary",
+            );
+          }
+
+          if (
+            !rateLimitedWatch.stderr.includes("cycle=1") ||
+            !rateLimitedWatch.stderr.includes("rateLimited=true") ||
+            !rateLimitedWatch.stderr.includes("skippedAfterRateLimit=1") ||
+            !rateLimitedWatch.stderr.includes("cycle=2") ||
+            !rateLimitedWatch.stderr.includes("rateLimited=false")
+          ) {
+            throw new Error(
+              "metric snapshot geckoterminal watch rate limit short circuit did not log expected stderr summary",
+            );
+          }
+        } finally {
+          if (previousSnapshotFileForRateLimit === undefined) {
+            delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+          } else {
+            process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFileForRateLimit;
+          }
+
+          if (previousTokenApiUrl === undefined) {
+            delete process.env.GECKOTERMINAL_TOKEN_API_URL;
+          } else {
+            process.env.GECKOTERMINAL_TOKEN_API_URL = previousTokenApiUrl;
+          }
+
+          if (previousInjectedSnapshotError === undefined) {
+            delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+          } else {
+            process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE = previousInjectedSnapshotError;
+          }
         }
 
         await runCliJson<{

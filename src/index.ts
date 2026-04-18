@@ -64,7 +64,7 @@ const lines = [
   "  Example: pnpm metric:add -- --mint TESTMINT --peakFdv24h 180000 --volume24h 42000",
   "",
   "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
-  "  Dry-run by default; with --watch, repeat snapshot cycles, continue after cycle-level errors, and optionally skip recent token+source metrics with --minGapMinutes.",
+  "  Dry-run by default; with --watch, repeat snapshot cycles, continue after cycle-level errors, optionally skip recent token+source metrics with --minGapMinutes, and stop the current cycle early after the first 429 token snapshot error.",
   "  Example: pnpm metric:snapshot:geckoterminal -- --limit 5 --sinceMinutes 120 --watch --intervalSeconds 60 --minGapMinutes 10",
   "",
   "pnpm tokens:report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasMetrics <true|false>] [--hardRejected <true|false>] [--createdAfter <ISO8601>] [--limit 20]",

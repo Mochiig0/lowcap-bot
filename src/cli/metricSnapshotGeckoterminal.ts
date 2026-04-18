@@ -13,6 +13,7 @@ const DEFAULT_LIMIT = 20;
 const DEFAULT_SINCE_MINUTES = 180;
 const DEFAULT_INTERVAL_SECONDS = 60;
 const LOG_PREFIX = "[metric:snapshot:geckoterminal]";
+let injectedSnapshotErrorConsumed = false;
 
 function getTokenApiUrl(): string {
   return process.env.GECKOTERMINAL_TOKEN_API_URL ?? DEFAULT_GECKOTERMINAL_TOKEN_API_URL;
@@ -147,6 +148,10 @@ type WatchCycleResult = {
     skippedCount: number;
     errorCount: number;
     writtenCount: number;
+    rateLimited: boolean;
+    rateLimitedCount: number;
+    abortedDueToRateLimit: boolean;
+    skippedAfterRateLimit: number;
   };
   items: ProcessedTokenResult[];
 };
@@ -172,6 +177,10 @@ type WatchOutput = {
   skippedCount: number;
   errorCount: number;
   writtenCount: number;
+  rateLimited: boolean;
+  rateLimitedCount: number;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
   items: ProcessedTokenResult[];
   cycles: WatchCycleResult[];
 };
@@ -366,6 +375,14 @@ function readOptionalDateString(value: unknown): string | null {
   return new Date(parsed).toISOString();
 }
 
+function isRateLimitErrorMessage(message: string | undefined): boolean {
+  if (typeof message !== "string") {
+    return false;
+  }
+
+  return message.includes("429 Too Many Requests");
+}
+
 function readOptionalRelationshipAddress(
   input: JsonObject,
   relationshipKey: string,
@@ -522,6 +539,12 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
 }
 
 async function fetchTokenSnapshotRaw(mint: string): Promise<unknown> {
+  const injectedErrorMessage = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+  if (injectedErrorMessage && !injectedSnapshotErrorConsumed) {
+    injectedSnapshotErrorConsumed = true;
+    throw new Error(injectedErrorMessage);
+  }
+
   const fixtureFilePath = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
   if (fixtureFilePath) {
     const content = await readFile(fixtureFilePath, "utf-8");
@@ -768,6 +791,10 @@ type SnapshotExecutionResult = {
   sinceCutoff: string | null;
   selectedTokens: SelectedToken[];
   items: ProcessedTokenResult[];
+  rateLimited: boolean;
+  rateLimitedCount: number;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
 };
 
 async function executeSnapshotCycle(
@@ -775,9 +802,23 @@ async function executeSnapshotCycle(
 ): Promise<SnapshotExecutionResult> {
   const selection = await selectTokens(args);
   const items: ProcessedTokenResult[] = [];
+  let rateLimited = false;
+  let rateLimitedCount = 0;
+  let abortedDueToRateLimit = false;
+  let skippedAfterRateLimit = 0;
 
-  for (const token of selection.selectedTokens) {
-    items.push(await processToken(token, args));
+  for (let index = 0; index < selection.selectedTokens.length; index += 1) {
+    const token = selection.selectedTokens[index];
+    const result = await processToken(token, args);
+    items.push(result);
+
+    if (args.watch && result.status === "error" && isRateLimitErrorMessage(result.error)) {
+      rateLimited = true;
+      rateLimitedCount += 1;
+      abortedDueToRateLimit = true;
+      skippedAfterRateLimit = selection.selectedTokens.length - index - 1;
+      break;
+    }
   }
 
   return {
@@ -785,6 +826,10 @@ async function executeSnapshotCycle(
     sinceCutoff: selection.sinceCutoff,
     selectedTokens: selection.selectedTokens,
     items,
+    rateLimited,
+    rateLimitedCount,
+    abortedDueToRateLimit,
+    skippedAfterRateLimit,
   };
 }
 
@@ -839,6 +884,10 @@ function createFailedCycleResult(
       skippedCount: 0,
       errorCount: 0,
       writtenCount: 0,
+      rateLimited: false,
+      rateLimitedCount: 0,
+      abortedDueToRateLimit: false,
+      skippedAfterRateLimit: 0,
     },
     items: [],
   };
@@ -866,6 +915,10 @@ function buildWatchCycleResult(
       skippedCount: execution.items.filter((item) => item.status === "skipped_recent_metric").length,
       errorCount: execution.items.filter((item) => item.status === "error").length,
       writtenCount: execution.items.filter((item) => item.writeSummary.metricId !== null).length,
+      rateLimited: execution.rateLimited,
+      rateLimitedCount: execution.rateLimitedCount,
+      abortedDueToRateLimit: execution.abortedDueToRateLimit,
+      skippedAfterRateLimit: execution.skippedAfterRateLimit,
     },
     items: execution.items,
   };
@@ -881,6 +934,10 @@ function logWatchCycleSummary(cycle: WatchCycleResult): void {
       `skipped=${cycle.summary.skippedCount}`,
       `error=${cycle.summary.errorCount}`,
       `written=${cycle.summary.writtenCount}`,
+      `rateLimited=${cycle.summary.rateLimited}`,
+      `rateLimitedCount=${cycle.summary.rateLimitedCount}`,
+      `abortedDueToRateLimit=${cycle.summary.abortedDueToRateLimit}`,
+      `skippedAfterRateLimit=${cycle.summary.skippedAfterRateLimit}`,
       ...(cycle.errorMessage ? [`errorMessage=${JSON.stringify(cycle.errorMessage)}`] : []),
     ].join(" "),
   );
@@ -913,6 +970,13 @@ function buildWatchOutput(
     skippedCount: cycles.reduce((sum, cycle) => sum + cycle.summary.skippedCount, 0),
     errorCount: cycles.reduce((sum, cycle) => sum + cycle.summary.errorCount, 0),
     writtenCount: cycles.reduce((sum, cycle) => sum + cycle.summary.writtenCount, 0),
+    rateLimited: cycles.some((cycle) => cycle.summary.rateLimited),
+    rateLimitedCount: cycles.reduce((sum, cycle) => sum + cycle.summary.rateLimitedCount, 0),
+    abortedDueToRateLimit: cycles.some((cycle) => cycle.summary.abortedDueToRateLimit),
+    skippedAfterRateLimit: cycles.reduce(
+      (sum, cycle) => sum + cycle.summary.skippedAfterRateLimit,
+      0,
+    ),
     items: flattenedItems,
     cycles,
   };
