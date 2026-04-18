@@ -7,10 +7,11 @@ After=network-online.target
 Type=simple
 WorkingDirectory=/home/mochi/projects/lowcap-bot
 Environment=DATABASE_URL=file:/home/mochi/projects/lowcap-bot/prisma/dev.db
-Environment=LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=300
+Environment=LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=900
 Environment=LOWCAP_GECKOTERMINAL_METRIC_MIN_GAP_MINUTES=10
-Environment=LOWCAP_GECKOTERMINAL_METRIC_LIMIT=20
-Environment=LOWCAP_GECKOTERMINAL_METRIC_SINCE_MINUTES=180
+Environment=LOWCAP_GECKOTERMINAL_METRIC_LIMIT=10
+Environment=LOWCAP_GECKOTERMINAL_METRIC_SINCE_MINUTES=120
+Environment=LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=120
 Environment=LOWCAP_GECKOTERMINAL_METRIC_SOURCE=geckoterminal.token_snapshot
 ExecStart=/home/mochi/projects/lowcap-bot/scripts/run-geckoterminal-metric-watch.sh
 Restart=always
