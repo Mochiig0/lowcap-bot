@@ -1,5 +1,8 @@
 import "dotenv/config";
 
+import { readFile } from "node:fs/promises";
+
+import { importMint, type ImportMintResult } from "./importMintShared.js";
 import {
   buildGeckoterminalNewPoolsDetectorCandidate,
   GECKOTERMINAL_NEW_POOLS_EVENT_TYPE,
@@ -14,6 +17,23 @@ import {
 const API_URL =
   "https://api.geckoterminal.com/api/v2/networks/solana/new_pools?page=1&include=base_token,quote_token,dex";
 
+type DetectGeckoterminalNewPoolsArgs = {
+  file?: string;
+  write: boolean;
+};
+
+type LoadedInput = {
+  mode: "fetch" | "file";
+  file?: string;
+  apiUrl?: string;
+  raw: unknown;
+};
+
+type MinimalHandoffPayload = {
+  mint: string;
+  source?: string;
+};
+
 class CliUsageError extends Error {
   constructor(message: string) {
     super(message);
@@ -24,33 +44,60 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm detect:geckoterminal:new-pools",
+    "pnpm detect:geckoterminal:new-pools [--file <PATH>] [--write]",
     "",
     "Defaults:",
     `- fetches ${API_URL}`,
+    "- reads one local raw response instead when --file is set",
     "- reads the first Solana new_pools item only",
     "- builds one source_event_hint candidate",
     "- evaluates the candidate with evaluateDetectorCandidate()",
-    "- dry-run only: no write, watch, checkpoint, or import handoff",
+    "- stays dry-run by default",
+    "- writes one accepted { mint, source? } handoff into import:mint only when --write is set",
+    "- does not add watch, checkpoint, retry, or scheduler behavior",
   ].join("\n");
 }
 
-function parseArgs(argv: string[]): void {
+function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
   const normalizedArgv = argv.filter((value) => value !== "--");
+  const out: DetectGeckoterminalNewPoolsArgs = {
+    write: false,
+  };
 
-  if (normalizedArgv.length === 0) {
-    return;
+  for (let i = 0; i < normalizedArgv.length; i += 1) {
+    const key = normalizedArgv[i];
+
+    if (key === "--help") {
+      throw new CliUsageError("");
+    }
+
+    if (key === "--write") {
+      out.write = true;
+      continue;
+    }
+
+    if (key === "--file") {
+      const value = normalizedArgv[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        throw new CliUsageError("Missing value for --file");
+      }
+      out.file = value;
+      i += 1;
+      continue;
+    }
+
+    throw new CliUsageError(`Unknown arg: ${key}`);
   }
 
-  if (normalizedArgv.length === 1 && normalizedArgv[0] === "--help") {
-    throw new CliUsageError("");
-  }
-
-  throw new CliUsageError(`Unknown arg: ${normalizedArgv[0]}`);
+  return out;
 }
 
 type GeckoterminalOutput = {
-  apiUrl: string;
+  mode: "fetch" | "file";
+  file?: string;
+  apiUrl?: string;
+  dryRun: boolean;
+  writeEnabled: boolean;
   source: string;
   eventType: string;
   detectedAt: string;
@@ -58,6 +105,8 @@ type GeckoterminalOutput = {
   poolCreatedAt?: unknown;
   dexName?: unknown;
   poolAddress?: unknown;
+  handoffPayload?: MinimalHandoffPayload;
+  importResult?: ImportMintResult;
   detectorResult: AcceptResult | RejectResult;
 };
 
@@ -76,16 +125,52 @@ async function fetchLiveRaw(): Promise<unknown> {
   return (await response.json()) as unknown;
 }
 
+async function readRawFromFile(filePath: string): Promise<unknown> {
+  const content = await readFile(filePath, "utf-8");
+  return JSON.parse(content) as unknown;
+}
+
+async function loadInput(args: DetectGeckoterminalNewPoolsArgs): Promise<LoadedInput> {
+  if (args.file) {
+    return {
+      mode: "file",
+      file: args.file,
+      raw: await readRawFromFile(args.file),
+    };
+  }
+
+  return {
+    mode: "fetch",
+    apiUrl: API_URL,
+    raw: await fetchLiveRaw(),
+  };
+}
+
+function buildMinimalHandoffPayload(result: AcceptResult): MinimalHandoffPayload {
+  return {
+    mint: result.mint,
+    source: result.source,
+  };
+}
+
 async function main(): Promise<void> {
-  parseArgs(process.argv.slice(2));
+  const args = parseArgs(process.argv.slice(2));
+  const input = await loadInput(args);
 
   const detectedAt = new Date().toISOString();
-  const raw = await fetchLiveRaw();
-  const candidate = buildGeckoterminalNewPoolsDetectorCandidate(raw, detectedAt);
+  const candidate = buildGeckoterminalNewPoolsDetectorCandidate(input.raw, detectedAt);
   const detectorResult = evaluateDetectorCandidate(candidate);
+  const handoffPayload =
+    detectorResult.ok ? buildMinimalHandoffPayload(detectorResult) : undefined;
+  const importResult =
+    args.write && handoffPayload ? await importMint(handoffPayload) : undefined;
 
   const output: GeckoterminalOutput = {
-    apiUrl: API_URL,
+    mode: input.mode,
+    file: input.file,
+    apiUrl: input.apiUrl,
+    dryRun: !args.write,
+    writeEnabled: args.write,
     source: GECKOTERMINAL_NEW_POOLS_SOURCE,
     eventType: GECKOTERMINAL_NEW_POOLS_EVENT_TYPE,
     detectedAt,
@@ -93,6 +178,8 @@ async function main(): Promise<void> {
     poolCreatedAt: candidate.payload.poolCreatedAt,
     dexName: candidate.payload.dexName,
     poolAddress: candidate.payload.poolAddress,
+    handoffPayload,
+    importResult,
     detectorResult,
   };
 

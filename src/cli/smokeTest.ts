@@ -23,6 +23,7 @@ type SmokeContext = {
   mintBatchRerunMints: [string, string];
   mintSourceEventMint: string;
   detectRunnerMint: string;
+  geckoterminalDetectRunnerMint: string;
   detectRunnerCheckpointMint: string;
   detectRunnerIdleLogMint: string;
   mintHappyPathMint: string;
@@ -39,6 +40,7 @@ type SmokeContext = {
   mintBatchRerunFilePath: string;
   mintSourceEventFilePath: string;
   detectRunnerFilePath: string;
+  geckoterminalDetectRunnerFilePath: string;
   detectRunnerCheckpointFilePath: string;
   detectRunnerCheckpointPath: string;
   detectRunnerIdleLogFilePath: string;
@@ -213,6 +215,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
           context.detectRunnerMint,
+          context.geckoterminalDetectRunnerMint,
           context.detectRunnerCheckpointMint,
           context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
@@ -302,6 +305,7 @@ async function run(): Promise<void> {
     ],
     mintSourceEventMint: `${smokeId}_SOURCE_EVENT`,
     detectRunnerMint: `H${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "2").padEnd(43, "3").slice(0, 43)}`,
+    geckoterminalDetectRunnerMint: `L${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "5").padEnd(43, "6").slice(0, 43)}`,
     detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
     detectRunnerIdleLogMint: `K${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "4").padEnd(43, "5").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
@@ -318,6 +322,7 @@ async function run(): Promise<void> {
     mintBatchRerunFilePath: `/tmp/${smokeId}-import-mint-file-rerun.json`,
     mintSourceEventFilePath: `/tmp/${smokeId}-import-mint-source-file.json`,
     detectRunnerFilePath: `/tmp/${smokeId}-detect-dexscreener-file.json`,
+    geckoterminalDetectRunnerFilePath: `/tmp/${smokeId}-detect-geckoterminal-file.json`,
     detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
     detectRunnerCheckpointPath: `/tmp/${smokeId}-detect-dexscreener-checkpoint.json`,
     detectRunnerIdleLogFilePath: `/tmp/${smokeId}-detect-dexscreener-idle-log-file.json`,
@@ -1338,6 +1343,214 @@ async function run(): Promise<void> {
         if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
           throw error;
         }
+      }
+    });
+
+    await runStep("detect geckoterminal dry-run and write", async () => {
+      await writeFile(
+        context.geckoterminalDetectRunnerFilePath,
+        `${JSON.stringify(
+          {
+            data: [
+              {
+                id: "solana_CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc",
+                type: "pool",
+                attributes: {
+                  address: "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc",
+                  name: "GECKO / SOL",
+                  pool_created_at: "2026-04-18T02:13:55Z",
+                },
+                relationships: {
+                  base_token: {
+                    data: {
+                      id: `solana_${context.geckoterminalDetectRunnerMint}`,
+                      type: "token",
+                    },
+                  },
+                  quote_token: {
+                    data: {
+                      id: "solana_So11111111111111111111111111111111111111112",
+                      type: "token",
+                    },
+                  },
+                  dex: {
+                    data: {
+                      id: "pump-fun",
+                      type: "dex",
+                    },
+                  },
+                },
+              },
+            ],
+            included: [
+              {
+                id: `solana_${context.geckoterminalDetectRunnerMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoterminalDetectRunnerMint,
+                  symbol: "GECKO",
+                  decimals: 6,
+                },
+              },
+              {
+                id: "solana_So11111111111111111111111111111111111111112",
+                type: "token",
+                attributes: {
+                  address: "So11111111111111111111111111111111111111112",
+                  symbol: "SOL",
+                  decimals: 9,
+                },
+              },
+              {
+                id: "pump-fun",
+                type: "dex",
+                attributes: {
+                  name: "Pump.fun",
+                },
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const dryRun = await runCliJson<{
+        mode: string;
+        file?: string;
+        dryRun: boolean;
+        writeEnabled: boolean;
+        source: string;
+        eventType: string;
+        mintAddress: string;
+        handoffPayload?: {
+          mint: string;
+          source?: string;
+        };
+        detectorResult: {
+          ok: boolean;
+          mint?: string;
+          source?: string;
+        };
+        importResult?: {
+          created: boolean;
+        };
+      }>(
+        "detect geckoterminal dry-run",
+        "src/cli/detectGeckoterminalNewPools.ts",
+        [
+          "--file",
+          context.geckoterminalDetectRunnerFilePath,
+        ],
+        context.smokeId,
+      );
+
+      if (
+        dryRun.mode !== "file" ||
+        dryRun.file !== context.geckoterminalDetectRunnerFilePath ||
+        dryRun.dryRun !== true ||
+        dryRun.writeEnabled !== false ||
+        dryRun.source !== "geckoterminal.new_pools" ||
+        dryRun.eventType !== "new_pool" ||
+        dryRun.mintAddress !== context.geckoterminalDetectRunnerMint
+      ) {
+        throw new Error("detect geckoterminal dry-run returned unexpected summary");
+      }
+
+      if (
+        dryRun.handoffPayload?.mint !== context.geckoterminalDetectRunnerMint ||
+        dryRun.handoffPayload?.source !== "geckoterminal.new_pools" ||
+        dryRun.detectorResult.ok !== true ||
+        dryRun.detectorResult.mint !== context.geckoterminalDetectRunnerMint ||
+        dryRun.importResult !== undefined
+      ) {
+        throw new Error("detect geckoterminal dry-run returned unexpected item fields");
+      }
+
+      const tokenBeforeWrite = await db.token.findUnique({
+        where: { mint: context.geckoterminalDetectRunnerMint },
+        select: { id: true },
+      });
+
+      if (tokenBeforeWrite) {
+        throw new Error("detect geckoterminal dry-run unexpectedly wrote a token");
+      }
+
+      const written = await runCliJson<{
+        mode: string;
+        dryRun: boolean;
+        writeEnabled: boolean;
+        handoffPayload?: {
+          mint: string;
+          source?: string;
+        };
+        importResult?: {
+          mint: string;
+          metadataStatus: string;
+          created: boolean;
+        };
+      }>(
+        "detect geckoterminal write",
+        "src/cli/detectGeckoterminalNewPools.ts",
+        [
+          "--file",
+          context.geckoterminalDetectRunnerFilePath,
+          "--write",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        written.mode !== "file" ||
+        written.dryRun !== false ||
+        written.writeEnabled !== true ||
+        written.handoffPayload?.mint !== context.geckoterminalDetectRunnerMint ||
+        written.handoffPayload?.source !== "geckoterminal.new_pools" ||
+        written.importResult?.mint !== context.geckoterminalDetectRunnerMint ||
+        written.importResult?.metadataStatus !== "mint_only" ||
+        written.importResult?.created !== true
+      ) {
+        throw new Error("detect geckoterminal write returned unexpected summary");
+      }
+
+      const writtenToken = await db.token.findUnique({
+        where: { mint: context.geckoterminalDetectRunnerMint },
+        select: {
+          mint: true,
+          source: true,
+          metadataStatus: true,
+        },
+      });
+
+      if (!writtenToken) {
+        throw new Error("detect geckoterminal write did not create a token");
+      }
+
+      if (
+        writtenToken.source !== "geckoterminal.new_pools" ||
+        writtenToken.metadataStatus !== "mint_only"
+      ) {
+        throw new Error("detect geckoterminal write did not persist mint-first fields");
+      }
+
+      const rerun = await runCliJson<{
+        importResult?: {
+          created: boolean;
+        };
+      }>(
+        "detect geckoterminal write rerun",
+        "src/cli/detectGeckoterminalNewPools.ts",
+        [
+          "--file",
+          context.geckoterminalDetectRunnerFilePath,
+          "--write",
+        ],
+        context.smokeId,
+      );
+
+      if (rerun.importResult?.created !== false) {
+        throw new Error("detect geckoterminal write rerun did not report existing token");
       }
     });
 
