@@ -211,7 +211,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - `scripts/run-geckoterminal-detect-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm detect:geckoterminal:new-pools -- --watch --write`
-- `scripts/run-geckoterminal-enrich-rescore-notify.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and loops the one-shot `pnpm token:enrich-rescore:geckoterminal -- --write --notify` batch with an enrich-first live default cadence of 5 minutes, 5 tokens, a 60-minute lookback, and an optional start delay
+- `scripts/run-geckoterminal-enrich-rescore-notify.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and loops the one-shot `pnpm token:enrich-rescore:geckoterminal -- --write --notify` batch with an enrich-first live default cadence of 5 minutes, 5 tokens, a 60-minute lookback, an optional start delay, and an extra cooldown only after rate-limited batches
 - `scripts/run-geckoterminal-metric-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm metric:snapshot:geckoterminal -- --watch --write` with a trailing-observation default cadence of 30 minutes, 5 tokens, a 120-minute lookback, and an optional start delay
 - GeckoTerminal live runner defaults now intentionally prioritize `detect > enrich-rescore-notify > metric`, with start delays spaced so detect starts first, enrich follows, and metric trails later
 - `scripts/check-systemd-user.sh` is the repo-local preflight for deciding whether to use the sample `systemd --user` unit or fall back to `tmux` / foreground execution
@@ -376,6 +376,7 @@ LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS=300
 LOWCAP_GECKOTERMINAL_ENRICH_LIMIT=5
 LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES=60
 LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS=180
+LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS=300
 ```
 
 GeckoTerminal detect watch sample user service:
