@@ -37,6 +37,7 @@ type SmokeContext = {
   metricSnapshotRateLimitMints: [string, string];
   geckoEnrichRescoreRateLimitMints: [string, string];
   geckoEnrichRescoreMint: string;
+  geckoEnrichRescoreCompleteMint: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -244,6 +245,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.metricSnapshotRateLimitMints,
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
+          context.geckoEnrichRescoreCompleteMint,
         ],
       },
     },
@@ -287,6 +289,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.metricSnapshotRateLimitMints,
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
+          context.geckoEnrichRescoreCompleteMint,
         ],
       },
     },
@@ -358,6 +361,7 @@ async function run(): Promise<void> {
       `${smokeId}_GECKO_ENRICH_RATE_LIMIT_2`,
     ],
     geckoEnrichRescoreMint: `${smokeId}_GECKO_ENRICH_RESCORE`,
+    geckoEnrichRescoreCompleteMint: `${smokeId}_GECKO_ENRICH_RESCORE_COMPLETE`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
@@ -3222,6 +3226,42 @@ async function run(): Promise<void> {
         context.smokeId,
       );
 
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "geckoterminal enrich rescore complete import",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.geckoEnrichRescoreCompleteMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      await runCliJson<{
+        mint: string;
+        metadataStatus: string;
+        changed: {
+          name: boolean;
+          symbol: boolean;
+        };
+      }>(
+        "geckoterminal enrich rescore complete enrich",
+        "src/cli/tokenEnrich.ts",
+        [
+          "--mint",
+          context.geckoEnrichRescoreCompleteMint,
+          "--name",
+          "already complete",
+          "--symbol",
+          "ALRDY",
+        ],
+        context.smokeId,
+      );
+
       await writeFile(
         context.geckoEnrichRescoreFilePath,
         `${JSON.stringify(
@@ -3255,9 +3295,13 @@ async function run(): Promise<void> {
           notifyEnabled: boolean;
           selection: {
             selectedCount: number;
+            selectedIncompleteCount: number;
+            skippedCompleteCount: number;
           };
           summary: {
             selectedCount: number;
+            selectedIncompleteCount: number;
+            skippedCompleteCount: number;
             okCount: number;
             errorCount: number;
             enrichWriteCount: number;
@@ -3305,11 +3349,16 @@ async function run(): Promise<void> {
           "src/cli/tokenEnrichRescoreGeckoterminal.ts",
           [
             "--limit",
-            "1",
+            "2",
             "--sinceMinutes",
             "5",
           ],
           context.smokeId,
+        );
+
+        const selectedMints = dryRun.items.map((item) => item.token.mint);
+        const selectedTargetItem = dryRun.items.find(
+          (item) => item.token.mint === context.geckoEnrichRescoreMint,
         );
 
         if (
@@ -3317,37 +3366,93 @@ async function run(): Promise<void> {
           dryRun.dryRun !== true ||
           dryRun.writeEnabled !== false ||
           dryRun.notifyEnabled !== false ||
-          dryRun.selection.selectedCount !== 1 ||
-          dryRun.summary.selectedCount !== 1 ||
-          dryRun.summary.okCount !== 1 ||
+          dryRun.selection.selectedCount !== 2 ||
+          dryRun.selection.selectedIncompleteCount !== 2 ||
+          dryRun.selection.skippedCompleteCount !== 1 ||
+          dryRun.summary.selectedCount !== 2 ||
+          dryRun.summary.selectedIncompleteCount !== 2 ||
+          dryRun.summary.skippedCompleteCount !== 1 ||
+          dryRun.summary.okCount !== 2 ||
           dryRun.summary.errorCount !== 0 ||
           dryRun.summary.enrichWriteCount !== 0 ||
           dryRun.summary.rescoreWriteCount !== 0 ||
-          dryRun.summary.notifyWouldSendCount !== 1 ||
+          dryRun.summary.notifyWouldSendCount !== 2 ||
           dryRun.summary.notifySentCount !== 0 ||
-          dryRun.items.length !== 1 ||
-          dryRun.items[0]?.token.mint !== context.geckoEnrichRescoreMint ||
-          dryRun.items[0]?.token.metadataStatus !== "mint_only" ||
-          dryRun.items[0]?.selectedReason !== "Token.createdAt" ||
-          dryRun.items[0]?.status !== "ok" ||
-          dryRun.items[0]?.fetchedSnapshot?.name !== "pokemon dog newinfo" ||
-          dryRun.items[0]?.fetchedSnapshot?.symbol !== "SMGET" ||
-          dryRun.items[0]?.enrichPlan?.hasPatch !== true ||
-          dryRun.items[0]?.enrichPlan?.willUpdate !== true ||
-          dryRun.items[0]?.enrichPlan?.preview.metadataStatus !== "partial" ||
-          dryRun.items[0]?.rescorePreview?.ready !== true ||
-          dryRun.items[0]?.rescorePreview?.scoreRank !== "S" ||
-          typeof dryRun.items[0]?.rescorePreview?.hardRejected !== "boolean" ||
-          dryRun.items[0]?.notifyCandidate !== true ||
-          dryRun.items[0]?.notifyEligibleBefore !== false ||
-          dryRun.items[0]?.notifyEligibleAfter !== true ||
-          dryRun.items[0]?.notifyWouldSend !== true ||
-          dryRun.items[0]?.notifySent !== false ||
-          dryRun.items[0]?.writeSummary.dryRun !== true ||
-          dryRun.items[0]?.writeSummary.enrichUpdated !== false ||
-          dryRun.items[0]?.writeSummary.rescoreUpdated !== false
+          dryRun.items.length !== 2 ||
+          selectedMints.includes(context.geckoEnrichRescoreCompleteMint) ||
+          !selectedTargetItem ||
+          selectedTargetItem.token.metadataStatus !== "mint_only" ||
+          selectedTargetItem.selectedReason !== "Token.createdAt" ||
+          selectedTargetItem.status !== "ok" ||
+          selectedTargetItem.fetchedSnapshot?.name !== "pokemon dog newinfo" ||
+          selectedTargetItem.fetchedSnapshot?.symbol !== "SMGET" ||
+          selectedTargetItem.enrichPlan?.hasPatch !== true ||
+          selectedTargetItem.enrichPlan?.willUpdate !== true ||
+          selectedTargetItem.enrichPlan?.preview.metadataStatus !== "partial" ||
+          selectedTargetItem.rescorePreview?.ready !== true ||
+          selectedTargetItem.rescorePreview?.scoreRank !== "S" ||
+          typeof selectedTargetItem.rescorePreview?.hardRejected !== "boolean" ||
+          selectedTargetItem.notifyCandidate !== true ||
+          selectedTargetItem.notifyEligibleBefore !== false ||
+          selectedTargetItem.notifyEligibleAfter !== true ||
+          selectedTargetItem.notifyWouldSend !== true ||
+          selectedTargetItem.notifySent !== false ||
+          selectedTargetItem.writeSummary.dryRun !== true ||
+          selectedTargetItem.writeSummary.enrichUpdated !== false ||
+          selectedTargetItem.writeSummary.rescoreUpdated !== false
         ) {
           throw new Error("geckoterminal enrich rescore dry-run returned unexpected summary");
+        }
+
+        const completeSingleDryRun = await runCliJson<{
+          mode: string;
+          selection: {
+            mint: string | null;
+            selectedCount: number;
+            selectedIncompleteCount: number;
+            skippedCompleteCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            selectedIncompleteCount: number;
+            skippedCompleteCount: number;
+            okCount: number;
+            errorCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+          }>;
+        }>(
+          "geckoterminal enrich rescore single complete dry-run",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--mint",
+            context.geckoEnrichRescoreCompleteMint,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          completeSingleDryRun.mode !== "single" ||
+          completeSingleDryRun.selection.mint !== context.geckoEnrichRescoreCompleteMint ||
+          completeSingleDryRun.selection.selectedCount !== 1 ||
+          completeSingleDryRun.selection.selectedIncompleteCount !== 0 ||
+          completeSingleDryRun.selection.skippedCompleteCount !== 0 ||
+          completeSingleDryRun.summary.selectedCount !== 1 ||
+          completeSingleDryRun.summary.selectedIncompleteCount !== 0 ||
+          completeSingleDryRun.summary.skippedCompleteCount !== 0 ||
+          completeSingleDryRun.summary.okCount !== 1 ||
+          completeSingleDryRun.summary.errorCount !== 0 ||
+          completeSingleDryRun.items.length !== 1 ||
+          completeSingleDryRun.items[0]?.token.mint !== context.geckoEnrichRescoreCompleteMint ||
+          completeSingleDryRun.items[0]?.status !== "ok"
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore single complete dry-run returned unexpected summary",
+          );
         }
 
         const beforeWrite = await db.token.findUnique({

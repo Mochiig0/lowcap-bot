@@ -40,7 +40,7 @@ const lines = [
   "  Example: pnpm token:rescore -- --mint TESTMINT",
   "",
   "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write] [--notify]",
-  "  Dry-run by default; fetch GeckoTerminal token snapshots for recent Gecko-origin tokens, preview enrich plus rescore, write both stages only with --write, notify only with --write --notify when a token newly enters S-rank without hard reject, and stop the current batch early after the first 429 token snapshot error.",
+  "  Dry-run by default; fetch GeckoTerminal token snapshots for recent Gecko-origin tokens that are still missing name or symbol, preview enrich plus rescore, write both stages only with --write, notify only with --write --notify when a token newly enters S-rank without hard reject, and stop the current batch early after the first 429 token snapshot error.",
   "  Example: pnpm token:enrich-rescore:geckoterminal -- --limit 10 --sinceMinutes 180 --write --notify",
   "",
   "pnpm import:min -- --mint <MINT> --name <NAME> --symbol <SYM> [--source <SOURCE>] [--desc <TEXT>] [--dev <WALLET>]",

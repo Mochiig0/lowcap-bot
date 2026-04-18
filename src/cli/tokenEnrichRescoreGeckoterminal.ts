@@ -138,9 +138,13 @@ type Output = {
     sinceMinutes: number | null;
     sinceCutoff: string | null;
     selectedCount: number;
+    selectedIncompleteCount: number;
+    skippedCompleteCount: number;
   };
   summary: {
     selectedCount: number;
+    selectedIncompleteCount: number;
+    skippedCompleteCount: number;
     okCount: number;
     errorCount: number;
     enrichWriteCount: number;
@@ -170,7 +174,7 @@ function getUsageText(): string {
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${GECKOTERMINAL_TOKEN_API_URL}/{mint}?include=top_pools`,
-    `- recent batch mode selects up to ${DEFAULT_LIMIT} recent GeckoTerminal-origin tokens`,
+    `- recent batch mode selects up to ${DEFAULT_LIMIT} recent GeckoTerminal-origin tokens that still miss name or symbol`,
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     "- stays dry-run by default and writes Token enrich/rescore updates only when --write is set",
@@ -352,10 +356,16 @@ function buildSelectedToken(token: {
   };
 }
 
+function needsBatchEnrich(token: SelectedToken): boolean {
+  return token.name === null || token.symbol === null;
+}
+
 async function selectTokens(args: Args): Promise<{
   mode: "single" | "recent_batch";
   selectedTokens: SelectedToken[];
   sinceCutoff: string | null;
+  selectedIncompleteCount: number;
+  skippedCompleteCount: number;
 }> {
   if (args.mint) {
     const token = await db.token.findUnique({
@@ -383,10 +393,14 @@ async function selectTokens(args: Args): Promise<{
       throw new CliUsageError(`Token not found for mint: ${args.mint}`);
     }
 
+    const selectedToken = buildSelectedToken(token);
+
     return {
       mode: "single",
-      selectedTokens: [buildSelectedToken(token)],
+      selectedTokens: [selectedToken],
       sinceCutoff: null,
+      selectedIncompleteCount: needsBatchEnrich(selectedToken) ? 1 : 0,
+      skippedCompleteCount: 0,
     };
   }
 
@@ -417,7 +431,7 @@ async function selectTokens(args: Args): Promise<{
     },
   });
 
-  const selectedTokens = tokens
+  const recentGeckoTokens = tokens
     .map(buildSelectedToken)
     .filter(
       (token) =>
@@ -431,13 +445,16 @@ async function selectTokens(args: Args): Promise<{
       }
 
       return right.id - left.id;
-    })
-    .slice(0, args.limit);
+    });
+  const incompleteTokens = recentGeckoTokens.filter(needsBatchEnrich);
+  const selectedTokens = incompleteTokens.slice(0, args.limit);
 
   return {
     mode: "recent_batch",
     selectedTokens,
     sinceCutoff: sinceCutoff.toISOString(),
+    selectedIncompleteCount: selectedTokens.length,
+    skippedCompleteCount: recentGeckoTokens.length - incompleteTokens.length,
   };
 }
 
@@ -685,6 +702,8 @@ type BatchExecutionResult = {
   mode: "single" | "recent_batch";
   sinceCutoff: string | null;
   selectedTokens: SelectedToken[];
+  selectedIncompleteCount: number;
+  skippedCompleteCount: number;
   items: ProcessedItem[];
   rateLimited: boolean;
   rateLimitedCount: number;
@@ -722,6 +741,8 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
     mode: selection.mode,
     sinceCutoff: selection.sinceCutoff,
     selectedTokens: selection.selectedTokens,
+    selectedIncompleteCount: selection.selectedIncompleteCount,
+    skippedCompleteCount: selection.skippedCompleteCount,
     items,
     rateLimited,
     rateLimitedCount,
@@ -735,6 +756,8 @@ function logBatchSummary(output: Output): void {
     [
       `${LOG_PREFIX} mode=${output.mode}`,
       `selected=${output.summary.selectedCount}`,
+      `selectedIncomplete=${output.summary.selectedIncompleteCount}`,
+      `skippedComplete=${output.summary.skippedCompleteCount}`,
       `ok=${output.summary.okCount}`,
       `error=${output.summary.errorCount}`,
       `enrichWritten=${output.summary.enrichWriteCount}`,
@@ -765,9 +788,13 @@ async function main(): Promise<void> {
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
       selectedCount: execution.selectedTokens.length,
+      selectedIncompleteCount: execution.selectedIncompleteCount,
+      skippedCompleteCount: execution.skippedCompleteCount,
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
+      selectedIncompleteCount: execution.selectedIncompleteCount,
+      skippedCompleteCount: execution.skippedCompleteCount,
       okCount: execution.items.filter((item) => item.status === "ok").length,
       errorCount: execution.items.filter((item) => item.status === "error").length,
       enrichWriteCount: execution.items.filter((item) => item.writeSummary.enrichUpdated).length,
