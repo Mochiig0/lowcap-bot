@@ -210,10 +210,12 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - `scripts/run-geckoterminal-detect-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm detect:geckoterminal:new-pools -- --watch --write`
 - `scripts/run-geckoterminal-metric-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm metric:snapshot:geckoterminal -- --watch --write`
+- `scripts/run-geckoterminal-enrich-rescore-notify.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and loops the one-shot `pnpm token:enrich-rescore:geckoterminal -- --write --notify` batch with env-driven interval, limit, and lookback
 - `scripts/check-systemd-user.sh` is the repo-local preflight for deciding whether to use the sample `systemd --user` unit or fall back to `tmux` / foreground execution
 - `ops/systemd/lowcap-bot-dexscreener-watch.service` is a repo-local sample `systemd --user` unit that points at the run script; install and enablement are still manual
 - `ops/systemd/lowcap-bot-geckoterminal-detect-watch.service` is a repo-local sample `systemd --user` unit for the GeckoTerminal detect watch run script; install and enablement are still manual
 - `ops/systemd/lowcap-bot-geckoterminal-metric-watch.service` is a repo-local sample `systemd --user` unit for the GeckoTerminal metric snapshot watch run script; install and enablement are still manual
+- `ops/systemd/lowcap-bot-geckoterminal-enrich-rescore-notify.service` is a repo-local sample `systemd --user` unit for the GeckoTerminal enrich-rescore-notify runner; install and enablement are still manual
 - `token:enrich` updates current token fields without rescoring and keeps unspecified fields unchanged
 - `token:enrich --source ...` may update a `mint_only` token without rebuilding `normalizedText` or changing `metadataStatus`
 - `token:rescore` recomputes current hard reject and score fields
@@ -346,6 +348,12 @@ GeckoTerminal metric watch runner:
 bash ./scripts/run-geckoterminal-metric-watch.sh
 ```
 
+GeckoTerminal enrich-rescore-notify runner:
+
+```bash
+bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh
+```
+
 GeckoTerminal detect watch sample user service:
 
 ```bash
@@ -362,6 +370,14 @@ systemctl --user daemon-reload
 systemctl --user enable --now lowcap-bot-geckoterminal-metric-watch.service
 ```
 
+GeckoTerminal enrich-rescore-notify sample user service:
+
+```bash
+install -D -m 644 ./ops/systemd/lowcap-bot-geckoterminal-enrich-rescore-notify.service ~/.config/systemd/user/lowcap-bot-geckoterminal-enrich-rescore-notify.service
+systemctl --user daemon-reload
+systemctl --user enable --now lowcap-bot-geckoterminal-enrich-rescore-notify.service
+```
+
 GeckoTerminal detect watch tmux fallback:
 
 ```bash
@@ -372,6 +388,12 @@ GeckoTerminal metric watch tmux fallback:
 
 ```bash
 tmux new -s lowcap-bot-gecko-metric 'cd /home/mochi/projects/lowcap-bot && bash ./scripts/run-geckoterminal-metric-watch.sh'
+```
+
+GeckoTerminal enrich-rescore-notify tmux fallback:
+
+```bash
+tmux new -s lowcap-bot-gecko-enrich 'cd /home/mochi/projects/lowcap-bot && bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh'
 ```
 
 Import with metrics:

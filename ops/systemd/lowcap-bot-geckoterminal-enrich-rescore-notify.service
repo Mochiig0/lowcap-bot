@@ -1,0 +1,18 @@
+[Unit]
+Description=lowcap-bot GeckoTerminal enrich-rescore notify runner
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mochi/projects/lowcap-bot
+Environment=DATABASE_URL=file:/home/mochi/projects/lowcap-bot/prisma/dev.db
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS=300
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_LIMIT=20
+Environment=LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES=180
+ExecStart=/home/mochi/projects/lowcap-bot/scripts/run-geckoterminal-enrich-rescore-notify.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
