@@ -11,6 +11,7 @@ export type DetectorCandidate =
       detectedAt: string;
       payload: {
         mintAddress: string;
+        [key: string]: unknown;
       };
     }
   | {
