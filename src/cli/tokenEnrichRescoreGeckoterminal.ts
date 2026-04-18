@@ -21,6 +21,9 @@ const GECKOTERMINAL_TOKEN_API_URL =
   `https://api.geckoterminal.com/api/v2/networks/${GECKOTERMINAL_NETWORK}/tokens`;
 const DEFAULT_LIMIT = 20;
 const DEFAULT_SINCE_MINUTES = 180;
+const LOG_PREFIX = "[token:enrich-rescore:geckoterminal]";
+
+let injectedSnapshotErrorConsumed = false;
 
 type JsonObject = Record<string, unknown>;
 
@@ -145,6 +148,10 @@ type Output = {
     notifyCandidateCount: number;
     notifyWouldSendCount: number;
     notifySentCount: number;
+    rateLimited: boolean;
+    rateLimitedCount: number;
+    abortedDueToRateLimit: boolean;
+    skippedAfterRateLimit: number;
   };
   items: ProcessedItem[];
 };
@@ -435,6 +442,12 @@ async function selectTokens(args: Args): Promise<{
 }
 
 async function fetchTokenSnapshotRaw(mint: string): Promise<unknown> {
+  const injectedErrorMessage = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+  if (injectedErrorMessage && !injectedSnapshotErrorConsumed) {
+    injectedSnapshotErrorConsumed = true;
+    throw new Error(injectedErrorMessage);
+  }
+
   const fixtureFilePath = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
   if (fixtureFilePath) {
     const content = await readFile(fixtureFilePath, "utf-8");
@@ -486,6 +499,14 @@ function buildCurrentEnrichPreview(token: SelectedToken): TokenEnrichPreview {
 
 function isNotifyEligibleFromScore(scoreRank: string, hardRejected: boolean): boolean {
   return scoreRank === "S" && !hardRejected;
+}
+
+function isRateLimitErrorMessage(message: string | undefined): boolean {
+  if (typeof message !== "string") {
+    return false;
+  }
+
+  return message.includes("429 Too Many Requests");
 }
 
 function buildTokenOutput(token: SelectedToken): ProcessedItem["token"] {
@@ -660,17 +681,80 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
   }
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+type BatchExecutionResult = {
+  mode: "single" | "recent_batch";
+  sinceCutoff: string | null;
+  selectedTokens: SelectedToken[];
+  items: ProcessedItem[];
+  rateLimited: boolean;
+  rateLimitedCount: number;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
+};
+
+async function executeBatch(args: Args): Promise<BatchExecutionResult> {
   const selection = await selectTokens(args);
   const items: ProcessedItem[] = [];
+  let rateLimited = false;
+  let rateLimitedCount = 0;
+  let abortedDueToRateLimit = false;
+  let skippedAfterRateLimit = 0;
 
-  for (const token of selection.selectedTokens) {
-    items.push(await processToken(token, args));
+  for (let index = 0; index < selection.selectedTokens.length; index += 1) {
+    const token = selection.selectedTokens[index];
+    const item = await processToken(token, args);
+    items.push(item);
+
+    if (
+      selection.mode === "recent_batch" &&
+      item.status === "error" &&
+      isRateLimitErrorMessage(item.error)
+    ) {
+      rateLimited = true;
+      rateLimitedCount += 1;
+      abortedDueToRateLimit = true;
+      skippedAfterRateLimit = selection.selectedTokens.length - index - 1;
+      break;
+    }
   }
 
-  const output: Output = {
+  return {
     mode: selection.mode,
+    sinceCutoff: selection.sinceCutoff,
+    selectedTokens: selection.selectedTokens,
+    items,
+    rateLimited,
+    rateLimitedCount,
+    abortedDueToRateLimit,
+    skippedAfterRateLimit,
+  };
+}
+
+function logBatchSummary(output: Output): void {
+  console.error(
+    [
+      `${LOG_PREFIX} mode=${output.mode}`,
+      `selected=${output.summary.selectedCount}`,
+      `ok=${output.summary.okCount}`,
+      `error=${output.summary.errorCount}`,
+      `enrichWritten=${output.summary.enrichWriteCount}`,
+      `rescoreWritten=${output.summary.rescoreWriteCount}`,
+      `notifyWouldSend=${output.summary.notifyWouldSendCount}`,
+      `notifySent=${output.summary.notifySentCount}`,
+      `rateLimited=${output.summary.rateLimited}`,
+      `rateLimitedCount=${output.summary.rateLimitedCount}`,
+      `abortedDueToRateLimit=${output.summary.abortedDueToRateLimit}`,
+      `skippedAfterRateLimit=${output.summary.skippedAfterRateLimit}`,
+    ].join(" "),
+  );
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2));
+  const execution = await executeBatch(args);
+
+  const output: Output = {
+    mode: execution.mode,
     dryRun: !args.write,
     writeEnabled: args.write,
     notifyEnabled: args.notify,
@@ -679,22 +763,27 @@ async function main(): Promise<void> {
       mint: args.mint ?? null,
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
-      sinceCutoff: selection.sinceCutoff,
-      selectedCount: selection.selectedTokens.length,
+      sinceCutoff: execution.sinceCutoff,
+      selectedCount: execution.selectedTokens.length,
     },
     summary: {
-      selectedCount: selection.selectedTokens.length,
-      okCount: items.filter((item) => item.status === "ok").length,
-      errorCount: items.filter((item) => item.status === "error").length,
-      enrichWriteCount: items.filter((item) => item.writeSummary.enrichUpdated).length,
-      rescoreWriteCount: items.filter((item) => item.writeSummary.rescoreUpdated).length,
-      notifyCandidateCount: items.filter((item) => item.notifyCandidate).length,
-      notifyWouldSendCount: items.filter((item) => item.notifyWouldSend).length,
-      notifySentCount: items.filter((item) => item.notifySent).length,
+      selectedCount: execution.selectedTokens.length,
+      okCount: execution.items.filter((item) => item.status === "ok").length,
+      errorCount: execution.items.filter((item) => item.status === "error").length,
+      enrichWriteCount: execution.items.filter((item) => item.writeSummary.enrichUpdated).length,
+      rescoreWriteCount: execution.items.filter((item) => item.writeSummary.rescoreUpdated).length,
+      notifyCandidateCount: execution.items.filter((item) => item.notifyCandidate).length,
+      notifyWouldSendCount: execution.items.filter((item) => item.notifyWouldSend).length,
+      notifySentCount: execution.items.filter((item) => item.notifySent).length,
+      rateLimited: execution.rateLimited,
+      rateLimitedCount: execution.rateLimitedCount,
+      abortedDueToRateLimit: execution.abortedDueToRateLimit,
+      skippedAfterRateLimit: execution.skippedAfterRateLimit,
     },
-    items,
+    items: execution.items,
   };
 
+  logBatchSummary(output);
   console.log(JSON.stringify(output, null, 2));
 }
 

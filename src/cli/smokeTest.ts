@@ -34,6 +34,7 @@ type SmokeContext = {
   metricSnapshotMint: string;
   metricSnapshotGapMint: string;
   metricSnapshotRateLimitMints: [string, string];
+  geckoEnrichRescoreRateLimitMints: [string, string];
   geckoEnrichRescoreMint: string;
   metricId: number | null;
   devWallet: string;
@@ -238,6 +239,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
           ...context.metricSnapshotRateLimitMints,
+          ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
         ],
       },
@@ -278,6 +280,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
           ...context.metricSnapshotRateLimitMints,
+          ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
         ],
       },
@@ -342,6 +345,10 @@ async function run(): Promise<void> {
     metricSnapshotRateLimitMints: [
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_1`,
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_2`,
+    ],
+    geckoEnrichRescoreRateLimitMints: [
+      `${smokeId}_GECKO_ENRICH_RATE_LIMIT_1`,
+      `${smokeId}_GECKO_ENRICH_RATE_LIMIT_2`,
     ],
     geckoEnrichRescoreMint: `${smokeId}_GECKO_ENRICH_RESCORE`,
     metricId: null,
@@ -2805,6 +2812,204 @@ async function run(): Promise<void> {
           delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
         } else {
           process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+      }
+    });
+
+    await runStep("geckoterminal enrich rescore rate limit short circuit", async () => {
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+      const previousInjectedSnapshotError =
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+
+      for (const mint of context.geckoEnrichRescoreRateLimitMints) {
+        await runCliJson<{
+          mint: string;
+          created: boolean;
+        }>(
+          `geckoterminal enrich rescore rate limit import ${mint}`,
+          "src/cli/importMint.ts",
+          [
+            "--mint",
+            mint,
+            "--source",
+            "geckoterminal.new_pools",
+          ],
+          context.smokeId,
+        );
+      }
+
+      await writeFile(
+        context.geckoEnrichRescoreFilePath,
+        `${JSON.stringify(
+          {
+            data: {
+              id: `solana_${context.geckoEnrichRescoreRateLimitMints[0]}`,
+              type: "token",
+              attributes: {
+                address: context.geckoEnrichRescoreRateLimitMints[0],
+                name: "door door",
+                symbol: "DRDR",
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      try {
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoEnrichRescoreFilePath;
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE =
+          "GeckoTerminal token snapshot request failed: 429 Too Many Requests";
+
+        const rateLimitedBatch = await runCliJsonWithStderr<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          notifyEnabled: boolean;
+          selection: {
+            selectedCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+            enrichWriteCount: number;
+            rescoreWriteCount: number;
+            notifyWouldSendCount: number;
+            notifySentCount: number;
+            rateLimited: boolean;
+            rateLimitedCount: number;
+            abortedDueToRateLimit: boolean;
+            skippedAfterRateLimit: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+            error?: string;
+          }>;
+        }>(
+          "geckoterminal enrich rescore rate limit short circuit",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--limit",
+            "2",
+            "--sinceMinutes",
+            "5",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          rateLimitedBatch.parsed.mode !== "recent_batch" ||
+          rateLimitedBatch.parsed.dryRun !== true ||
+          rateLimitedBatch.parsed.writeEnabled !== false ||
+          rateLimitedBatch.parsed.notifyEnabled !== false ||
+          rateLimitedBatch.parsed.selection.selectedCount !== 2 ||
+          rateLimitedBatch.parsed.summary.selectedCount !== 2 ||
+          rateLimitedBatch.parsed.summary.okCount !== 0 ||
+          rateLimitedBatch.parsed.summary.errorCount !== 1 ||
+          rateLimitedBatch.parsed.summary.enrichWriteCount !== 0 ||
+          rateLimitedBatch.parsed.summary.rescoreWriteCount !== 0 ||
+          rateLimitedBatch.parsed.summary.notifyWouldSendCount !== 0 ||
+          rateLimitedBatch.parsed.summary.notifySentCount !== 0 ||
+          rateLimitedBatch.parsed.summary.rateLimited !== true ||
+          rateLimitedBatch.parsed.summary.rateLimitedCount !== 1 ||
+          rateLimitedBatch.parsed.summary.abortedDueToRateLimit !== true ||
+          rateLimitedBatch.parsed.summary.skippedAfterRateLimit !== 1 ||
+          rateLimitedBatch.parsed.items.length !== 1 ||
+          rateLimitedBatch.parsed.items[0]?.status !== "error" ||
+          !rateLimitedBatch.parsed.items[0]?.error?.includes("429 Too Many Requests")
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore rate limit short circuit returned unexpected summary",
+          );
+        }
+
+        if (
+          !rateLimitedBatch.stderr.includes("rateLimited=true") ||
+          !rateLimitedBatch.stderr.includes("skippedAfterRateLimit=1")
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore rate limit short circuit did not log expected stderr summary",
+          );
+        }
+
+        delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+
+        const continuedBatch = await runCliJsonWithStderr<{
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+            enrichWriteCount: number;
+            rescoreWriteCount: number;
+            rateLimited: boolean;
+            rateLimitedCount: number;
+            abortedDueToRateLimit: boolean;
+            skippedAfterRateLimit: number;
+          };
+          items: Array<{
+            status: string;
+            fetchedSnapshot?: {
+              symbol: string | null;
+            };
+          }>;
+        }>(
+          "geckoterminal enrich rescore after rate limit",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--limit",
+            "2",
+            "--sinceMinutes",
+            "5",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          continuedBatch.parsed.summary.selectedCount !== 2 ||
+          continuedBatch.parsed.summary.okCount !== 2 ||
+          continuedBatch.parsed.summary.errorCount !== 0 ||
+          continuedBatch.parsed.summary.enrichWriteCount !== 0 ||
+          continuedBatch.parsed.summary.rescoreWriteCount !== 0 ||
+          continuedBatch.parsed.summary.rateLimited !== false ||
+          continuedBatch.parsed.summary.rateLimitedCount !== 0 ||
+          continuedBatch.parsed.summary.abortedDueToRateLimit !== false ||
+          continuedBatch.parsed.summary.skippedAfterRateLimit !== 0 ||
+          continuedBatch.parsed.items.length !== 2 ||
+          continuedBatch.parsed.items[0]?.status !== "ok" ||
+          continuedBatch.parsed.items[1]?.status !== "ok" ||
+          continuedBatch.parsed.items[0]?.fetchedSnapshot?.symbol !== "DRDR" ||
+          continuedBatch.parsed.items[1]?.fetchedSnapshot?.symbol !== "DRDR"
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore after rate limit returned unexpected summary",
+          );
+        }
+
+        if (
+          !continuedBatch.stderr.includes("rateLimited=false") ||
+          !continuedBatch.stderr.includes("skippedAfterRateLimit=0")
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore after rate limit did not log expected stderr summary",
+          );
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+
+        if (previousInjectedSnapshotError === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE = previousInjectedSnapshotError;
         }
       }
     });
