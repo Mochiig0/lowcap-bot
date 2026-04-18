@@ -24,7 +24,7 @@ const lines = [
   '  Example: pnpm detect:dexscreener:token-profiles -- --file ./fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json',
   "",
   "pnpm detect:geckoterminal:new-pools [--file <PATH>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
-  "  Dry-run by default; with --watch --write, repeat GeckoTerminal new_pools cycles, persist a simple checkpoint cursor, and continue after cycle-level errors.",
+  "  Dry-run by default; with --watch --write, repeat GeckoTerminal new_pools cycles, persist a simple checkpoint cursor, retry one fetch-only 429 once after a short backoff, and continue after cycle-level errors.",
   "  Example: pnpm detect:geckoterminal:new-pools -- --file ./fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json --watch --write --maxIterations 2 --checkpointFile /tmp/gecko-checkpoint.json",
   "",
   "pnpm compare:geckoterminal:dexscreener [--timeoutSeconds <N>] [--intervalSeconds <N>]",

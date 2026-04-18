@@ -25,6 +25,7 @@ type SmokeContext = {
   detectRunnerMint: string;
   geckoterminalDetectRunnerMint: string;
   geckoterminalDetectRunnerCheckpointMint: string;
+  geckoterminalDetectRunnerRetryMint: string;
   detectRunnerCheckpointMint: string;
   detectRunnerIdleLogMint: string;
   mintHappyPathMint: string;
@@ -49,6 +50,7 @@ type SmokeContext = {
   geckoterminalDetectRunnerFilePath: string;
   geckoterminalDetectRunnerCheckpointFilePath: string;
   geckoterminalDetectRunnerCheckpointPath: string;
+  geckoterminalDetectRunnerRetryCheckpointPath: string;
   geckoterminalDetectRunnerInvalidFilePath: string;
   geckoterminalDetectRunnerInvalidCheckpointPath: string;
   detectRunnerCheckpointFilePath: string;
@@ -230,6 +232,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.detectRunnerMint,
           context.geckoterminalDetectRunnerMint,
           context.geckoterminalDetectRunnerCheckpointMint,
+          context.geckoterminalDetectRunnerRetryMint,
           context.detectRunnerCheckpointMint,
           context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
@@ -271,6 +274,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.mintBatchRerunMints,
           context.mintSourceEventMint,
           context.detectRunnerMint,
+          context.geckoterminalDetectRunnerMint,
+          context.geckoterminalDetectRunnerRetryMint,
           context.detectRunnerCheckpointMint,
           context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
@@ -301,6 +306,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerFilePath, { force: true });
   await rm(context.detectRunnerCheckpointFilePath, { force: true });
   await rm(context.detectRunnerCheckpointPath, { force: true });
+  await rm(context.geckoterminalDetectRunnerRetryCheckpointPath, { force: true });
   await rm(context.detectRunnerIdleLogFilePath, { force: true });
   await rm(context.detectRunnerIdleLogCheckpointPath, { force: true });
   await rm(context.detectRunnerInvalidFilePath, { force: true });
@@ -334,6 +340,7 @@ async function run(): Promise<void> {
     detectRunnerMint: `H${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "2").padEnd(43, "3").slice(0, 43)}`,
     geckoterminalDetectRunnerMint: `L${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "5").padEnd(43, "6").slice(0, 43)}`,
     geckoterminalDetectRunnerCheckpointMint: `M${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "6").padEnd(43, "7").slice(0, 43)}`,
+    geckoterminalDetectRunnerRetryMint: `N${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "7").padEnd(43, "8").slice(0, 43)}`,
     detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
     detectRunnerIdleLogMint: `K${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "4").padEnd(43, "5").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
@@ -364,6 +371,7 @@ async function run(): Promise<void> {
     geckoterminalDetectRunnerFilePath: `/tmp/${smokeId}-detect-geckoterminal-file.json`,
     geckoterminalDetectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint-file.json`,
     geckoterminalDetectRunnerCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint.json`,
+    geckoterminalDetectRunnerRetryCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-retry-checkpoint.json`,
     geckoterminalDetectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-geckoterminal-invalid-file.json`,
     geckoterminalDetectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-invalid-checkpoint.json`,
     detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
@@ -1918,6 +1926,187 @@ async function run(): Promise<void> {
           "9sgXkt6Y9vVNFi9cvJ9wCcwJDhjF29VAzyhnvWkjeABC"
       ) {
         throw new Error("detect geckoterminal checkpoint file did not persist the expected cursor");
+      }
+
+      const previousGeckoApiUrl = process.env.GECKOTERMINAL_NEW_POOLS_API_URL;
+      const previousGeckoFetchError =
+        process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE;
+      const retryPayload = {
+        data: [
+          {
+            id: "solana_retry_pool",
+            type: "pool",
+            attributes: {
+              address: "retryPoolAddress11111111111111111111111111111111",
+              name: "GECKORETRY / SOL",
+              pool_created_at: "2026-04-18T03:35:54Z",
+            },
+            relationships: {
+              base_token: {
+                data: {
+                  id: `solana_${context.geckoterminalDetectRunnerRetryMint}`,
+                  type: "token",
+                },
+              },
+              quote_token: {
+                data: {
+                  id: "solana_So11111111111111111111111111111111111111112",
+                  type: "token",
+                },
+              },
+              dex: {
+                data: {
+                  id: "pumpswap",
+                  type: "dex",
+                },
+              },
+            },
+          },
+        ],
+        included: [
+          {
+            id: `solana_${context.geckoterminalDetectRunnerRetryMint}`,
+            type: "token",
+            attributes: {
+              address: context.geckoterminalDetectRunnerRetryMint,
+              symbol: "GECKORT",
+              decimals: 6,
+            },
+          },
+          {
+            id: "solana_So11111111111111111111111111111111111111112",
+            type: "token",
+            attributes: {
+              address: "So11111111111111111111111111111111111111112",
+              symbol: "SOL",
+              decimals: 9,
+            },
+          },
+          {
+            id: "pumpswap",
+            type: "dex",
+            attributes: {
+              name: "PumpSwap",
+            },
+          },
+        ],
+      };
+
+      try {
+        process.env.GECKOTERMINAL_NEW_POOLS_API_URL =
+          `data:application/json,${encodeURIComponent(JSON.stringify(retryPayload))}`;
+        process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE =
+          "GeckoTerminal request failed: 429 Too Many Requests";
+
+        const watchedRetry = await runCliJsonWithStderr<{
+          checkpointEnabled: boolean;
+          checkpointBefore?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointAfter?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointUpdated?: boolean;
+          failedCount: number;
+          processedCount: number;
+          acceptedCount: number;
+          importedCount: number;
+          existingCount: number;
+          rateLimitRetryCount: number;
+          rateLimitRetrySuccessCount: number;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            rateLimitRetried: boolean;
+            rateLimitRetrySucceeded: boolean;
+            processedCount: number;
+            importedCount: number;
+            checkpointAfter?: {
+              poolCreatedAt: string;
+              poolAddress: string;
+            };
+          }>;
+        }>(
+          "detect geckoterminal watch retry on rate limit",
+          "src/cli/detectGeckoterminalNewPools.ts",
+          [
+            "--write",
+            "--watch",
+            "--maxIterations",
+            "1",
+            "--checkpointFile",
+            context.geckoterminalDetectRunnerRetryCheckpointPath,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchedRetry.parsed.checkpointEnabled !== true ||
+          watchedRetry.parsed.checkpointBefore !== undefined ||
+          watchedRetry.parsed.checkpointAfter?.poolCreatedAt !== "2026-04-18T03:35:54.000Z" ||
+          watchedRetry.parsed.checkpointAfter?.poolAddress !==
+            "retryPoolAddress11111111111111111111111111111111" ||
+          watchedRetry.parsed.checkpointUpdated !== true ||
+          watchedRetry.parsed.failedCount !== 0 ||
+          watchedRetry.parsed.processedCount !== 1 ||
+          watchedRetry.parsed.acceptedCount !== 1 ||
+          watchedRetry.parsed.importedCount !== 1 ||
+          watchedRetry.parsed.existingCount !== 0 ||
+          watchedRetry.parsed.rateLimitRetryCount !== 1 ||
+          watchedRetry.parsed.rateLimitRetrySuccessCount !== 1 ||
+          watchedRetry.parsed.cycles.length !== 1 ||
+          watchedRetry.parsed.cycles[0]?.failed !== false ||
+          watchedRetry.parsed.cycles[0]?.rateLimitRetried !== true ||
+          watchedRetry.parsed.cycles[0]?.rateLimitRetrySucceeded !== true ||
+          watchedRetry.parsed.cycles[0]?.processedCount !== 1 ||
+          watchedRetry.parsed.cycles[0]?.importedCount !== 1 ||
+          watchedRetry.parsed.cycles[0]?.checkpointAfter?.poolCreatedAt !==
+            "2026-04-18T03:35:54.000Z"
+        ) {
+          throw new Error("detect geckoterminal watch retry returned unexpected summary");
+        }
+
+        if (
+          !watchedRetry.stderr.includes("rateLimitRetried=true") ||
+          !watchedRetry.stderr.includes("rateLimitRetrySucceeded=true")
+        ) {
+          throw new Error("detect geckoterminal watch retry did not log expected stderr summary");
+        }
+
+        const retryCheckpointRaw = await readFile(
+          context.geckoterminalDetectRunnerRetryCheckpointPath,
+          "utf-8",
+        );
+        const retryCheckpointParsed = JSON.parse(retryCheckpointRaw) as {
+          source?: string;
+          cursor?: {
+            poolCreatedAt?: string;
+            poolAddress?: string;
+          };
+        };
+
+        if (
+          retryCheckpointParsed.source !== "geckoterminal.new_pools" ||
+          retryCheckpointParsed.cursor?.poolCreatedAt !== "2026-04-18T03:35:54.000Z" ||
+          retryCheckpointParsed.cursor?.poolAddress !==
+            "retryPoolAddress11111111111111111111111111111111"
+        ) {
+          throw new Error("detect geckoterminal retry checkpoint file did not persist the expected cursor");
+        }
+      } finally {
+        if (previousGeckoApiUrl === undefined) {
+          delete process.env.GECKOTERMINAL_NEW_POOLS_API_URL;
+        } else {
+          process.env.GECKOTERMINAL_NEW_POOLS_API_URL = previousGeckoApiUrl;
+        }
+
+        if (previousGeckoFetchError === undefined) {
+          delete process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE;
+        } else {
+          process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE = previousGeckoFetchError;
+        }
       }
 
       await writeFile(

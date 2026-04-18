@@ -25,6 +25,9 @@ const API_URL =
   "https://api.geckoterminal.com/api/v2/networks/solana/new_pools?page=1&include=base_token,quote_token,dex";
 const DEFAULT_CHECKPOINT_FILE = "data/checkpoints/geckoterminal-new-pools.json";
 const LOG_PREFIX = "[detect:geckoterminal:new-pools]";
+const RATE_LIMIT_RETRY_DELAY_MS = 3_000;
+
+let injectedFetchErrorConsumed = false;
 
 type DetectGeckoterminalNewPoolsArgs = {
   file?: string;
@@ -89,6 +92,8 @@ type DetectCycleResult = LoadedInput & {
   cycle: number;
   failed: boolean;
   errorMessage?: string;
+  rateLimitRetried: boolean;
+  rateLimitRetrySucceeded: boolean;
   processedCount: number;
   acceptedCount: number;
   rejectedCount: number;
@@ -313,6 +318,14 @@ function formatCursorForLog(cursor?: CheckpointCursorView): string {
   return cursor ? `${cursor.poolCreatedAt}|${cursor.poolAddress}` : "none";
 }
 
+function getApiUrl(): string {
+  return process.env.GECKOTERMINAL_NEW_POOLS_API_URL ?? API_URL;
+}
+
+function isRateLimitErrorMessage(message: string | undefined): boolean {
+  return typeof message === "string" && message.includes("429 Too Many Requests");
+}
+
 function isCheckpointEnabled(args: DetectGeckoterminalNewPoolsArgs): boolean {
   return args.watch && args.write;
 }
@@ -322,7 +335,13 @@ function resolveCheckpointFilePath(args: DetectGeckoterminalNewPoolsArgs): strin
 }
 
 async function fetchLiveRaw(): Promise<unknown> {
-  const response = await fetch(API_URL, {
+  const injectedErrorMessage = process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE;
+  if (injectedErrorMessage && !injectedFetchErrorConsumed) {
+    injectedFetchErrorConsumed = true;
+    throw new Error(injectedErrorMessage);
+  }
+
+  const response = await fetch(getApiUrl(), {
     headers: {
       accept: "application/json",
     },
@@ -442,7 +461,7 @@ async function loadInput(
   return {
     mode,
     ...(args.file ? { file: args.file } : {}),
-    ...(!args.file ? { apiUrl: API_URL } : {}),
+    ...(!args.file ? { apiUrl: getApiUrl() } : {}),
     inputCount: page.data.length,
     entries: buildCandidateEntries(page, detectedAt, `cycle ${cycle}`),
   };
@@ -582,6 +601,8 @@ async function runCycle(
     ...input,
     cycle,
     failed: false,
+    rateLimitRetried: false,
+    rateLimitRetrySucceeded: false,
     processedCount: items.length,
     acceptedCount,
     rejectedCount: items.length - acceptedCount,
@@ -608,12 +629,14 @@ function createFailedCycleResult(
   return {
     mode: args.file ? "file" : "fetch",
     ...(args.file ? { file: args.file } : {}),
-    ...(!args.file ? { apiUrl: API_URL } : {}),
+    ...(!args.file ? { apiUrl: getApiUrl() } : {}),
     inputCount: 0,
     entries: [],
     cycle,
     failed: true,
     errorMessage: formatErrorMessage(error),
+    rateLimitRetried: false,
+    rateLimitRetrySucceeded: false,
     processedCount: 0,
     acceptedCount: 0,
     rejectedCount: 0,
@@ -632,6 +655,8 @@ function logCycleSummary(result: DetectCycleResult): void {
       `${LOG_PREFIX} cycle=${result.cycle}`,
       `failed=${result.failed}`,
       `processed=${result.processedCount}`,
+      `rateLimitRetried=${result.rateLimitRetried}`,
+      `rateLimitRetrySucceeded=${result.rateLimitRetrySucceeded}`,
       `accepted=${result.acceptedCount}`,
       `rejected=${result.rejectedCount}`,
       `imported=${result.importedCount}`,
@@ -669,6 +694,8 @@ function buildWatchOutput(
             JSON.stringify(finalCheckpointCursor ?? null),
         }
       : {}),
+    rateLimitRetryCount: cycles.filter((cycle) => cycle.rateLimitRetried).length,
+    rateLimitRetrySuccessCount: cycles.filter((cycle) => cycle.rateLimitRetrySucceeded).length,
     mode: firstCycle?.mode ?? (args.file ? "file" : "fetch"),
     ...(firstCycle?.file ? { file: firstCycle.file } : {}),
     ...(firstCycle?.apiUrl ? { apiUrl: firstCycle.apiUrl } : {}),
@@ -689,6 +716,8 @@ function buildWatchOutput(
       cycle: cycle.cycle,
       failed: cycle.failed,
       errorMessage: cycle.errorMessage,
+      rateLimitRetried: cycle.rateLimitRetried,
+      rateLimitRetrySucceeded: cycle.rateLimitRetrySucceeded,
       inputCount: cycle.inputCount,
       processedCount: cycle.processedCount,
       acceptedCount: cycle.acceptedCount,
@@ -744,7 +773,45 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
         await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
       }
     } catch (error) {
-      result = createFailedCycleResult(args, cycle, checkpointCursor, error);
+      if (!args.file && isRateLimitErrorMessage(formatErrorMessage(error))) {
+        await sleep(RATE_LIMIT_RETRY_DELAY_MS);
+
+        try {
+          result = await runCycle(args, cycle, checkpointCursor);
+          result.rateLimitRetried = true;
+          result.rateLimitRetrySucceeded = true;
+
+          if (
+            checkpointEnabled &&
+            checkpointFilePath &&
+            result.checkpointAfter &&
+            (
+              checkpointCursor === undefined ||
+              compareCursor(
+                normalizeCursorValue(
+                  result.checkpointAfter.poolCreatedAt,
+                  result.checkpointAfter.poolAddress,
+                  checkpointFilePath,
+                ),
+                checkpointCursor,
+              ) > 0
+            )
+          ) {
+            checkpointCursor = normalizeCursorValue(
+              result.checkpointAfter.poolCreatedAt,
+              result.checkpointAfter.poolAddress,
+              checkpointFilePath,
+            );
+            await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
+          }
+        } catch (retryError) {
+          result = createFailedCycleResult(args, cycle, checkpointCursor, retryError);
+          result.rateLimitRetried = true;
+          result.rateLimitRetrySucceeded = false;
+        }
+      } else {
+        result = createFailedCycleResult(args, cycle, checkpointCursor, error);
+      }
     }
 
     if (shouldCollectCycles) {
