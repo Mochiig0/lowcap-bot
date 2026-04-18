@@ -26,6 +26,7 @@ type SmokeContext = {
   geckoterminalDetectRunnerMint: string;
   geckoterminalDetectRunnerCheckpointMint: string;
   geckoterminalDetectRunnerRetryMint: string;
+  geckoterminalDetectRunnerCooldownMint: string;
   detectRunnerCheckpointMint: string;
   detectRunnerIdleLogMint: string;
   mintHappyPathMint: string;
@@ -52,6 +53,7 @@ type SmokeContext = {
   geckoterminalDetectRunnerCheckpointFilePath: string;
   geckoterminalDetectRunnerCheckpointPath: string;
   geckoterminalDetectRunnerRetryCheckpointPath: string;
+  geckoterminalDetectRunnerCooldownCheckpointPath: string;
   geckoterminalDetectRunnerInvalidFilePath: string;
   geckoterminalDetectRunnerInvalidCheckpointPath: string;
   detectRunnerCheckpointFilePath: string;
@@ -234,6 +236,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.geckoterminalDetectRunnerMint,
           context.geckoterminalDetectRunnerCheckpointMint,
           context.geckoterminalDetectRunnerRetryMint,
+          context.geckoterminalDetectRunnerCooldownMint,
           context.detectRunnerCheckpointMint,
           context.detectRunnerIdleLogMint,
           context.mintHappyPathMint,
@@ -310,6 +313,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.detectRunnerCheckpointFilePath, { force: true });
   await rm(context.detectRunnerCheckpointPath, { force: true });
   await rm(context.geckoterminalDetectRunnerRetryCheckpointPath, { force: true });
+  await rm(context.geckoterminalDetectRunnerCooldownCheckpointPath, { force: true });
   await rm(context.detectRunnerIdleLogFilePath, { force: true });
   await rm(context.detectRunnerIdleLogCheckpointPath, { force: true });
   await rm(context.detectRunnerInvalidFilePath, { force: true });
@@ -344,6 +348,7 @@ async function run(): Promise<void> {
     geckoterminalDetectRunnerMint: `L${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "5").padEnd(43, "6").slice(0, 43)}`,
     geckoterminalDetectRunnerCheckpointMint: `M${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "6").padEnd(43, "7").slice(0, 43)}`,
     geckoterminalDetectRunnerRetryMint: `N${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "7").padEnd(43, "8").slice(0, 43)}`,
+    geckoterminalDetectRunnerCooldownMint: `P${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "8").padEnd(43, "9").slice(0, 43)}`,
     detectRunnerCheckpointMint: `J${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "3").padEnd(43, "4").slice(0, 43)}`,
     detectRunnerIdleLogMint: `K${smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "4").padEnd(43, "5").slice(0, 43)}`,
     mintHappyPathMint: `${smokeId}_HAPPY_PATH`,
@@ -376,6 +381,7 @@ async function run(): Promise<void> {
     geckoterminalDetectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint-file.json`,
     geckoterminalDetectRunnerCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-checkpoint.json`,
     geckoterminalDetectRunnerRetryCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-retry-checkpoint.json`,
+    geckoterminalDetectRunnerCooldownCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-cooldown-checkpoint.json`,
     geckoterminalDetectRunnerInvalidFilePath: `/tmp/${smokeId}-detect-geckoterminal-invalid-file.json`,
     geckoterminalDetectRunnerInvalidCheckpointPath: `/tmp/${smokeId}-detect-geckoterminal-invalid-checkpoint.json`,
     detectRunnerCheckpointFilePath: `/tmp/${smokeId}-detect-dexscreener-checkpoint-file.json`,
@@ -1935,6 +1941,10 @@ async function run(): Promise<void> {
       const previousGeckoApiUrl = process.env.GECKOTERMINAL_NEW_POOLS_API_URL;
       const previousGeckoFetchError =
         process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE;
+      const previousGeckoFetchErrorCount =
+        process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_COUNT;
+      const previousGeckoFailureCooldownSeconds =
+        process.env.LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS;
       const retryPayload = {
         data: [
           {
@@ -2099,6 +2109,193 @@ async function run(): Promise<void> {
         ) {
           throw new Error("detect geckoterminal retry checkpoint file did not persist the expected cursor");
         }
+
+        const cooldownPayload = {
+          data: [
+            {
+              id: "solana_cooldown_pool",
+              type: "pool",
+              attributes: {
+                address: "cooldownPoolAddress1111111111111111111111111111",
+                name: "GECKOCOOLDOWN / SOL",
+                pool_created_at: "2026-04-18T04:35:54Z",
+              },
+              relationships: {
+                base_token: {
+                  data: {
+                    id: `solana_${context.geckoterminalDetectRunnerCooldownMint}`,
+                    type: "token",
+                  },
+                },
+                quote_token: {
+                  data: {
+                    id: "solana_So11111111111111111111111111111111111111112",
+                    type: "token",
+                  },
+                },
+                dex: {
+                  data: {
+                    id: "pumpswap",
+                    type: "dex",
+                  },
+                },
+              },
+            },
+          ],
+          included: [
+            {
+              id: `solana_${context.geckoterminalDetectRunnerCooldownMint}`,
+              type: "token",
+              attributes: {
+                address: context.geckoterminalDetectRunnerCooldownMint,
+                symbol: "GECKOCD",
+                decimals: 6,
+              },
+            },
+            {
+              id: "solana_So11111111111111111111111111111111111111112",
+              type: "token",
+              attributes: {
+                address: "So11111111111111111111111111111111111111112",
+                symbol: "SOL",
+                decimals: 9,
+              },
+            },
+            {
+              id: "pumpswap",
+              type: "dex",
+              attributes: {
+                name: "PumpSwap",
+              },
+            },
+          ],
+        };
+
+        process.env.GECKOTERMINAL_NEW_POOLS_API_URL =
+          `data:application/json,${encodeURIComponent(JSON.stringify(cooldownPayload))}`;
+        process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE =
+          "GeckoTerminal request failed: 429 Too Many Requests";
+        process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_COUNT = "2";
+        process.env.LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS = "1";
+
+        const watchedCooldown = await runCliJsonWithStderr<{
+          checkpointEnabled: boolean;
+          checkpointBefore?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointAfter?: {
+            poolCreatedAt: string;
+            poolAddress: string;
+          };
+          checkpointUpdated?: boolean;
+          failedCount: number;
+          processedCount: number;
+          acceptedCount: number;
+          importedCount: number;
+          existingCount: number;
+          rateLimitRetryCount: number;
+          rateLimitRetrySuccessCount: number;
+          failureCooldownCount: number;
+          failureCooldownSeconds: number;
+          cycles: Array<{
+            cycle: number;
+            failed: boolean;
+            errorMessage?: string;
+            rateLimitRetried: boolean;
+            rateLimitRetrySucceeded: boolean;
+            failureCooldownApplied: boolean;
+            failureCooldownSeconds: number;
+            processedCount: number;
+            importedCount: number;
+            checkpointAfter?: {
+              poolCreatedAt: string;
+              poolAddress: string;
+            };
+          }>;
+        }>(
+          "detect geckoterminal watch failure cooldown",
+          "src/cli/detectGeckoterminalNewPools.ts",
+          [
+            "--write",
+            "--watch",
+            "--maxIterations",
+            "2",
+            "--checkpointFile",
+            context.geckoterminalDetectRunnerCooldownCheckpointPath,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          watchedCooldown.parsed.checkpointEnabled !== true ||
+          watchedCooldown.parsed.checkpointBefore !== undefined ||
+          watchedCooldown.parsed.checkpointAfter?.poolCreatedAt !== "2026-04-18T04:35:54.000Z" ||
+          watchedCooldown.parsed.checkpointAfter?.poolAddress !==
+            "cooldownPoolAddress1111111111111111111111111111" ||
+          watchedCooldown.parsed.checkpointUpdated !== true ||
+          watchedCooldown.parsed.failedCount !== 1 ||
+          watchedCooldown.parsed.processedCount !== 1 ||
+          watchedCooldown.parsed.acceptedCount !== 1 ||
+          watchedCooldown.parsed.importedCount !== 1 ||
+          watchedCooldown.parsed.existingCount !== 0 ||
+          watchedCooldown.parsed.rateLimitRetryCount !== 1 ||
+          watchedCooldown.parsed.rateLimitRetrySuccessCount !== 0 ||
+          watchedCooldown.parsed.failureCooldownCount !== 1 ||
+          watchedCooldown.parsed.failureCooldownSeconds !== 1 ||
+          watchedCooldown.parsed.cycles.length !== 2 ||
+          watchedCooldown.parsed.cycles[0]?.cycle !== 1 ||
+          watchedCooldown.parsed.cycles[1]?.cycle !== 2 ||
+          watchedCooldown.parsed.cycles[0]?.failed !== true ||
+          watchedCooldown.parsed.cycles[0]?.rateLimitRetried !== true ||
+          watchedCooldown.parsed.cycles[0]?.rateLimitRetrySucceeded !== false ||
+          watchedCooldown.parsed.cycles[0]?.failureCooldownApplied !== true ||
+          watchedCooldown.parsed.cycles[0]?.failureCooldownSeconds !== 1 ||
+          !watchedCooldown.parsed.cycles[0]?.errorMessage?.includes("429 Too Many Requests") ||
+          watchedCooldown.parsed.cycles[0]?.processedCount !== 0 ||
+          watchedCooldown.parsed.cycles[0]?.checkpointAfter !== undefined ||
+          watchedCooldown.parsed.cycles[1]?.failed !== false ||
+          watchedCooldown.parsed.cycles[1]?.failureCooldownApplied !== false ||
+          watchedCooldown.parsed.cycles[1]?.failureCooldownSeconds !== 0 ||
+          watchedCooldown.parsed.cycles[1]?.processedCount !== 1 ||
+          watchedCooldown.parsed.cycles[1]?.importedCount !== 1 ||
+          watchedCooldown.parsed.cycles[1]?.checkpointAfter?.poolCreatedAt !==
+            "2026-04-18T04:35:54.000Z"
+        ) {
+          throw new Error("detect geckoterminal watch failure cooldown returned unexpected summary");
+        }
+
+        if (
+          !watchedCooldown.stderr.includes("failureCooldownApplied=true") ||
+          !watchedCooldown.stderr.includes("failureCooldownSeconds=1")
+        ) {
+          throw new Error(
+            "detect geckoterminal watch failure cooldown did not log expected stderr summary",
+          );
+        }
+
+        const cooldownCheckpointRaw = await readFile(
+          context.geckoterminalDetectRunnerCooldownCheckpointPath,
+          "utf-8",
+        );
+        const cooldownCheckpointParsed = JSON.parse(cooldownCheckpointRaw) as {
+          source?: string;
+          cursor?: {
+            poolCreatedAt?: string;
+            poolAddress?: string;
+          };
+        };
+
+        if (
+          cooldownCheckpointParsed.source !== "geckoterminal.new_pools" ||
+          cooldownCheckpointParsed.cursor?.poolCreatedAt !== "2026-04-18T04:35:54.000Z" ||
+          cooldownCheckpointParsed.cursor?.poolAddress !==
+            "cooldownPoolAddress1111111111111111111111111111"
+        ) {
+          throw new Error(
+            "detect geckoterminal failure cooldown checkpoint file did not persist the expected cursor",
+          );
+        }
       } finally {
         if (previousGeckoApiUrl === undefined) {
           delete process.env.GECKOTERMINAL_NEW_POOLS_API_URL;
@@ -2110,6 +2307,19 @@ async function run(): Promise<void> {
           delete process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE;
         } else {
           process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE = previousGeckoFetchError;
+        }
+
+        if (previousGeckoFetchErrorCount === undefined) {
+          delete process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_COUNT;
+        } else {
+          process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_COUNT = previousGeckoFetchErrorCount;
+        }
+
+        if (previousGeckoFailureCooldownSeconds === undefined) {
+          delete process.env.LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS;
+        } else {
+          process.env.LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS =
+            previousGeckoFailureCooldownSeconds;
         }
       }
 

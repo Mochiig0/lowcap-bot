@@ -26,8 +26,10 @@ const API_URL =
 const DEFAULT_CHECKPOINT_FILE = "data/checkpoints/geckoterminal-new-pools.json";
 const LOG_PREFIX = "[detect:geckoterminal:new-pools]";
 const RATE_LIMIT_RETRY_DELAY_MS = 3_000;
+const DEFAULT_FAILURE_COOLDOWN_MS = 30_000;
 
 let injectedFetchErrorConsumed = false;
+let injectedFetchErrorRemainingCount: number | undefined;
 
 type DetectGeckoterminalNewPoolsArgs = {
   file?: string;
@@ -94,6 +96,8 @@ type DetectCycleResult = LoadedInput & {
   errorMessage?: string;
   rateLimitRetried: boolean;
   rateLimitRetrySucceeded: boolean;
+  failureCooldownApplied: boolean;
+  failureCooldownSeconds: number;
   processedCount: number;
   acceptedCount: number;
   rejectedCount: number;
@@ -144,6 +148,7 @@ function getUsageText(): string {
     "- writes accepted items into import:mint only when --write is set",
     "- loops only when --watch is set",
     "- waits --intervalSeconds 1 between watch cycles",
+    "- watch mode adds extra cooldown only after failed 429 or timeout-like cycles",
     `- checkpointing defaults to ${DEFAULT_CHECKPOINT_FILE} and is active only with --watch --write`,
   ].join("\n");
 }
@@ -326,6 +331,46 @@ function isRateLimitErrorMessage(message: string | undefined): boolean {
   return typeof message === "string" && message.includes("429 Too Many Requests");
 }
 
+function isFailureCooldownErrorMessage(message: string | undefined): boolean {
+  if (typeof message !== "string") {
+    return false;
+  }
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("429 too many requests") ||
+    normalized.includes("aborted due to timeout") ||
+    normalized.includes("operation was aborted") ||
+    normalized.includes("timeout")
+  );
+}
+
+function parsePositiveIntegerEnv(value: string | undefined, key: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`Invalid integer for ${key}: ${value}`);
+  }
+
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid integer for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
+function getFailureCooldownMs(): number {
+  const overrideSeconds = parsePositiveIntegerEnv(
+    process.env.LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS,
+    "LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS",
+  );
+  return (overrideSeconds ?? DEFAULT_FAILURE_COOLDOWN_MS / 1000) * 1000;
+}
+
 function isCheckpointEnabled(args: DetectGeckoterminalNewPoolsArgs): boolean {
   return args.watch && args.write;
 }
@@ -336,6 +381,30 @@ function resolveCheckpointFilePath(args: DetectGeckoterminalNewPoolsArgs): strin
 
 async function fetchLiveRaw(): Promise<unknown> {
   const injectedErrorMessage = process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_ONCE;
+  const injectedErrorCount = parsePositiveIntegerEnv(
+    process.env.GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_COUNT,
+    "GECKOTERMINAL_NEW_POOLS_FETCH_ERROR_COUNT",
+  );
+
+  if (injectedFetchErrorRemainingCount === undefined) {
+    injectedFetchErrorRemainingCount = injectedErrorCount;
+  }
+
+  if (injectedErrorCount !== undefined) {
+    injectedFetchErrorConsumed = true;
+  }
+
+  const shouldInjectCountError =
+    injectedErrorMessage &&
+    injectedFetchErrorRemainingCount !== undefined &&
+    injectedFetchErrorRemainingCount > 0;
+
+  if (shouldInjectCountError) {
+    const remainingCount = injectedFetchErrorRemainingCount ?? 0;
+    injectedFetchErrorRemainingCount = remainingCount - 1;
+    throw new Error(injectedErrorMessage);
+  }
+
   if (injectedErrorMessage && !injectedFetchErrorConsumed) {
     injectedFetchErrorConsumed = true;
     throw new Error(injectedErrorMessage);
@@ -603,6 +672,8 @@ async function runCycle(
     failed: false,
     rateLimitRetried: false,
     rateLimitRetrySucceeded: false,
+    failureCooldownApplied: false,
+    failureCooldownSeconds: 0,
     processedCount: items.length,
     acceptedCount,
     rejectedCount: items.length - acceptedCount,
@@ -637,6 +708,8 @@ function createFailedCycleResult(
     errorMessage: formatErrorMessage(error),
     rateLimitRetried: false,
     rateLimitRetrySucceeded: false,
+    failureCooldownApplied: false,
+    failureCooldownSeconds: 0,
     processedCount: 0,
     acceptedCount: 0,
     rejectedCount: 0,
@@ -657,6 +730,8 @@ function logCycleSummary(result: DetectCycleResult): void {
       `processed=${result.processedCount}`,
       `rateLimitRetried=${result.rateLimitRetried}`,
       `rateLimitRetrySucceeded=${result.rateLimitRetrySucceeded}`,
+      `failureCooldownApplied=${result.failureCooldownApplied}`,
+      `failureCooldownSeconds=${result.failureCooldownSeconds}`,
       `accepted=${result.acceptedCount}`,
       `rejected=${result.rejectedCount}`,
       `imported=${result.importedCount}`,
@@ -696,6 +771,8 @@ function buildWatchOutput(
       : {}),
     rateLimitRetryCount: cycles.filter((cycle) => cycle.rateLimitRetried).length,
     rateLimitRetrySuccessCount: cycles.filter((cycle) => cycle.rateLimitRetrySucceeded).length,
+    failureCooldownCount: cycles.filter((cycle) => cycle.failureCooldownApplied).length,
+    failureCooldownSeconds: getFailureCooldownMs() / 1000,
     mode: firstCycle?.mode ?? (args.file ? "file" : "fetch"),
     ...(firstCycle?.file ? { file: firstCycle.file } : {}),
     ...(firstCycle?.apiUrl ? { apiUrl: firstCycle.apiUrl } : {}),
@@ -718,6 +795,8 @@ function buildWatchOutput(
       errorMessage: cycle.errorMessage,
       rateLimitRetried: cycle.rateLimitRetried,
       rateLimitRetrySucceeded: cycle.rateLimitRetrySucceeded,
+      failureCooldownApplied: cycle.failureCooldownApplied,
+      failureCooldownSeconds: cycle.failureCooldownSeconds,
       inputCount: cycle.inputCount,
       processedCount: cycle.processedCount,
       acceptedCount: cycle.acceptedCount,
@@ -738,6 +817,7 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
   const watchIterationCount = args.maxIterations ?? Number.POSITIVE_INFINITY;
   const checkpointEnabled = isCheckpointEnabled(args);
   const checkpointFilePath = checkpointEnabled ? resolveCheckpointFilePath(args) : undefined;
+  const failureCooldownMs = getFailureCooldownMs();
   let checkpointCursor = checkpointFilePath
     ? await readCheckpointCursor(checkpointFilePath)
     : undefined;
@@ -814,6 +894,11 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
       }
     }
 
+    if (result.failed && isFailureCooldownErrorMessage(result.errorMessage)) {
+      result.failureCooldownApplied = true;
+      result.failureCooldownSeconds = failureCooldownMs / 1000;
+    }
+
     if (shouldCollectCycles) {
       cycles.push(result);
     }
@@ -824,7 +909,10 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
       break;
     }
 
-    await sleep(args.intervalSeconds * 1000);
+    await sleep(
+      args.intervalSeconds * 1000 +
+        (result.failureCooldownApplied ? failureCooldownMs : 0),
+    );
   }
 
   return buildWatchOutput(
