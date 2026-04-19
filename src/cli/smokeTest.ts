@@ -4437,7 +4437,9 @@ async function run(): Promise<void> {
         selection: {
           sinceHours: number;
           previewLimit: number;
+          pumpOnly: boolean;
           geckoOriginTokenCount: number;
+          skippedNonPumpCount: number;
         };
         summary: {
           geckoOriginTokenCount: number;
@@ -4499,6 +4501,7 @@ async function run(): Promise<void> {
         parsed.originSource !== "geckoterminal.new_pools" ||
         parsed.selection.sinceHours !== 24 ||
         parsed.selection.previewLimit !== 50 ||
+        parsed.selection.pumpOnly !== false ||
         parsed.selection.geckoOriginTokenCount < 4 ||
         parsed.summary.geckoOriginTokenCount !== parsed.selection.geckoOriginTokenCount ||
         parsed.summary.firstSeenSourceSnapshotCount < 1 ||
@@ -4545,6 +4548,63 @@ async function run(): Promise<void> {
         throw new Error("geckoterminal ops summary preview returned unexpected item fields");
       }
 
+      const pumpOnlyParsed = await runCliJson<{
+        readOnly: boolean;
+        selection: {
+          sinceHours: number;
+          previewLimit: number;
+          pumpOnly: boolean;
+          geckoOriginTokenCount: number;
+          skippedNonPumpCount: number;
+        };
+        summary: {
+          geckoOriginTokenCount: number;
+        };
+        preview: Array<{
+          mint: string;
+        }>;
+      }>(
+        "geckoterminal ops summary pump-only",
+        "src/cli/geckoterminalOpsSummary.ts",
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "50",
+          "--pumpOnly",
+        ],
+        context.smokeId,
+      );
+
+      const [tokenCountAfterPumpOnly, metricCountAfterPumpOnly] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      const pumpOnlyPreviewMints = new Set(pumpOnlyParsed.preview.map((item) => item.mint));
+      if (
+        tokenCountBefore !== tokenCountAfterPumpOnly ||
+        metricCountBefore !== metricCountAfterPumpOnly
+      ) {
+        throw new Error("geckoterminal ops summary pump-only was not read-only");
+      }
+
+      if (
+        pumpOnlyParsed.readOnly !== true ||
+        pumpOnlyParsed.selection.sinceHours !== 24 ||
+        pumpOnlyParsed.selection.previewLimit !== 50 ||
+        pumpOnlyParsed.selection.pumpOnly !== true ||
+        pumpOnlyParsed.selection.geckoOriginTokenCount < 1 ||
+        pumpOnlyParsed.selection.skippedNonPumpCount < 1 ||
+        pumpOnlyParsed.summary.geckoOriginTokenCount !==
+          pumpOnlyParsed.selection.geckoOriginTokenCount ||
+        !pumpOnlyPreviewMints.has(context.geckoEnrichRescorePumpMint) ||
+        pumpOnlyPreviewMints.has(context.geckoEnrichRescoreNonPumpMint) ||
+        pumpOnlyParsed.preview.some((item) => !item.mint.endsWith("pump"))
+      ) {
+        throw new Error("geckoterminal ops summary pump-only did not narrow the cohort");
+      }
+
       const packageStdoutPath = `/tmp/${context.smokeId}-gecko-ops-summary-package.stdout.json`;
       const packageStderrPath = `/tmp/${context.smokeId}-gecko-ops-summary-package.stderr.log`;
 
@@ -4574,6 +4634,7 @@ async function run(): Promise<void> {
         selection: {
           sinceHours: number;
           previewLimit: number;
+          pumpOnly: boolean;
         };
         summary: {
           geckoOriginTokenCount: number;
@@ -4587,6 +4648,7 @@ async function run(): Promise<void> {
         packageParsed.readOnly !== true ||
         packageParsed.selection.sinceHours !== 24 ||
         packageParsed.selection.previewLimit !== 5 ||
+        packageParsed.selection.pumpOnly !== false ||
         packageParsed.summary.geckoOriginTokenCount < 1
       ) {
         throw new Error("geckoterminal ops summary package script returned unexpected output");
@@ -4608,8 +4670,10 @@ async function run(): Promise<void> {
         selection: {
           sinceHours: number;
           limit: number;
+          pumpOnly: boolean;
           staleAfterHours: number;
           geckoOriginTokenCount: number;
+          skippedNonPumpCount: number;
         };
         summary: {
           geckoOriginTokenCount: number;
@@ -4688,6 +4752,7 @@ async function run(): Promise<void> {
         parsed.originSource !== "geckoterminal.new_pools" ||
         parsed.selection.sinceHours !== 24 ||
         parsed.selection.limit !== 50 ||
+        parsed.selection.pumpOnly !== false ||
         parsed.selection.staleAfterHours !== 6 ||
         parsed.selection.geckoOriginTokenCount < 4 ||
         parsed.summary.geckoOriginTokenCount !== parsed.selection.geckoOriginTokenCount ||
@@ -4743,6 +4808,79 @@ async function run(): Promise<void> {
         throw new Error("geckoterminal review queue preview returned unexpected item fields");
       }
 
+      const pumpOnlyParsed = await runCliJson<{
+        readOnly: boolean;
+        selection: {
+          sinceHours: number;
+          limit: number;
+          pumpOnly: boolean;
+          staleAfterHours: number;
+          geckoOriginTokenCount: number;
+          skippedNonPumpCount: number;
+        };
+        summary: {
+          geckoOriginTokenCount: number;
+          enrichPendingCount: number;
+        };
+        queues: {
+          enrichPending: Array<{
+            mint: string;
+          }>;
+        };
+        preview: Array<{
+          mint: string;
+        }>;
+      }>(
+        "geckoterminal review queue pump-only",
+        "src/cli/geckoterminalReviewQueue.ts",
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "50",
+          "--pumpOnly",
+        ],
+        context.smokeId,
+      );
+
+      const [tokenCountAfterPumpOnly, metricCountAfterPumpOnly] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      const pumpOnlyEnrichPendingMints = new Set(
+        pumpOnlyParsed.queues.enrichPending.map((item) => item.mint),
+      );
+      const pumpOnlyPreviewMints = new Set(pumpOnlyParsed.preview.map((item) => item.mint));
+
+      if (
+        tokenCountBefore !== tokenCountAfterPumpOnly ||
+        metricCountBefore !== metricCountAfterPumpOnly
+      ) {
+        throw new Error("geckoterminal review queue pump-only was not read-only");
+      }
+
+      if (
+        pumpOnlyParsed.readOnly !== true ||
+        pumpOnlyParsed.selection.sinceHours !== 24 ||
+        pumpOnlyParsed.selection.limit !== 50 ||
+        pumpOnlyParsed.selection.pumpOnly !== true ||
+        pumpOnlyParsed.selection.staleAfterHours !== 6 ||
+        pumpOnlyParsed.selection.geckoOriginTokenCount < 1 ||
+        pumpOnlyParsed.selection.skippedNonPumpCount < 1 ||
+        pumpOnlyParsed.summary.geckoOriginTokenCount !==
+          pumpOnlyParsed.selection.geckoOriginTokenCount ||
+        pumpOnlyParsed.summary.enrichPendingCount < 1 ||
+        !pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescorePumpMint) ||
+        pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescoreNonPumpMint) ||
+        pumpOnlyParsed.preview.length === 0 ||
+        !pumpOnlyPreviewMints.has(context.geckoEnrichRescorePumpMint) ||
+        pumpOnlyPreviewMints.has(context.geckoEnrichRescoreNonPumpMint) ||
+        pumpOnlyParsed.preview.some((item) => !item.mint.endsWith("pump"))
+      ) {
+        throw new Error("geckoterminal review queue pump-only did not narrow the cohort");
+      }
+
       const packageStdoutPath = `/tmp/${context.smokeId}-gecko-review-queue-package.stdout.json`;
       const packageStderrPath = `/tmp/${context.smokeId}-gecko-review-queue-package.stderr.log`;
 
@@ -4772,6 +4910,7 @@ async function run(): Promise<void> {
         selection: {
           sinceHours: number;
           limit: number;
+          pumpOnly: boolean;
         };
         summary: {
           geckoOriginTokenCount: number;
@@ -4785,6 +4924,7 @@ async function run(): Promise<void> {
         packageParsed.readOnly !== true ||
         packageParsed.selection.sinceHours !== 24 ||
         packageParsed.selection.limit !== 5 ||
+        packageParsed.selection.pumpOnly !== false ||
         packageParsed.summary.geckoOriginTokenCount < 1
       ) {
         throw new Error("geckoterminal review queue package script returned unexpected output");

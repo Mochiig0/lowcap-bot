@@ -9,6 +9,7 @@ const DEFAULT_LIMIT = 5;
 type Args = {
   sinceHours: number;
   limit: number;
+  pumpOnly: boolean;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -54,7 +55,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm ops:summary:geckoterminal -- [--sinceHours <N>] [--limit <N>]",
+      "pnpm ops:summary:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]",
     ].join("\n"),
   );
   process.exit(1);
@@ -77,6 +78,7 @@ function parseArgs(argv: string[]): Args {
   const out: Partial<Args> = {
     sinceHours: DEFAULT_SINCE_HOURS,
     limit: DEFAULT_LIMIT,
+    pumpOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -84,6 +86,11 @@ function parseArgs(argv: string[]): Args {
     const value = argv[index + 1];
 
     if (!key.startsWith("--")) {
+      continue;
+    }
+
+    if (key === "--pumpOnly") {
+      out.pumpOnly = true;
       continue;
     }
 
@@ -198,6 +205,10 @@ function incrementObjectCount(target: Record<string, number>, key: string): void
   target[key] = (target[key] ?? 0) + 1;
 }
 
+function isPumpMint(mint: string): boolean {
+  return mint.endsWith("pump");
+}
+
 function buildCountByValue(values: Array<string | null>): CountByValue[] {
   const counts = new Map<string | null, number>();
 
@@ -265,7 +276,12 @@ async function run(): Promise<void> {
       (token) =>
         token.isGeckoterminalOrigin &&
         Date.parse(token.selectionAnchorAt) >= sinceCutoff.getTime(),
-    )
+    );
+  const filteredTokens = args.pumpOnly
+    ? tokens.filter((token) => isPumpMint(token.mint))
+    : tokens;
+  const skippedNonPumpCount = tokens.length - filteredTokens.length;
+  const sortedTokens = filteredTokens
     .sort((left, right) => {
       const delta = Date.parse(right.selectionAnchorAt) - Date.parse(left.selectionAnchorAt);
       if (delta !== 0) {
@@ -287,7 +303,7 @@ async function run(): Promise<void> {
   let hardRejectedCount = 0;
   let notifyCandidateCount = 0;
 
-  for (const token of tokens) {
+  for (const token of sortedTokens) {
     incrementObjectCount(scoreRankCounts, token.scoreRank);
     incrementObjectCount(metadataStatusCounts, token.metadataStatus);
 
@@ -331,10 +347,12 @@ async function run(): Promise<void> {
           sinceHours: args.sinceHours,
           sinceCutoff: sinceCutoff.toISOString(),
           previewLimit: args.limit,
-          geckoOriginTokenCount: tokens.length,
+          pumpOnly: args.pumpOnly,
+          geckoOriginTokenCount: sortedTokens.length,
+          skippedNonPumpCount,
         },
         summary: {
-          geckoOriginTokenCount: tokens.length,
+          geckoOriginTokenCount: sortedTokens.length,
           firstSeenSourceSnapshotCount,
           nameSymbolFilledCount,
           enrichedTokenCount,
@@ -346,9 +364,9 @@ async function run(): Promise<void> {
         },
         scoreRankCounts,
         metadataStatusCounts,
-        currentSourceCounts: buildCountByValue(tokens.map((token) => token.currentSource)),
-        originSourceCounts: buildCountByValue(tokens.map((token) => token.originSource)),
-        preview: tokens.slice(0, args.limit).map((token) => ({
+        currentSourceCounts: buildCountByValue(sortedTokens.map((token) => token.currentSource)),
+        originSourceCounts: buildCountByValue(sortedTokens.map((token) => token.originSource)),
+        preview: sortedTokens.slice(0, args.limit).map((token) => ({
           mint: token.mint,
           currentSource: token.currentSource,
           originSource: token.originSource,

@@ -10,6 +10,7 @@ const DEFAULT_STALE_AFTER_HOURS = 6;
 type Args = {
   sinceHours: number;
   limit: number;
+  pumpOnly: boolean;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -81,7 +82,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>]",
+      "pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]",
     ].join("\n"),
   );
   process.exit(1);
@@ -104,6 +105,7 @@ function parseArgs(argv: string[]): Args {
   const out: Partial<Args> = {
     sinceHours: DEFAULT_SINCE_HOURS,
     limit: DEFAULT_LIMIT,
+    pumpOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -111,6 +113,11 @@ function parseArgs(argv: string[]): Args {
     const value = argv[index + 1];
 
     if (!key.startsWith("--")) {
+      continue;
+    }
+
+    if (key === "--pumpOnly") {
+      out.pumpOnly = true;
       continue;
     }
 
@@ -375,6 +382,10 @@ function limitItems(items: ReviewQueueItem[], limit: number): ReviewQueueItem[] 
   return items.slice(0, limit);
 }
 
+function isPumpMint(mint: string): boolean {
+  return mint.endsWith("pump");
+}
+
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
@@ -422,7 +433,12 @@ async function run(): Promise<void> {
   const selectedTokens = rawTokens
     .map(buildSelectedToken)
     .filter((token) => token.isGeckoterminalOrigin)
-    .filter((token) => Date.parse(token.selectionAnchorAt) >= sinceCutoff.getTime())
+    .filter((token) => Date.parse(token.selectionAnchorAt) >= sinceCutoff.getTime());
+  const filteredTokens = args.pumpOnly
+    ? selectedTokens.filter((token) => isPumpMint(token.mint))
+    : selectedTokens;
+  const skippedNonPumpCount = selectedTokens.length - filteredTokens.length;
+  const sortedTokens = filteredTokens
     .sort((left, right) => {
       const leftTime = Date.parse(left.selectionAnchorAt);
       const rightTime = Date.parse(right.selectionAnchorAt);
@@ -434,7 +450,7 @@ async function run(): Promise<void> {
       return right.id - left.id;
     });
 
-  const reviewItems = selectedTokens.map((token) => buildReviewQueueItem(token, staleAfterHours));
+  const reviewItems = sortedTokens.map((token) => buildReviewQueueItem(token, staleAfterHours));
 
   const notifyCandidates = reviewItems
     .filter((item) => item.queuesMatched.includes("notifyCandidate"))
@@ -490,13 +506,15 @@ async function run(): Promise<void> {
         selection: {
           sinceHours: args.sinceHours,
           limit: args.limit,
+          pumpOnly: args.pumpOnly,
           staleAfterHours,
           sinceCutoff: sinceCutoff.toISOString(),
           geckoOriginTokenCount: reviewItems.length,
+          skippedNonPumpCount,
         },
         summary: {
           geckoOriginTokenCount: reviewItems.length,
-          firstSeenSourceSnapshotCount: selectedTokens.filter(
+          firstSeenSourceSnapshotCount: sortedTokens.filter(
             (token) => token.hasFirstSeenSourceSnapshot,
           ).length,
           enrichPendingCount: enrichPending.length,
