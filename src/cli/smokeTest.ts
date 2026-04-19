@@ -40,6 +40,8 @@ type SmokeContext = {
   geckoEnrichRescoreRateLimitMints: [string, string];
   geckoEnrichRescoreMint: string;
   geckoEnrichRescoreCompleteMint: string;
+  geckoEnrichRescorePumpMint: string;
+  geckoEnrichRescoreNonPumpMint: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -252,6 +254,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
           context.geckoEnrichRescoreCompleteMint,
+          context.geckoEnrichRescorePumpMint,
+          context.geckoEnrichRescoreNonPumpMint,
         ],
       },
     },
@@ -296,6 +300,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
           context.geckoEnrichRescoreCompleteMint,
+          context.geckoEnrichRescorePumpMint,
+          context.geckoEnrichRescoreNonPumpMint,
         ],
       },
     },
@@ -372,6 +378,8 @@ async function run(): Promise<void> {
     ],
     geckoEnrichRescoreMint: `${smokeId}_GECKO_ENRICH_RESCORE`,
     geckoEnrichRescoreCompleteMint: `${smokeId}_GECKO_ENRICH_RESCORE_COMPLETE`,
+    geckoEnrichRescorePumpMint: `${smokeId}_GECKO_ENRICH_RESCORE_FASTpump`,
+    geckoEnrichRescoreNonPumpMint: `${smokeId}_GECKO_ENRICH_RESCORE_FAST_NON_PUMP`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
@@ -4219,6 +4227,200 @@ async function run(): Promise<void> {
           delete process.env.LOWCAP_TELEGRAM_CAPTURE_FILE;
         } else {
           process.env.LOWCAP_TELEGRAM_CAPTURE_FILE = previousTelegramCaptureFile;
+        }
+      }
+    });
+
+    await runStep("geckoterminal enrich rescore pump-only batch", async () => {
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "geckoterminal enrich rescore pump-only import pump",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.geckoEnrichRescorePumpMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "geckoterminal enrich rescore pump-only import non-pump",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.geckoEnrichRescoreNonPumpMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      try {
+        await writeFile(
+          context.geckoEnrichRescoreFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.geckoEnrichRescorePumpMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoEnrichRescorePumpMint,
+                  name: "pump fast follow",
+                  symbol: "PFAST",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoEnrichRescoreFilePath;
+
+        const pumpOnlyBatch = await runCliJson<{
+          mode: string;
+          selection: {
+            mint: string | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+            selectedIncompleteCount: number;
+            skippedNonPumpCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            selectedIncompleteCount: number;
+            skippedNonPumpCount: number;
+            okCount: number;
+            errorCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+          }>;
+        }>(
+          "geckoterminal enrich rescore pump-only batch",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--limit",
+            "5",
+            "--sinceMinutes",
+            "5",
+            "--pumpOnly",
+          ],
+          context.smokeId,
+        );
+
+        const pumpOnlyBatchMints = new Set(
+          pumpOnlyBatch.items.map((item) => item.token.mint),
+        );
+
+        if (
+          pumpOnlyBatch.mode !== "recent_batch" ||
+          pumpOnlyBatch.selection.mint !== null ||
+          pumpOnlyBatch.selection.pumpOnly !== true ||
+          pumpOnlyBatch.selection.selectedCount < 1 ||
+          pumpOnlyBatch.selection.selectedIncompleteCount !==
+            pumpOnlyBatch.selection.selectedCount ||
+          pumpOnlyBatch.selection.skippedNonPumpCount < 1 ||
+          pumpOnlyBatch.summary.selectedCount !== pumpOnlyBatch.selection.selectedCount ||
+          pumpOnlyBatch.summary.selectedIncompleteCount !==
+            pumpOnlyBatch.selection.selectedIncompleteCount ||
+          pumpOnlyBatch.summary.skippedNonPumpCount < 1 ||
+          pumpOnlyBatch.summary.okCount !== pumpOnlyBatch.items.length ||
+          pumpOnlyBatch.summary.errorCount !== 0 ||
+          !pumpOnlyBatchMints.has(context.geckoEnrichRescorePumpMint) ||
+          pumpOnlyBatchMints.has(context.geckoEnrichRescoreNonPumpMint) ||
+          pumpOnlyBatch.items.some(
+            (item) => item.status !== "ok" || !item.token.mint.endsWith("pump"),
+          )
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore pump-only batch did not narrow to pump mints",
+          );
+        }
+
+        await writeFile(
+          context.geckoEnrichRescoreFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.geckoEnrichRescoreNonPumpMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoEnrichRescoreNonPumpMint,
+                  name: "non pump single",
+                  symbol: "NPS",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+
+        const nonPumpSingle = await runCliJson<{
+          mode: string;
+          selection: {
+            mint: string | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+            selectedIncompleteCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+          }>;
+        }>(
+          "geckoterminal enrich rescore single non-pump with pump-only available",
+          "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+          [
+            "--mint",
+            context.geckoEnrichRescoreNonPumpMint,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          nonPumpSingle.mode !== "single" ||
+          nonPumpSingle.selection.mint !== context.geckoEnrichRescoreNonPumpMint ||
+          nonPumpSingle.selection.pumpOnly !== false ||
+          nonPumpSingle.selection.selectedCount !== 1 ||
+          nonPumpSingle.selection.selectedIncompleteCount !== 1 ||
+          nonPumpSingle.summary.selectedCount !== 1 ||
+          nonPumpSingle.summary.okCount !== 1 ||
+          nonPumpSingle.summary.errorCount !== 0 ||
+          nonPumpSingle.items.length !== 1 ||
+          nonPumpSingle.items[0]?.token.mint !== context.geckoEnrichRescoreNonPumpMint ||
+          nonPumpSingle.items[0]?.status !== "ok"
+        ) {
+          throw new Error(
+            "geckoterminal enrich rescore single non-pump should remain available outside pump-only batch mode",
+          );
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
         }
       }
     });

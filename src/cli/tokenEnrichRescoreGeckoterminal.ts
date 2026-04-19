@@ -33,6 +33,7 @@ type Args = {
   mint?: string;
   limit: number;
   sinceMinutes: number;
+  pumpOnly: boolean;
 };
 
 type FirstSeenSourceSnapshot = {
@@ -137,14 +138,17 @@ type Output = {
     limit: number | null;
     sinceMinutes: number | null;
     sinceCutoff: string | null;
+    pumpOnly: boolean;
     selectedCount: number;
     selectedIncompleteCount: number;
     skippedCompleteCount: number;
+    skippedNonPumpCount: number;
   };
   summary: {
     selectedCount: number;
     selectedIncompleteCount: number;
     skippedCompleteCount: number;
+    skippedNonPumpCount: number;
     okCount: number;
     errorCount: number;
     enrichWriteCount: number;
@@ -170,13 +174,14 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--write] [--notify]",
+    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--write] [--notify]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${GECKOTERMINAL_TOKEN_API_URL}/{mint}?include=top_pools`,
     `- recent batch mode selects up to ${DEFAULT_LIMIT} recent GeckoTerminal-origin tokens that still miss name or symbol`,
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
+    "- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter",
     "- stays dry-run by default and writes Token enrich/rescore updates only when --write is set",
     "- --notify is allowed only with --write and only sends when the token newly enters S-rank and non-hard-rejected state after rescore",
     "- fetches name and symbol from GeckoTerminal token snapshots and keeps description unchanged",
@@ -208,6 +213,7 @@ function parseArgs(argv: string[]): Args {
     notify: false,
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
+    pumpOnly: false,
   };
 
   for (let i = 0; i < normalizedArgv.length; i += 1) {
@@ -224,6 +230,11 @@ function parseArgs(argv: string[]): Args {
 
     if (key === "--notify") {
       out.notify = true;
+      continue;
+    }
+
+    if (key === "--pumpOnly") {
+      out.pumpOnly = true;
       continue;
     }
 
@@ -360,12 +371,17 @@ function needsBatchEnrich(token: SelectedToken): boolean {
   return token.name === null || token.symbol === null;
 }
 
+function isPumpMint(mint: string): boolean {
+  return mint.endsWith("pump");
+}
+
 async function selectTokens(args: Args): Promise<{
   mode: "single" | "recent_batch";
   selectedTokens: SelectedToken[];
   sinceCutoff: string | null;
   selectedIncompleteCount: number;
   skippedCompleteCount: number;
+  skippedNonPumpCount: number;
 }> {
   if (args.mint) {
     const token = await db.token.findUnique({
@@ -401,6 +417,7 @@ async function selectTokens(args: Args): Promise<{
       sinceCutoff: null,
       selectedIncompleteCount: needsBatchEnrich(selectedToken) ? 1 : 0,
       skippedCompleteCount: 0,
+      skippedNonPumpCount: 0,
     };
   }
 
@@ -447,7 +464,10 @@ async function selectTokens(args: Args): Promise<{
       return right.id - left.id;
     });
   const incompleteTokens = recentGeckoTokens.filter(needsBatchEnrich);
-  const selectedTokens = incompleteTokens.slice(0, args.limit);
+  const pumpEligibleTokens = args.pumpOnly
+    ? incompleteTokens.filter((token) => isPumpMint(token.mint))
+    : incompleteTokens;
+  const selectedTokens = pumpEligibleTokens.slice(0, args.limit);
 
   return {
     mode: "recent_batch",
@@ -455,6 +475,7 @@ async function selectTokens(args: Args): Promise<{
     sinceCutoff: sinceCutoff.toISOString(),
     selectedIncompleteCount: selectedTokens.length,
     skippedCompleteCount: recentGeckoTokens.length - incompleteTokens.length,
+    skippedNonPumpCount: incompleteTokens.length - pumpEligibleTokens.length,
   };
 }
 
@@ -704,6 +725,7 @@ type BatchExecutionResult = {
   selectedTokens: SelectedToken[];
   selectedIncompleteCount: number;
   skippedCompleteCount: number;
+  skippedNonPumpCount: number;
   items: ProcessedItem[];
   rateLimited: boolean;
   rateLimitedCount: number;
@@ -743,6 +765,7 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
     selectedTokens: selection.selectedTokens,
     selectedIncompleteCount: selection.selectedIncompleteCount,
     skippedCompleteCount: selection.skippedCompleteCount,
+    skippedNonPumpCount: selection.skippedNonPumpCount,
     items,
     rateLimited,
     rateLimitedCount,
@@ -758,6 +781,7 @@ function logBatchSummary(output: Output): void {
       `selected=${output.summary.selectedCount}`,
       `selectedIncomplete=${output.summary.selectedIncompleteCount}`,
       `skippedComplete=${output.summary.skippedCompleteCount}`,
+      `skippedNonPump=${output.summary.skippedNonPumpCount}`,
       `ok=${output.summary.okCount}`,
       `error=${output.summary.errorCount}`,
       `enrichWritten=${output.summary.enrichWriteCount}`,
@@ -787,14 +811,17 @@ async function main(): Promise<void> {
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
+      pumpOnly: !args.mint && args.pumpOnly,
       selectedCount: execution.selectedTokens.length,
       selectedIncompleteCount: execution.selectedIncompleteCount,
       skippedCompleteCount: execution.skippedCompleteCount,
+      skippedNonPumpCount: execution.skippedNonPumpCount,
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
       selectedIncompleteCount: execution.selectedIncompleteCount,
       skippedCompleteCount: execution.skippedCompleteCount,
+      skippedNonPumpCount: execution.skippedNonPumpCount,
       okCount: execution.items.filter((item) => item.status === "ok").length,
       errorCount: execution.items.filter((item) => item.status === "error").length,
       enrichWriteCount: execution.items.filter((item) => item.writeSummary.enrichUpdated).length,
