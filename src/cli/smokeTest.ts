@@ -3669,6 +3669,98 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("geckoterminal runner db preflight", async () => {
+      const invalidDbPath = `/tmp/${context.smokeId}-gecko-runner-preflight.db`;
+      const helperStdoutPath = `/tmp/${context.smokeId}-gecko-runner-preflight-helper.stdout.log`;
+      const helperStderrPath = `/tmp/${context.smokeId}-gecko-runner-preflight-helper.stderr.log`;
+      const runnerStdoutPath = `/tmp/${context.smokeId}-gecko-runner-preflight-runner.stdout.log`;
+      const runnerStderrPath = `/tmp/${context.smokeId}-gecko-runner-preflight-runner.stderr.log`;
+
+      await rm(invalidDbPath, { force: true });
+      await rm(helperStdoutPath, { force: true });
+      await rm(helperStderrPath, { force: true });
+      await rm(runnerStdoutPath, { force: true });
+      await rm(runnerStderrPath, { force: true });
+
+      let helperFailed = false;
+
+      try {
+        await execFileAsync("bash", [
+          "-lc",
+          [
+            "node ./scripts/check-prisma-token-table.mjs geckoterminal-enrich-rescore-notify 200",
+            `> ${shellEscape(helperStdoutPath)}`,
+            `2> ${shellEscape(helperStderrPath)}`,
+          ].join(" "),
+        ], {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            DATABASE_URL: `file:${invalidDbPath}`,
+          },
+        });
+      } catch (error) {
+        helperFailed = true;
+        const stderr = await readFile(helperStderrPath, "utf-8");
+
+        if (
+          !stderr.includes("db_preflight_failed") ||
+          !stderr.includes("main.Token")
+        ) {
+          throw new Error(
+            "geckoterminal runner db preflight helper did not return the expected failure message",
+          );
+        }
+      }
+
+      if (!helperFailed) {
+        throw new Error("geckoterminal runner db preflight helper unexpectedly succeeded");
+      }
+
+      let runnerFailed = false;
+
+      try {
+        await execFileAsync("bash", [
+          "-lc",
+          [
+            "timeout 7 bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh",
+            `> ${shellEscape(runnerStdoutPath)}`,
+            `2> ${shellEscape(runnerStderrPath)}`,
+          ].join(" "),
+        ], {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            DATABASE_URL: `file:${invalidDbPath}`,
+            LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS: "0",
+          },
+        });
+      } catch (error) {
+        runnerFailed = true;
+        const stderr = await readFile(runnerStderrPath, "utf-8");
+
+        if (
+          !stderr.includes("db_preflight_failed") ||
+          stderr.includes("cycle_start=") ||
+          stderr.includes("cycle_failed=")
+        ) {
+          throw new Error(
+            "geckoterminal enrich runner did not fail fast on db preflight",
+          );
+        }
+      }
+
+      if (!runnerFailed) {
+        throw new Error("geckoterminal enrich runner unexpectedly started without Token table");
+      }
+
+      await rm(invalidDbPath, { force: true });
+      await rm(helperStdoutPath, { force: true });
+      await rm(helperStderrPath, { force: true });
+      await rm(runnerStdoutPath, { force: true });
+      await rm(runnerStderrPath, { force: true });
+    });
+
     await runStep("geckoterminal enrich rescore batch", async () => {
       const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
       const previousTelegramCaptureFile = process.env.LOWCAP_TELEGRAM_CAPTURE_FILE;

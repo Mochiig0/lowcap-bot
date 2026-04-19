@@ -21,6 +21,8 @@ if [[ -z "${DATABASE_URL:-}" ]] && [[ ! -f "$REPO_ROOT/.env" ]]; then
   exit 1
 fi
 
+node ./scripts/check-prisma-token-table.mjs geckoterminal-enrich-rescore-notify
+
 if [[ "$START_DELAY_SECONDS" =~ ^[0-9]+$ ]] && (( START_DELAY_SECONDS > 0 )); then
   echo "[geckoterminal-enrich-rescore-notify] start_delay_seconds=$START_DELAY_SECONDS" >&2
   sleep "$START_DELAY_SECONDS"

@@ -7,6 +7,11 @@ INTERVAL_SECONDS="${LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS:-60}"
 
 cd "$REPO_ROOT"
 
+if ! command -v node >/dev/null 2>&1; then
+  echo "Error: node is required to run the GeckoTerminal detect watch runner." >&2
+  exit 1
+fi
+
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "Error: pnpm is required to run the GeckoTerminal detect watch runner." >&2
   exit 1
@@ -16,6 +21,8 @@ if [[ -z "${DATABASE_URL:-}" ]] && [[ ! -f "$REPO_ROOT/.env" ]]; then
   echo "Error: set DATABASE_URL or create $REPO_ROOT/.env before starting the watch runner." >&2
   exit 1
 fi
+
+node ./scripts/check-prisma-token-table.mjs geckoterminal-detect-watch
 
 exec pnpm detect:geckoterminal:new-pools -- \
   --watch \

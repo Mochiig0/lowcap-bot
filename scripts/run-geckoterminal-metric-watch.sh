@@ -11,6 +11,11 @@ START_DELAY_SECONDS="${LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS:-900}"
 
 cd "$REPO_ROOT"
 
+if ! command -v node >/dev/null 2>&1; then
+  echo "Error: node is required to run the GeckoTerminal metric watch runner." >&2
+  exit 1
+fi
+
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "Error: pnpm is required to run the GeckoTerminal metric watch runner." >&2
   exit 1
@@ -20,6 +25,8 @@ if [[ -z "${DATABASE_URL:-}" ]] && [[ ! -f "$REPO_ROOT/.env" ]]; then
   echo "Error: set DATABASE_URL or create $REPO_ROOT/.env before starting the watch runner." >&2
   exit 1
 fi
+
+node ./scripts/check-prisma-token-table.mjs geckoterminal-metric-watch
 
 if [[ "$START_DELAY_SECONDS" =~ ^[0-9]+$ ]] && (( START_DELAY_SECONDS > 0 )); then
   echo "[geckoterminal-metric-watch] start_delay_seconds=$START_DELAY_SECONDS" >&2
