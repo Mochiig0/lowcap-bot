@@ -4,7 +4,7 @@ Backlog notes for features that look valuable later, but are not the current imp
 
 ## Summary
 
-- Current top priority is mint-driven automatic data accumulation.
+- Current top priority is mint-driven automatic data accumulation built on the existing CLI-first and source-specific semi-automation base.
 - The first goal is to build an observation base that stores metrics and lets us compare later outcomes against the original entry view.
 - Alert sophistication, early prediction, and trading automation are intentionally deferred.
 - This repo should keep "what we do now" and "what we want later" clearly separated.
@@ -13,8 +13,9 @@ Backlog notes for features that look valuable later, but are not the current imp
 
 ### Now
 
-- Keep `lowcap-bot` as a CLI-first manual-operation MVP.
-- Prioritize mint as the entrypoint for automatic intake and later enrichment.
+- Keep `lowcap-bot` as a CLI-first mint-driven accumulation MVP.
+- Use the current narrow source-specific helpers for DexScreener and GeckoTerminal without broadening them into a generic runtime yet.
+- Prioritize mint as the entrypoint for thin source-specific intake and later enrichment.
 - Store observation data and metrics in a way that supports later comparison and review.
 - Favor noise reduction, persistent records, and inspectable outputs over aggressive prediction.
 - Keep observation logic and prediction logic separate.
@@ -39,21 +40,17 @@ Backlog notes for features that look valuable later, but are not the current imp
 ### Mint-driven expansion
 
 - `mint-only import`
-  - Let the system accept a token from mint alone as the first intake step.
-  - Why: mint is often the earliest reliable identifier.
-  - Not now because: current MVP still assumes manual descriptive fields at import time.
+  - Current status: baseline implemented through `pnpm import:mint`, `pnpm import:mint:file`, and `pnpm import:mint:source-file`.
+  - Future direction: keep the handoff minimal and add new sources only when a distinct raw event shape and repeated operating need actually exist.
 - `enrich flow`
-  - After mint intake, fill in `name`, `symbol`, `description`, `dev`, links, and metadata later.
-  - Why: initial intake should not block on complete metadata.
-  - Not now because: the current priority is defining the observation path before adding fetch layers.
+  - Current status: baseline implemented through `pnpm token:enrich` and the GeckoTerminal-specific `pnpm token:enrich-rescore:geckoterminal`.
+  - Future direction: extend source coverage or richer context capture only after the current source-specific flow proves useful.
 - `re-score`
-  - Re-evaluate narrative, risk, and total score after enrichment.
-  - Why: entry-time information can be incomplete.
-  - Not now because: the system first needs stable enrichment inputs and stored entry snapshots.
+  - Current status: baseline implemented through `pnpm token:rescore` and the GeckoTerminal-specific enrich-plus-rescore batch path.
+  - Future direction: improve feedback and ranking policy after more observations exist.
 - `observe`
-  - Accumulate observation metrics after import as separate metric rows.
-  - Why: this is the core base for later comparison, reporting, and alert improvements.
-  - Start first among future items: this is the highest-value expansion path.
+  - Current status: baseline implemented through `pnpm metric:add` plus `pnpm metric:snapshot:geckoterminal`.
+  - Future direction: keep widening observation depth and outcome coverage because this remains the highest-value expansion path.
 
 ### Surrounding links and context capture
 
@@ -68,8 +65,8 @@ Backlog notes for features that look valuable later, but are not the current imp
 - Add metrics such as `launchPrice`, `peakPrice15m`, `peakPrice1h`, `peakFdv24h`, `peakFdv7d`, `maxMultiple15m`, `maxMultiple1h`, `timeToPeakMinutes`, `peakMultipleFromAlert`, and `alertedAt`.
 - Prefer FDV and multiple over MC for early-coin evaluation.
 - Keep launch-time evaluation separate from later outcome evaluation.
-- Why: early coins need a better "what happened after alert" record than current MVP metrics provide.
-- Not now because: the data capture path should be stabilized incrementally, starting from mint-based intake.
+- Why: early coins still need a better "what happened after alert" record than the current observation set provides.
+- Not now because: the current data capture path should keep stabilizing incrementally, starting from the existing mint-based intake and Gecko-specific snapshot flow.
 
 ### Entry vs outcome comparison
 
@@ -77,7 +74,7 @@ Backlog notes for features that look valuable later, but are not the current imp
 - Compare them later with outcome metrics such as `peakFdv24h`, `peakFdv7d`, `maxMultiple15m`, `volume24h`, and `timeToPeakMinutes`.
 - Plan for read-only report, review, or comparison views that answer: "what did this look like at launch, and what actually happened?"
 - Why: the main value is not perfect prediction, but later inspection and feedback from real outcomes.
-- Not now because: the base storage model and observation cadence need to exist first.
+- Not now because: the base storage model exists, but the repo still needs more observation history before heavier interpretation logic is justified.
 
 ### Momentum-oriented alerts
 
@@ -129,7 +126,7 @@ Backlog notes for features that look valuable later, but are not the current imp
   - winners by narrative bucket
   - entry-vs-outcome comparison reports
 - Why: the system should reduce missed review opportunities, not only store rows.
-- Not now because: it depends on richer stored observations and enough history to inspect.
+- Not now because: it depends on richer stored observations and enough history to inspect, even though the current repo already has lightweight compare/report and Gecko ops-summary views.
 
 ### Evaluation sophistication
 
@@ -167,6 +164,7 @@ Backlog notes for features that look valuable later, but are not the current imp
   - mint-only intake can create a token row without full metadata
   - enrichment can append metadata without destroying the original entry view
   - metric rows can accumulate repeated observations for one token
+  - current note: this baseline now exists, so the next step is deeper observation and better review loops, not re-introducing the baseline as future work
 - Start link and social collection after:
   - the repo can persist raw collected context cleanly
   - stored context is inspectable without forcing score changes

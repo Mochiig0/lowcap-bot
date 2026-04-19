@@ -2,7 +2,7 @@
 
 ## Current Repo State
 
-This repo is a CLI-first, mint-driven accumulation MVP. It is not an always-on bot and does not currently include detector runtime loops, schedulers, queues, workers, or generic multi-source adapter runtime.
+This repo is a CLI-first, mint-driven accumulation MVP. It now includes narrow, source-specific semi-automation for DexScreener and GeckoTerminal through one-shot or simple watch-style runners plus bounded GeckoTerminal follow-up batches. It is still not a generic bot platform and does not include queue / worker / scheduler orchestration or a generic multi-source adapter runtime.
 
 ## Three Lanes
 
@@ -15,11 +15,17 @@ This repo is a CLI-first, mint-driven accumulation MVP. It is not an always-on b
    - `pnpm import:mint`
    - `pnpm import:mint:file`
    - `pnpm import:mint:source-file`
+   - `pnpm detect:dexscreener:token-profiles`
+   - `pnpm detect:geckoterminal:new-pools`
    - `pnpm token:enrich`
    - `pnpm token:rescore`
+   - `pnpm token:enrich-rescore:geckoterminal`
    - `pnpm metric:add`
-   - owns mint-only token base creation, then later enrich / rescore / metric append
+   - `pnpm metric:snapshot:geckoterminal`
+   - owns mint-only token base creation, thin source-specific handoff/detect, then later enrich / rescore / metric append
 3. Read-only lane
+   - `pnpm compare:geckoterminal:dexscreener`
+   - `pnpm ops:summary:geckoterminal`
    - `pnpm token:compare`
    - `pnpm tokens:compare-report`
    - `pnpm metrics:report`
@@ -31,7 +37,7 @@ This repo is a CLI-first, mint-driven accumulation MVP. It is not an always-on b
 ## Fixed Boundaries
 
 - Do not move scoring, notify, enrich, rescore, or metric create into the mint-only ingest layer.
-- Keep Telegram notify on the full `pnpm import` path only.
+- Keep Telegram notify on the full `pnpm import` path, except for the already-bounded `pnpm token:enrich-rescore:geckoterminal --write --notify` path.
 - Keep `import:mint:file` as the minimal handoff payload wrapper only: `{ "items": [{ "mint": "...", "source"?: "..." }] }`.
 - Keep source-specific parse and mapping inside source adapters such as `import:mint:source-file`.
 - Keep read-only comparison / report flows separate from ingest-side mutation.
@@ -48,6 +54,7 @@ This repo is a CLI-first, mint-driven accumulation MVP. It is not an always-on b
 
 - Treat `tokens:report`, `token:show`, `metrics:report`, and `metric:show` as sufficient lightweight inspection views for now.
 - Treat `tokens:compare-report` and `token:compare` as sufficient compare views for now.
+- Treat `compare:geckoterminal:dexscreener` and `ops:summary:geckoterminal` as sufficient Gecko-specific read-only helpers for now.
 - Do not turn `token:show` into `token:compare`.
 - Do not turn `tokens:report` into `tokens:compare-report`.
 - Do not keep adding token-deep context to `metric:show` unless a clear operating bottleneck appears.
@@ -82,6 +89,7 @@ Do not add a second source adapter when the request is really about genericizati
 If current behavior changes, sync only the minimum necessary docs among:
 
 - `README.md`
+- `hand-off-prompt.txt`
 - `docs/current-status.md`
 - `docs/architecture.md`
 - `docs/roadmap.md`

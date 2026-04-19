@@ -2,18 +2,20 @@
 
 ## Goal
 
-Move from a manual MVP import tool to a usable scoring pipeline with observable outcomes and maintainable operating procedures.
+Keep the current CLI-first, mint-driven accumulation MVP aligned with the live repo: narrow source-specific semi-automation, observable outcomes, and maintainable operating procedures without drifting into a generic bot runtime too early.
 
 ## Next Minimal Task
 
-Clarify source-adapter operating rules before adding another source-specific adapter.
+Keep the current DexScreener and GeckoTerminal source-specific runtime narrow, reliable, and documented before adding another adapter or broader runtime concept.
 
 Why this is now the most natural next step:
 
 - `pnpm import:mint:file` now exists as a thin batch mint-only ingest wrapper over `pnpm import:mint`
 - `pnpm import:mint:source-file` now exists as a thin source-specific adapter runtime that normalizes one raw source event into `{ mint, source? }` before delegating to `pnpm import:mint`
-- both entrypoints keep scoring, notify, metric, enrich, and rescore responsibilities out of the mint-only path
-- the next safe step is to document when another source-specific adapter is justified before adding more adapters or broader runtime concepts
+- `pnpm detect:dexscreener:token-profiles` and `pnpm detect:geckoterminal:new-pools` now cover the current narrow source-specific detect/watch surface
+- `pnpm token:enrich-rescore:geckoterminal`, `pnpm metric:snapshot:geckoterminal`, and `pnpm ops:summary:geckoterminal` now cover the current Gecko follow-up and read-only ops surface
+- these entrypoints still keep scoring, notify, metric, enrich, and rescore responsibilities separated from mint-only ingest
+- the next safe step is to preserve those boundaries, sync stale docs, and wait for a real new source need before adding broader runtime concepts
 
 ## Short-Term
 
@@ -28,8 +30,8 @@ Why this is now the most natural next step:
   - normalizes into `{ mint, source? }`
   - delegates to `import:mint`
   - does not add scoring, notify, metric, enrich, or rescore behavior
-- Pause Phase 5 runtime expansion here for now:
-  - `import:mint:file` and `import:mint:source-file` are enough as the current mint-only semi-auto runtime
+- Pause generic runtime expansion here for now:
+  - the current narrow runtime already includes the existing DexScreener / GeckoTerminal detect/watch helpers plus the bounded GeckoTerminal enrich-rescore / metric / ops-summary helpers
   - do not add a second source adapter until the documented admission criteria are actually met
   - do not move into a generic or multi-source adapter runtime yet
   - keep detector, queue, worker, and scheduler runtime work in a later phase
@@ -37,10 +39,16 @@ Why this is now the most natural next step:
 - Pause read-only lightweight-view expansion here for now:
   - `tokens:report`, `token:show`, `metrics:report`, and `metric:show` are enough as the current lightweight inspection set
   - `tokens:compare-report` and `token:compare` are enough as the current compare-view set
+  - `compare:geckoterminal:dexscreener` and `ops:summary:geckoterminal` are enough as the current Gecko-specific read-only helpers
   - do not turn `token:show` into `token:compare`, or `tokens:report` into `tokens:compare-report`
   - do not keep adding token-deep context to `metric:show`
   - expand read-only fields, filters, or summaries again only when a real operating bottleneck appears
-- Clarify source-adapter operating rules in docs before adding another detector-shaped entrypoint or external-source adapter
+- Keep docs and hand-off material synced with the live repo before adding another detector-shaped entrypoint or external-source adapter
+- Stabilize the current Gecko runner operating picture:
+  - detect first
+  - enrich-rescore-notify second
+  - metric snapshot third
+  - keep those runners source-specific and bounded
 - Add the next read-only comparison slice only if it helps manual review and does not change the write path:
   - richer comparison report fields
   - comparison filters or sort controls
@@ -52,6 +60,7 @@ Why this is now the most natural next step:
 ## Mid-Term
 
 - Define how a future detect-to-mint-only path should hand off into the existing `import:mint` / `import:mint:file` boundary without bypassing source-adapter normalization
+- Decide whether the next source need really warrants a second source adapter or belongs in the current Gecko/Dex read-only and operator tooling
 - Add tests for:
   - scoring breakdown and rank thresholds
   - import CLI behavior
