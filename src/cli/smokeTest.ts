@@ -4020,6 +4020,11 @@ async function run(): Promise<void> {
                 address: context.geckoEnrichRescoreMint,
                 name: "pokemon dog newinfo",
                 symbol: "SMGET",
+                description: "gecko enrich context description",
+                websites: ["https://example.com/gecko-enrich"],
+                twitter_username: "gecko_enrich_token",
+                telegram_handle: "geckoenrich",
+                discord_url: "https://discord.gg/geckoenrich",
               },
             },
           },
@@ -4068,6 +4073,9 @@ async function run(): Promise<void> {
               name: string | null;
               symbol: string | null;
             };
+            contextAvailable: boolean;
+            contextWouldWrite: boolean;
+            savedContextFields: string[];
             enrichPlan?: {
               hasPatch: boolean;
               willUpdate: boolean;
@@ -4089,6 +4097,7 @@ async function run(): Promise<void> {
               dryRun: boolean;
               enrichUpdated: boolean;
               rescoreUpdated: boolean;
+              contextUpdated: boolean;
             };
           }>;
         }>(
@@ -4133,6 +4142,9 @@ async function run(): Promise<void> {
           selectedTargetItem.status !== "ok" ||
           selectedTargetItem.fetchedSnapshot?.name !== "pokemon dog newinfo" ||
           selectedTargetItem.fetchedSnapshot?.symbol !== "SMGET" ||
+          selectedTargetItem.contextAvailable !== true ||
+          selectedTargetItem.contextWouldWrite !== true ||
+          selectedTargetItem.savedContextFields.length !== 0 ||
           selectedTargetItem.enrichPlan?.hasPatch !== true ||
           selectedTargetItem.enrichPlan?.willUpdate !== true ||
           selectedTargetItem.enrichPlan?.preview.metadataStatus !== "partial" ||
@@ -4146,7 +4158,8 @@ async function run(): Promise<void> {
           selectedTargetItem.notifySent !== false ||
           selectedTargetItem.writeSummary.dryRun !== true ||
           selectedTargetItem.writeSummary.enrichUpdated !== false ||
-          selectedTargetItem.writeSummary.rescoreUpdated !== false
+          selectedTargetItem.writeSummary.rescoreUpdated !== false ||
+          selectedTargetItem.writeSummary.contextUpdated !== false
         ) {
           throw new Error("geckoterminal enrich rescore dry-run returned unexpected summary");
         }
@@ -4210,6 +4223,7 @@ async function run(): Promise<void> {
             metadataStatus: true,
             enrichedAt: true,
             rescoredAt: true,
+            entrySnapshot: true,
           },
         });
 
@@ -4224,6 +4238,20 @@ async function run(): Promise<void> {
           throw new Error("geckoterminal enrich rescore dry-run unexpectedly updated the token");
         }
 
+        const beforeWriteEntrySnapshot =
+          beforeWrite.entrySnapshot &&
+          typeof beforeWrite.entrySnapshot === "object" &&
+          !Array.isArray(beforeWrite.entrySnapshot)
+            ? (beforeWrite.entrySnapshot as Record<string, unknown>)
+            : null;
+
+        if (
+          beforeWriteEntrySnapshot?.contextCapture &&
+          typeof beforeWriteEntrySnapshot.contextCapture === "object"
+        ) {
+          throw new Error("geckoterminal enrich rescore dry-run unexpectedly wrote context");
+        }
+
         const written = await runCliJson<{
           mode: string;
           dryRun: boolean;
@@ -4234,6 +4262,8 @@ async function run(): Promise<void> {
             errorCount: number;
             enrichWriteCount: number;
             rescoreWriteCount: number;
+            contextAvailableCount: number;
+            contextWriteCount: number;
             notifyWouldSendCount: number;
             notifySentCount: number;
           };
@@ -4242,6 +4272,9 @@ async function run(): Promise<void> {
               mint: string;
             };
             status: string;
+            contextAvailable: boolean;
+            contextWouldWrite: boolean;
+            savedContextFields: string[];
             enrichPlan?: {
               willUpdate: boolean;
             };
@@ -4259,6 +4292,7 @@ async function run(): Promise<void> {
               dryRun: boolean;
               enrichUpdated: boolean;
               rescoreUpdated: boolean;
+              contextUpdated: boolean;
             };
           }>;
         }>(
@@ -4282,11 +4316,16 @@ async function run(): Promise<void> {
           written.summary.errorCount !== 0 ||
           written.summary.enrichWriteCount !== 1 ||
           written.summary.rescoreWriteCount !== 1 ||
+          written.summary.contextAvailableCount !== 1 ||
+          written.summary.contextWriteCount !== 1 ||
           written.summary.notifyWouldSendCount !== 1 ||
           written.summary.notifySentCount !== 1 ||
           written.items.length !== 1 ||
           written.items[0]?.token.mint !== context.geckoEnrichRescoreMint ||
           written.items[0]?.status !== "ok" ||
+          written.items[0]?.contextAvailable !== true ||
+          written.items[0]?.contextWouldWrite !== true ||
+          written.items[0]?.savedContextFields.length !== 0 ||
           written.items[0]?.enrichPlan?.willUpdate !== true ||
           written.items[0]?.rescorePreview?.ready !== true ||
           written.items[0]?.rescorePreview?.scoreRank !== "S" ||
@@ -4298,7 +4337,8 @@ async function run(): Promise<void> {
           written.items[0]?.notifySent !== true ||
           written.items[0]?.writeSummary.dryRun !== false ||
           written.items[0]?.writeSummary.enrichUpdated !== true ||
-          written.items[0]?.writeSummary.rescoreUpdated !== true
+          written.items[0]?.writeSummary.rescoreUpdated !== true ||
+          written.items[0]?.writeSummary.contextUpdated !== true
         ) {
           throw new Error("geckoterminal enrich rescore write returned unexpected summary");
         }
@@ -4330,8 +4370,40 @@ async function run(): Promise<void> {
             scoreTotal: true,
             scoreRank: true,
             hardRejected: true,
+            entrySnapshot: true,
           },
         });
+
+        const updatedEntrySnapshot =
+          updatedToken?.entrySnapshot &&
+          typeof updatedToken.entrySnapshot === "object" &&
+          !Array.isArray(updatedToken.entrySnapshot)
+            ? (updatedToken.entrySnapshot as Record<string, unknown>)
+            : null;
+        const updatedContextCapture =
+          updatedEntrySnapshot?.contextCapture &&
+          typeof updatedEntrySnapshot.contextCapture === "object" &&
+          !Array.isArray(updatedEntrySnapshot.contextCapture)
+            ? (updatedEntrySnapshot.contextCapture as Record<string, unknown>)
+            : null;
+        const updatedSavedSnapshot =
+          updatedContextCapture?.geckoterminalTokenSnapshot &&
+          typeof updatedContextCapture.geckoterminalTokenSnapshot === "object" &&
+          !Array.isArray(updatedContextCapture.geckoterminalTokenSnapshot)
+            ? (updatedContextCapture.geckoterminalTokenSnapshot as Record<string, unknown>)
+            : null;
+        const updatedSavedMetadataText =
+          updatedSavedSnapshot?.metadataText &&
+          typeof updatedSavedSnapshot.metadataText === "object" &&
+          !Array.isArray(updatedSavedSnapshot.metadataText)
+            ? (updatedSavedSnapshot.metadataText as Record<string, unknown>)
+            : null;
+        const updatedSavedLinks =
+          updatedSavedSnapshot?.links &&
+          typeof updatedSavedSnapshot.links === "object" &&
+          !Array.isArray(updatedSavedSnapshot.links)
+            ? (updatedSavedSnapshot.links as Record<string, unknown>)
+            : null;
 
         if (
           !updatedToken ||
@@ -4345,7 +4417,15 @@ async function run(): Promise<void> {
           typeof updatedToken.normalizedText !== "string" ||
           typeof updatedToken.scoreTotal !== "number" ||
           updatedToken.scoreRank !== "S" ||
-          typeof updatedToken.hardRejected !== "boolean"
+          typeof updatedToken.hardRejected !== "boolean" ||
+          !updatedSavedSnapshot ||
+          updatedSavedSnapshot.source !== "geckoterminal.token_snapshot" ||
+          updatedSavedMetadataText?.description !== "gecko enrich context description" ||
+          updatedSavedLinks?.website !== "https://example.com/gecko-enrich" ||
+          updatedSavedLinks?.x !== "https://x.com/gecko_enrich_token" ||
+          updatedSavedLinks?.telegram !== "https://t.me/geckoenrich" ||
+          !Array.isArray(updatedSavedLinks?.otherLinks) ||
+          !(updatedSavedLinks.otherLinks as unknown[]).includes("https://discord.gg/geckoenrich")
         ) {
           throw new Error("geckoterminal enrich rescore write did not persist expected token fields");
         }
@@ -4357,6 +4437,9 @@ async function run(): Promise<void> {
           };
           items: Array<{
             status: string;
+            contextAvailable: boolean;
+            contextWouldWrite: boolean;
+            savedContextFields: string[];
             notifyEligibleBefore: boolean;
             notifyEligibleAfter: boolean;
             notifyWouldSend: boolean;
@@ -4364,6 +4447,7 @@ async function run(): Promise<void> {
             writeSummary: {
               enrichUpdated: boolean;
               rescoreUpdated: boolean;
+              contextUpdated: boolean;
             };
           }>;
         }>(
@@ -4383,12 +4467,16 @@ async function run(): Promise<void> {
           rerun.summary.notifySentCount !== 0 ||
           rerun.items.length !== 1 ||
           rerun.items[0]?.status !== "ok" ||
+          rerun.items[0]?.contextAvailable !== true ||
+          rerun.items[0]?.contextWouldWrite !== false ||
+          rerun.items[0]?.savedContextFields.length < 4 ||
           rerun.items[0]?.notifyEligibleBefore !== true ||
           rerun.items[0]?.notifyEligibleAfter !== true ||
           rerun.items[0]?.notifyWouldSend !== false ||
           rerun.items[0]?.notifySent !== false ||
           rerun.items[0]?.writeSummary.enrichUpdated !== false ||
-          rerun.items[0]?.writeSummary.rescoreUpdated !== true
+          rerun.items[0]?.writeSummary.rescoreUpdated !== true ||
+          rerun.items[0]?.writeSummary.contextUpdated !== false
         ) {
           throw new Error("geckoterminal enrich rescore rerun notify unexpectedly duplicated a send");
         }

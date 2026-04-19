@@ -2,6 +2,8 @@ import "dotenv/config";
 
 import { readFile } from "node:fs/promises";
 
+import { Prisma } from "@prisma/client";
+
 import { db } from "./db.js";
 import {
   buildTokenEnrichPlan,
@@ -19,6 +21,7 @@ import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNew
 const GECKOTERMINAL_NETWORK = "solana";
 const GECKOTERMINAL_TOKEN_API_URL =
   `https://api.geckoterminal.com/api/v2/networks/${GECKOTERMINAL_NETWORK}/tokens`;
+const CONTEXT_CAPTURE_SOURCE = "geckoterminal.token_snapshot";
 const DEFAULT_LIMIT = 20;
 const DEFAULT_SINCE_MINUTES = 180;
 const LOG_PREFIX = "[token:enrich-rescore:geckoterminal]";
@@ -53,6 +56,7 @@ type SelectedToken = {
   groupKey: string | null;
   scoreRank: string;
   hardRejected: boolean;
+  entrySnapshot: unknown;
   createdAt: string;
   importedAt: string;
   enrichedAt: string | null;
@@ -66,6 +70,28 @@ type SnapshotMetadata = {
   address: string;
   name: string | null;
   symbol: string | null;
+};
+
+type CollectedContext = {
+  source: string;
+  capturedAt: string;
+  address: string;
+  metadataText: {
+    name: string | null;
+    symbol: string | null;
+    description: string | null;
+  };
+  links: {
+    website: string | null;
+    x: string | null;
+    telegram: string | null;
+    websites: string[];
+    xCandidates: string[];
+    telegramCandidates: string[];
+    otherLinks: string[];
+  };
+  availableFields: string[];
+  missingFields: string[];
 };
 
 type ProcessedItem = {
@@ -92,6 +118,9 @@ type ProcessedItem = {
   selectedReason: "firstSeenSourceSnapshot.detectedAt" | "Token.createdAt";
   status: "ok" | "error";
   fetchedSnapshot?: SnapshotMetadata;
+  contextAvailable: boolean;
+  contextWouldWrite: boolean;
+  savedContextFields: string[];
   enrichPlan?: {
     hasPatch: boolean;
     willUpdate: boolean;
@@ -123,6 +152,7 @@ type ProcessedItem = {
     dryRun: boolean;
     enrichUpdated: boolean;
     rescoreUpdated: boolean;
+    contextUpdated: boolean;
   };
   error?: string;
 };
@@ -153,6 +183,8 @@ type Output = {
     errorCount: number;
     enrichWriteCount: number;
     rescoreWriteCount: number;
+    contextAvailableCount: number;
+    contextWriteCount: number;
     notifyCandidateCount: number;
     notifyWouldSendCount: number;
     notifySentCount: number;
@@ -185,6 +217,7 @@ function getUsageText(): string {
     "- stays dry-run by default and writes Token enrich/rescore updates only when --write is set",
     "- --notify is allowed only with --write and only sends when the token newly enters S-rank and non-hard-rejected state after rescore",
     "- fetches name and symbol from GeckoTerminal token snapshots and keeps description unchanged",
+    "- when useful website/X/Telegram-style context exists in the same snapshot, --write also saves it into Token.entrySnapshot.contextCapture.geckoterminalTokenSnapshot without changing score or notify rules",
   ].join("\n");
 }
 
@@ -319,6 +352,302 @@ function extractFirstSeenSourceSnapshot(entrySnapshot: unknown): FirstSeenSource
   return firstSeenSourceSnapshot as FirstSeenSourceSnapshot;
 }
 
+function isRecord(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function pickNestedRecord(input: JsonObject, key: string): JsonObject | null {
+  const value = input[key];
+  return isRecord(value) ? value : null;
+}
+
+function normalizeWebsiteCandidate(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+  return null;
+}
+
+function normalizeXCandidate(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (/^https?:\/\/(www\.)?(x|twitter)\.com\//i.test(trimmed)) return trimmed;
+  const handle = trimmed.replace(/^@/, "");
+  if (/^[A-Za-z0-9_]{1,32}$/.test(handle)) {
+    return `https://x.com/${handle}`;
+  }
+  return null;
+}
+
+function normalizeTelegramCandidate(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (/^https?:\/\/(t\.me|telegram\.me)\//i.test(trimmed)) return trimmed;
+  const handle = trimmed.replace(/^@/, "");
+  if (/^[A-Za-z0-9_]{1,64}$/.test(handle)) {
+    return `https://t.me/${handle}`;
+  }
+  return null;
+}
+
+function normalizeGenericLinkCandidate(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+function dedupeStrings(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    if (typeof value !== "string" || value.length === 0 || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
+function collectStringCandidates(value: unknown): string[] {
+  if (typeof value === "string") {
+    return value.trim().length > 0 ? [value.trim()] : [];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectStringCandidates(item));
+  }
+  if (isRecord(value)) {
+    return [
+      ...collectStringCandidates(value.url),
+      ...collectStringCandidates(value.href),
+      ...collectStringCandidates(value.link),
+      ...collectStringCandidates(value.value),
+      ...collectStringCandidates(value.website),
+      ...collectStringCandidates(value.website_url),
+      ...collectStringCandidates(value.handle),
+      ...collectStringCandidates(value.username),
+    ];
+  }
+  return [];
+}
+
+function extractLinkCandidates(
+  attributes: JsonObject,
+): {
+  websites: string[];
+  xCandidates: string[];
+  telegramCandidates: string[];
+  otherLinks: string[];
+} {
+  const socials = pickNestedRecord(attributes, "socials");
+  const websiteCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(attributes.website),
+      ...collectStringCandidates(attributes.website_url),
+      ...collectStringCandidates(attributes.websites),
+      ...collectStringCandidates(socials?.website),
+      ...collectStringCandidates(socials?.websites),
+    ].map((value) => normalizeWebsiteCandidate(value)),
+  );
+  const xCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(attributes.twitter),
+      ...collectStringCandidates(attributes.twitter_url),
+      ...collectStringCandidates(attributes.twitter_username),
+      ...collectStringCandidates(attributes.twitter_handle),
+      ...collectStringCandidates(attributes.x),
+      ...collectStringCandidates(attributes.x_url),
+      ...collectStringCandidates(attributes.x_username),
+      ...collectStringCandidates(attributes.x_handle),
+      ...collectStringCandidates(socials?.twitter),
+      ...collectStringCandidates(socials?.x),
+    ].map((value) => normalizeXCandidate(value)),
+  );
+  const telegramCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(attributes.telegram),
+      ...collectStringCandidates(attributes.telegram_url),
+      ...collectStringCandidates(attributes.telegram_handle),
+      ...collectStringCandidates(socials?.telegram),
+    ].map((value) => normalizeTelegramCandidate(value)),
+  );
+  const otherLinks = dedupeStrings(
+    [
+      ...collectStringCandidates(attributes.discord_url),
+      ...collectStringCandidates(attributes.discord),
+      ...collectStringCandidates(socials?.discord),
+    ].map((value) => normalizeGenericLinkCandidate(value)),
+  );
+
+  return {
+    websites: websiteCandidates,
+    xCandidates,
+    telegramCandidates,
+    otherLinks,
+  };
+}
+
+function parseCollectedContext(raw: unknown): CollectedContext {
+  const input = ensureObject(raw, "raw");
+  const data = ensureObject(input.data, "raw.data");
+  const attributes = ensureObject(data.attributes, "raw.data.attributes");
+  const description =
+    readOptionalString(attributes, "description") ?? readOptionalString(attributes, "bio");
+  const links = extractLinkCandidates(attributes);
+  const availableFields: string[] = [];
+  const name = readOptionalString(attributes, "name");
+  const symbol = readOptionalString(attributes, "symbol");
+
+  if (name !== null) availableFields.push("metadata.name");
+  if (symbol !== null) availableFields.push("metadata.symbol");
+  if (description !== null) availableFields.push("metadata.description");
+  if (links.websites.length > 0) availableFields.push("links.website");
+  if (links.xCandidates.length > 0) availableFields.push("links.x");
+  if (links.telegramCandidates.length > 0) availableFields.push("links.telegram");
+  if (links.otherLinks.length > 0) availableFields.push("links.other");
+
+  const availableFieldSet = new Set(availableFields);
+
+  return {
+    source: CONTEXT_CAPTURE_SOURCE,
+    capturedAt: new Date().toISOString(),
+    address: readRequiredString(attributes, "address", "raw.data.attributes"),
+    metadataText: {
+      name,
+      symbol,
+      description,
+    },
+    links: {
+      website: links.websites[0] ?? null,
+      x: links.xCandidates[0] ?? null,
+      telegram: links.telegramCandidates[0] ?? null,
+      websites: links.websites,
+      xCandidates: links.xCandidates,
+      telegramCandidates: links.telegramCandidates,
+      otherLinks: links.otherLinks,
+    },
+    availableFields,
+    missingFields: [
+      "metadata.name",
+      "metadata.symbol",
+      "metadata.description",
+      "links.website",
+      "links.x",
+      "links.telegram",
+      "links.other",
+    ].filter((field) => !availableFieldSet.has(field)),
+  };
+}
+
+function sanitizeContextForCompare(context: CollectedContext): Omit<CollectedContext, "capturedAt"> {
+  const { capturedAt: _capturedAt, ...rest } = context;
+  return rest;
+}
+
+function hasUsefulCollectedContext(context: CollectedContext | null): boolean {
+  return context !== null && context.availableFields.length > 0;
+}
+
+function extractSavedCollectedContext(entrySnapshot: unknown): CollectedContext | null {
+  if (!isRecord(entrySnapshot)) {
+    return null;
+  }
+  const contextCapture = entrySnapshot.contextCapture;
+  if (!isRecord(contextCapture)) {
+    return null;
+  }
+  const geckoterminalTokenSnapshot = contextCapture.geckoterminalTokenSnapshot;
+  if (!isRecord(geckoterminalTokenSnapshot)) {
+    return null;
+  }
+
+  const metadataText = pickNestedRecord(geckoterminalTokenSnapshot, "metadataText");
+  const links = pickNestedRecord(geckoterminalTokenSnapshot, "links");
+  const availableFields = Array.isArray(geckoterminalTokenSnapshot.availableFields)
+    ? geckoterminalTokenSnapshot.availableFields.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+  const missingFields = Array.isArray(geckoterminalTokenSnapshot.missingFields)
+    ? geckoterminalTokenSnapshot.missingFields.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+
+  return {
+    source:
+      typeof geckoterminalTokenSnapshot.source === "string"
+        ? geckoterminalTokenSnapshot.source
+        : CONTEXT_CAPTURE_SOURCE,
+    capturedAt:
+      typeof geckoterminalTokenSnapshot.capturedAt === "string"
+        ? geckoterminalTokenSnapshot.capturedAt
+        : new Date(0).toISOString(),
+    address:
+      typeof geckoterminalTokenSnapshot.address === "string"
+        ? geckoterminalTokenSnapshot.address
+        : "",
+    metadataText: {
+      name: metadataText ? readOptionalString(metadataText, "name") : null,
+      symbol: metadataText ? readOptionalString(metadataText, "symbol") : null,
+      description: metadataText ? readOptionalString(metadataText, "description") : null,
+    },
+    links: {
+      website: links ? readOptionalString(links, "website") : null,
+      x: links ? readOptionalString(links, "x") : null,
+      telegram: links ? readOptionalString(links, "telegram") : null,
+      websites: Array.isArray(links?.websites)
+        ? links.websites.filter((value): value is string => typeof value === "string")
+        : [],
+      xCandidates: Array.isArray(links?.xCandidates)
+        ? links.xCandidates.filter((value): value is string => typeof value === "string")
+        : [],
+      telegramCandidates: Array.isArray(links?.telegramCandidates)
+        ? links.telegramCandidates.filter((value): value is string => typeof value === "string")
+        : [],
+      otherLinks: Array.isArray(links?.otherLinks)
+        ? links.otherLinks.filter((value): value is string => typeof value === "string")
+        : [],
+    },
+    availableFields,
+    missingFields,
+  };
+}
+
+function mergeEntrySnapshotWithContextCapture(
+  entrySnapshot: unknown,
+  collectedContext: CollectedContext,
+): JsonObject {
+  const baseEntrySnapshot =
+    entrySnapshot && typeof entrySnapshot === "object" && !Array.isArray(entrySnapshot)
+      ? { ...(entrySnapshot as JsonObject) }
+      : {};
+  const existingContextCapture = pickNestedRecord(baseEntrySnapshot, "contextCapture") ?? {};
+
+  return {
+    ...baseEntrySnapshot,
+    contextCapture: {
+      ...existingContextCapture,
+      geckoterminalTokenSnapshot: collectedContext,
+    },
+  };
+}
+
+async function saveCollectedContext(
+  tokenId: number,
+  entrySnapshot: unknown,
+  collectedContext: CollectedContext,
+): Promise<void> {
+  await db.token.update({
+    where: { id: tokenId },
+    data: {
+      entrySnapshot: mergeEntrySnapshotWithContextCapture(
+        entrySnapshot,
+        collectedContext,
+      ) as Prisma.InputJsonValue,
+    },
+  });
+}
+
 function buildSelectedToken(token: {
   id: number;
   mint: string;
@@ -355,6 +684,7 @@ function buildSelectedToken(token: {
     groupKey: token.groupKey,
     scoreRank: token.scoreRank,
     hardRejected: token.hardRejected,
+    entrySnapshot: token.entrySnapshot,
     createdAt: token.createdAt.toISOString(),
     importedAt: token.importedAt.toISOString(),
     enrichedAt: token.enrichedAt?.toISOString() ?? null,
@@ -595,10 +925,22 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
   let notifySent = false;
   let enrichUpdated = false;
   let rescoreUpdated = false;
+  let contextUpdated = false;
+  const savedContext = extractSavedCollectedContext(token.entrySnapshot);
+  const savedContextFields = savedContext?.availableFields ?? [];
+  let contextAvailable = false;
+  let contextWouldWrite = false;
 
   try {
     const raw = await fetchTokenSnapshotRaw(token.mint);
     snapshot = parseSnapshotMetadata(raw);
+    const collectedContext = parseCollectedContext(raw);
+    contextAvailable = hasUsefulCollectedContext(collectedContext);
+    const sameAsSaved =
+      savedContext !== null &&
+      JSON.stringify(sanitizeContextForCompare(savedContext)) ===
+        JSON.stringify(sanitizeContextForCompare(collectedContext));
+    contextWouldWrite = contextAvailable && !sameAsSaved;
     const patch = {
       ...(snapshot.name !== null && snapshot.name !== token.name ? { name: snapshot.name } : {}),
       ...(snapshot.symbol !== null && snapshot.symbol !== token.symbol
@@ -664,6 +1006,11 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       const writtenRescore = await rescoreTokenByMint(token.mint);
       rescoreUpdated = true;
 
+      if (contextWouldWrite) {
+        await saveCollectedContext(token.id, token.entrySnapshot, collectedContext);
+        contextUpdated = true;
+      }
+
       if (args.notify && notifyWouldSend) {
         notifySent = await notifyTelegram(
           buildScoreNotifyMessage({
@@ -683,6 +1030,9 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       selectedReason,
       status: "ok",
       fetchedSnapshot: snapshot,
+      contextAvailable,
+      contextWouldWrite,
+      savedContextFields,
       enrichPlan,
       rescorePreview,
       notifyCandidate: notifyEligibleAfter,
@@ -694,6 +1044,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         dryRun: !args.write,
         enrichUpdated,
         rescoreUpdated,
+        contextUpdated,
       },
     };
   } catch (error) {
@@ -702,6 +1053,9 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       selectedReason,
       status: "error",
       fetchedSnapshot: snapshot,
+      contextAvailable,
+      contextWouldWrite,
+      savedContextFields,
       enrichPlan,
       rescorePreview,
       notifyCandidate: notifyEligibleAfter,
@@ -713,6 +1067,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         dryRun: !args.write,
         enrichUpdated,
         rescoreUpdated,
+        contextUpdated,
       },
       error: error instanceof Error ? error.message : String(error),
     };
@@ -786,6 +1141,7 @@ function logBatchSummary(output: Output): void {
       `error=${output.summary.errorCount}`,
       `enrichWritten=${output.summary.enrichWriteCount}`,
       `rescoreWritten=${output.summary.rescoreWriteCount}`,
+      `contextWritten=${output.summary.contextWriteCount}`,
       `notifyWouldSend=${output.summary.notifyWouldSendCount}`,
       `notifySent=${output.summary.notifySentCount}`,
       `rateLimited=${output.summary.rateLimited}`,
@@ -826,6 +1182,8 @@ async function main(): Promise<void> {
       errorCount: execution.items.filter((item) => item.status === "error").length,
       enrichWriteCount: execution.items.filter((item) => item.writeSummary.enrichUpdated).length,
       rescoreWriteCount: execution.items.filter((item) => item.writeSummary.rescoreUpdated).length,
+      contextAvailableCount: execution.items.filter((item) => item.contextAvailable).length,
+      contextWriteCount: execution.items.filter((item) => item.writeSummary.contextUpdated).length,
       notifyCandidateCount: execution.items.filter((item) => item.notifyCandidate).length,
       notifyWouldSendCount: execution.items.filter((item) => item.notifyWouldSend).length,
       notifySentCount: execution.items.filter((item) => item.notifySent).length,
