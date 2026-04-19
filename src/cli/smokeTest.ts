@@ -4342,6 +4342,56 @@ async function run(): Promise<void> {
       ) {
         throw new Error("geckoterminal ops summary preview returned unexpected item fields");
       }
+
+      const packageStdoutPath = `/tmp/${context.smokeId}-gecko-ops-summary-package.stdout.json`;
+      const packageStderrPath = `/tmp/${context.smokeId}-gecko-ops-summary-package.stderr.log`;
+
+      await rm(packageStdoutPath, { force: true });
+      await rm(packageStderrPath, { force: true });
+
+      await execFileAsync("bash", [
+        "-lc",
+        [
+          "pnpm ops:summary:geckoterminal -- --sinceHours 24 --limit 5",
+          `> ${shellEscape(packageStdoutPath)}`,
+          `2> ${shellEscape(packageStderrPath)}`,
+        ].join(" "),
+      ], {
+        cwd: process.cwd(),
+        env: process.env,
+      });
+
+      const packageRaw = (await readFile(packageStdoutPath, "utf-8")).trim();
+      const jsonStartIndex = packageRaw.indexOf("{");
+      if (jsonStartIndex < 0) {
+        throw new Error("geckoterminal ops summary package script did not emit JSON");
+      }
+
+      const packageParsed = parseJson<{
+        readOnly: boolean;
+        selection: {
+          sinceHours: number;
+          previewLimit: number;
+        };
+        summary: {
+          geckoOriginTokenCount: number;
+        };
+      }>(
+        "geckoterminal ops summary package script",
+        packageRaw.slice(jsonStartIndex),
+      );
+
+      if (
+        packageParsed.readOnly !== true ||
+        packageParsed.selection.sinceHours !== 24 ||
+        packageParsed.selection.previewLimit !== 5 ||
+        packageParsed.summary.geckoOriginTokenCount < 1
+      ) {
+        throw new Error("geckoterminal ops summary package script returned unexpected output");
+      }
+
+      await rm(packageStdoutPath, { force: true });
+      await rm(packageStderrPath, { force: true });
     });
 
     await runStep("mint-driven happy path", async () => {
