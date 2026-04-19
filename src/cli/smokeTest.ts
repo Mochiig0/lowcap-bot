@@ -3585,6 +3585,7 @@ async function run(): Promise<void> {
         process.env.LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS = "1";
         process.env.LOWCAP_GECKOTERMINAL_ENRICH_LIMIT = "2";
         process.env.LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES = "5";
+        process.env.LOWCAP_GECKOTERMINAL_ENRICH_VERBOSE_JSON = "1";
 
         const runnerStdoutPath = `/tmp/${context.smokeId}-gecko-enrich-runner.stdout.json`;
         const runnerStderrPath = `/tmp/${context.smokeId}-gecko-enrich-runner.stderr.log`;
@@ -3643,6 +3644,7 @@ async function run(): Promise<void> {
         delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS;
         delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_LIMIT;
         delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_VERBOSE_JSON;
       } finally {
         if (previousSnapshotFile === undefined) {
           delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
@@ -3661,6 +3663,7 @@ async function run(): Promise<void> {
         delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS;
         delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_LIMIT;
         delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_VERBOSE_JSON;
         await rm(`/tmp/${context.smokeId}-gecko-enrich-runner.stdout.json`, { force: true });
         await rm(`/tmp/${context.smokeId}-gecko-enrich-runner.stderr.log`, { force: true });
       }

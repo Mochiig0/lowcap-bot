@@ -7,6 +7,7 @@ LIMIT="${LOWCAP_GECKOTERMINAL_ENRICH_LIMIT:-5}"
 SINCE_MINUTES="${LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES:-60}"
 START_DELAY_SECONDS="${LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS:-180}"
 FAILURE_COOLDOWN_SECONDS="${LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS:-300}"
+VERBOSE_JSON="${LOWCAP_GECKOTERMINAL_ENRICH_VERBOSE_JSON:-0}"
 
 cd "$REPO_ROOT"
 
@@ -37,10 +38,14 @@ while true; do
     --limit "$LIMIT" \
     --sinceMinutes "$SINCE_MINUTES" \
     "$@" >"$cycle_json_file"; then
-    cat "$cycle_json_file"
+    if [[ "$VERBOSE_JSON" == "1" ]]; then
+      cat "$cycle_json_file"
+    fi
     echo "[geckoterminal-enrich-rescore-notify] cycle_failed=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >&2
   else
-    cat "$cycle_json_file"
+    if [[ "$VERBOSE_JSON" == "1" ]]; then
+      cat "$cycle_json_file"
+    fi
     if ! rate_limited="$(
       node --input-type=module -e 'import { readFileSync } from "node:fs"; const raw = readFileSync(process.argv[1], "utf8"); const parsed = JSON.parse(raw); process.stdout.write(parsed?.summary?.rateLimited === true ? "true" : "false");' "$cycle_json_file"
     )"; then
