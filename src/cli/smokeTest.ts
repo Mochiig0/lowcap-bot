@@ -36,6 +36,8 @@ type SmokeContext = {
   metricMint: string;
   metricSnapshotMint: string;
   metricSnapshotGapMint: string;
+  metricSnapshotPumpMint: string;
+  metricSnapshotNonPumpMint: string;
   metricSnapshotRateLimitMints: [string, string];
   geckoEnrichRescoreRateLimitMints: [string, string];
   geckoEnrichRescoreMint: string;
@@ -250,6 +252,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricMint,
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
+          context.metricSnapshotPumpMint,
+          context.metricSnapshotNonPumpMint,
           ...context.metricSnapshotRateLimitMints,
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
@@ -296,6 +300,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricMint,
           context.metricSnapshotMint,
           context.metricSnapshotGapMint,
+          context.metricSnapshotPumpMint,
+          context.metricSnapshotNonPumpMint,
           ...context.metricSnapshotRateLimitMints,
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
@@ -368,6 +374,8 @@ async function run(): Promise<void> {
     metricMint: `${smokeId}_METRIC`,
     metricSnapshotMint: `${smokeId}_METRIC_SNAPSHOT`,
     metricSnapshotGapMint: `${smokeId}_METRIC_SNAPSHOT_GAP`,
+    metricSnapshotPumpMint: `${smokeId}_METRIC_SNAPSHOT_FASTpump`,
+    metricSnapshotNonPumpMint: `${smokeId}_METRIC_SNAPSHOT_FAST_NON_PUMP`,
     metricSnapshotRateLimitMints: [
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_1`,
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_2`,
@@ -2799,6 +2807,172 @@ async function run(): Promise<void> {
           typeof oneShotWrite.items[0]?.writeSummary.metricId !== "number"
         ) {
           throw new Error("metric snapshot geckoterminal one-shot write returned unexpected summary");
+        }
+
+        await runCliJson<{
+          mint: string;
+          created: boolean;
+        }>(
+          "metric snapshot geckoterminal pump-only import pump",
+          "src/cli/importMint.ts",
+          [
+            "--mint",
+            context.metricSnapshotPumpMint,
+            "--source",
+            "geckoterminal.new_pools",
+          ],
+          context.smokeId,
+        );
+
+        await runCliJson<{
+          mint: string;
+          created: boolean;
+        }>(
+          "metric snapshot geckoterminal pump-only import non-pump",
+          "src/cli/importMint.ts",
+          [
+            "--mint",
+            context.metricSnapshotNonPumpMint,
+            "--source",
+            "geckoterminal.new_pools",
+          ],
+          context.smokeId,
+        );
+
+        const pumpOnlyBatch = await runCliJson<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          selection: {
+            mint: string | null;
+            limit: number | null;
+            sinceMinutes: number | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+            skippedNonPumpCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            skippedCount: number;
+            errorCount: number;
+            writtenCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+            metricCandidate?: {
+              volume24h: number | null;
+            };
+            writeSummary: {
+              metricId: number | null;
+            };
+          }>;
+        }>(
+          "metric snapshot geckoterminal pump-only batch",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--limit",
+            "10",
+            "--sinceMinutes",
+            "5",
+            "--pumpOnly",
+          ],
+          context.smokeId,
+        );
+
+        const pumpOnlyBatchMints = new Set(
+          pumpOnlyBatch.items.map((item) => item.token.mint),
+        );
+        if (
+          pumpOnlyBatch.mode !== "recent_batch" ||
+          pumpOnlyBatch.dryRun !== true ||
+          pumpOnlyBatch.writeEnabled !== false ||
+          pumpOnlyBatch.selection.mint !== null ||
+          pumpOnlyBatch.selection.limit !== 10 ||
+          pumpOnlyBatch.selection.sinceMinutes !== 5 ||
+          pumpOnlyBatch.selection.pumpOnly !== true ||
+          pumpOnlyBatch.selection.selectedCount < 1 ||
+          pumpOnlyBatch.selection.skippedNonPumpCount < 1 ||
+          pumpOnlyBatch.summary.selectedCount !== pumpOnlyBatch.selection.selectedCount ||
+          pumpOnlyBatch.summary.okCount !== pumpOnlyBatch.items.length ||
+          pumpOnlyBatch.summary.skippedCount !== 0 ||
+          pumpOnlyBatch.summary.errorCount !== 0 ||
+          pumpOnlyBatch.summary.writtenCount !== 0 ||
+          !pumpOnlyBatchMints.has(context.metricSnapshotPumpMint) ||
+          pumpOnlyBatchMints.has(context.metricSnapshotNonPumpMint) ||
+          pumpOnlyBatch.items.some(
+            (item) =>
+              item.status !== "ok" ||
+              !item.token.mint.endsWith("pump") ||
+              item.metricCandidate?.volume24h !== 1234 ||
+              item.writeSummary.metricId !== null,
+          )
+        ) {
+          throw new Error(
+            "metric snapshot geckoterminal pump-only batch did not narrow to pump mints",
+          );
+        }
+
+        const nonPumpSingle = await runCliJson<{
+          mode: string;
+          selection: {
+            mint: string | null;
+            limit: number | null;
+            sinceMinutes: number | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+            skippedNonPumpCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            skippedCount: number;
+            errorCount: number;
+            writtenCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+            metricCandidate?: {
+              volume24h: number | null;
+            };
+          }>;
+        }>(
+          "metric snapshot geckoterminal single non-pump with pump-only available",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--mint",
+            context.metricSnapshotNonPumpMint,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          nonPumpSingle.mode !== "single" ||
+          nonPumpSingle.selection.mint !== context.metricSnapshotNonPumpMint ||
+          nonPumpSingle.selection.limit !== null ||
+          nonPumpSingle.selection.sinceMinutes !== null ||
+          nonPumpSingle.selection.pumpOnly !== false ||
+          nonPumpSingle.selection.selectedCount !== 1 ||
+          nonPumpSingle.selection.skippedNonPumpCount !== 0 ||
+          nonPumpSingle.summary.selectedCount !== 1 ||
+          nonPumpSingle.summary.okCount !== 1 ||
+          nonPumpSingle.summary.skippedCount !== 0 ||
+          nonPumpSingle.summary.errorCount !== 0 ||
+          nonPumpSingle.summary.writtenCount !== 0 ||
+          nonPumpSingle.items.length !== 1 ||
+          nonPumpSingle.items[0]?.token.mint !== context.metricSnapshotNonPumpMint ||
+          nonPumpSingle.items[0]?.status !== "ok" ||
+          nonPumpSingle.items[0]?.metricCandidate?.volume24h !== 1234
+        ) {
+          throw new Error(
+            "metric snapshot geckoterminal single non-pump should remain available outside pump-only batch mode",
+          );
         }
 
         const watchDryRun = await runCliJson<{

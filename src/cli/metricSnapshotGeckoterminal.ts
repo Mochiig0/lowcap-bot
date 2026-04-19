@@ -25,6 +25,7 @@ type MetricSnapshotArgs = {
   mint?: string;
   limit: number;
   sinceMinutes: number;
+  pumpOnly: boolean;
   minGapMinutes?: number;
   intervalSeconds: number;
   maxIterations?: number;
@@ -118,7 +119,9 @@ type CliOutput = {
     limit: number | null;
     sinceMinutes: number | null;
     sinceCutoff: string | null;
+    pumpOnly: boolean;
     selectedCount: number;
+    skippedNonPumpCount: number;
   };
   summary: {
     selectedCount: number;
@@ -140,7 +143,9 @@ type WatchCycleResult = {
     limit: number | null;
     sinceMinutes: number | null;
     sinceCutoff: string | null;
+    pumpOnly: boolean;
     selectedCount: number;
+    skippedNonPumpCount: number;
   };
   summary: {
     selectedCount: number;
@@ -169,6 +174,7 @@ type WatchOutput = {
     mint: string | null;
     limit: number | null;
     sinceMinutes: number | null;
+    pumpOnly: boolean;
   };
   cycleCount: number;
   failedCount: number;
@@ -200,13 +206,14 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
     `- recent batch mode selects up to ${DEFAULT_LIMIT} recent GeckoTerminal-origin tokens`,
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
+    `- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter`,
     `- skips a token before fetch only when --minGapMinutes is set and the latest Metric for the same token+source is still recent`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
     `- loops only when --watch is set`,
@@ -241,6 +248,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     watch: false,
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
+    pumpOnly: false,
     intervalSeconds: DEFAULT_INTERVAL_SECONDS,
     source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
   };
@@ -258,6 +266,11 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
       } else {
         out.watch = true;
       }
+      continue;
+    }
+
+    if (key === "--pumpOnly") {
+      out.pumpOnly = true;
       continue;
     }
 
@@ -469,10 +482,15 @@ function buildSelectedToken(token: {
   };
 }
 
+function isPumpMint(mint: string): boolean {
+  return mint.endsWith("pump");
+}
+
 async function selectTokens(args: MetricSnapshotArgs): Promise<{
   mode: "single" | "recent_batch";
   selectedTokens: SelectedToken[];
   sinceCutoff: string | null;
+  skippedNonPumpCount: number;
 }> {
   if (args.mint) {
     const token = await db.token.findUnique({
@@ -494,6 +512,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
       mode: "single",
       selectedTokens: [buildSelectedToken(token)],
       sinceCutoff: null,
+      skippedNonPumpCount: 0,
     };
   }
 
@@ -514,7 +533,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
     },
   });
 
-  const selectedTokens = tokens
+  const recentGeckoTokens = tokens
     .map(buildSelectedToken)
     .filter(
       (token) =>
@@ -528,13 +547,17 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
       }
 
       return right.id - left.id;
-    })
-    .slice(0, args.limit);
+    });
+  const pumpEligibleTokens = args.pumpOnly
+    ? recentGeckoTokens.filter((token) => isPumpMint(token.mint))
+    : recentGeckoTokens;
+  const selectedTokens = pumpEligibleTokens.slice(0, args.limit);
 
   return {
     mode: "recent_batch",
     selectedTokens,
     sinceCutoff: sinceCutoff.toISOString(),
+    skippedNonPumpCount: recentGeckoTokens.length - pumpEligibleTokens.length,
   };
 }
 
@@ -790,6 +813,7 @@ type SnapshotExecutionResult = {
   mode: "single" | "recent_batch";
   sinceCutoff: string | null;
   selectedTokens: SelectedToken[];
+  skippedNonPumpCount: number;
   items: ProcessedTokenResult[];
   rateLimited: boolean;
   rateLimitedCount: number;
@@ -825,6 +849,7 @@ async function executeSnapshotCycle(
     mode: selection.mode,
     sinceCutoff: selection.sinceCutoff,
     selectedTokens: selection.selectedTokens,
+    skippedNonPumpCount: selection.skippedNonPumpCount,
     items,
     rateLimited,
     rateLimitedCount,
@@ -848,7 +873,9 @@ function buildOneShotOutput(
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
+      pumpOnly: !args.mint && args.pumpOnly,
       selectedCount: execution.selectedTokens.length,
+      skippedNonPumpCount: execution.skippedNonPumpCount,
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
@@ -876,7 +903,9 @@ function createFailedCycleResult(
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: null,
+      pumpOnly: !args.mint && args.pumpOnly,
       selectedCount: 0,
+      skippedNonPumpCount: 0,
     },
     summary: {
       selectedCount: 0,
@@ -907,7 +936,9 @@ function buildWatchCycleResult(
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
+      pumpOnly: !args.mint && args.pumpOnly,
       selectedCount: execution.selectedTokens.length,
+      skippedNonPumpCount: execution.skippedNonPumpCount,
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
@@ -962,6 +993,7 @@ function buildWatchOutput(
       mint: args.mint ?? null,
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
+      pumpOnly: !args.mint && args.pumpOnly,
     },
     cycleCount: cycles.length,
     failedCount: cycles.filter((cycle) => cycle.failed).length,
