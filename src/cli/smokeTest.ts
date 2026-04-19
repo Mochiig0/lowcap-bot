@@ -44,6 +44,8 @@ type SmokeContext = {
   geckoEnrichRescoreCompleteMint: string;
   geckoEnrichRescorePumpMint: string;
   geckoEnrichRescoreNonPumpMint: string;
+  geckoContextCapturePumpMint: string;
+  geckoContextCaptureNonPumpMint: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -71,6 +73,7 @@ type SmokeContext = {
   mintHappyPathFilePath: string;
   metricSnapshotFilePath: string;
   geckoEnrichRescoreFilePath: string;
+  geckoContextCaptureFilePath: string;
   telegramCaptureFilePath: string;
 };
 
@@ -260,6 +263,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.geckoEnrichRescoreCompleteMint,
           context.geckoEnrichRescorePumpMint,
           context.geckoEnrichRescoreNonPumpMint,
+          context.geckoContextCapturePumpMint,
+          context.geckoContextCaptureNonPumpMint,
         ],
       },
     },
@@ -308,6 +313,8 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.geckoEnrichRescoreCompleteMint,
           context.geckoEnrichRescorePumpMint,
           context.geckoEnrichRescoreNonPumpMint,
+          context.geckoContextCapturePumpMint,
+          context.geckoContextCaptureNonPumpMint,
         ],
       },
     },
@@ -337,6 +344,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.mintHappyPathFilePath, { force: true });
   await rm(context.metricSnapshotFilePath, { force: true });
   await rm(context.geckoEnrichRescoreFilePath, { force: true });
+  await rm(context.geckoContextCaptureFilePath, { force: true });
   await rm(context.telegramCaptureFilePath, { force: true });
 }
 
@@ -388,6 +396,8 @@ async function run(): Promise<void> {
     geckoEnrichRescoreCompleteMint: `${smokeId}_GECKO_ENRICH_RESCORE_COMPLETE`,
     geckoEnrichRescorePumpMint: `${smokeId}_GECKO_ENRICH_RESCORE_FASTpump`,
     geckoEnrichRescoreNonPumpMint: `${smokeId}_GECKO_ENRICH_RESCORE_FAST_NON_PUMP`,
+    geckoContextCapturePumpMint: `${smokeId}_GECKO_CONTEXT_CAPTUREpump`,
+    geckoContextCaptureNonPumpMint: `${smokeId}_GECKO_CONTEXT_CAPTURE_NON_PUMP`,
     metricId: null,
     devWallet: `${smokeId}_DEV`,
     trendRaw: await readFile(TREND_PATH, "utf-8"),
@@ -415,6 +425,7 @@ async function run(): Promise<void> {
     mintHappyPathFilePath: `/tmp/${smokeId}-mint-happy-path-source-file.json`,
     metricSnapshotFilePath: `/tmp/${smokeId}-metric-snapshot.json`,
     geckoEnrichRescoreFilePath: `/tmp/${smokeId}-gecko-enrich-rescore.json`,
+    geckoContextCaptureFilePath: `/tmp/${smokeId}-gecko-context-capture.json`,
     telegramCaptureFilePath: `/tmp/${smokeId}-telegram-capture.jsonl`,
   };
 
@@ -5106,6 +5117,397 @@ async function run(): Promise<void> {
 
       await rm(packageStdoutPath, { force: true });
       await rm(packageStderrPath, { force: true });
+    });
+
+    await runStep("geckoterminal context capture", async () => {
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "geckoterminal context capture import pump",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.geckoContextCapturePumpMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      await runCliJson<{
+        mint: string;
+        created: boolean;
+      }>(
+        "geckoterminal context capture import non-pump",
+        "src/cli/importMint.ts",
+        [
+          "--mint",
+          context.geckoContextCaptureNonPumpMint,
+          "--source",
+          "geckoterminal.new_pools",
+        ],
+        context.smokeId,
+      );
+
+      try {
+        await writeFile(
+          context.geckoContextCaptureFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.geckoContextCapturePumpMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoContextCapturePumpMint,
+                  name: "context capture token",
+                  symbol: "CCT",
+                  description: "context capture description",
+                  websites: ["https://example.com/project"],
+                  twitter_username: "context_token",
+                  telegram_handle: "contexttelegram",
+                  discord_url: "https://discord.gg/context",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoContextCaptureFilePath;
+
+        const [tokenCountBefore, metricCountBefore] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        const dryRunBatch = await runCliJson<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          selection: {
+            mint: string | null;
+            sinceHours: number | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+            skippedNonPumpCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+            writeCount: number;
+            availableDescriptionCount: number;
+            availableWebsiteCount: number;
+            availableXCount: number;
+            availableTelegramCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+            selectedReason: string;
+            savedContextPresentBefore: boolean;
+            wouldWrite: boolean;
+            writeSummary: {
+              dryRun: boolean;
+              updatedEntrySnapshot: boolean;
+            };
+            collectedContext?: {
+              metadataText: {
+                description: string | null;
+              };
+              links: {
+                website: string | null;
+                x: string | null;
+                telegram: string | null;
+              };
+            };
+          }>;
+        }>(
+          "geckoterminal context capture batch dry-run",
+          "src/cli/contextCaptureGeckoterminal.ts",
+          [
+            "--limit",
+            "5",
+            "--sinceHours",
+            "1",
+          ],
+          context.smokeId,
+        );
+
+        const [tokenCountAfterDryRun, metricCountAfterDryRun] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        if (
+          tokenCountBefore !== tokenCountAfterDryRun ||
+          metricCountBefore !== metricCountAfterDryRun
+        ) {
+          throw new Error("geckoterminal context capture dry-run was not read-only");
+        }
+
+        const dryRunBatchMints = new Set(dryRunBatch.items.map((item) => item.token.mint));
+        const pumpDryRunItem = dryRunBatch.items.find(
+          (item) => item.token.mint === context.geckoContextCapturePumpMint,
+        );
+
+        if (
+          dryRunBatch.mode !== "recent_batch" ||
+          dryRunBatch.dryRun !== true ||
+          dryRunBatch.writeEnabled !== false ||
+          dryRunBatch.selection.mint !== null ||
+          dryRunBatch.selection.sinceHours !== 1 ||
+          dryRunBatch.selection.pumpOnly !== true ||
+          dryRunBatch.selection.selectedCount < 1 ||
+          dryRunBatch.selection.skippedNonPumpCount < 1 ||
+          dryRunBatch.summary.selectedCount !== dryRunBatch.items.length ||
+          dryRunBatch.summary.okCount !== dryRunBatch.items.length ||
+          dryRunBatch.summary.errorCount !== 0 ||
+          dryRunBatch.summary.writeCount !== 0 ||
+          dryRunBatch.summary.availableDescriptionCount < 1 ||
+          dryRunBatch.summary.availableWebsiteCount < 1 ||
+          dryRunBatch.summary.availableXCount < 1 ||
+          dryRunBatch.summary.availableTelegramCount < 1 ||
+          !dryRunBatchMints.has(context.geckoContextCapturePumpMint) ||
+          dryRunBatchMints.has(context.geckoContextCaptureNonPumpMint) ||
+          !pumpDryRunItem ||
+          pumpDryRunItem.status !== "ok" ||
+          pumpDryRunItem.selectedReason !== "Token.createdAt" ||
+          pumpDryRunItem.savedContextPresentBefore !== false ||
+          pumpDryRunItem.wouldWrite !== true ||
+          pumpDryRunItem.writeSummary.dryRun !== true ||
+          pumpDryRunItem.writeSummary.updatedEntrySnapshot !== false ||
+          pumpDryRunItem.collectedContext?.metadataText.description !==
+            "context capture description" ||
+          pumpDryRunItem.collectedContext?.links.website !== "https://example.com/project" ||
+          pumpDryRunItem.collectedContext?.links.x !== "https://x.com/context_token" ||
+          pumpDryRunItem.collectedContext?.links.telegram !== "https://t.me/contexttelegram"
+        ) {
+          throw new Error("geckoterminal context capture dry-run returned unexpected output");
+        }
+
+        const tokenBeforeWrite = await db.token.findUnique({
+          where: { mint: context.geckoContextCapturePumpMint },
+          select: {
+            entrySnapshot: true,
+          },
+        });
+
+        if (!tokenBeforeWrite) {
+          throw new Error("geckoterminal context capture pump token was not saved");
+        }
+
+        const entrySnapshotBeforeWrite =
+          tokenBeforeWrite.entrySnapshot &&
+          typeof tokenBeforeWrite.entrySnapshot === "object" &&
+          !Array.isArray(tokenBeforeWrite.entrySnapshot)
+            ? (tokenBeforeWrite.entrySnapshot as Record<string, unknown>)
+            : null;
+
+        if (
+          entrySnapshotBeforeWrite?.contextCapture &&
+          typeof entrySnapshotBeforeWrite.contextCapture === "object"
+        ) {
+          throw new Error("geckoterminal context capture dry-run unexpectedly wrote context");
+        }
+
+        const singleWrite = await runCliJson<{
+          mode: string;
+          dryRun: boolean;
+          writeEnabled: boolean;
+          selection: {
+            mint: string | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+            writeCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+            wouldWrite: boolean;
+            writeSummary: {
+              dryRun: boolean;
+              updatedEntrySnapshot: boolean;
+            };
+          }>;
+        }>(
+          "geckoterminal context capture single write",
+          "src/cli/contextCaptureGeckoterminal.ts",
+          [
+            "--mint",
+            context.geckoContextCapturePumpMint,
+            "--write",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          singleWrite.mode !== "single" ||
+          singleWrite.dryRun !== false ||
+          singleWrite.writeEnabled !== true ||
+          singleWrite.selection.mint !== context.geckoContextCapturePumpMint ||
+          singleWrite.selection.pumpOnly !== false ||
+          singleWrite.selection.selectedCount !== 1 ||
+          singleWrite.summary.selectedCount !== 1 ||
+          singleWrite.summary.okCount !== 1 ||
+          singleWrite.summary.errorCount !== 0 ||
+          singleWrite.summary.writeCount !== 1 ||
+          singleWrite.items.length !== 1 ||
+          singleWrite.items[0]?.token.mint !== context.geckoContextCapturePumpMint ||
+          singleWrite.items[0]?.status !== "ok" ||
+          singleWrite.items[0]?.wouldWrite !== true ||
+          singleWrite.items[0]?.writeSummary.dryRun !== false ||
+          singleWrite.items[0]?.writeSummary.updatedEntrySnapshot !== true
+        ) {
+          throw new Error("geckoterminal context capture single write returned unexpected output");
+        }
+
+        const tokenAfterWrite = await db.token.findUnique({
+          where: { mint: context.geckoContextCapturePumpMint },
+          select: {
+            entrySnapshot: true,
+          },
+        });
+
+        const entrySnapshotAfterWrite =
+          tokenAfterWrite?.entrySnapshot &&
+          typeof tokenAfterWrite.entrySnapshot === "object" &&
+          !Array.isArray(tokenAfterWrite.entrySnapshot)
+            ? (tokenAfterWrite.entrySnapshot as Record<string, unknown>)
+            : null;
+        const contextCapture =
+          entrySnapshotAfterWrite?.contextCapture &&
+          typeof entrySnapshotAfterWrite.contextCapture === "object" &&
+          !Array.isArray(entrySnapshotAfterWrite.contextCapture)
+            ? (entrySnapshotAfterWrite.contextCapture as Record<string, unknown>)
+            : null;
+        const savedSnapshot =
+          contextCapture?.geckoterminalTokenSnapshot &&
+          typeof contextCapture.geckoterminalTokenSnapshot === "object" &&
+          !Array.isArray(contextCapture.geckoterminalTokenSnapshot)
+            ? (contextCapture.geckoterminalTokenSnapshot as Record<string, unknown>)
+            : null;
+        const savedMetadataText =
+          savedSnapshot?.metadataText &&
+          typeof savedSnapshot.metadataText === "object" &&
+          !Array.isArray(savedSnapshot.metadataText)
+            ? (savedSnapshot.metadataText as Record<string, unknown>)
+            : null;
+        const savedLinks =
+          savedSnapshot?.links &&
+          typeof savedSnapshot.links === "object" &&
+          !Array.isArray(savedSnapshot.links)
+            ? (savedSnapshot.links as Record<string, unknown>)
+            : null;
+        const savedPlaceholderLinks =
+          entrySnapshotAfterWrite?.links &&
+          typeof entrySnapshotAfterWrite.links === "object" &&
+          !Array.isArray(entrySnapshotAfterWrite.links)
+            ? (entrySnapshotAfterWrite.links as Record<string, unknown>)
+            : null;
+
+        if (
+          !entrySnapshotAfterWrite ||
+          entrySnapshotAfterWrite.stage !== "mint_only" ||
+          !savedSnapshot ||
+          savedSnapshot.source !== "geckoterminal.token_snapshot" ||
+          savedMetadataText?.description !== "context capture description" ||
+          savedLinks?.website !== "https://example.com/project" ||
+          savedLinks?.x !== "https://x.com/context_token" ||
+          savedLinks?.telegram !== "https://t.me/contexttelegram" ||
+          !Array.isArray(savedLinks?.otherLinks) ||
+          !(savedLinks.otherLinks as unknown[]).includes("https://discord.gg/context") ||
+          savedPlaceholderLinks?.website !== null ||
+          savedPlaceholderLinks?.x !== null ||
+          savedPlaceholderLinks?.telegram !== null
+        ) {
+          throw new Error("geckoterminal context capture single write did not save expected entry snapshot context");
+        }
+
+        await writeFile(
+          context.geckoContextCaptureFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.geckoContextCaptureNonPumpMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoContextCaptureNonPumpMint,
+                  name: "non pump context capture",
+                  symbol: "NPCC",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+
+        const nonPumpSingle = await runCliJson<{
+          mode: string;
+          selection: {
+            mint: string | null;
+            pumpOnly: boolean;
+            selectedCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+            errorCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+          }>;
+        }>(
+          "geckoterminal context capture single non-pump",
+          "src/cli/contextCaptureGeckoterminal.ts",
+          [
+            "--mint",
+            context.geckoContextCaptureNonPumpMint,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          nonPumpSingle.mode !== "single" ||
+          nonPumpSingle.selection.mint !== context.geckoContextCaptureNonPumpMint ||
+          nonPumpSingle.selection.pumpOnly !== false ||
+          nonPumpSingle.selection.selectedCount !== 1 ||
+          nonPumpSingle.summary.selectedCount !== 1 ||
+          nonPumpSingle.summary.okCount !== 1 ||
+          nonPumpSingle.summary.errorCount !== 0 ||
+          nonPumpSingle.items.length !== 1 ||
+          nonPumpSingle.items[0]?.token.mint !== context.geckoContextCaptureNonPumpMint ||
+          nonPumpSingle.items[0]?.status !== "ok"
+        ) {
+          throw new Error(
+            "geckoterminal context capture single non-pump should remain available outside pump-only batch mode",
+          );
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+      }
     });
 
     await runStep("mint-driven happy path", async () => {
