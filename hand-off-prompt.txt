@@ -1,0 +1,39 @@
+lowcap-bot is currently a CLI-first, mint-driven accumulation MVP backed by SQLite via Prisma.
+The repo is organized around three fixed lanes: full import, mint-driven accumulation, and read-only inspection.
+Full import still owns scoring, hard reject, optional metric create, and Telegram notify.
+Mint-driven accumulation now includes mint-only ingest plus source-specific semi-automation:
+- import:mint, import:mint:file, import:mint:source-file
+- detect:dexscreener:token-profiles
+- detect:geckoterminal:new-pools
+- token:enrich, token:rescore
+- token:enrich-rescore:geckoterminal
+- metric:add
+- metric:snapshot:geckoterminal
+Read-only inspection now has lightweight views (`tokens:report`, `token:show`, `metrics:report`, `metric:show`), compare views (`tokens:compare-report`, `token:compare`), and Gecko-specific observation summary / timing helpers (`ops:summary:geckoterminal`, `compare:geckoterminal:dexscreener`).
+This repo is still not a generic bot platform and does not include queue / worker / scheduler orchestration, a generic multi-source adapter runtime, or trading automation.
+
+Three lanes:
+- Full import: curated metadata in, full import behavior out.
+- Mint-driven accumulation: mint first, allow thin source-specific handoff/detect, then enrich, rescore, and append metrics later.
+- Read-only: inspect current tokens, metrics, comparisons, and Gecko operations summaries without side effects.
+
+Read authority docs in this order:
+1. AGENTS.md
+2. README.md
+3. docs/current-status.md
+4. docs/architecture.md
+5. docs/roadmap.md
+
+Pause points:
+- Generic runtime expansion is still paused: keep the current source-specific DexScreener / GeckoTerminal helpers narrow and avoid queue / worker / scheduler broadening.
+- Read-only lightweight-view expansion is paused: current lightweight and compare views are enough for now.
+
+Do not broaden now:
+- generic detector / queue / worker / scheduler runtime
+- generic or multi-source adapter runtime
+- further lightweight read-only field / filter / summary expansion without a real bottleneck
+
+When choosing the next task:
+- first preserve and verify current behavior
+- then prefer the smallest docs, operator-value, or source-specific refinement
+- do not generalize the current source-specific runners into a generic runtime until a real new source need appears

@@ -1,8 +1,15 @@
 # lowcap-bot
 
-CLI-first MVP for researching Solana low-cap meme coin launches.
+CLI-first mint-driven accumulation MVP for researching Solana low-cap meme coin launches.
 
-The current focus is manual operation: import a token candidate, score its narrative text, reject obvious scam phrases, optionally store observed metrics, refresh trend keywords, and inspect stored data. This repo is not yet an always-on bot or automatic ingestion system.
+The current focus is a narrow, source-specific accumulation workflow:
+
+- full manual import when curated metadata already exists
+- mint-first accumulation when only the mint or a thin source event is available
+- source-specific semi-automation for DexScreener and GeckoTerminal through one-shot or simple watch-style runners
+- later enrich, rescore, metric capture, and read-only comparison/reporting
+
+This repo is not a generic bot platform. It does not currently provide queue / worker / scheduler orchestration, a generic multi-source adapter runtime, or trading automation.
 
 ## What It Can Do Now
 
@@ -14,6 +21,16 @@ The current focus is manual operation: import a token candidate, score its narra
 - Optionally hand off accepted DexScreener candidates into `pnpm import:mint` with `pnpm detect:dexscreener:token-profiles -- --write`
 - Persist a simple source checkpoint during `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - Start the single-source DexScreener watch runner through `bash ./scripts/run-detect-dexscreener-watch.sh`
+- Dry-run one GeckoTerminal `new_pools` detection pass with `pnpm detect:geckoterminal:new-pools`
+- Optionally hand off accepted GeckoTerminal candidates into `pnpm import:mint` with `pnpm detect:geckoterminal:new-pools -- --write`
+- Persist a simple source checkpoint during `pnpm detect:geckoterminal:new-pools -- --watch --write`
+- Compare one live GeckoTerminal candidate against bounded DexScreener polling with `pnpm compare:geckoterminal:dexscreener`
+- Batch-fetch GeckoTerminal token snapshots to enrich and rescore recent Gecko-origin tokens with `pnpm token:enrich-rescore:geckoterminal`
+- Batch-fetch GeckoTerminal token snapshots to append metric rows with `pnpm metric:snapshot:geckoterminal`
+- Inspect recent Gecko-origin operations coverage with `pnpm ops:summary:geckoterminal`
+- Start the GeckoTerminal detect runner through `bash ./scripts/run-geckoterminal-detect-watch.sh`
+- Start the GeckoTerminal enrich-rescore-notify runner through `bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh`
+- Start the GeckoTerminal metric snapshot runner through `bash ./scripts/run-geckoterminal-metric-watch.sh`
 - Enrich a mint-only token record with `pnpm token:enrich`
 - Rescore one token from current fields with `pnpm token:rescore`
 - Append one metric row with `pnpm metric:add`
@@ -35,11 +52,12 @@ The current focus is manual operation: import a token candidate, score its narra
 
 ## What It Cannot Do Yet
 
-- Always-on bot runtime
-- Scheduler / worker / queue
-- Always-on automatic launch detection or ingestion runtime
+- Generic always-on bot runtime
+- Generic scheduler / worker / queue orchestration
+- Generic or multi-source adapter runtime
 - Full test framework
 - Review UI or broader operational UI
+- Trading automation
 
 ## Setup
 
@@ -191,6 +209,64 @@ bash ./scripts/run-detect-dexscreener-watch.sh
 
 Without `--file`, the runner fetches DexScreener token profiles latest v1, keeps only Solana items, evaluates up to `--limit 1`, stays dry-run unless `--write` is set, loops only when `--watch` is set, only reads or updates a checkpoint during `--watch --write`, records per-cycle failures instead of stopping immediately, throttles repeated idle-cycle stderr logs in watch mode, and emits a periodic idle heartbeat while the runner stays idle.
 
+Run the GeckoTerminal `new_pools` detector in one-shot mode:
+
+```bash
+pnpm detect:geckoterminal:new-pools -- --file ./fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json
+```
+
+Write accepted GeckoTerminal candidates into the mint-first boundary:
+
+```bash
+pnpm detect:geckoterminal:new-pools -- --file ./fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json --write
+```
+
+Repeat the same GeckoTerminal detect cycle in simple polling mode:
+
+```bash
+pnpm detect:geckoterminal:new-pools -- --watch --write --maxIterations 2 --checkpointFile /tmp/lowcap-bot-gecko-checkpoint.json
+```
+
+Compare one live GeckoTerminal mint candidate against bounded DexScreener polling:
+
+```bash
+pnpm compare:geckoterminal:dexscreener -- --timeoutSeconds 60 --intervalSeconds 5
+```
+
+Batch preview or write GeckoTerminal enrich plus rescore for recent Gecko-origin tokens:
+
+```bash
+pnpm token:enrich-rescore:geckoterminal -- --limit 10 --sinceMinutes 180
+pnpm token:enrich-rescore:geckoterminal -- --limit 10 --sinceMinutes 180 --write --notify
+```
+
+Batch preview or write GeckoTerminal metric snapshots for recent Gecko-origin tokens:
+
+```bash
+pnpm metric:snapshot:geckoterminal -- --limit 5 --sinceMinutes 120
+pnpm metric:snapshot:geckoterminal -- --limit 5 --sinceMinutes 120 --watch --write --intervalSeconds 60 --minGapMinutes 10
+```
+
+Inspect a read-only GeckoTerminal operations summary:
+
+```bash
+pnpm ops:summary:geckoterminal -- --sinceHours 24 --limit 10
+```
+
+Use the fixed GeckoTerminal run scripts when you want repo-local entrypoints for manual runs, `tmux`, or sample `systemd --user` services:
+
+```bash
+bash ./scripts/run-geckoterminal-detect-watch.sh
+bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh
+bash ./scripts/run-geckoterminal-metric-watch.sh
+```
+
+Sample `systemd --user` unit files:
+
+- `ops/systemd/lowcap-bot-geckoterminal-detect-watch.service`
+- `ops/systemd/lowcap-bot-geckoterminal-enrich-rescore-notify.service`
+- `ops/systemd/lowcap-bot-geckoterminal-metric-watch.service`
+
 Enrich one existing token record:
 
 ```bash
@@ -304,6 +380,11 @@ Import notes:
 - `pnpm import:mint:file` success output is `{ file, count, createdCount, existingCount, items }`; duplicate mints and file re-runs are reflected through per-item `created` plus `createdCount` / `existingCount`.
 - `pnpm import:mint:source-file` is a source-specific adapter wrapper that reads one raw event, normalizes it to `{ mint, source? }`, and delegates the result into `src/cli/importMint.ts`.
 - `pnpm detect:dexscreener:token-profiles` is a single-source runner for DexScreener token profiles latest v1; by default it only evaluates candidates, and with `--write` it hands accepted `{ mint, source? }` payloads into the same mint-first boundary used by `import:mint`.
+- `pnpm detect:geckoterminal:new-pools` is a single-source runner for GeckoTerminal Solana `new_pools`; by default it only evaluates candidates, and with `--write` it hands accepted `{ mint, source? }` payloads into the same mint-first boundary used by `import:mint`.
+- `pnpm compare:geckoterminal:dexscreener` is read-only and compares one live GeckoTerminal candidate against bounded DexScreener polling without write, watch, checkpoint, or import handoff.
+- `pnpm token:enrich-rescore:geckoterminal` is a bounded GeckoTerminal-origin batch helper for enrich plus rescore; it stays dry-run by default and only notifies when a token newly becomes `S` rank and non-hard-rejected after `--write --notify`.
+- `pnpm metric:snapshot:geckoterminal` is a bounded GeckoTerminal-origin metric helper; it stays dry-run by default and appends `Metric` rows only with `--write`.
+- `pnpm ops:summary:geckoterminal` is read-only and summarizes recent Gecko-origin token coverage across enrich, rescore, metrics, and notify-candidate state.
 
 Report notes:
 
@@ -368,8 +449,11 @@ For one metric row, continue with `pnpm metric:show -- --id <ID>`. For token-lev
 - Use `pnpm import:mint:file` when you want to batch the minimal handoff payload `{ "items": [{ "mint": "...", "source"?: "..." }] }`.
 - Use `pnpm import:mint:source-file` when you want to send one raw source event through its source-specific parser and mapper before handing off to `import:mint`.
 - Use `pnpm detect:dexscreener:token-profiles` when you want the single-source DexScreener runner to fetch or read one-source input, evaluate candidates, and optionally hand accepted items into `import:mint` with `--write`.
-- Use `pnpm token:enrich`, `pnpm token:rescore`, and `pnpm metric:add` after mint-only intake when you want later metadata fill, score recalculation, or metric append.
+- Use `pnpm detect:geckoterminal:new-pools` when you want the single-source GeckoTerminal runner to fetch or read one-source input, evaluate candidates, and optionally hand accepted items into `import:mint` with `--write`.
+- Use `pnpm compare:geckoterminal:dexscreener` when you want a read-only timing observation between the two current live sources.
+- Use `pnpm token:enrich`, `pnpm token:rescore`, `pnpm token:enrich-rescore:geckoterminal`, `pnpm metric:add`, and `pnpm metric:snapshot:geckoterminal` after mint-only intake when you want later metadata fill, score recalculation, or metric append.
 - Use the read-only lane (`pnpm token:compare`, `pnpm tokens:compare-report`, `pnpm metrics:report`, `pnpm token:show`, `pnpm metric:show`, `pnpm tokens:report`) when you only want to inspect saved data.
+- Use `pnpm ops:summary:geckoterminal` when you want a compact read-only operations summary for recent Gecko-origin tokens instead of token-by-token inspection.
 
 Short cautions:
 
@@ -455,4 +539,4 @@ Operational behavior:
 - `pnpm import:mint:file` is a thin wrapper over `pnpm import:mint` for one local JSON object with an `items` array
 - the main operational entrypoint is still `pnpm import`
 - trend scoring depends on a fresh `data/trend.json`
-- this repo is still optimized for manual operation, not automation
+- this repo now includes narrow source-specific semi-automation for DexScreener and GeckoTerminal, but it is still not a generic queue/worker/scheduler automation platform
