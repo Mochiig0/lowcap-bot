@@ -4394,6 +4394,204 @@ async function run(): Promise<void> {
       await rm(packageStderrPath, { force: true });
     });
 
+    await runStep("geckoterminal review queue", async () => {
+      const [tokenCountBefore, metricCountBefore] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      const parsed = await runCliJson<{
+        readOnly: boolean;
+        originSource: string;
+        selection: {
+          sinceHours: number;
+          limit: number;
+          staleAfterHours: number;
+          geckoOriginTokenCount: number;
+        };
+        summary: {
+          geckoOriginTokenCount: number;
+          firstSeenSourceSnapshotCount: number;
+          enrichPendingCount: number;
+          rescorePendingCount: number;
+          metricPendingCount: number;
+          notifyCandidateCount: number;
+          staleReviewCount: number;
+          highPriorityRecentCount: number;
+        };
+        queues: {
+          notifyCandidate: Array<{
+            mint: string;
+            queuesMatched: string[];
+            reviewReasons: string[];
+          }>;
+          highPriorityRecent: Array<{
+            mint: string;
+            queuesMatched: string[];
+            reviewReasons: string[];
+          }>;
+          staleReview: Array<{
+            mint: string;
+            ageHours: number;
+            queuesMatched: string[];
+          }>;
+          rescorePending: Array<{
+            mint: string;
+            queuesMatched: string[];
+            reviewReasons: string[];
+          }>;
+          enrichPending: Array<{
+            mint: string;
+            metadataStatus: string;
+            queuesMatched: string[];
+          }>;
+          metricPending: Array<{
+            mint: string;
+            metricsCount: number;
+            queuesMatched: string[];
+          }>;
+        };
+        preview: Array<{
+          mint: string;
+          queuesMatched: string[];
+          reviewReasons: string[];
+          metricsCount: number;
+        }>;
+      }>(
+        "geckoterminal review queue",
+        "src/cli/geckoterminalReviewQueue.ts",
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "50",
+        ],
+        context.smokeId,
+      );
+
+      const [tokenCountAfter, metricCountAfter] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      if (
+        tokenCountBefore !== tokenCountAfter ||
+        metricCountBefore !== metricCountAfter
+      ) {
+        throw new Error("geckoterminal review queue was not read-only");
+      }
+
+      if (
+        parsed.readOnly !== true ||
+        parsed.originSource !== "geckoterminal.new_pools" ||
+        parsed.selection.sinceHours !== 24 ||
+        parsed.selection.limit !== 50 ||
+        parsed.selection.staleAfterHours !== 6 ||
+        parsed.selection.geckoOriginTokenCount < 4 ||
+        parsed.summary.geckoOriginTokenCount !== parsed.selection.geckoOriginTokenCount ||
+        parsed.summary.firstSeenSourceSnapshotCount < 1 ||
+        parsed.summary.enrichPendingCount < 1 ||
+        parsed.summary.rescorePendingCount < 1 ||
+        parsed.summary.metricPendingCount < 1 ||
+        parsed.summary.notifyCandidateCount < 1 ||
+        !Array.isArray(parsed.preview) ||
+        parsed.preview.length === 0
+      ) {
+        throw new Error("geckoterminal review queue returned unexpected top-level summary");
+      }
+
+      if (
+        !Array.isArray(parsed.queues.notifyCandidate) ||
+        !Array.isArray(parsed.queues.highPriorityRecent) ||
+        !Array.isArray(parsed.queues.staleReview) ||
+        !Array.isArray(parsed.queues.rescorePending) ||
+        !Array.isArray(parsed.queues.enrichPending) ||
+        !Array.isArray(parsed.queues.metricPending)
+      ) {
+        throw new Error("geckoterminal review queue returned unexpected queue groups");
+      }
+
+      const notifyCandidateMints = new Set(
+        parsed.queues.notifyCandidate.map((item) => item.mint),
+      );
+      const rescorePendingMints = new Set(
+        parsed.queues.rescorePending.map((item) => item.mint),
+      );
+      const metricPendingMints = new Set(
+        parsed.queues.metricPending.map((item) => item.mint),
+      );
+
+      if (
+        !notifyCandidateMints.has(context.geckoEnrichRescoreMint) ||
+        !rescorePendingMints.has(context.geckoEnrichRescoreCompleteMint) ||
+        !metricPendingMints.has(context.geckoterminalDetectRunnerMint)
+      ) {
+        throw new Error("geckoterminal review queue did not include expected queue items");
+      }
+
+      if (
+        parsed.preview.some(
+          (item) =>
+            !Array.isArray(item.queuesMatched) ||
+            item.queuesMatched.length === 0 ||
+            !Array.isArray(item.reviewReasons) ||
+            typeof item.metricsCount !== "number",
+        )
+      ) {
+        throw new Error("geckoterminal review queue preview returned unexpected item fields");
+      }
+
+      const packageStdoutPath = `/tmp/${context.smokeId}-gecko-review-queue-package.stdout.json`;
+      const packageStderrPath = `/tmp/${context.smokeId}-gecko-review-queue-package.stderr.log`;
+
+      await rm(packageStdoutPath, { force: true });
+      await rm(packageStderrPath, { force: true });
+
+      await execFileAsync("bash", [
+        "-lc",
+        [
+          "pnpm review:queue:geckoterminal -- --sinceHours 24 --limit 5",
+          `> ${shellEscape(packageStdoutPath)}`,
+          `2> ${shellEscape(packageStderrPath)}`,
+        ].join(" "),
+      ], {
+        cwd: process.cwd(),
+        env: process.env,
+      });
+
+      const packageRaw = (await readFile(packageStdoutPath, "utf-8")).trim();
+      const jsonStartIndex = packageRaw.indexOf("{");
+      if (jsonStartIndex < 0) {
+        throw new Error("geckoterminal review queue package script did not emit JSON");
+      }
+
+      const packageParsed = parseJson<{
+        readOnly: boolean;
+        selection: {
+          sinceHours: number;
+          limit: number;
+        };
+        summary: {
+          geckoOriginTokenCount: number;
+        };
+      }>(
+        "geckoterminal review queue package script",
+        packageRaw.slice(jsonStartIndex),
+      );
+
+      if (
+        packageParsed.readOnly !== true ||
+        packageParsed.selection.sinceHours !== 24 ||
+        packageParsed.selection.limit !== 5 ||
+        packageParsed.summary.geckoOriginTokenCount < 1
+      ) {
+        throw new Error("geckoterminal review queue package script returned unexpected output");
+      }
+
+      await rm(packageStdoutPath, { force: true });
+      await rm(packageStderrPath, { force: true });
+    });
+
     await runStep("mint-driven happy path", async () => {
       await writeFile(
         context.mintHappyPathFilePath,

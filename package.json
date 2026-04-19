@@ -25,6 +25,7 @@
     "token:rescore": "tsx src/cli/tokenRescore.ts",
     "token:enrich-rescore:geckoterminal": "tsx src/cli/tokenEnrichRescoreGeckoterminal.ts",
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
+    "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
     "token:compare": "tsx src/cli/tokenCompare.ts",
     "metric:add": "tsx src/cli/metricAdd.ts",

@@ -47,6 +47,14 @@ pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinc
 ```
 
 ```bash
+pnpm ops:summary:geckoterminal -- [--sinceHours <N>] [--limit <N>]
+```
+
+```bash
+pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>]
+```
+
+```bash
 pnpm metric:add -- --mint <MINT> [--source <SOURCE>] [--launchPrice <NUM>] [--peakPrice15m <NUM>] [--peakPrice1h <NUM>] [--maxMultiple15m <NUM>] [--maxMultiple1h <NUM>] [--peakFdv24h <NUM>] [--volume24h <NUM>] [--timeToPeakMinutes <NUM>]
 ```
 
@@ -125,6 +133,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `pnpm token:compare` is the single-token read-only comparison view.
 - `pnpm tokens:compare-report` is the multi-token read-only comparison view.
 - `pnpm metrics:report` is the read-only metric inspection view.
+- `pnpm ops:summary:geckoterminal` is the read-only recent Gecko-origin operations overview.
+- `pnpm review:queue:geckoterminal` is the read-only recent Gecko-origin review queue for next-look extraction.
 
 ### Current Operational Constraints
 
@@ -216,6 +226,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `scripts/run-geckoterminal-metric-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm metric:snapshot:geckoterminal -- --watch --write` with a trailing-observation default cadence of 30 minutes, 5 tokens, a 120-minute lookback, and an optional start delay
 - all three GeckoTerminal runners perform a lightweight Prisma `Token`-table preflight before starting; if the target SQLite DB has not been initialized yet, they fail fast with `db_preflight_failed` instead of entering watch/batch loops with repeated `main.Token` errors
 - `pnpm ops:summary:geckoterminal -- --sinceHours 24 --limit 10` is the new read-only DB summary for recent Gecko-origin tokens, covering first-seen snapshot presence, enrich coverage, metric coverage, score-rank counts, notify-candidate counts, current/origin source counts, and a recent preview
+- `pnpm review:queue:geckoterminal -- --sinceHours 24 --limit 10` is the read-only next-look queue for recent Gecko-origin tokens, grouped into enrich-pending, rescore-pending, metric-pending, notify-candidate, stale-review, and high-priority-recent categories
 - GeckoTerminal live runner defaults now intentionally prioritize `detect > enrich-rescore-notify > metric`, with start delays spaced so detect starts first, enrich follows, and metric trails later
 - `scripts/check-systemd-user.sh` is the repo-local preflight for deciding whether to use the sample `systemd --user` unit or fall back to `tmux` / foreground execution
 - `ops/systemd/lowcap-bot-dexscreener-watch.service` is a repo-local sample `systemd --user` unit that points at the run script; install and enablement are still manual
