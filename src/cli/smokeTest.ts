@@ -3577,6 +3577,72 @@ async function run(): Promise<void> {
             "geckoterminal enrich rescore after rate limit did not log expected stderr summary",
           );
         }
+
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE =
+          "GeckoTerminal token snapshot request failed: 429 Too Many Requests";
+        process.env.LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS = "0";
+        process.env.LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS = "60";
+        process.env.LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS = "1";
+        process.env.LOWCAP_GECKOTERMINAL_ENRICH_LIMIT = "2";
+        process.env.LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES = "5";
+
+        const runnerStdoutPath = `/tmp/${context.smokeId}-gecko-enrich-runner.stdout.json`;
+        const runnerStderrPath = `/tmp/${context.smokeId}-gecko-enrich-runner.stderr.log`;
+
+        try {
+          await execFileAsync("bash", [
+            "-lc",
+            [
+              "timeout 4 bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh",
+              `> ${shellEscape(runnerStdoutPath)}`,
+              `2> ${shellEscape(runnerStderrPath)}`,
+            ].join(" "),
+          ], {
+            cwd: process.cwd(),
+            env: process.env,
+          });
+        } catch (error) {
+          const output = error as { code?: number; signal?: string };
+          if (output.code !== 124 && output.signal !== "SIGTERM") {
+            throw error;
+          }
+        }
+
+        const [runnerStdout, runnerStderr] = await Promise.all([
+          readFile(runnerStdoutPath, "utf-8"),
+          readFile(runnerStderrPath, "utf-8"),
+        ]);
+
+        const runnerParsed = parseJson<{
+          summary: {
+            rateLimited: boolean;
+            rateLimitedCount: number;
+          };
+        }>(
+          "geckoterminal enrich runner rate limit cooldown",
+          runnerStdout.trim(),
+        );
+
+        if (
+          runnerParsed.summary.rateLimited !== true ||
+          runnerParsed.summary.rateLimitedCount !== 1 ||
+          !runnerStderr.includes("rate_limited=true") ||
+          !runnerStderr.includes("failure_cooldown_seconds=1") ||
+          runnerStderr.includes("cycle_parse_failed")
+        ) {
+          throw new Error(
+            "geckoterminal enrich runner rate limit cooldown did not parse JSON or log cooldown as expected",
+          );
+        }
+
+        await rm(runnerStdoutPath, { force: true });
+        await rm(runnerStderrPath, { force: true });
+
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_LIMIT;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES;
       } finally {
         if (previousSnapshotFile === undefined) {
           delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
@@ -3589,6 +3655,14 @@ async function run(): Promise<void> {
         } else {
           process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE = previousInjectedSnapshotError;
         }
+
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_START_DELAY_SECONDS;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_INTERVAL_SECONDS;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_LIMIT;
+        delete process.env.LOWCAP_GECKOTERMINAL_ENRICH_SINCE_MINUTES;
+        await rm(`/tmp/${context.smokeId}-gecko-enrich-runner.stdout.json`, { force: true });
+        await rm(`/tmp/${context.smokeId}-gecko-enrich-runner.stderr.log`, { force: true });
       }
     });
 

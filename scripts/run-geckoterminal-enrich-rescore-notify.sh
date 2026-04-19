@@ -10,8 +10,8 @@ FAILURE_COOLDOWN_SECONDS="${LOWCAP_GECKOTERMINAL_ENRICH_FAILURE_COOLDOWN_SECONDS
 
 cd "$REPO_ROOT"
 
-if ! command -v pnpm >/dev/null 2>&1; then
-  echo "Error: pnpm is required to run the GeckoTerminal enrich-rescore-notify runner." >&2
+if ! command -v node >/dev/null 2>&1; then
+  echo "Error: node is required to run the GeckoTerminal enrich-rescore-notify runner." >&2
   exit 1
 fi
 
@@ -31,7 +31,7 @@ while true; do
 
   echo "[geckoterminal-enrich-rescore-notify] cycle_start=$(date -u +%Y-%m-%dT%H:%M:%SZ) limit=$LIMIT sinceMinutes=$SINCE_MINUTES" >&2
 
-  if ! pnpm token:enrich-rescore:geckoterminal -- \
+  if ! node --import tsx src/cli/tokenEnrichRescoreGeckoterminal.ts \
     --write \
     --notify \
     --limit "$LIMIT" \
@@ -45,6 +45,7 @@ while true; do
       node --input-type=module -e 'import { readFileSync } from "node:fs"; const raw = readFileSync(process.argv[1], "utf8"); const parsed = JSON.parse(raw); process.stdout.write(parsed?.summary?.rateLimited === true ? "true" : "false");' "$cycle_json_file"
     )"; then
       rate_limited="false"
+      echo "[geckoterminal-enrich-rescore-notify] cycle_parse_failed=$(date -u +%Y-%m-%dT%H:%M:%SZ) json_file=$cycle_json_file" >&2
     fi
     echo "[geckoterminal-enrich-rescore-notify] cycle_ok=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >&2
   fi
