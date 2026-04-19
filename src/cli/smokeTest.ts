@@ -4223,6 +4223,127 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("geckoterminal ops summary", async () => {
+      const [tokenCountBefore, metricCountBefore] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      const parsed = await runCliJson<{
+        readOnly: boolean;
+        originSource: string;
+        selection: {
+          sinceHours: number;
+          previewLimit: number;
+          geckoOriginTokenCount: number;
+        };
+        summary: {
+          geckoOriginTokenCount: number;
+          firstSeenSourceSnapshotCount: number;
+          nameSymbolFilledCount: number;
+          enrichedTokenCount: number;
+          rescoredTokenCount: number;
+          metricTokenCount: number;
+          metricCount: number;
+          hardRejectedCount: number;
+          notifyCandidateCount: number;
+        };
+        scoreRankCounts: Record<string, number>;
+        metadataStatusCounts: Record<string, number>;
+        currentSourceCounts: Array<{
+          value: string | null;
+          count: number;
+        }>;
+        originSourceCounts: Array<{
+          value: string | null;
+          count: number;
+        }>;
+        preview: Array<{
+          mint: string;
+          originSource: string | null;
+          currentSource: string | null;
+          metadataStatus: string;
+          metricsCount: number;
+          latestMetricObservedAt: string | null;
+          latestMetricSource: string | null;
+          notifyCandidate: boolean;
+        }>;
+      }>(
+        "geckoterminal ops summary",
+        "src/cli/geckoterminalOpsSummary.ts",
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "50",
+        ],
+        context.smokeId,
+      );
+
+      const [tokenCountAfter, metricCountAfter] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      if (
+        tokenCountBefore !== tokenCountAfter ||
+        metricCountBefore !== metricCountAfter
+      ) {
+        throw new Error("geckoterminal ops summary was not read-only");
+      }
+
+      if (
+        parsed.readOnly !== true ||
+        parsed.originSource !== "geckoterminal.new_pools" ||
+        parsed.selection.sinceHours !== 24 ||
+        parsed.selection.previewLimit !== 50 ||
+        parsed.selection.geckoOriginTokenCount < 4 ||
+        parsed.summary.geckoOriginTokenCount !== parsed.selection.geckoOriginTokenCount ||
+        parsed.summary.firstSeenSourceSnapshotCount < 1 ||
+        parsed.summary.nameSymbolFilledCount < 1 ||
+        parsed.summary.enrichedTokenCount < 1 ||
+        parsed.summary.rescoredTokenCount < 1 ||
+        parsed.summary.metricTokenCount < 1 ||
+        parsed.summary.metricCount < 1 ||
+        !Array.isArray(parsed.currentSourceCounts) ||
+        parsed.currentSourceCounts.length === 0 ||
+        !Array.isArray(parsed.originSourceCounts) ||
+        parsed.originSourceCounts.length === 0 ||
+        !Array.isArray(parsed.preview) ||
+        parsed.preview.length === 0
+      ) {
+        throw new Error("geckoterminal ops summary returned unexpected top-level summary");
+      }
+
+      if (
+        parsed.originSourceCounts[0]?.value !== "geckoterminal.new_pools" ||
+        (parsed.scoreRankCounts.C ?? 0) < 1 ||
+        (parsed.metadataStatusCounts.mint_only ?? 0) < 1
+      ) {
+        throw new Error("geckoterminal ops summary returned unexpected count breakdowns");
+      }
+
+      const geckoPreviewMints = new Set(parsed.preview.map((item) => item.mint));
+      if (
+        !geckoPreviewMints.has(context.geckoEnrichRescoreMint) ||
+        !geckoPreviewMints.has(context.metricSnapshotMint)
+      ) {
+        throw new Error("geckoterminal ops summary preview did not include expected Gecko tokens");
+      }
+
+      if (
+        parsed.preview.some(
+          (item) =>
+            item.originSource !== "geckoterminal.new_pools" ||
+            typeof item.metadataStatus !== "string" ||
+            typeof item.metricsCount !== "number" ||
+            typeof item.notifyCandidate !== "boolean",
+        )
+      ) {
+        throw new Error("geckoterminal ops summary preview returned unexpected item fields");
+      }
+    });
+
     await runStep("mint-driven happy path", async () => {
       await writeFile(
         context.mintHappyPathFilePath,
