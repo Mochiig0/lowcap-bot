@@ -1,5 +1,8 @@
 # Roadmap
 
+Formal phased implementation order now lives in `docs/implementation-roadmap.md`.
+This document remains the narrower near-term operating roadmap.
+
 ## Goal
 
 Keep the current CLI-first, mint-driven accumulation MVP aligned with the live repo: narrow source-specific semi-automation, observable outcomes, and maintainable operating procedures without drifting into a generic bot runtime too early.

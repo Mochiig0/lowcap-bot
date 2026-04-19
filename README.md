@@ -11,6 +11,8 @@ The current focus is a narrow, source-specific accumulation workflow:
 
 This repo is not a generic bot platform. It does not currently provide queue / worker / scheduler orchestration, a generic multi-source adapter runtime, or trading automation.
 
+Formal phased implementation roadmap: `docs/implementation-roadmap.md`
+
 ## What It Can Do Now
 
 - Manually import a token candidate with `pnpm import`

@@ -22,7 +22,8 @@ Read authority docs in this order:
 2. README.md
 3. docs/current-status.md
 4. docs/architecture.md
-5. docs/roadmap.md
+5. docs/implementation-roadmap.md
+6. docs/roadmap.md
 
 Pause points:
 - Generic runtime expansion is still paused: keep the current source-specific DexScreener / GeckoTerminal helpers narrow and avoid queue / worker / scheduler broadening.

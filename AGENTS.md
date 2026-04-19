@@ -4,6 +4,11 @@
 
 This repo is a CLI-first, mint-driven accumulation MVP. It now includes narrow, source-specific semi-automation for DexScreener and GeckoTerminal through one-shot or simple watch-style runners plus bounded GeckoTerminal follow-up batches. It is still not a generic bot platform and does not include queue / worker / scheduler orchestration or a generic multi-source adapter runtime.
 
+## Roadmap Reference
+
+- The formal phased implementation roadmap lives in `docs/implementation-roadmap.md`.
+- `docs/roadmap.md` remains the narrower near-term operating roadmap.
+
 ## Three Lanes
 
 1. Full import lane
