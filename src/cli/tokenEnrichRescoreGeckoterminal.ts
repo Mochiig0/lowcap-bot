@@ -217,8 +217,11 @@ type Output = {
     rescoreWriteCount: number;
     contextAvailableCount: number;
     contextWriteCount: number;
+    metaplexAttemptedCount: number;
     metaplexAvailableCount: number;
     metaplexWriteCount: number;
+    metaplexSavedCount: number;
+    metaplexErrorKindCounts: Record<string, number>;
     notifyCandidateCount: number;
     notifyWouldSendCount: number;
     notifySentCount: number;
@@ -229,6 +232,26 @@ type Output = {
   };
   items: ProcessedItem[];
 };
+
+function buildCountMap(values: Array<string | null>): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const value of values) {
+    if (typeof value !== "string" || value.trim().length === 0) {
+      continue;
+    }
+
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+
+  return counts;
+}
+
+function serializeCountMapForLog(counts: Record<string, number>): string {
+  return JSON.stringify(
+    Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right))),
+  );
+}
 
 class CliUsageError extends Error {
   constructor(message: string) {
@@ -1893,7 +1916,11 @@ function logBatchSummary(output: Output): void {
       `enrichWritten=${output.summary.enrichWriteCount}`,
       `rescoreWritten=${output.summary.rescoreWriteCount}`,
       `contextWritten=${output.summary.contextWriteCount}`,
+      `metaplexAttemptedCount=${output.summary.metaplexAttemptedCount}`,
+      `metaplexAvailableCount=${output.summary.metaplexAvailableCount}`,
       `metaplexContextWritten=${output.summary.metaplexWriteCount}`,
+      `metaplexSavedCount=${output.summary.metaplexSavedCount}`,
+      `metaplexErrorKindCounts=${serializeCountMapForLog(output.summary.metaplexErrorKindCounts)}`,
       `notifyWouldSend=${output.summary.notifyWouldSendCount}`,
       `notifySent=${output.summary.notifySentCount}`,
       `rateLimited=${output.summary.rateLimited}`,
@@ -1907,6 +1934,14 @@ function logBatchSummary(output: Output): void {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const execution = await executeBatch(args);
+  const metaplexAttemptedCount = execution.items.filter((item) => item.metaplexAttempted).length;
+  const metaplexAvailableCount = execution.items.filter((item) => item.metaplexAvailable).length;
+  const metaplexSavedCount = execution.items.filter(
+    (item) => item.writeSummary.metaplexContextUpdated,
+  ).length;
+  const metaplexErrorKindCounts = buildCountMap(
+    execution.items.map((item) => item.metaplexErrorKind),
+  );
 
   const output: Output = {
     mode: execution.mode,
@@ -1936,8 +1971,11 @@ async function main(): Promise<void> {
       rescoreWriteCount: execution.items.filter((item) => item.writeSummary.rescoreUpdated).length,
       contextAvailableCount: execution.items.filter((item) => item.contextAvailable).length,
       contextWriteCount: execution.items.filter((item) => item.writeSummary.contextUpdated).length,
-      metaplexAvailableCount: execution.items.filter((item) => item.metaplexAvailable).length,
-      metaplexWriteCount: execution.items.filter((item) => item.writeSummary.metaplexContextUpdated).length,
+      metaplexAttemptedCount,
+      metaplexAvailableCount,
+      metaplexWriteCount: metaplexSavedCount,
+      metaplexSavedCount,
+      metaplexErrorKindCounts,
       notifyCandidateCount: execution.items.filter((item) => item.notifyCandidate).length,
       notifyWouldSendCount: execution.items.filter((item) => item.notifyWouldSend).length,
       notifySentCount: execution.items.filter((item) => item.notifySent).length,

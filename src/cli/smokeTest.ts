@@ -4088,8 +4088,11 @@ async function run(): Promise<void> {
             errorCount: number;
             enrichWriteCount: number;
             rescoreWriteCount: number;
+            metaplexAttemptedCount: number;
             metaplexAvailableCount: number;
             metaplexWriteCount: number;
+            metaplexSavedCount: number;
+            metaplexErrorKindCounts: Record<string, number>;
             notifyCandidateCount: number;
             notifyWouldSendCount: number;
             notifySentCount: number;
@@ -4170,8 +4173,11 @@ async function run(): Promise<void> {
           dryRun.summary.errorCount !== 0 ||
           dryRun.summary.enrichWriteCount !== 0 ||
           dryRun.summary.rescoreWriteCount !== 0 ||
+          dryRun.summary.metaplexAttemptedCount !== 2 ||
           dryRun.summary.metaplexAvailableCount !== 2 ||
           dryRun.summary.metaplexWriteCount !== 0 ||
+          dryRun.summary.metaplexSavedCount !== 0 ||
+          Object.keys(dryRun.summary.metaplexErrorKindCounts).length !== 0 ||
           dryRun.summary.notifyWouldSendCount !== 2 ||
           dryRun.summary.notifySentCount !== 0 ||
           dryRun.items.length !== 2 ||
@@ -4310,8 +4316,11 @@ async function run(): Promise<void> {
             rescoreWriteCount: number;
             contextAvailableCount: number;
             contextWriteCount: number;
+            metaplexAttemptedCount: number;
             metaplexAvailableCount: number;
             metaplexWriteCount: number;
+            metaplexSavedCount: number;
+            metaplexErrorKindCounts: Record<string, number>;
             notifyWouldSendCount: number;
             notifySentCount: number;
           };
@@ -4372,8 +4381,11 @@ async function run(): Promise<void> {
           written.summary.rescoreWriteCount !== 1 ||
           written.summary.contextAvailableCount !== 1 ||
           written.summary.contextWriteCount !== 1 ||
+          written.summary.metaplexAttemptedCount !== 1 ||
           written.summary.metaplexAvailableCount !== 1 ||
           written.summary.metaplexWriteCount !== 1 ||
+          written.summary.metaplexSavedCount !== 1 ||
+          Object.keys(written.summary.metaplexErrorKindCounts).length !== 0 ||
           written.summary.notifyWouldSendCount !== 1 ||
           written.summary.notifySentCount !== 1 ||
           written.items.length !== 1 ||
