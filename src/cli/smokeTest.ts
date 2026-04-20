@@ -5598,6 +5598,188 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("geckoterminal context compare", async () => {
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+      const previousSnapshotWithTopPoolsFile =
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE;
+
+      try {
+        await writeFile(
+          context.geckoContextCaptureFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.geckoContextCapturePumpMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoContextCapturePumpMint,
+                  name: "context capture token",
+                  symbol: "CCT",
+                  description: "context capture description",
+                  websites: ["https://example.com/project"],
+                  twitter_username: "context_token",
+                  telegram_handle: "contexttelegram",
+                  discord_url: "https://discord.gg/context",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoContextCaptureFilePath;
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE =
+          context.geckoContextCaptureFilePath;
+
+        const [tokenCountBefore, metricCountBefore] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        const parsed = await runCliJson<{
+          readOnly: boolean;
+          selection: {
+            sinceHours: number;
+            limit: number;
+            geckoOriginTokenCount: number;
+            skippedNonPumpCount: number;
+            selectedCount: number;
+          };
+          comparedSources: Array<{
+            id: string;
+            endpoint: string;
+          }>;
+          availabilitySummary: Array<{
+            sourceId: string;
+            totalChecked: number;
+            okCount: number;
+            fetchErrorCount: number;
+            rateLimitedCount: number;
+            nameAvailableCount: number;
+            symbolAvailableCount: number;
+            descriptionAvailableCount: number;
+            websiteAvailableCount: number;
+            xAvailableCount: number;
+            telegramAvailableCount: number;
+            anyLinksAvailableCount: number;
+          }>;
+          sampleResults: Array<{
+            mint: string;
+            sourceResults: Array<{
+              sourceId: string;
+              status: string;
+              rateLimited: boolean;
+              metadata: {
+                name: string | null;
+                symbol: string | null;
+                description: string | null;
+              } | null;
+              links: {
+                website: string | null;
+                x: string | null;
+                telegram: string | null;
+                anyLinks: boolean;
+              } | null;
+            }>;
+          }>;
+        }>(
+          "geckoterminal context compare",
+          "src/cli/contextCompareGeckoterminal.ts",
+          [
+            "--limit",
+            "1",
+            "--sinceHours",
+            "1",
+          ],
+          context.smokeId,
+        );
+
+        const [tokenCountAfter, metricCountAfter] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        if (tokenCountBefore !== tokenCountAfter || metricCountBefore !== metricCountAfter) {
+          throw new Error("geckoterminal context compare was not read-only");
+        }
+
+        const summaryBySource = new Map(
+          parsed.availabilitySummary.map((item) => [item.sourceId, item] as const),
+        );
+        const plainSummary = summaryBySource.get("geckoterminal.token_snapshot");
+        const withTopPoolsSummary = summaryBySource.get(
+          "geckoterminal.token_snapshot_with_top_pools",
+        );
+        const sample = parsed.sampleResults[0];
+        const sampleSourceIds = new Set(sample?.sourceResults.map((item) => item.sourceId) ?? []);
+
+        if (
+          parsed.readOnly !== true ||
+          parsed.selection.sinceHours !== 1 ||
+          parsed.selection.limit !== 1 ||
+          parsed.selection.geckoOriginTokenCount < 1 ||
+          parsed.selection.skippedNonPumpCount < 1 ||
+          parsed.selection.selectedCount !== 1 ||
+          parsed.comparedSources.length !== 2 ||
+          !plainSummary ||
+          !withTopPoolsSummary ||
+          plainSummary.totalChecked !== 1 ||
+          plainSummary.okCount !== 1 ||
+          plainSummary.fetchErrorCount !== 0 ||
+          plainSummary.rateLimitedCount !== 0 ||
+          plainSummary.nameAvailableCount !== 1 ||
+          plainSummary.symbolAvailableCount !== 1 ||
+          plainSummary.descriptionAvailableCount !== 1 ||
+          plainSummary.websiteAvailableCount !== 1 ||
+          plainSummary.xAvailableCount !== 1 ||
+          plainSummary.telegramAvailableCount !== 1 ||
+          plainSummary.anyLinksAvailableCount !== 1 ||
+          withTopPoolsSummary.totalChecked !== 1 ||
+          withTopPoolsSummary.okCount !== 1 ||
+          withTopPoolsSummary.fetchErrorCount !== 0 ||
+          withTopPoolsSummary.rateLimitedCount !== 0 ||
+          withTopPoolsSummary.nameAvailableCount !== 1 ||
+          withTopPoolsSummary.symbolAvailableCount !== 1 ||
+          withTopPoolsSummary.descriptionAvailableCount !== 1 ||
+          withTopPoolsSummary.websiteAvailableCount !== 1 ||
+          withTopPoolsSummary.xAvailableCount !== 1 ||
+          withTopPoolsSummary.telegramAvailableCount !== 1 ||
+          withTopPoolsSummary.anyLinksAvailableCount !== 1 ||
+          parsed.sampleResults.length !== 1 ||
+          sample?.mint !== context.geckoContextCapturePumpMint ||
+          sample.sourceResults.length !== 2 ||
+          !sampleSourceIds.has("geckoterminal.token_snapshot") ||
+          !sampleSourceIds.has("geckoterminal.token_snapshot_with_top_pools") ||
+          sample.sourceResults.some(
+            (item) =>
+              item.status !== "ok" ||
+              item.rateLimited !== false ||
+              item.metadata?.description !== "context capture description" ||
+              item.links?.website !== "https://example.com/project" ||
+              item.links?.x !== "https://x.com/context_token" ||
+              item.links?.telegram !== "https://t.me/contexttelegram" ||
+              item.links?.anyLinks !== true,
+          )
+        ) {
+          throw new Error("geckoterminal context compare returned unexpected output");
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+
+        if (previousSnapshotWithTopPoolsFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE =
+            previousSnapshotWithTopPoolsFile;
+        }
+      }
+    });
+
     await runStep("mint-driven happy path", async () => {
       await writeFile(
         context.mintHappyPathFilePath,
