@@ -76,6 +76,7 @@ type SmokeContext = {
   geckoEnrichRescoreFilePath: string;
   geckoContextCaptureFilePath: string;
   telegramCaptureFilePath: string;
+  metaplexContextCompareFilePath: string;
 };
 
 function logStep(message: string): void {
@@ -348,6 +349,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.geckoContextCaptureFilePath, { force: true });
   await rm(context.dexscreenerContextCompareFilePath, { force: true });
   await rm(context.telegramCaptureFilePath, { force: true });
+  await rm(context.metaplexContextCompareFilePath, { force: true });
 }
 
 async function restoreTrend(trendRaw: string): Promise<void> {
@@ -430,6 +432,7 @@ async function run(): Promise<void> {
     geckoContextCaptureFilePath: `/tmp/${smokeId}-gecko-context-capture.json`,
     dexscreenerContextCompareFilePath: `/tmp/${smokeId}-dexscreener-context-compare.json`,
     telegramCaptureFilePath: `/tmp/${smokeId}-telegram-capture.jsonl`,
+    metaplexContextCompareFilePath: `/tmp/${smokeId}-metaplex-context-compare.json`,
   };
 
   try {
@@ -5789,6 +5792,7 @@ async function run(): Promise<void> {
         process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE;
       const previousDexscreenerProfilesFile =
         process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE;
+      const previousMetaplexMetadataUriFile = process.env.METAPLEX_METADATA_URI_FILE;
 
       try {
         await writeFile(
@@ -5845,11 +5849,39 @@ async function run(): Promise<void> {
           "utf-8",
         );
 
+        await writeFile(
+          context.metaplexContextCompareFilePath,
+          `${JSON.stringify(
+            {
+              onchain: {
+                mint: context.geckoContextCapturePumpMint,
+                name: "metaplex onchain token",
+                symbol: "MTPX",
+                uri: "https://example.com/metaplex-metadata.json",
+              },
+              offchain: {
+                name: "metaplex token",
+                symbol: "MTPX",
+                description: "metaplex context description",
+                external_url: "https://example.com/metaplex-context",
+                extensions: {
+                  twitter: "metaplex_context",
+                  telegram: "metaplexcontext",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+
         process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoContextCaptureFilePath;
         process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE =
           context.geckoContextCaptureFilePath;
         process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE =
           context.dexscreenerContextCompareFilePath;
+        process.env.METAPLEX_METADATA_URI_FILE = context.metaplexContextCompareFilePath;
 
         const [tokenCountBefore, metricCountBefore] = await Promise.all([
           db.token.count(),
@@ -5930,6 +5962,7 @@ async function run(): Promise<void> {
           "geckoterminal.token_snapshot_with_top_pools",
         );
         const dexscreenerSummary = summaryBySource.get("dexscreener.token_profiles_latest_v1");
+        const metaplexSummary = summaryBySource.get("metaplex.metadata_uri");
         const sample = parsed.sampleResults[0];
         const sampleSourceIds = new Set(sample?.sourceResults.map((item) => item.sourceId) ?? []);
 
@@ -5940,10 +5973,11 @@ async function run(): Promise<void> {
           parsed.selection.geckoOriginTokenCount < 1 ||
           parsed.selection.skippedNonPumpCount < 1 ||
           parsed.selection.selectedCount !== 1 ||
-          parsed.comparedSources.length !== 3 ||
+          parsed.comparedSources.length !== 4 ||
           !geckoPlainSummary ||
           !geckoTopPoolsSummary ||
           !dexscreenerSummary ||
+          !metaplexSummary ||
           geckoPlainSummary.okCount !== 1 ||
           geckoPlainSummary.descriptionAvailableCount !== 1 ||
           geckoPlainSummary.websiteAvailableCount !== 1 ||
@@ -5965,16 +5999,32 @@ async function run(): Promise<void> {
           dexscreenerSummary.xAvailableCount !== 1 ||
           dexscreenerSummary.telegramAvailableCount !== 1 ||
           dexscreenerSummary.anyLinksAvailableCount !== 1 ||
+          metaplexSummary.okCount !== 1 ||
+          metaplexSummary.notFoundCount !== 0 ||
+          metaplexSummary.fetchErrorCount !== 0 ||
+          metaplexSummary.rateLimitedCount !== 0 ||
+          metaplexSummary.descriptionAvailableCount !== 1 ||
+          metaplexSummary.websiteAvailableCount !== 1 ||
+          metaplexSummary.xAvailableCount !== 1 ||
+          metaplexSummary.telegramAvailableCount !== 1 ||
+          metaplexSummary.anyLinksAvailableCount !== 1 ||
           parsed.sampleResults.length !== 1 ||
           sample?.mint !== context.geckoContextCapturePumpMint ||
-          sample.sourceResults.length !== 3 ||
+          sample.sourceResults.length !== 4 ||
           !sampleSourceIds.has("geckoterminal.token_snapshot") ||
           !sampleSourceIds.has("geckoterminal.token_snapshot_with_top_pools") ||
           !sampleSourceIds.has("dexscreener.token_profiles_latest_v1") ||
+          !sampleSourceIds.has("metaplex.metadata_uri") ||
           sample.sourceResults.some(
             (item) =>
               item.status !== "ok" ||
               item.rateLimited !== false ||
+              (item.family === "metaplex" &&
+                (item.metadata?.description !== "metaplex context description" ||
+                  item.links?.website !== "https://example.com/metaplex-context" ||
+                  item.links?.x !== "https://x.com/metaplex_context" ||
+                  item.links?.telegram !== "https://t.me/metaplexcontext" ||
+                  item.links?.anyLinks !== true)) ||
               (item.family === "dexscreener" &&
                 (item.metadata?.description !== "dex context description" ||
                   item.links?.website !== "https://example.com/dex-context" ||
@@ -6010,6 +6060,12 @@ async function run(): Promise<void> {
         } else {
           process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE =
             previousDexscreenerProfilesFile;
+        }
+
+        if (previousMetaplexMetadataUriFile === undefined) {
+          delete process.env.METAPLEX_METADATA_URI_FILE;
+        } else {
+          process.env.METAPLEX_METADATA_URI_FILE = previousMetaplexMetadataUriFile;
         }
       }
     });

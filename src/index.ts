@@ -52,7 +52,7 @@ const lines = [
   "  Example: pnpm context:compare:geckoterminal -- --sinceHours 24 --limit 10",
   "",
   "pnpm context:compare:source-families -- [--sinceHours <N>] [--limit <N>]",
-  "  Read-only comparison of context availability for recent Gecko-origin pump mints across the current repo-local source families, including GeckoTerminal token snapshots and DexScreener token profiles latest v1, with availability, not-found, fetch error, and rate-limit summaries.",
+  "  Read-only comparison of context availability for recent Gecko-origin pump mints across the current repo-local source families, including GeckoTerminal token snapshots, DexScreener token profiles latest v1, and Metaplex metadata-uri lookups, with availability, not-found, fetch error, and rate-limit summaries.",
   "  Example: pnpm context:compare:source-families -- --sinceHours 24 --limit 10",
   "",
   "pnpm ops:summary:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]",

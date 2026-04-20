@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import { db } from "./db.js";
@@ -9,6 +10,8 @@ const GECKOTERMINAL_NETWORK = "solana";
 const GECKOTERMINAL_TOKEN_API_URL =
   `https://api.geckoterminal.com/api/v2/networks/${GECKOTERMINAL_NETWORK}/tokens`;
 const DEXSCREENER_TOKEN_PROFILES_API_URL = "https://api.dexscreener.com/token-profiles/latest/v1";
+const METAPLEX_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+const DEFAULT_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 const DEFAULT_LIMIT = 20;
 const DEFAULT_SINCE_HOURS = 24;
 const SAMPLE_RESULTS_LIMIT = 5;
@@ -157,6 +160,14 @@ const COMPARED_SOURCES: ComparedSource[] = [
     mode: "sharedBatch",
     fixtureEnvVar: "DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE",
   },
+  {
+    id: "metaplex.metadata_uri",
+    family: "metaplex",
+    label: "Metaplex metadata uri",
+    endpoint: "solana-rpc:getAccountInfo(metadataPda) -> offchain metadata uri",
+    mode: "perMint",
+    fixtureEnvVar: "METAPLEX_METADATA_URI_FILE",
+  },
 ];
 
 class CliUsageError extends Error {
@@ -175,6 +186,13 @@ class SourceFetchError extends Error {
     this.name = "SourceFetchError";
     this.status = status;
     this.rateLimited = status === 429;
+  }
+}
+
+class SourceNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SourceNotFoundError";
   }
 }
 
@@ -287,6 +305,150 @@ function extractFirstSeenSourceSnapshot(entrySnapshot: unknown): FirstSeenSource
 
 function isPumpMint(mint: string): boolean {
   return mint.endsWith("pump");
+}
+
+function mod(value: bigint, modulus: bigint): bigint {
+  const out = value % modulus;
+  return out >= 0n ? out : out + modulus;
+}
+
+const ED25519_P = (1n << 255n) - 19n;
+const ED25519_D =
+  37095705934669439343138083508754565189542113879843219016388785533085940283555n;
+const ED25519_SQRT_M1 =
+  19681161376707505956807079304988542015446066515923890162744021073123829784752n;
+const PDA_MARKER = Buffer.from("ProgramDerivedAddress");
+const METADATA_SEED = Buffer.from("metadata");
+
+function bigIntPowMod(base: bigint, exponent: bigint, modulus: bigint): bigint {
+  let result = 1n;
+  let currentBase = mod(base, modulus);
+  let currentExponent = exponent;
+
+  while (currentExponent > 0n) {
+    if ((currentExponent & 1n) === 1n) {
+      result = mod(result * currentBase, modulus);
+    }
+    currentBase = mod(currentBase * currentBase, modulus);
+    currentExponent >>= 1n;
+  }
+
+  return result;
+}
+
+function readLittleEndianBigInt(bytes: Uint8Array): bigint {
+  let out = 0n;
+  for (let index = bytes.length - 1; index >= 0; index -= 1) {
+    out = (out << 8n) | BigInt(bytes[index] ?? 0);
+  }
+  return out;
+}
+
+function decodeBase58(value: string): Uint8Array {
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let current = 0n;
+
+  for (const character of value) {
+    const index = alphabet.indexOf(character);
+    if (index < 0) {
+      throw new Error(`Invalid base58 character: ${character}`);
+    }
+    current = current * 58n + BigInt(index);
+  }
+
+  const out: number[] = [];
+  while (current > 0n) {
+    out.push(Number(current & 0xffn));
+    current >>= 8n;
+  }
+
+  for (const character of value) {
+    if (character !== "1") break;
+    out.push(0);
+  }
+
+  out.reverse();
+  return Uint8Array.from(out);
+}
+
+function encodeBase58(bytes: Uint8Array): string {
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let current = 0n;
+
+  for (const byte of bytes) {
+    current = (current << 8n) | BigInt(byte);
+  }
+
+  let out = "";
+  while (current > 0n) {
+    const remainder = Number(current % 58n);
+    out = `${alphabet[remainder]}${out}`;
+    current /= 58n;
+  }
+
+  for (const byte of bytes) {
+    if (byte !== 0) break;
+    out = `1${out}`;
+  }
+
+  return out.length > 0 ? out : "1";
+}
+
+function isEd25519PointOnCurve(bytes: Uint8Array): boolean {
+  if (bytes.length !== 32) {
+    return false;
+  }
+
+  const copy = Uint8Array.from(bytes);
+  const sign = (copy[31] ?? 0) >> 7;
+  copy[31] = (copy[31] ?? 0) & 0x7f;
+
+  const y = readLittleEndianBigInt(copy);
+  if (y >= ED25519_P) {
+    return false;
+  }
+
+  const ySquared = mod(y * y, ED25519_P);
+  const u = mod(ySquared - 1n, ED25519_P);
+  const v = mod(ED25519_D * ySquared + 1n, ED25519_P);
+
+  if (v === 0n) {
+    return false;
+  }
+
+  let x = bigIntPowMod(mod(u * bigIntPowMod(v, ED25519_P - 2n, ED25519_P), ED25519_P), (ED25519_P + 3n) / 8n, ED25519_P);
+  let check = mod(x * x * v, ED25519_P);
+  if (check !== u) {
+    x = mod(x * ED25519_SQRT_M1, ED25519_P);
+    check = mod(x * x * v, ED25519_P);
+    if (check !== u) {
+      return false;
+    }
+  }
+
+  if (x === 0n && sign === 1) {
+    return false;
+  }
+
+  return true;
+}
+
+function deriveMetaplexMetadataPda(mint: string): string {
+  const programId = Buffer.from(decodeBase58(METAPLEX_METADATA_PROGRAM_ID));
+  const mintBytes = Buffer.from(decodeBase58(mint));
+  const seeds = [METADATA_SEED, programId, mintBytes];
+
+  for (let bump = 255; bump >= 0; bump -= 1) {
+    const hash = createHash("sha256")
+      .update(Buffer.concat([...seeds, Buffer.from([bump]), programId, PDA_MARKER]))
+      .digest();
+
+    if (!isEd25519PointOnCurve(hash)) {
+      return encodeBase58(hash);
+    }
+  }
+
+  throw new Error(`Failed to derive metadata PDA for mint: ${mint}`);
 }
 
 function normalizeWebsiteCandidate(value: string): string | null {
@@ -620,6 +782,286 @@ function parseDexscreenerAvailability(profile: DexscreenerTokenProfile): ParsedA
   return buildAvailability(address, name, symbol, description, links);
 }
 
+type MetaplexFixture = {
+  onchain?: unknown;
+  offchain?: unknown;
+};
+
+type MetaplexOnchainMetadata = {
+  mint: string;
+  name: string | null;
+  symbol: string | null;
+  uri: string | null;
+};
+
+function trimMetaplexString(value: string): string | null {
+  const trimmed = value.replace(/\0/g, "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseBorshString(buffer: Buffer, offset: number): { value: string; nextOffset: number } {
+  if (offset + 4 > buffer.length) {
+    throw new Error("Invalid Metaplex metadata buffer: truncated string length");
+  }
+
+  const byteLength = buffer.readUInt32LE(offset);
+  const start = offset + 4;
+  const end = start + byteLength;
+  if (end > buffer.length) {
+    throw new Error("Invalid Metaplex metadata buffer: truncated string data");
+  }
+
+  return {
+    value: buffer.subarray(start, end).toString("utf-8"),
+    nextOffset: end,
+  };
+}
+
+function parseMetaplexOnchainBuffer(raw: Buffer, mint: string): MetaplexOnchainMetadata {
+  if (raw.length < 65) {
+    throw new Error("Invalid Metaplex metadata buffer: too short");
+  }
+
+  let offset = 1 + 32 + 32;
+  const nameField = parseBorshString(raw, offset);
+  offset = nameField.nextOffset;
+  const symbolField = parseBorshString(raw, offset);
+  offset = symbolField.nextOffset;
+  const uriField = parseBorshString(raw, offset);
+
+  return {
+    mint,
+    name: trimMetaplexString(nameField.value),
+    symbol: trimMetaplexString(symbolField.value),
+    uri: trimMetaplexString(uriField.value),
+  };
+}
+
+function parseMetaplexFixture(raw: unknown, mint: string): {
+  onchain: MetaplexOnchainMetadata;
+  offchain: JsonObject | null;
+} {
+  if (!isRecord(raw)) {
+    throw new Error("Metaplex fixture must be an object");
+  }
+
+  const onchain = isRecord(raw.onchain) ? raw.onchain : null;
+  if (!onchain) {
+    throw new Error("Metaplex fixture missing onchain object");
+  }
+
+  const mintValue = readOptionalString(onchain, "mint") ?? mint;
+  const offchain = isRecord(raw.offchain) ? raw.offchain : null;
+
+  return {
+    onchain: {
+      mint: mintValue,
+      name: readOptionalString(onchain, "name"),
+      symbol: readOptionalString(onchain, "symbol"),
+      uri: readOptionalString(onchain, "uri"),
+    },
+    offchain,
+  };
+}
+
+function extractMetaplexLinks(metadata: JsonObject): {
+  websites: string[];
+  xCandidates: string[];
+  telegramCandidates: string[];
+  otherLinks: string[];
+} {
+  const properties = pickNestedRecord(metadata, "properties");
+  const extensions = pickNestedRecord(metadata, "extensions");
+  const socials = pickNestedRecord(metadata, "socials");
+
+  const websites = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.external_url),
+      ...collectStringCandidates(metadata.website),
+      ...collectStringCandidates(metadata.website_url),
+      ...collectStringCandidates(metadata.websites),
+      ...collectStringCandidates(properties?.website),
+      ...collectStringCandidates(properties?.website_url),
+      ...collectStringCandidates(extensions?.website),
+      ...collectStringCandidates(extensions?.website_url),
+      ...collectStringCandidates(socials?.website),
+      ...collectStringCandidates(socials?.websites),
+    ].map((value) => normalizeWebsiteCandidate(value)),
+  );
+
+  const xCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.twitter),
+      ...collectStringCandidates(metadata.twitter_url),
+      ...collectStringCandidates(metadata.twitter_username),
+      ...collectStringCandidates(metadata.twitter_handle),
+      ...collectStringCandidates(metadata.x),
+      ...collectStringCandidates(metadata.x_url),
+      ...collectStringCandidates(metadata.x_username),
+      ...collectStringCandidates(metadata.x_handle),
+      ...collectStringCandidates(extensions?.twitter),
+      ...collectStringCandidates(extensions?.twitter_url),
+      ...collectStringCandidates(extensions?.twitterUsername),
+      ...collectStringCandidates(extensions?.twitter_username),
+      ...collectStringCandidates(extensions?.x),
+      ...collectStringCandidates(socials?.twitter),
+      ...collectStringCandidates(socials?.x),
+    ].map((value) => normalizeXCandidate(value)),
+  );
+
+  const telegramCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.telegram),
+      ...collectStringCandidates(metadata.telegram_url),
+      ...collectStringCandidates(metadata.telegram_handle),
+      ...collectStringCandidates(extensions?.telegram),
+      ...collectStringCandidates(extensions?.telegram_url),
+      ...collectStringCandidates(extensions?.telegram_handle),
+      ...collectStringCandidates(socials?.telegram),
+    ].map((value) => normalizeTelegramCandidate(value)),
+  );
+
+  const otherLinks = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.discord),
+      ...collectStringCandidates(metadata.discord_url),
+      ...collectStringCandidates(extensions?.discord),
+      ...collectStringCandidates(extensions?.discord_url),
+      ...collectStringCandidates(socials?.discord),
+    ].map((value) => normalizeGenericLinkCandidate(value)),
+  );
+
+  return {
+    websites,
+    xCandidates,
+    telegramCandidates,
+    otherLinks,
+  };
+}
+
+function parseMetaplexAvailability(
+  mint: string,
+  onchain: MetaplexOnchainMetadata,
+  offchain: JsonObject | null,
+): ParsedAvailability {
+  const description =
+    (offchain ? readOptionalString(offchain, "description") : null) ??
+    (offchain ? readOptionalString(offchain, "bio") : null);
+  const links = offchain ? extractMetaplexLinks(offchain) : {
+    websites: [],
+    xCandidates: [],
+    telegramCandidates: [],
+    otherLinks: [],
+  };
+
+  return buildAvailability(
+    mint,
+    (offchain ? readOptionalString(offchain, "name") : null) ?? onchain.name,
+    (offchain ? readOptionalString(offchain, "symbol") : null) ?? onchain.symbol,
+    description,
+    links,
+  );
+}
+
+function getSolanaRpcUrl(): string {
+  return process.env.LOWCAP_SOLANA_RPC_URL?.trim() || DEFAULT_SOLANA_RPC_URL;
+}
+
+async function fetchMetaplexComparedSourceRaw(source: ComparedSource, mint: string): Promise<{
+  onchain: MetaplexOnchainMetadata;
+  offchain: JsonObject | null;
+}> {
+  const fixturePath = process.env[source.fixtureEnvVar];
+  if (fixturePath) {
+    const content = await readFile(fixturePath, "utf-8");
+    return parseMetaplexFixture(JSON.parse(content) as unknown, mint);
+  }
+
+  const response = await fetch(getSolanaRpcUrl(), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "lowcap-bot-context-compare-metaplex",
+      method: "getAccountInfo",
+      params: [
+        deriveMetaplexMetadataPda(mint),
+        {
+          encoding: "base64",
+          commitment: "confirmed",
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!response.ok) {
+    throw new SourceFetchError(
+      `${source.id} request failed: ${response.status} ${response.statusText}`,
+      response.status,
+    );
+  }
+
+  const body = (await response.json()) as unknown;
+  if (!isRecord(body)) {
+    throw new Error("Metaplex RPC response was not an object");
+  }
+  if (isRecord(body.error)) {
+    throw new Error(
+      typeof body.error.message === "string"
+        ? body.error.message
+        : "Metaplex RPC returned an error object",
+    );
+  }
+
+  const result = isRecord(body.result) ? body.result : null;
+  const value = result && isRecord(result.value) ? result.value : null;
+  if (!value) {
+    throw new SourceNotFoundError(`No Metaplex metadata account found for mint: ${mint}`);
+  }
+
+  const rawData = Array.isArray(value.data) ? value.data : null;
+  const encoded = rawData && typeof rawData[0] === "string" ? rawData[0] : null;
+  if (!encoded) {
+    throw new Error("Metaplex RPC response did not include base64 account data");
+  }
+
+  const onchain = parseMetaplexOnchainBuffer(Buffer.from(encoded, "base64"), mint);
+  if (!onchain.uri) {
+    return {
+      onchain,
+      offchain: null,
+    };
+  }
+
+  const offchainResponse = await fetch(onchain.uri, {
+    headers: {
+      accept: "application/json",
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!offchainResponse.ok) {
+    throw new SourceFetchError(
+      `${source.id} offchain metadata request failed: ${offchainResponse.status} ${offchainResponse.statusText}`,
+      offchainResponse.status,
+    );
+  }
+
+  const offchainRaw = (await offchainResponse.json()) as unknown;
+  if (!isRecord(offchainRaw)) {
+    throw new Error("Metaplex offchain metadata was not an object");
+  }
+
+  return {
+    onchain,
+    offchain: offchainRaw,
+  };
+}
+
 function buildSelectedToken(token: {
   mint: string;
   source: string | null;
@@ -878,6 +1320,68 @@ async function run(): Promise<void> {
           },
           error: null,
         });
+        continue;
+      }
+
+      if (source.family === "metaplex") {
+        try {
+          const raw = await fetchMetaplexComparedSourceRaw(source, token.mint);
+          const availability = parseMetaplexAvailability(token.mint, raw.onchain, raw.offchain);
+          updateSummaryFromAvailability(summary, availability);
+          sourceResults.push({
+            sourceId: source.id,
+            family: source.family,
+            endpoint: source.endpoint,
+            status: "ok",
+            rateLimited: false,
+            availableFields: availability.availableFields,
+            metadata: availability.metadata,
+            links: {
+              website: availability.links.website,
+              x: availability.links.x,
+              telegram: availability.links.telegram,
+              anyLinks:
+                availability.links.website !== null ||
+                availability.links.x !== null ||
+                availability.links.telegram !== null ||
+                availability.links.otherLinks.length > 0,
+            },
+            error: null,
+          });
+        } catch (error) {
+          if (error instanceof SourceNotFoundError) {
+            updateSummaryNotFound(summary);
+            sourceResults.push({
+              sourceId: source.id,
+              family: source.family,
+              endpoint: source.endpoint,
+              status: "not_found",
+              rateLimited: false,
+              availableFields: [],
+              metadata: null,
+              links: null,
+              error: null,
+            });
+            continue;
+          }
+
+          const normalizedError =
+            error instanceof SourceFetchError
+              ? error
+              : new Error(error instanceof Error ? error.message : String(error));
+          updateSummaryFromError(summary, normalizedError);
+          sourceResults.push({
+            sourceId: source.id,
+            family: source.family,
+            endpoint: source.endpoint,
+            status: "error",
+            rateLimited: normalizedError instanceof SourceFetchError && normalizedError.rateLimited,
+            availableFields: [],
+            metadata: null,
+            links: null,
+            error: normalizedError.message,
+          });
+        }
         continue;
       }
 
