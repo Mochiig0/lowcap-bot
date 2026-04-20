@@ -86,6 +86,7 @@ type SourceResult = {
     anyLinks: boolean;
   } | null;
   error: string | null;
+  detail: JsonObject | null;
 };
 
 type AvailabilitySummary = {
@@ -124,6 +125,29 @@ type Output = {
     mode: "perMint" | "sharedBatch";
   }>;
   availabilitySummary: AvailabilitySummary[];
+  metaplexDeepDive: {
+    sourceId: "metaplex.metadata_uri";
+    fetchErrorBreakdown: Record<string, number>;
+    notFoundReasonSummary: Record<string, number>;
+    okSummary: {
+      okWithOffchainCount: number;
+      okWithoutOffchainCount: number;
+      descriptionAvailableCount: number;
+      websiteAvailableCount: number;
+      xAvailableCount: number;
+      telegramAvailableCount: number;
+      anyLinksAvailableCount: number;
+    };
+    sampleDetails: Array<{
+      mint: string;
+      status: "ok" | "not_found" | "error";
+      selectionAnchorAt: string;
+      detail: JsonObject | null;
+      metadata: SourceResult["metadata"];
+      links: SourceResult["links"];
+      error: string | null;
+    }>;
+  };
   sampleResults: Array<{
     mint: string;
     currentSource: string | null;
@@ -190,9 +214,34 @@ class SourceFetchError extends Error {
 }
 
 class SourceNotFoundError extends Error {
-  constructor(message: string) {
+  reason: string;
+  detail: JsonObject | null;
+
+  constructor(message: string, reason: string, detail: JsonObject | null = null) {
     super(message);
     this.name = "SourceNotFoundError";
+    this.reason = reason;
+    this.detail = detail;
+  }
+}
+
+class MetaplexFetchError extends SourceFetchError {
+  kind: string;
+  stage: "rpc" | "onchain" | "offchain";
+  detail: JsonObject | null;
+
+  constructor(
+    message: string,
+    status: number | null,
+    kind: string,
+    stage: "rpc" | "onchain" | "offchain",
+    detail: JsonObject | null = null,
+  ) {
+    super(message, status);
+    this.name = "MetaplexFetchError";
+    this.kind = kind;
+    this.stage = stage;
+    this.detail = detail;
   }
 }
 
@@ -794,6 +843,12 @@ type MetaplexOnchainMetadata = {
   uri: string | null;
 };
 
+type MetaplexDetail = {
+  metadataPda: string;
+  uri: string | null;
+  hasOffchain: boolean;
+};
+
 function trimMetaplexString(value: string): string | null {
   const trimmed = value.replace(/\0/g, "").trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -840,6 +895,7 @@ function parseMetaplexOnchainBuffer(raw: Buffer, mint: string): MetaplexOnchainM
 function parseMetaplexFixture(raw: unknown, mint: string): {
   onchain: MetaplexOnchainMetadata;
   offchain: JsonObject | null;
+  detail: MetaplexDetail;
 } {
   if (!isRecord(raw)) {
     throw new Error("Metaplex fixture must be an object");
@@ -861,6 +917,13 @@ function parseMetaplexFixture(raw: unknown, mint: string): {
       uri: readOptionalString(onchain, "uri"),
     },
     offchain,
+    detail: {
+      metadataPda:
+        readOptionalString(onchain, "metadataPda") ??
+        (mint === mintValue ? `fixture:${mint}` : `fixture:${mint}->${mintValue}`),
+      uri: readOptionalString(onchain, "uri"),
+      hasOffchain: offchain !== null,
+    },
   };
 }
 
@@ -970,12 +1033,15 @@ function getSolanaRpcUrl(): string {
 async function fetchMetaplexComparedSourceRaw(source: ComparedSource, mint: string): Promise<{
   onchain: MetaplexOnchainMetadata;
   offchain: JsonObject | null;
+  detail: MetaplexDetail;
 }> {
   const fixturePath = process.env[source.fixtureEnvVar];
   if (fixturePath) {
     const content = await readFile(fixturePath, "utf-8");
     return parseMetaplexFixture(JSON.parse(content) as unknown, mint);
   }
+
+  const metadataPda = deriveMetaplexMetadataPda(mint);
 
   const response = await fetch(getSolanaRpcUrl(), {
     method: "POST",
@@ -988,7 +1054,7 @@ async function fetchMetaplexComparedSourceRaw(source: ComparedSource, mint: stri
       id: "lowcap-bot-context-compare-metaplex",
       method: "getAccountInfo",
       params: [
-        deriveMetaplexMetadataPda(mint),
+        metadataPda,
         {
           encoding: "base64",
           commitment: "confirmed",
@@ -999,41 +1065,81 @@ async function fetchMetaplexComparedSourceRaw(source: ComparedSource, mint: stri
   });
 
   if (!response.ok) {
-    throw new SourceFetchError(
+    throw new MetaplexFetchError(
       `${source.id} request failed: ${response.status} ${response.statusText}`,
       response.status,
+      "rpc_http_error",
+      "rpc",
+      { metadataPda },
     );
   }
 
   const body = (await response.json()) as unknown;
   if (!isRecord(body)) {
-    throw new Error("Metaplex RPC response was not an object");
+    throw new MetaplexFetchError(
+      "Metaplex RPC response was not an object",
+      null,
+      "rpc_invalid_response",
+      "rpc",
+      { metadataPda },
+    );
   }
   if (isRecord(body.error)) {
-    throw new Error(
+    throw new MetaplexFetchError(
       typeof body.error.message === "string"
         ? body.error.message
         : "Metaplex RPC returned an error object",
+      null,
+      "rpc_error_object",
+      "rpc",
+      { metadataPda },
     );
   }
 
   const result = isRecord(body.result) ? body.result : null;
   const value = result && isRecord(result.value) ? result.value : null;
   if (!value) {
-    throw new SourceNotFoundError(`No Metaplex metadata account found for mint: ${mint}`);
+    throw new SourceNotFoundError(
+      `No Metaplex metadata account found for mint: ${mint}`,
+      "metadata_account_missing",
+      { metadataPda },
+    );
   }
 
   const rawData = Array.isArray(value.data) ? value.data : null;
   const encoded = rawData && typeof rawData[0] === "string" ? rawData[0] : null;
   if (!encoded) {
-    throw new Error("Metaplex RPC response did not include base64 account data");
+    throw new MetaplexFetchError(
+      "Metaplex RPC response did not include base64 account data",
+      null,
+      "rpc_missing_account_data",
+      "rpc",
+      { metadataPda },
+    );
   }
 
-  const onchain = parseMetaplexOnchainBuffer(Buffer.from(encoded, "base64"), mint);
+  let onchain: MetaplexOnchainMetadata;
+  try {
+    onchain = parseMetaplexOnchainBuffer(Buffer.from(encoded, "base64"), mint);
+  } catch (error) {
+    throw new MetaplexFetchError(
+      error instanceof Error ? error.message : String(error),
+      null,
+      "onchain_decode_failed",
+      "onchain",
+      { metadataPda },
+    );
+  }
+
   if (!onchain.uri) {
     return {
       onchain,
       offchain: null,
+      detail: {
+        metadataPda,
+        uri: null,
+        hasOffchain: false,
+      },
     };
   }
 
@@ -1045,20 +1151,54 @@ async function fetchMetaplexComparedSourceRaw(source: ComparedSource, mint: stri
   });
 
   if (!offchainResponse.ok) {
-    throw new SourceFetchError(
+    throw new MetaplexFetchError(
       `${source.id} offchain metadata request failed: ${offchainResponse.status} ${offchainResponse.statusText}`,
       offchainResponse.status,
+      "offchain_http_error",
+      "offchain",
+      {
+        metadataPda,
+        uri: onchain.uri,
+      },
     );
   }
 
-  const offchainRaw = (await offchainResponse.json()) as unknown;
+  let offchainRaw: unknown;
+  try {
+    offchainRaw = (await offchainResponse.json()) as unknown;
+  } catch (error) {
+    throw new MetaplexFetchError(
+      error instanceof Error ? error.message : String(error),
+      null,
+      "offchain_invalid_json",
+      "offchain",
+      {
+        metadataPda,
+        uri: onchain.uri,
+      },
+    );
+  }
   if (!isRecord(offchainRaw)) {
-    throw new Error("Metaplex offchain metadata was not an object");
+    throw new MetaplexFetchError(
+      "Metaplex offchain metadata was not an object",
+      null,
+      "offchain_non_object",
+      "offchain",
+      {
+        metadataPda,
+        uri: onchain.uri,
+      },
+    );
   }
 
   return {
     onchain,
     offchain: offchainRaw,
+    detail: {
+      metadataPda,
+      uri: onchain.uri,
+      hasOffchain: true,
+    },
   };
 }
 
@@ -1226,6 +1366,10 @@ function updateSummaryFromError(summary: AvailabilitySummary, error: SourceFetch
   }
 }
 
+function incrementCount(map: Record<string, number>, key: string): void {
+  map[key] = (map[key] ?? 0) + 1;
+}
+
 async function run(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const selection = await selectTokens(args);
@@ -1233,6 +1377,21 @@ async function run(): Promise<void> {
     COMPARED_SOURCES.map((source) => [source.id, buildEmptySummary(source)]),
   );
   const sampleResults: Output["sampleResults"] = [];
+  const metaplexDeepDive: Output["metaplexDeepDive"] = {
+    sourceId: "metaplex.metadata_uri",
+    fetchErrorBreakdown: {},
+    notFoundReasonSummary: {},
+    okSummary: {
+      okWithOffchainCount: 0,
+      okWithoutOffchainCount: 0,
+      descriptionAvailableCount: 0,
+      websiteAvailableCount: 0,
+      xAvailableCount: 0,
+      telegramAvailableCount: 0,
+      anyLinksAvailableCount: 0,
+    },
+    sampleDetails: [],
+  };
 
   let dexscreenerProfiles: DexscreenerTokenProfile[] | null = null;
   let dexscreenerFetchError: SourceFetchError | Error | null = null;
@@ -1277,6 +1436,7 @@ async function run(): Promise<void> {
             metadata: null,
             links: null,
             error: dexscreenerFetchError.message,
+            detail: null,
           });
           continue;
         }
@@ -1294,6 +1454,7 @@ async function run(): Promise<void> {
             metadata: null,
             links: null,
             error: null,
+            detail: null,
           });
           continue;
         }
@@ -1319,6 +1480,7 @@ async function run(): Promise<void> {
               availability.links.otherLinks.length > 0,
           },
           error: null,
+          detail: null,
         });
         continue;
       }
@@ -1328,6 +1490,36 @@ async function run(): Promise<void> {
           const raw = await fetchMetaplexComparedSourceRaw(source, token.mint);
           const availability = parseMetaplexAvailability(token.mint, raw.onchain, raw.offchain);
           updateSummaryFromAvailability(summary, availability);
+          if (raw.detail.hasOffchain) {
+            metaplexDeepDive.okSummary.okWithOffchainCount += 1;
+          } else {
+            metaplexDeepDive.okSummary.okWithoutOffchainCount += 1;
+          }
+          if (availability.metadata.description !== null) {
+            metaplexDeepDive.okSummary.descriptionAvailableCount += 1;
+          }
+          if (availability.links.website !== null) {
+            metaplexDeepDive.okSummary.websiteAvailableCount += 1;
+          }
+          if (availability.links.x !== null) {
+            metaplexDeepDive.okSummary.xAvailableCount += 1;
+          }
+          if (availability.links.telegram !== null) {
+            metaplexDeepDive.okSummary.telegramAvailableCount += 1;
+          }
+          if (
+            availability.links.website !== null ||
+            availability.links.x !== null ||
+            availability.links.telegram !== null ||
+            availability.links.otherLinks.length > 0
+          ) {
+            metaplexDeepDive.okSummary.anyLinksAvailableCount += 1;
+          }
+          const detail: JsonObject = {
+            ...raw.detail,
+            onchainName: raw.onchain.name,
+            onchainSymbol: raw.onchain.symbol,
+          };
           sourceResults.push({
             sourceId: source.id,
             family: source.family,
@@ -1342,15 +1534,37 @@ async function run(): Promise<void> {
               telegram: availability.links.telegram,
               anyLinks:
                 availability.links.website !== null ||
-                availability.links.x !== null ||
-                availability.links.telegram !== null ||
-                availability.links.otherLinks.length > 0,
+              availability.links.x !== null ||
+              availability.links.telegram !== null ||
+              availability.links.otherLinks.length > 0,
             },
             error: null,
+            detail,
           });
+          if (metaplexDeepDive.sampleDetails.length < SAMPLE_RESULTS_LIMIT) {
+            metaplexDeepDive.sampleDetails.push({
+              mint: token.mint,
+              status: "ok",
+              selectionAnchorAt: token.selectionAnchorAt,
+              detail,
+              metadata: availability.metadata,
+              links: {
+                website: availability.links.website,
+                x: availability.links.x,
+                telegram: availability.links.telegram,
+                anyLinks:
+                  availability.links.website !== null ||
+                  availability.links.x !== null ||
+                  availability.links.telegram !== null ||
+                  availability.links.otherLinks.length > 0,
+              },
+              error: null,
+            });
+          }
         } catch (error) {
           if (error instanceof SourceNotFoundError) {
             updateSummaryNotFound(summary);
+            incrementCount(metaplexDeepDive.notFoundReasonSummary, error.reason);
             sourceResults.push({
               sourceId: source.id,
               family: source.family,
@@ -1361,15 +1575,32 @@ async function run(): Promise<void> {
               metadata: null,
               links: null,
               error: null,
+              detail: error.detail,
             });
+            if (metaplexDeepDive.sampleDetails.length < SAMPLE_RESULTS_LIMIT) {
+              metaplexDeepDive.sampleDetails.push({
+                mint: token.mint,
+                status: "not_found",
+                selectionAnchorAt: token.selectionAnchorAt,
+                detail: error.detail ? { ...error.detail, reason: error.reason } : { reason: error.reason },
+                metadata: null,
+                links: null,
+                error: null,
+              });
+            }
             continue;
           }
 
           const normalizedError =
-            error instanceof SourceFetchError
+            error instanceof MetaplexFetchError || error instanceof SourceFetchError
               ? error
               : new Error(error instanceof Error ? error.message : String(error));
           updateSummaryFromError(summary, normalizedError);
+          if (normalizedError instanceof MetaplexFetchError) {
+            incrementCount(metaplexDeepDive.fetchErrorBreakdown, normalizedError.kind);
+          } else {
+            incrementCount(metaplexDeepDive.fetchErrorBreakdown, "unknown_error");
+          }
           sourceResults.push({
             sourceId: source.id,
             family: source.family,
@@ -1380,7 +1611,33 @@ async function run(): Promise<void> {
             metadata: null,
             links: null,
             error: normalizedError.message,
+            detail:
+              normalizedError instanceof MetaplexFetchError
+                ? {
+                    kind: normalizedError.kind,
+                    stage: normalizedError.stage,
+                    ...(normalizedError.detail ?? {}),
+                  }
+                : null,
           });
+          if (metaplexDeepDive.sampleDetails.length < SAMPLE_RESULTS_LIMIT) {
+            metaplexDeepDive.sampleDetails.push({
+              mint: token.mint,
+              status: "error",
+              selectionAnchorAt: token.selectionAnchorAt,
+              detail:
+                normalizedError instanceof MetaplexFetchError
+                  ? {
+                      kind: normalizedError.kind,
+                      stage: normalizedError.stage,
+                      ...(normalizedError.detail ?? {}),
+                    }
+                  : null,
+              metadata: null,
+              links: null,
+              error: normalizedError.message,
+            });
+          }
         }
         continue;
       }
@@ -1408,6 +1665,7 @@ async function run(): Promise<void> {
               availability.links.otherLinks.length > 0,
           },
           error: null,
+          detail: null,
         });
       } catch (error) {
         const normalizedError =
@@ -1425,6 +1683,7 @@ async function run(): Promise<void> {
           metadata: null,
           links: null,
           error: normalizedError.message,
+          detail: null,
         });
       }
     }
@@ -1462,6 +1721,7 @@ async function run(): Promise<void> {
     availabilitySummary: COMPARED_SOURCES.map(
       (source) => summaries.get(source.id) ?? buildEmptySummary(source),
     ),
+    metaplexDeepDive,
     sampleResults,
   };
 

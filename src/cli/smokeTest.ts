@@ -5922,6 +5922,7 @@ async function run(): Promise<void> {
               family: string;
               status: string;
               rateLimited: boolean;
+              detail: Record<string, unknown> | null;
               metadata: {
                 description: string | null;
               } | null;
@@ -5933,6 +5934,34 @@ async function run(): Promise<void> {
               } | null;
             }>;
           }>;
+          metaplexDeepDive: {
+            sourceId: string;
+            fetchErrorBreakdown: Record<string, number>;
+            notFoundReasonSummary: Record<string, number>;
+            okSummary: {
+              okWithOffchainCount: number;
+              okWithoutOffchainCount: number;
+              descriptionAvailableCount: number;
+              websiteAvailableCount: number;
+              xAvailableCount: number;
+              telegramAvailableCount: number;
+              anyLinksAvailableCount: number;
+            };
+            sampleDetails: Array<{
+              mint: string;
+              status: string;
+              detail: Record<string, unknown> | null;
+              metadata: {
+                description: string | null;
+              } | null;
+              links: {
+                website: string | null;
+                x: string | null;
+                telegram: string | null;
+                anyLinks: boolean;
+              } | null;
+            }>;
+          };
         }>(
           "context source family compare",
           "src/cli/contextCompareSourceFamilies.ts",
@@ -6008,6 +6037,30 @@ async function run(): Promise<void> {
           metaplexSummary.xAvailableCount !== 1 ||
           metaplexSummary.telegramAvailableCount !== 1 ||
           metaplexSummary.anyLinksAvailableCount !== 1 ||
+          parsed.metaplexDeepDive.sourceId !== "metaplex.metadata_uri" ||
+          parsed.metaplexDeepDive.okSummary.okWithOffchainCount !== 1 ||
+          parsed.metaplexDeepDive.okSummary.okWithoutOffchainCount !== 0 ||
+          parsed.metaplexDeepDive.okSummary.descriptionAvailableCount !== 1 ||
+          parsed.metaplexDeepDive.okSummary.websiteAvailableCount !== 1 ||
+          parsed.metaplexDeepDive.okSummary.xAvailableCount !== 1 ||
+          parsed.metaplexDeepDive.okSummary.telegramAvailableCount !== 1 ||
+          parsed.metaplexDeepDive.okSummary.anyLinksAvailableCount !== 1 ||
+          Object.keys(parsed.metaplexDeepDive.fetchErrorBreakdown).length !== 0 ||
+          Object.keys(parsed.metaplexDeepDive.notFoundReasonSummary).length !== 0 ||
+          parsed.metaplexDeepDive.sampleDetails.length !== 1 ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.mint !== context.geckoContextCapturePumpMint ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.status !== "ok" ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.metadata?.description !==
+            "metaplex context description" ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.links?.website !==
+            "https://example.com/metaplex-context" ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.links?.x !==
+            "https://x.com/metaplex_context" ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.links?.telegram !==
+            "https://t.me/metaplexcontext" ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.links?.anyLinks !== true ||
+          parsed.metaplexDeepDive.sampleDetails[0]?.detail?.uri !==
+            "https://example.com/metaplex-metadata.json" ||
           parsed.sampleResults.length !== 1 ||
           sample?.mint !== context.geckoContextCapturePumpMint ||
           sample.sourceResults.length !== 4 ||
@@ -6020,7 +6073,8 @@ async function run(): Promise<void> {
               item.status !== "ok" ||
               item.rateLimited !== false ||
               (item.family === "metaplex" &&
-                (item.metadata?.description !== "metaplex context description" ||
+                (item.detail?.uri !== "https://example.com/metaplex-metadata.json" ||
+                  item.metadata?.description !== "metaplex context description" ||
                   item.links?.website !== "https://example.com/metaplex-context" ||
                   item.links?.x !== "https://x.com/metaplex_context" ||
                   item.links?.telegram !== "https://t.me/metaplexcontext" ||
