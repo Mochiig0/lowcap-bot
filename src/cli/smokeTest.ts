@@ -46,6 +46,7 @@ type SmokeContext = {
   geckoEnrichRescoreNonPumpMint: string;
   geckoContextCapturePumpMint: string;
   geckoContextCaptureNonPumpMint: string;
+  dexscreenerContextCompareFilePath: string;
   metricId: number | null;
   devWallet: string;
   trendRaw: string;
@@ -345,6 +346,7 @@ async function cleanup(context: SmokeContext): Promise<void> {
   await rm(context.metricSnapshotFilePath, { force: true });
   await rm(context.geckoEnrichRescoreFilePath, { force: true });
   await rm(context.geckoContextCaptureFilePath, { force: true });
+  await rm(context.dexscreenerContextCompareFilePath, { force: true });
   await rm(context.telegramCaptureFilePath, { force: true });
 }
 
@@ -426,6 +428,7 @@ async function run(): Promise<void> {
     metricSnapshotFilePath: `/tmp/${smokeId}-metric-snapshot.json`,
     geckoEnrichRescoreFilePath: `/tmp/${smokeId}-gecko-enrich-rescore.json`,
     geckoContextCaptureFilePath: `/tmp/${smokeId}-gecko-context-capture.json`,
+    dexscreenerContextCompareFilePath: `/tmp/${smokeId}-dexscreener-context-compare.json`,
     telegramCaptureFilePath: `/tmp/${smokeId}-telegram-capture.jsonl`,
   };
 
@@ -5776,6 +5779,237 @@ async function run(): Promise<void> {
         } else {
           process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE =
             previousSnapshotWithTopPoolsFile;
+        }
+      }
+    });
+
+    await runStep("context source family compare", async () => {
+      const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+      const previousSnapshotWithTopPoolsFile =
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE;
+      const previousDexscreenerProfilesFile =
+        process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE;
+
+      try {
+        await writeFile(
+          context.geckoContextCaptureFilePath,
+          `${JSON.stringify(
+            {
+              data: {
+                id: `solana_${context.geckoContextCapturePumpMint}`,
+                type: "token",
+                attributes: {
+                  address: context.geckoContextCapturePumpMint,
+                  name: "context capture token",
+                  symbol: "CCT",
+                  description: "context capture description",
+                  websites: ["https://example.com/project"],
+                  twitter_username: "context_token",
+                  telegram_handle: "contexttelegram",
+                },
+              },
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+
+        await writeFile(
+          context.dexscreenerContextCompareFilePath,
+          `${JSON.stringify(
+            [
+              {
+                tokenAddress: context.geckoContextCapturePumpMint,
+                chainId: "solana",
+                description: "dex context description",
+                links: [
+                  {
+                    type: "website",
+                    url: "https://example.com/dex-context",
+                  },
+                  {
+                    type: "twitter",
+                    url: "https://x.com/dex_context",
+                  },
+                  {
+                    type: "telegram",
+                    url: "https://t.me/dexcontext",
+                  },
+                ],
+              },
+            ],
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoContextCaptureFilePath;
+        process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE =
+          context.geckoContextCaptureFilePath;
+        process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE =
+          context.dexscreenerContextCompareFilePath;
+
+        const [tokenCountBefore, metricCountBefore] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        const parsed = await runCliJson<{
+          readOnly: boolean;
+          selection: {
+            sinceHours: number;
+            limit: number;
+            geckoOriginTokenCount: number;
+            skippedNonPumpCount: number;
+            selectedCount: number;
+          };
+          comparedSources: Array<{
+            id: string;
+            family: string;
+          }>;
+          availabilitySummary: Array<{
+            sourceId: string;
+            family: string;
+            totalChecked: number;
+            okCount: number;
+            notFoundCount: number;
+            fetchErrorCount: number;
+            rateLimitedCount: number;
+            descriptionAvailableCount: number;
+            websiteAvailableCount: number;
+            xAvailableCount: number;
+            telegramAvailableCount: number;
+            anyLinksAvailableCount: number;
+          }>;
+          sampleResults: Array<{
+            mint: string;
+            sourceResults: Array<{
+              sourceId: string;
+              family: string;
+              status: string;
+              rateLimited: boolean;
+              metadata: {
+                description: string | null;
+              } | null;
+              links: {
+                website: string | null;
+                x: string | null;
+                telegram: string | null;
+                anyLinks: boolean;
+              } | null;
+            }>;
+          }>;
+        }>(
+          "context source family compare",
+          "src/cli/contextCompareSourceFamilies.ts",
+          [
+            "--limit",
+            "1",
+            "--sinceHours",
+            "1",
+          ],
+          context.smokeId,
+        );
+
+        const [tokenCountAfter, metricCountAfter] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        if (tokenCountBefore !== tokenCountAfter || metricCountBefore !== metricCountAfter) {
+          throw new Error("context source family compare was not read-only");
+        }
+
+        const summaryBySource = new Map(
+          parsed.availabilitySummary.map((item) => [item.sourceId, item] as const),
+        );
+        const geckoPlainSummary = summaryBySource.get("geckoterminal.token_snapshot");
+        const geckoTopPoolsSummary = summaryBySource.get(
+          "geckoterminal.token_snapshot_with_top_pools",
+        );
+        const dexscreenerSummary = summaryBySource.get("dexscreener.token_profiles_latest_v1");
+        const sample = parsed.sampleResults[0];
+        const sampleSourceIds = new Set(sample?.sourceResults.map((item) => item.sourceId) ?? []);
+
+        if (
+          parsed.readOnly !== true ||
+          parsed.selection.sinceHours !== 1 ||
+          parsed.selection.limit !== 1 ||
+          parsed.selection.geckoOriginTokenCount < 1 ||
+          parsed.selection.skippedNonPumpCount < 1 ||
+          parsed.selection.selectedCount !== 1 ||
+          parsed.comparedSources.length !== 3 ||
+          !geckoPlainSummary ||
+          !geckoTopPoolsSummary ||
+          !dexscreenerSummary ||
+          geckoPlainSummary.okCount !== 1 ||
+          geckoPlainSummary.descriptionAvailableCount !== 1 ||
+          geckoPlainSummary.websiteAvailableCount !== 1 ||
+          geckoPlainSummary.xAvailableCount !== 1 ||
+          geckoPlainSummary.telegramAvailableCount !== 1 ||
+          geckoPlainSummary.anyLinksAvailableCount !== 1 ||
+          geckoTopPoolsSummary.okCount !== 1 ||
+          geckoTopPoolsSummary.descriptionAvailableCount !== 1 ||
+          geckoTopPoolsSummary.websiteAvailableCount !== 1 ||
+          geckoTopPoolsSummary.xAvailableCount !== 1 ||
+          geckoTopPoolsSummary.telegramAvailableCount !== 1 ||
+          geckoTopPoolsSummary.anyLinksAvailableCount !== 1 ||
+          dexscreenerSummary.okCount !== 1 ||
+          dexscreenerSummary.notFoundCount !== 0 ||
+          dexscreenerSummary.fetchErrorCount !== 0 ||
+          dexscreenerSummary.rateLimitedCount !== 0 ||
+          dexscreenerSummary.descriptionAvailableCount !== 1 ||
+          dexscreenerSummary.websiteAvailableCount !== 1 ||
+          dexscreenerSummary.xAvailableCount !== 1 ||
+          dexscreenerSummary.telegramAvailableCount !== 1 ||
+          dexscreenerSummary.anyLinksAvailableCount !== 1 ||
+          parsed.sampleResults.length !== 1 ||
+          sample?.mint !== context.geckoContextCapturePumpMint ||
+          sample.sourceResults.length !== 3 ||
+          !sampleSourceIds.has("geckoterminal.token_snapshot") ||
+          !sampleSourceIds.has("geckoterminal.token_snapshot_with_top_pools") ||
+          !sampleSourceIds.has("dexscreener.token_profiles_latest_v1") ||
+          sample.sourceResults.some(
+            (item) =>
+              item.status !== "ok" ||
+              item.rateLimited !== false ||
+              (item.family === "dexscreener" &&
+                (item.metadata?.description !== "dex context description" ||
+                  item.links?.website !== "https://example.com/dex-context" ||
+                  item.links?.x !== "https://x.com/dex_context" ||
+                  item.links?.telegram !== "https://t.me/dexcontext" ||
+                  item.links?.anyLinks !== true)) ||
+              (item.family === "geckoterminal" &&
+                (item.metadata?.description !== "context capture description" ||
+                  item.links?.website !== "https://example.com/project" ||
+                  item.links?.x !== "https://x.com/context_token" ||
+                  item.links?.telegram !== "https://t.me/contexttelegram" ||
+                  item.links?.anyLinks !== true)),
+          )
+        ) {
+          throw new Error("context source family compare returned unexpected output");
+        }
+      } finally {
+        if (previousSnapshotFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+
+        if (previousSnapshotWithTopPoolsFile === undefined) {
+          delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE;
+        } else {
+          process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_WITH_TOP_POOLS_FILE =
+            previousSnapshotWithTopPoolsFile;
+        }
+
+        if (previousDexscreenerProfilesFile === undefined) {
+          delete process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE;
+        } else {
+          process.env.DEXSCREENER_TOKEN_PROFILES_LATEST_V1_FILE =
+            previousDexscreenerProfilesFile;
         }
       }
     });

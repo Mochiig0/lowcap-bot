@@ -26,6 +26,7 @@
     "token:enrich-rescore:geckoterminal": "tsx src/cli/tokenEnrichRescoreGeckoterminal.ts",
     "context:capture:geckoterminal": "tsx src/cli/contextCaptureGeckoterminal.ts",
     "context:compare:geckoterminal": "node --import tsx src/cli/contextCompareGeckoterminal.ts",
+    "context:compare:source-families": "node --import tsx src/cli/contextCompareSourceFamilies.ts",
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
     "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
