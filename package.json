@@ -27,6 +27,7 @@
     "context:capture:geckoterminal": "tsx src/cli/contextCaptureGeckoterminal.ts",
     "context:compare:geckoterminal": "node --import tsx src/cli/contextCompareGeckoterminal.ts",
     "context:compare:source-families": "node --import tsx src/cli/contextCompareSourceFamilies.ts",
+    "logs:summary:geckoterminal:metaplex": "node ./scripts/summarize-geckoterminal-enrich-metaplex-log.mjs",
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
     "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
