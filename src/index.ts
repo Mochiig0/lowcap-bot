@@ -40,7 +40,7 @@ const lines = [
   "  Example: pnpm token:rescore -- --mint TESTMINT",
   "",
   "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--write] [--notify]",
-  "  Dry-run by default; fetch GeckoTerminal token snapshots for recent Gecko-origin tokens that are still missing name or symbol, optionally narrow batch mode to mint strings ending with pump via --pumpOnly, preview enrich plus rescore plus useful context capture, write token updates and Token.entrySnapshot.contextCapture.geckoterminalTokenSnapshot only with --write, notify only with --write --notify when a token newly enters S-rank without hard reject, and stop the current batch early after the first 429 token snapshot error.",
+  "  Dry-run by default; fetch GeckoTerminal token snapshots for recent Gecko-origin tokens that are still missing name or symbol, optionally narrow batch mode to mint strings ending with pump via --pumpOnly, preview enrich plus rescore plus useful Gecko context capture plus best-effort Metaplex secondary context, write token updates and Token.entrySnapshot.contextCapture.{geckoterminalTokenSnapshot,metaplexMetadataUri} only with --write, notify only with --write --notify when a token newly enters S-rank without hard reject, and stop the current batch early after the first 429 token snapshot error.",
   "  Example: pnpm token:enrich-rescore:geckoterminal -- --limit 10 --sinceMinutes 180 --pumpOnly --write --notify",
   "",
   "pnpm context:capture:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceHours <N>] [--write]",

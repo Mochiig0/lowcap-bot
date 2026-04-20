@@ -3963,6 +3963,7 @@ async function run(): Promise<void> {
     await runStep("geckoterminal enrich rescore batch", async () => {
       const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
       const previousTelegramCaptureFile = process.env.LOWCAP_TELEGRAM_CAPTURE_FILE;
+      const previousMetaplexMetadataUriFile = process.env.METAPLEX_METADATA_URI_FILE;
 
       await runCliJson<{
         mint: string;
@@ -4041,10 +4042,33 @@ async function run(): Promise<void> {
       );
 
       await writeFile(context.telegramCaptureFilePath, "", "utf-8");
+      await writeFile(
+        context.metaplexContextCompareFilePath,
+        `${JSON.stringify(
+          {
+            onchain: {
+              mint: context.geckoEnrichRescoreMint,
+              uri: "https://example.com/metaplex-fast-follow.json",
+            },
+            offchain: {
+              description: "metaplex secondary description",
+              external_url: "https://example.com/metaplex-secondary",
+              extensions: {
+                twitter: "metaplex_secondary",
+                telegram: "metaplexsecondary",
+              },
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
 
       try {
         process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoEnrichRescoreFilePath;
         process.env.LOWCAP_TELEGRAM_CAPTURE_FILE = context.telegramCaptureFilePath;
+        process.env.METAPLEX_METADATA_URI_FILE = context.metaplexContextCompareFilePath;
 
         const dryRun = await runCliJson<{
           mode: string;
@@ -4064,6 +4088,8 @@ async function run(): Promise<void> {
             errorCount: number;
             enrichWriteCount: number;
             rescoreWriteCount: number;
+            metaplexAvailableCount: number;
+            metaplexWriteCount: number;
             notifyCandidateCount: number;
             notifyWouldSendCount: number;
             notifySentCount: number;
@@ -4082,6 +4108,11 @@ async function run(): Promise<void> {
             contextAvailable: boolean;
             contextWouldWrite: boolean;
             savedContextFields: string[];
+            metaplexAttempted: boolean;
+            metaplexAvailable: boolean;
+            metaplexWouldWrite: boolean;
+            metaplexSavedFields: string[];
+            metaplexErrorKind: string | null;
             enrichPlan?: {
               hasPatch: boolean;
               willUpdate: boolean;
@@ -4104,6 +4135,7 @@ async function run(): Promise<void> {
               enrichUpdated: boolean;
               rescoreUpdated: boolean;
               contextUpdated: boolean;
+              metaplexContextUpdated: boolean;
             };
           }>;
         }>(
@@ -4138,6 +4170,8 @@ async function run(): Promise<void> {
           dryRun.summary.errorCount !== 0 ||
           dryRun.summary.enrichWriteCount !== 0 ||
           dryRun.summary.rescoreWriteCount !== 0 ||
+          dryRun.summary.metaplexAvailableCount !== 2 ||
+          dryRun.summary.metaplexWriteCount !== 0 ||
           dryRun.summary.notifyWouldSendCount !== 2 ||
           dryRun.summary.notifySentCount !== 0 ||
           dryRun.items.length !== 2 ||
@@ -4151,6 +4185,11 @@ async function run(): Promise<void> {
           selectedTargetItem.contextAvailable !== true ||
           selectedTargetItem.contextWouldWrite !== true ||
           selectedTargetItem.savedContextFields.length !== 0 ||
+          selectedTargetItem.metaplexAttempted !== true ||
+          selectedTargetItem.metaplexAvailable !== true ||
+          selectedTargetItem.metaplexWouldWrite !== true ||
+          selectedTargetItem.metaplexSavedFields.length !== 0 ||
+          selectedTargetItem.metaplexErrorKind !== null ||
           selectedTargetItem.enrichPlan?.hasPatch !== true ||
           selectedTargetItem.enrichPlan?.willUpdate !== true ||
           selectedTargetItem.enrichPlan?.preview.metadataStatus !== "partial" ||
@@ -4165,7 +4204,8 @@ async function run(): Promise<void> {
           selectedTargetItem.writeSummary.dryRun !== true ||
           selectedTargetItem.writeSummary.enrichUpdated !== false ||
           selectedTargetItem.writeSummary.rescoreUpdated !== false ||
-          selectedTargetItem.writeSummary.contextUpdated !== false
+          selectedTargetItem.writeSummary.contextUpdated !== false ||
+          selectedTargetItem.writeSummary.metaplexContextUpdated !== false
         ) {
           throw new Error("geckoterminal enrich rescore dry-run returned unexpected summary");
         }
@@ -4270,6 +4310,8 @@ async function run(): Promise<void> {
             rescoreWriteCount: number;
             contextAvailableCount: number;
             contextWriteCount: number;
+            metaplexAvailableCount: number;
+            metaplexWriteCount: number;
             notifyWouldSendCount: number;
             notifySentCount: number;
           };
@@ -4281,6 +4323,11 @@ async function run(): Promise<void> {
             contextAvailable: boolean;
             contextWouldWrite: boolean;
             savedContextFields: string[];
+            metaplexAttempted: boolean;
+            metaplexAvailable: boolean;
+            metaplexWouldWrite: boolean;
+            metaplexSavedFields: string[];
+            metaplexErrorKind: string | null;
             enrichPlan?: {
               willUpdate: boolean;
             };
@@ -4299,6 +4346,7 @@ async function run(): Promise<void> {
               enrichUpdated: boolean;
               rescoreUpdated: boolean;
               contextUpdated: boolean;
+              metaplexContextUpdated: boolean;
             };
           }>;
         }>(
@@ -4324,6 +4372,8 @@ async function run(): Promise<void> {
           written.summary.rescoreWriteCount !== 1 ||
           written.summary.contextAvailableCount !== 1 ||
           written.summary.contextWriteCount !== 1 ||
+          written.summary.metaplexAvailableCount !== 1 ||
+          written.summary.metaplexWriteCount !== 1 ||
           written.summary.notifyWouldSendCount !== 1 ||
           written.summary.notifySentCount !== 1 ||
           written.items.length !== 1 ||
@@ -4332,6 +4382,11 @@ async function run(): Promise<void> {
           written.items[0]?.contextAvailable !== true ||
           written.items[0]?.contextWouldWrite !== true ||
           written.items[0]?.savedContextFields.length !== 0 ||
+          written.items[0]?.metaplexAttempted !== true ||
+          written.items[0]?.metaplexAvailable !== true ||
+          written.items[0]?.metaplexWouldWrite !== true ||
+          written.items[0]?.metaplexSavedFields.length !== 0 ||
+          written.items[0]?.metaplexErrorKind !== null ||
           written.items[0]?.enrichPlan?.willUpdate !== true ||
           written.items[0]?.rescorePreview?.ready !== true ||
           written.items[0]?.rescorePreview?.scoreRank !== "S" ||
@@ -4344,7 +4399,8 @@ async function run(): Promise<void> {
           written.items[0]?.writeSummary.dryRun !== false ||
           written.items[0]?.writeSummary.enrichUpdated !== true ||
           written.items[0]?.writeSummary.rescoreUpdated !== true ||
-          written.items[0]?.writeSummary.contextUpdated !== true
+          written.items[0]?.writeSummary.contextUpdated !== true ||
+          written.items[0]?.writeSummary.metaplexContextUpdated !== true
         ) {
           throw new Error("geckoterminal enrich rescore write returned unexpected summary");
         }
@@ -4410,6 +4466,24 @@ async function run(): Promise<void> {
           !Array.isArray(updatedSavedSnapshot.links)
             ? (updatedSavedSnapshot.links as Record<string, unknown>)
             : null;
+        const updatedSavedMetaplexSnapshot =
+          updatedContextCapture?.metaplexMetadataUri &&
+          typeof updatedContextCapture.metaplexMetadataUri === "object" &&
+          !Array.isArray(updatedContextCapture.metaplexMetadataUri)
+            ? (updatedContextCapture.metaplexMetadataUri as Record<string, unknown>)
+            : null;
+        const updatedSavedMetaplexMetadataText =
+          updatedSavedMetaplexSnapshot?.metadataText &&
+          typeof updatedSavedMetaplexSnapshot.metadataText === "object" &&
+          !Array.isArray(updatedSavedMetaplexSnapshot.metadataText)
+            ? (updatedSavedMetaplexSnapshot.metadataText as Record<string, unknown>)
+            : null;
+        const updatedSavedMetaplexLinks =
+          updatedSavedMetaplexSnapshot?.links &&
+          typeof updatedSavedMetaplexSnapshot.links === "object" &&
+          !Array.isArray(updatedSavedMetaplexSnapshot.links)
+            ? (updatedSavedMetaplexSnapshot.links as Record<string, unknown>)
+            : null;
 
         if (
           !updatedToken ||
@@ -4431,7 +4505,15 @@ async function run(): Promise<void> {
           updatedSavedLinks?.x !== "https://x.com/gecko_enrich_token" ||
           updatedSavedLinks?.telegram !== "https://t.me/geckoenrich" ||
           !Array.isArray(updatedSavedLinks?.otherLinks) ||
-          !(updatedSavedLinks.otherLinks as unknown[]).includes("https://discord.gg/geckoenrich")
+          !(updatedSavedLinks.otherLinks as unknown[]).includes("https://discord.gg/geckoenrich") ||
+          !updatedSavedMetaplexSnapshot ||
+          updatedSavedMetaplexSnapshot.source !== "metaplex.metadata_uri" ||
+          updatedSavedMetaplexSnapshot.uri !== "https://example.com/metaplex-fast-follow.json" ||
+          updatedSavedMetaplexMetadataText?.description !== "metaplex secondary description" ||
+          updatedSavedMetaplexLinks?.website !== "https://example.com/metaplex-secondary" ||
+          updatedSavedMetaplexLinks?.x !== "https://x.com/metaplex_secondary" ||
+          updatedSavedMetaplexLinks?.telegram !== "https://t.me/metaplexsecondary" ||
+          updatedSavedMetaplexLinks?.anyLinks !== true
         ) {
           throw new Error("geckoterminal enrich rescore write did not persist expected token fields");
         }
@@ -4446,6 +4528,11 @@ async function run(): Promise<void> {
             contextAvailable: boolean;
             contextWouldWrite: boolean;
             savedContextFields: string[];
+            metaplexAttempted: boolean;
+            metaplexAvailable: boolean;
+            metaplexWouldWrite: boolean;
+            metaplexSavedFields: string[];
+            metaplexErrorKind: string | null;
             notifyEligibleBefore: boolean;
             notifyEligibleAfter: boolean;
             notifyWouldSend: boolean;
@@ -4454,6 +4541,7 @@ async function run(): Promise<void> {
               enrichUpdated: boolean;
               rescoreUpdated: boolean;
               contextUpdated: boolean;
+              metaplexContextUpdated: boolean;
             };
           }>;
         }>(
@@ -4476,13 +4564,19 @@ async function run(): Promise<void> {
           rerun.items[0]?.contextAvailable !== true ||
           rerun.items[0]?.contextWouldWrite !== false ||
           rerun.items[0]?.savedContextFields.length < 4 ||
+          rerun.items[0]?.metaplexAttempted !== true ||
+          rerun.items[0]?.metaplexAvailable !== true ||
+          rerun.items[0]?.metaplexWouldWrite !== false ||
+          rerun.items[0]?.metaplexSavedFields.length < 2 ||
+          rerun.items[0]?.metaplexErrorKind !== null ||
           rerun.items[0]?.notifyEligibleBefore !== true ||
           rerun.items[0]?.notifyEligibleAfter !== true ||
           rerun.items[0]?.notifyWouldSend !== false ||
           rerun.items[0]?.notifySent !== false ||
           rerun.items[0]?.writeSummary.enrichUpdated !== false ||
           rerun.items[0]?.writeSummary.rescoreUpdated !== true ||
-          rerun.items[0]?.writeSummary.contextUpdated !== false
+          rerun.items[0]?.writeSummary.contextUpdated !== false ||
+          rerun.items[0]?.writeSummary.metaplexContextUpdated !== false
         ) {
           throw new Error("geckoterminal enrich rescore rerun notify unexpectedly duplicated a send");
         }
@@ -4507,11 +4601,18 @@ async function run(): Promise<void> {
         } else {
           process.env.LOWCAP_TELEGRAM_CAPTURE_FILE = previousTelegramCaptureFile;
         }
+
+        if (previousMetaplexMetadataUriFile === undefined) {
+          delete process.env.METAPLEX_METADATA_URI_FILE;
+        } else {
+          process.env.METAPLEX_METADATA_URI_FILE = previousMetaplexMetadataUriFile;
+        }
       }
     });
 
     await runStep("geckoterminal enrich rescore pump-only batch", async () => {
       const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
+      const previousMetaplexMetadataUriFile = process.env.METAPLEX_METADATA_URI_FILE;
 
       await runCliJson<{
         mint: string;
@@ -4564,6 +4665,21 @@ async function run(): Promise<void> {
           "utf-8",
         );
         process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = context.geckoEnrichRescoreFilePath;
+        await writeFile(
+          context.metaplexContextCompareFilePath,
+          `${JSON.stringify(
+            {
+              status: "error",
+              kind: "rpc_http_error",
+              rateLimited: false,
+              message: "metaplex test error",
+            },
+            null,
+            2,
+          )}\n`,
+          "utf-8",
+        );
+        process.env.METAPLEX_METADATA_URI_FILE = context.metaplexContextCompareFilePath;
 
         const pumpOnlyBatch = await runCliJson<{
           mode: string;
@@ -4586,6 +4702,10 @@ async function run(): Promise<void> {
               mint: string;
             };
             status: string;
+            metaplexAttempted: boolean;
+            metaplexAvailable: boolean;
+            metaplexWouldWrite: boolean;
+            metaplexErrorKind: string | null;
           }>;
         }>(
           "geckoterminal enrich rescore pump-only batch",
@@ -4621,7 +4741,13 @@ async function run(): Promise<void> {
           !pumpOnlyBatchMints.has(context.geckoEnrichRescorePumpMint) ||
           pumpOnlyBatchMints.has(context.geckoEnrichRescoreNonPumpMint) ||
           pumpOnlyBatch.items.some(
-            (item) => item.status !== "ok" || !item.token.mint.endsWith("pump"),
+            (item) =>
+              item.status !== "ok" ||
+              !item.token.mint.endsWith("pump") ||
+              item.metaplexAttempted !== true ||
+              item.metaplexAvailable !== false ||
+              item.metaplexWouldWrite !== false ||
+              item.metaplexErrorKind !== "rpc_http_error",
           )
         ) {
           throw new Error(
@@ -4700,6 +4826,12 @@ async function run(): Promise<void> {
           delete process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
         } else {
           process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE = previousSnapshotFile;
+        }
+
+        if (previousMetaplexMetadataUriFile === undefined) {
+          delete process.env.METAPLEX_METADATA_URI_FILE;
+        } else {
+          process.env.METAPLEX_METADATA_URI_FILE = previousMetaplexMetadataUriFile;
         }
       }
     });

@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import { Prisma } from "@prisma/client";
@@ -22,6 +23,9 @@ const GECKOTERMINAL_NETWORK = "solana";
 const GECKOTERMINAL_TOKEN_API_URL =
   `https://api.geckoterminal.com/api/v2/networks/${GECKOTERMINAL_NETWORK}/tokens`;
 const CONTEXT_CAPTURE_SOURCE = "geckoterminal.token_snapshot";
+const METAPLEX_CONTEXT_CAPTURE_SOURCE = "metaplex.metadata_uri";
+const METAPLEX_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
+const DEFAULT_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 const DEFAULT_LIMIT = 20;
 const DEFAULT_SINCE_MINUTES = 180;
 const LOG_PREFIX = "[token:enrich-rescore:geckoterminal]";
@@ -94,6 +98,28 @@ type CollectedContext = {
   missingFields: string[];
 };
 
+type MetaplexCollectedContext = {
+  source: string;
+  capturedAt: string;
+  metadataPda: string;
+  uri: string | null;
+  metadataText: {
+    description: string | null;
+  };
+  links: {
+    website: string | null;
+    x: string | null;
+    telegram: string | null;
+    anyLinks: boolean;
+    websites: string[];
+    xCandidates: string[];
+    telegramCandidates: string[];
+    otherLinks: string[];
+  };
+  availableFields: string[];
+  missingFields: string[];
+};
+
 type ProcessedItem = {
   token: {
     id: number;
@@ -121,6 +147,11 @@ type ProcessedItem = {
   contextAvailable: boolean;
   contextWouldWrite: boolean;
   savedContextFields: string[];
+  metaplexAttempted: boolean;
+  metaplexAvailable: boolean;
+  metaplexWouldWrite: boolean;
+  metaplexSavedFields: string[];
+  metaplexErrorKind: string | null;
   enrichPlan?: {
     hasPatch: boolean;
     willUpdate: boolean;
@@ -153,6 +184,7 @@ type ProcessedItem = {
     enrichUpdated: boolean;
     rescoreUpdated: boolean;
     contextUpdated: boolean;
+    metaplexContextUpdated: boolean;
   };
   error?: string;
 };
@@ -185,6 +217,8 @@ type Output = {
     rescoreWriteCount: number;
     contextAvailableCount: number;
     contextWriteCount: number;
+    metaplexAvailableCount: number;
+    metaplexWriteCount: number;
     notifyCandidateCount: number;
     notifyWouldSendCount: number;
     notifySentCount: number;
@@ -203,6 +237,37 @@ class CliUsageError extends Error {
   }
 }
 
+class MetaplexNotFoundError extends Error {
+  reason: string;
+  detail: JsonObject | null;
+
+  constructor(message: string, reason: string, detail: JsonObject | null = null) {
+    super(message);
+    this.name = "MetaplexNotFoundError";
+    this.reason = reason;
+    this.detail = detail;
+  }
+}
+
+class MetaplexFetchError extends Error {
+  kind: string;
+  rateLimited: boolean;
+  detail: JsonObject | null;
+
+  constructor(
+    message: string,
+    kind: string,
+    rateLimited = false,
+    detail: JsonObject | null = null,
+  ) {
+    super(message);
+    this.name = "MetaplexFetchError";
+    this.kind = kind;
+    this.rateLimited = rateLimited;
+    this.detail = detail;
+  }
+}
+
 function getUsageText(): string {
   return [
     "Usage:",
@@ -218,6 +283,7 @@ function getUsageText(): string {
     "- --notify is allowed only with --write and only sends when the token newly enters S-rank and non-hard-rejected state after rescore",
     "- fetches name and symbol from GeckoTerminal token snapshots and keeps description unchanged",
     "- when useful website/X/Telegram-style context exists in the same snapshot, --write also saves it into Token.entrySnapshot.contextCapture.geckoterminalTokenSnapshot without changing score or notify rules",
+    "- after the Gecko primary snapshot succeeds, a best-effort Metaplex metadata-uri lookup may also preview or save secondary description / website / X / Telegram context into Token.entrySnapshot.contextCapture.metaplexMetadataUri when available",
   ].join("\n");
 }
 
@@ -408,6 +474,154 @@ function dedupeStrings(values: Array<string | null | undefined>): string[] {
   return out;
 }
 
+function mod(value: bigint, modulus: bigint): bigint {
+  const out = value % modulus;
+  return out >= 0n ? out : out + modulus;
+}
+
+const ED25519_P = (1n << 255n) - 19n;
+const ED25519_D =
+  37095705934669439343138083508754565189542113879843219016388785533085940283555n;
+const ED25519_SQRT_M1 =
+  19681161376707505956807079304988542015446066515923890162744021073123829784752n;
+const PDA_MARKER = Buffer.from("ProgramDerivedAddress");
+const METADATA_SEED = Buffer.from("metadata");
+
+function bigIntPowMod(base: bigint, exponent: bigint, modulus: bigint): bigint {
+  let result = 1n;
+  let currentBase = mod(base, modulus);
+  let currentExponent = exponent;
+
+  while (currentExponent > 0n) {
+    if ((currentExponent & 1n) === 1n) {
+      result = mod(result * currentBase, modulus);
+    }
+    currentBase = mod(currentBase * currentBase, modulus);
+    currentExponent >>= 1n;
+  }
+
+  return result;
+}
+
+function readLittleEndianBigInt(bytes: Uint8Array): bigint {
+  let out = 0n;
+  for (let index = bytes.length - 1; index >= 0; index -= 1) {
+    out = (out << 8n) | BigInt(bytes[index] ?? 0);
+  }
+  return out;
+}
+
+function decodeBase58(value: string): Uint8Array {
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let current = 0n;
+
+  for (const character of value) {
+    const index = alphabet.indexOf(character);
+    if (index < 0) {
+      throw new Error(`Invalid base58 character: ${character}`);
+    }
+    current = current * 58n + BigInt(index);
+  }
+
+  const out: number[] = [];
+  while (current > 0n) {
+    out.push(Number(current & 0xffn));
+    current >>= 8n;
+  }
+
+  for (const character of value) {
+    if (character !== "1") break;
+    out.push(0);
+  }
+
+  out.reverse();
+  return Uint8Array.from(out);
+}
+
+function encodeBase58(bytes: Uint8Array): string {
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let current = 0n;
+
+  for (const byte of bytes) {
+    current = (current << 8n) | BigInt(byte);
+  }
+
+  let out = "";
+  while (current > 0n) {
+    const remainder = Number(current % 58n);
+    out = `${alphabet[remainder]}${out}`;
+    current /= 58n;
+  }
+
+  for (const byte of bytes) {
+    if (byte !== 0) break;
+    out = `1${out}`;
+  }
+
+  return out.length > 0 ? out : "1";
+}
+
+function isEd25519PointOnCurve(bytes: Uint8Array): boolean {
+  if (bytes.length !== 32) {
+    return false;
+  }
+
+  const copy = Uint8Array.from(bytes);
+  const sign = (copy[31] ?? 0) >> 7;
+  copy[31] = (copy[31] ?? 0) & 0x7f;
+
+  const y = readLittleEndianBigInt(copy);
+  if (y >= ED25519_P) {
+    return false;
+  }
+
+  const ySquared = mod(y * y, ED25519_P);
+  const u = mod(ySquared - 1n, ED25519_P);
+  const v = mod(ED25519_D * ySquared + 1n, ED25519_P);
+
+  if (v === 0n) {
+    return false;
+  }
+
+  let x = bigIntPowMod(
+    mod(u * bigIntPowMod(v, ED25519_P - 2n, ED25519_P), ED25519_P),
+    (ED25519_P + 3n) / 8n,
+    ED25519_P,
+  );
+  let check = mod(x * x * v, ED25519_P);
+  if (check !== u) {
+    x = mod(x * ED25519_SQRT_M1, ED25519_P);
+    check = mod(x * x * v, ED25519_P);
+    if (check !== u) {
+      return false;
+    }
+  }
+
+  if (x === 0n && sign === 1) {
+    return false;
+  }
+
+  return true;
+}
+
+function deriveMetaplexMetadataPda(mint: string): string {
+  const programId = Buffer.from(decodeBase58(METAPLEX_METADATA_PROGRAM_ID));
+  const mintBytes = Buffer.from(decodeBase58(mint));
+  const seeds = [METADATA_SEED, programId, mintBytes];
+
+  for (let bump = 255; bump >= 0; bump -= 1) {
+    const hash = createHash("sha256")
+      .update(Buffer.concat([...seeds, Buffer.from([bump]), programId, PDA_MARKER]))
+      .digest();
+
+    if (!isEd25519PointOnCurve(hash)) {
+      return encodeBase58(hash);
+    }
+  }
+
+  throw new Error(`Failed to derive metadata PDA for mint: ${mint}`);
+}
+
 function collectStringCandidates(value: unknown): string[] {
   if (typeof value === "string") {
     return value.trim().length > 0 ? [value.trim()] : [];
@@ -543,7 +757,428 @@ function sanitizeContextForCompare(context: CollectedContext): Omit<CollectedCon
   return rest;
 }
 
+type MetaplexOnchainMetadata = {
+  mint: string;
+  name: string | null;
+  symbol: string | null;
+  uri: string | null;
+};
+
+type MetaplexLookupResult = {
+  onchain: MetaplexOnchainMetadata;
+  offchain: JsonObject | null;
+  detail: {
+    metadataPda: string;
+    uri: string | null;
+    hasOffchain: boolean;
+  };
+};
+
+function parseBorshString(buffer: Buffer, offset: number): { value: string; nextOffset: number } {
+  if (offset + 4 > buffer.length) {
+    throw new Error("Invalid Metaplex metadata buffer: truncated string length");
+  }
+
+  const byteLength = buffer.readUInt32LE(offset);
+  const start = offset + 4;
+  const end = start + byteLength;
+  if (end > buffer.length) {
+    throw new Error("Invalid Metaplex metadata buffer: truncated string data");
+  }
+
+  return {
+    value: buffer.subarray(start, end).toString("utf-8"),
+    nextOffset: end,
+  };
+}
+
+function trimMetaplexString(value: string): string | null {
+  const trimmed = value.replace(/\0/g, "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseMetaplexOnchainBuffer(raw: Buffer, mint: string): MetaplexOnchainMetadata {
+  if (raw.length < 65) {
+    throw new Error("Invalid Metaplex metadata buffer: too short");
+  }
+
+  let offset = 1 + 32 + 32;
+  const nameField = parseBorshString(raw, offset);
+  offset = nameField.nextOffset;
+  const symbolField = parseBorshString(raw, offset);
+  offset = symbolField.nextOffset;
+  const uriField = parseBorshString(raw, offset);
+
+  return {
+    mint,
+    name: trimMetaplexString(nameField.value),
+    symbol: trimMetaplexString(symbolField.value),
+    uri: trimMetaplexString(uriField.value),
+  };
+}
+
+function parseMetaplexFixture(mint: string, raw: unknown): MetaplexLookupResult {
+  const fixture = ensureObject(raw, "metaplex.fixture");
+  const status = readOptionalString(fixture, "status");
+  if (status === "not_found") {
+    throw new MetaplexNotFoundError(
+      readOptionalString(fixture, "message") ?? `No Metaplex metadata account found for mint: ${mint}`,
+      readOptionalString(fixture, "reason") ?? "metadata_account_missing",
+      pickNestedRecord(fixture, "detail"),
+    );
+  }
+  if (status === "error") {
+    throw new MetaplexFetchError(
+      readOptionalString(fixture, "message") ?? `Metaplex fixture error for mint: ${mint}`,
+      readOptionalString(fixture, "kind") ?? "fixture_error",
+      fixture.rateLimited === true,
+      pickNestedRecord(fixture, "detail"),
+    );
+  }
+
+  const onchain = pickNestedRecord(fixture, "onchain");
+  if (!onchain) {
+    throw new MetaplexFetchError(
+      "Metaplex fixture missing onchain object",
+      "fixture_invalid",
+      false,
+      null,
+    );
+  }
+  const offchain = pickNestedRecord(fixture, "offchain");
+  const fixtureMint = readOptionalString(onchain, "mint") ?? mint;
+
+  return {
+    onchain: {
+      mint: fixtureMint,
+      name: readOptionalString(onchain, "name"),
+      symbol: readOptionalString(onchain, "symbol"),
+      uri: readOptionalString(onchain, "uri"),
+    },
+    offchain,
+    detail: {
+      metadataPda:
+        readOptionalString(onchain, "metadataPda") ??
+        (fixtureMint === mint ? `fixture:${mint}` : `fixture:${mint}->${fixtureMint}`),
+      uri: readOptionalString(onchain, "uri"),
+      hasOffchain: offchain !== null,
+    },
+  };
+}
+
+function extractMetaplexLinks(metadata: JsonObject): {
+  websites: string[];
+  xCandidates: string[];
+  telegramCandidates: string[];
+  otherLinks: string[];
+} {
+  const properties = pickNestedRecord(metadata, "properties");
+  const extensions = pickNestedRecord(metadata, "extensions");
+  const socials = pickNestedRecord(metadata, "socials");
+
+  const websites = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.external_url),
+      ...collectStringCandidates(metadata.website),
+      ...collectStringCandidates(metadata.website_url),
+      ...collectStringCandidates(metadata.websites),
+      ...collectStringCandidates(properties?.website),
+      ...collectStringCandidates(properties?.website_url),
+      ...collectStringCandidates(extensions?.website),
+      ...collectStringCandidates(extensions?.website_url),
+      ...collectStringCandidates(socials?.website),
+      ...collectStringCandidates(socials?.websites),
+    ].map((value) => normalizeWebsiteCandidate(value)),
+  );
+  const xCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.twitter),
+      ...collectStringCandidates(metadata.twitter_url),
+      ...collectStringCandidates(metadata.twitter_username),
+      ...collectStringCandidates(metadata.twitter_handle),
+      ...collectStringCandidates(metadata.x),
+      ...collectStringCandidates(metadata.x_url),
+      ...collectStringCandidates(metadata.x_username),
+      ...collectStringCandidates(metadata.x_handle),
+      ...collectStringCandidates(extensions?.twitter),
+      ...collectStringCandidates(extensions?.twitter_url),
+      ...collectStringCandidates(extensions?.twitterUsername),
+      ...collectStringCandidates(extensions?.twitter_username),
+      ...collectStringCandidates(extensions?.x),
+      ...collectStringCandidates(socials?.twitter),
+      ...collectStringCandidates(socials?.x),
+    ].map((value) => normalizeXCandidate(value)),
+  );
+  const telegramCandidates = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.telegram),
+      ...collectStringCandidates(metadata.telegram_url),
+      ...collectStringCandidates(metadata.telegram_handle),
+      ...collectStringCandidates(extensions?.telegram),
+      ...collectStringCandidates(extensions?.telegram_url),
+      ...collectStringCandidates(extensions?.telegram_handle),
+      ...collectStringCandidates(socials?.telegram),
+    ].map((value) => normalizeTelegramCandidate(value)),
+  );
+  const otherLinks = dedupeStrings(
+    [
+      ...collectStringCandidates(metadata.discord),
+      ...collectStringCandidates(metadata.discord_url),
+      ...collectStringCandidates(extensions?.discord),
+      ...collectStringCandidates(extensions?.discord_url),
+      ...collectStringCandidates(socials?.discord),
+    ].map((value) => normalizeGenericLinkCandidate(value)),
+  );
+
+  return {
+    websites,
+    xCandidates,
+    telegramCandidates,
+    otherLinks,
+  };
+}
+
+function parseMetaplexCollectedContext(raw: MetaplexLookupResult): MetaplexCollectedContext {
+  const description =
+    (raw.offchain ? readOptionalString(raw.offchain, "description") : null) ??
+    (raw.offchain ? readOptionalString(raw.offchain, "bio") : null);
+  const links = raw.offchain
+    ? extractMetaplexLinks(raw.offchain)
+    : {
+        websites: [],
+        xCandidates: [],
+        telegramCandidates: [],
+        otherLinks: [],
+      };
+  const availableFields: string[] = [];
+
+  if (description !== null) availableFields.push("metadata.description");
+  if (links.websites.length > 0) availableFields.push("links.website");
+  if (links.xCandidates.length > 0) availableFields.push("links.x");
+  if (links.telegramCandidates.length > 0) availableFields.push("links.telegram");
+  if (links.otherLinks.length > 0) availableFields.push("links.other");
+
+  const availableFieldSet = new Set(availableFields);
+  const anyLinks =
+    links.websites.length > 0 ||
+    links.xCandidates.length > 0 ||
+    links.telegramCandidates.length > 0 ||
+    links.otherLinks.length > 0;
+
+  return {
+    source: METAPLEX_CONTEXT_CAPTURE_SOURCE,
+    capturedAt: new Date().toISOString(),
+    metadataPda: raw.detail.metadataPda,
+    uri: raw.detail.uri,
+    metadataText: {
+      description,
+    },
+    links: {
+      website: links.websites[0] ?? null,
+      x: links.xCandidates[0] ?? null,
+      telegram: links.telegramCandidates[0] ?? null,
+      anyLinks,
+      websites: links.websites,
+      xCandidates: links.xCandidates,
+      telegramCandidates: links.telegramCandidates,
+      otherLinks: links.otherLinks,
+    },
+    availableFields,
+    missingFields: [
+      "metadata.description",
+      "links.website",
+      "links.x",
+      "links.telegram",
+      "links.other",
+    ].filter((field) => !availableFieldSet.has(field)),
+  };
+}
+
+function sanitizeMetaplexContextForCompare(
+  context: MetaplexCollectedContext,
+): Omit<MetaplexCollectedContext, "capturedAt"> {
+  const { capturedAt: _capturedAt, ...rest } = context;
+  return rest;
+}
+
+function getSolanaRpcUrl(): string {
+  return process.env.LOWCAP_SOLANA_RPC_URL?.trim() || DEFAULT_SOLANA_RPC_URL;
+}
+
+async function fetchMetaplexLookupResult(mint: string): Promise<MetaplexLookupResult> {
+  const fixturePath = process.env.METAPLEX_METADATA_URI_FILE;
+  if (fixturePath) {
+    const content = await readFile(fixturePath, "utf-8");
+    return parseMetaplexFixture(mint, JSON.parse(content) as unknown);
+  }
+
+  let metadataPda: string;
+  try {
+    metadataPda = deriveMetaplexMetadataPda(mint);
+  } catch (error) {
+    throw new MetaplexFetchError(
+      error instanceof Error ? error.message : String(error),
+      "invalid_mint",
+      false,
+      { mint },
+    );
+  }
+  const response = await fetch(getSolanaRpcUrl(), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "lowcap-bot-gecko-fast-follow-metaplex",
+      method: "getAccountInfo",
+      params: [
+        metadataPda,
+        {
+          encoding: "base64",
+          commitment: "confirmed",
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!response.ok) {
+    throw new MetaplexFetchError(
+      `metaplex.metadata_uri request failed: ${response.status} ${response.statusText}`,
+      "rpc_http_error",
+      response.status === 429,
+      { metadataPda },
+    );
+  }
+
+  const body = (await response.json()) as unknown;
+  if (!isRecord(body)) {
+    throw new MetaplexFetchError(
+      "Metaplex RPC response was not an object",
+      "rpc_invalid_response",
+      false,
+      { metadataPda },
+    );
+  }
+  if (isRecord(body.error)) {
+    throw new MetaplexFetchError(
+      typeof body.error.message === "string"
+        ? body.error.message
+        : "Metaplex RPC returned an error object",
+      "rpc_error_object",
+      false,
+      { metadataPda },
+    );
+  }
+
+  const result = pickNestedRecord(body, "result");
+  const value = result ? pickNestedRecord(result, "value") : null;
+  if (!value) {
+    throw new MetaplexNotFoundError(
+      `No Metaplex metadata account found for mint: ${mint}`,
+      "metadata_account_missing",
+      { metadataPda },
+    );
+  }
+
+  const rawData = Array.isArray(value.data) ? value.data : null;
+  const encoded = rawData && typeof rawData[0] === "string" ? rawData[0] : null;
+  if (!encoded) {
+    throw new MetaplexFetchError(
+      "Metaplex RPC response did not include base64 account data",
+      "rpc_missing_account_data",
+      false,
+      { metadataPda },
+    );
+  }
+
+  let onchain: MetaplexOnchainMetadata;
+  try {
+    onchain = parseMetaplexOnchainBuffer(Buffer.from(encoded, "base64"), mint);
+  } catch (error) {
+    throw new MetaplexFetchError(
+      error instanceof Error ? error.message : String(error),
+      "onchain_decode_failed",
+      false,
+      { metadataPda },
+    );
+  }
+
+  if (!onchain.uri) {
+    return {
+      onchain,
+      offchain: null,
+      detail: {
+        metadataPda,
+        uri: null,
+        hasOffchain: false,
+      },
+    };
+  }
+
+  const offchainResponse = await fetch(onchain.uri, {
+    headers: {
+      accept: "application/json",
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!offchainResponse.ok) {
+    throw new MetaplexFetchError(
+      `metaplex.metadata_uri offchain request failed: ${offchainResponse.status} ${offchainResponse.statusText}`,
+      "offchain_http_error",
+      offchainResponse.status === 429,
+      {
+        metadataPda,
+        uri: onchain.uri,
+      },
+    );
+  }
+
+  let offchainRaw: unknown;
+  try {
+    offchainRaw = (await offchainResponse.json()) as unknown;
+  } catch (error) {
+    throw new MetaplexFetchError(
+      error instanceof Error ? error.message : String(error),
+      "offchain_invalid_json",
+      false,
+      {
+        metadataPda,
+        uri: onchain.uri,
+      },
+    );
+  }
+  if (!isRecord(offchainRaw)) {
+    throw new MetaplexFetchError(
+      "Metaplex offchain metadata was not an object",
+      "offchain_non_object",
+      false,
+      {
+        metadataPda,
+        uri: onchain.uri,
+      },
+    );
+  }
+
+  return {
+    onchain,
+    offchain: offchainRaw,
+    detail: {
+      metadataPda,
+      uri: onchain.uri,
+      hasOffchain: true,
+    },
+  };
+}
+
 function hasUsefulCollectedContext(context: CollectedContext | null): boolean {
+  return context !== null && context.availableFields.length > 0;
+}
+
+function hasUsefulMetaplexCollectedContext(context: MetaplexCollectedContext | null): boolean {
   return context !== null && context.availableFields.length > 0;
 }
 
@@ -613,9 +1248,76 @@ function extractSavedCollectedContext(entrySnapshot: unknown): CollectedContext 
   };
 }
 
+function extractSavedMetaplexCollectedContext(entrySnapshot: unknown): MetaplexCollectedContext | null {
+  if (!isRecord(entrySnapshot)) {
+    return null;
+  }
+  const contextCapture = entrySnapshot.contextCapture;
+  if (!isRecord(contextCapture)) {
+    return null;
+  }
+  const metaplexMetadataUri = contextCapture.metaplexMetadataUri;
+  if (!isRecord(metaplexMetadataUri)) {
+    return null;
+  }
+
+  const metadataText = pickNestedRecord(metaplexMetadataUri, "metadataText");
+  const links = pickNestedRecord(metaplexMetadataUri, "links");
+  const availableFields = Array.isArray(metaplexMetadataUri.availableFields)
+    ? metaplexMetadataUri.availableFields.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+  const missingFields = Array.isArray(metaplexMetadataUri.missingFields)
+    ? metaplexMetadataUri.missingFields.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+
+  return {
+    source:
+      typeof metaplexMetadataUri.source === "string"
+        ? metaplexMetadataUri.source
+        : METAPLEX_CONTEXT_CAPTURE_SOURCE,
+    capturedAt:
+      typeof metaplexMetadataUri.capturedAt === "string"
+        ? metaplexMetadataUri.capturedAt
+        : new Date(0).toISOString(),
+    metadataPda:
+      typeof metaplexMetadataUri.metadataPda === "string" ? metaplexMetadataUri.metadataPda : "",
+    uri: typeof metaplexMetadataUri.uri === "string" ? metaplexMetadataUri.uri : null,
+    metadataText: {
+      description: metadataText ? readOptionalString(metadataText, "description") : null,
+    },
+    links: {
+      website: links ? readOptionalString(links, "website") : null,
+      x: links ? readOptionalString(links, "x") : null,
+      telegram: links ? readOptionalString(links, "telegram") : null,
+      anyLinks: links?.anyLinks === true,
+      websites: Array.isArray(links?.websites)
+        ? links.websites.filter((value): value is string => typeof value === "string")
+        : [],
+      xCandidates: Array.isArray(links?.xCandidates)
+        ? links.xCandidates.filter((value): value is string => typeof value === "string")
+        : [],
+      telegramCandidates: Array.isArray(links?.telegramCandidates)
+        ? links.telegramCandidates.filter((value): value is string => typeof value === "string")
+        : [],
+      otherLinks: Array.isArray(links?.otherLinks)
+        ? links.otherLinks.filter((value): value is string => typeof value === "string")
+        : [],
+    },
+    availableFields,
+    missingFields,
+  };
+}
+
 function mergeEntrySnapshotWithContextCapture(
   entrySnapshot: unknown,
-  collectedContext: CollectedContext,
+  updates: {
+    geckoterminalTokenSnapshot?: CollectedContext;
+    metaplexMetadataUri?: MetaplexCollectedContext;
+  },
 ): JsonObject {
   const baseEntrySnapshot =
     entrySnapshot && typeof entrySnapshot === "object" && !Array.isArray(entrySnapshot)
@@ -627,23 +1329,26 @@ function mergeEntrySnapshotWithContextCapture(
     ...baseEntrySnapshot,
     contextCapture: {
       ...existingContextCapture,
-      geckoterminalTokenSnapshot: collectedContext,
+      ...(updates.geckoterminalTokenSnapshot
+        ? { geckoterminalTokenSnapshot: updates.geckoterminalTokenSnapshot }
+        : {}),
+      ...(updates.metaplexMetadataUri ? { metaplexMetadataUri: updates.metaplexMetadataUri } : {}),
     },
   };
 }
 
-async function saveCollectedContext(
+async function saveCollectedContexts(
   tokenId: number,
   entrySnapshot: unknown,
-  collectedContext: CollectedContext,
+  updates: {
+    geckoterminalTokenSnapshot?: CollectedContext;
+    metaplexMetadataUri?: MetaplexCollectedContext;
+  },
 ): Promise<void> {
   await db.token.update({
     where: { id: tokenId },
     data: {
-      entrySnapshot: mergeEntrySnapshotWithContextCapture(
-        entrySnapshot,
-        collectedContext,
-      ) as Prisma.InputJsonValue,
+      entrySnapshot: mergeEntrySnapshotWithContextCapture(entrySnapshot, updates) as Prisma.InputJsonValue,
     },
   });
 }
@@ -926,10 +1631,17 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
   let enrichUpdated = false;
   let rescoreUpdated = false;
   let contextUpdated = false;
+  let metaplexContextUpdated = false;
   const savedContext = extractSavedCollectedContext(token.entrySnapshot);
+  const savedMetaplexContext = extractSavedMetaplexCollectedContext(token.entrySnapshot);
   const savedContextFields = savedContext?.availableFields ?? [];
+  const metaplexSavedFields = savedMetaplexContext?.availableFields ?? [];
   let contextAvailable = false;
   let contextWouldWrite = false;
+  let metaplexAttempted = false;
+  let metaplexAvailable = false;
+  let metaplexWouldWrite = false;
+  let metaplexErrorKind: string | null = null;
 
   try {
     const raw = await fetchTokenSnapshotRaw(token.mint);
@@ -997,6 +1709,27 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     );
     notifyWouldSend = !notifyEligibleBefore && notifyEligibleAfter;
 
+    let metaplexCollectedContext: MetaplexCollectedContext | null = null;
+    try {
+      metaplexAttempted = true;
+      const metaplexLookup = await fetchMetaplexLookupResult(token.mint);
+      metaplexCollectedContext = parseMetaplexCollectedContext(metaplexLookup);
+      metaplexAvailable = hasUsefulMetaplexCollectedContext(metaplexCollectedContext);
+      const sameAsSaved =
+        savedMetaplexContext !== null &&
+        JSON.stringify(sanitizeMetaplexContextForCompare(savedMetaplexContext)) ===
+          JSON.stringify(sanitizeMetaplexContextForCompare(metaplexCollectedContext));
+      metaplexWouldWrite = metaplexAvailable && !sameAsSaved;
+    } catch (error) {
+      if (error instanceof MetaplexNotFoundError) {
+        metaplexErrorKind = error.reason;
+      } else if (error instanceof MetaplexFetchError) {
+        metaplexErrorKind = error.kind;
+      } else {
+        metaplexErrorKind = "unknown_error";
+      }
+    }
+
     if (args.write) {
       if (enrichPlanResult?.hasChange) {
         await enrichTokenByMint(token.mint, patch);
@@ -1006,9 +1739,15 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       const writtenRescore = await rescoreTokenByMint(token.mint);
       rescoreUpdated = true;
 
-      if (contextWouldWrite) {
-        await saveCollectedContext(token.id, token.entrySnapshot, collectedContext);
-        contextUpdated = true;
+      if (contextWouldWrite || (metaplexWouldWrite && metaplexCollectedContext)) {
+        await saveCollectedContexts(token.id, token.entrySnapshot, {
+          ...(contextWouldWrite ? { geckoterminalTokenSnapshot: collectedContext } : {}),
+          ...(metaplexWouldWrite && metaplexCollectedContext
+            ? { metaplexMetadataUri: metaplexCollectedContext }
+            : {}),
+        });
+        contextUpdated = contextWouldWrite;
+        metaplexContextUpdated = metaplexWouldWrite && metaplexCollectedContext !== null;
       }
 
       if (args.notify && notifyWouldSend) {
@@ -1033,6 +1772,11 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       contextAvailable,
       contextWouldWrite,
       savedContextFields,
+      metaplexAttempted,
+      metaplexAvailable,
+      metaplexWouldWrite,
+      metaplexSavedFields,
+      metaplexErrorKind,
       enrichPlan,
       rescorePreview,
       notifyCandidate: notifyEligibleAfter,
@@ -1045,6 +1789,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         enrichUpdated,
         rescoreUpdated,
         contextUpdated,
+        metaplexContextUpdated,
       },
     };
   } catch (error) {
@@ -1056,6 +1801,11 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       contextAvailable,
       contextWouldWrite,
       savedContextFields,
+      metaplexAttempted,
+      metaplexAvailable,
+      metaplexWouldWrite,
+      metaplexSavedFields,
+      metaplexErrorKind,
       enrichPlan,
       rescorePreview,
       notifyCandidate: notifyEligibleAfter,
@@ -1068,6 +1818,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         enrichUpdated,
         rescoreUpdated,
         contextUpdated,
+        metaplexContextUpdated,
       },
       error: error instanceof Error ? error.message : String(error),
     };
@@ -1142,6 +1893,7 @@ function logBatchSummary(output: Output): void {
       `enrichWritten=${output.summary.enrichWriteCount}`,
       `rescoreWritten=${output.summary.rescoreWriteCount}`,
       `contextWritten=${output.summary.contextWriteCount}`,
+      `metaplexContextWritten=${output.summary.metaplexWriteCount}`,
       `notifyWouldSend=${output.summary.notifyWouldSendCount}`,
       `notifySent=${output.summary.notifySentCount}`,
       `rateLimited=${output.summary.rateLimited}`,
@@ -1184,6 +1936,8 @@ async function main(): Promise<void> {
       rescoreWriteCount: execution.items.filter((item) => item.writeSummary.rescoreUpdated).length,
       contextAvailableCount: execution.items.filter((item) => item.contextAvailable).length,
       contextWriteCount: execution.items.filter((item) => item.writeSummary.contextUpdated).length,
+      metaplexAvailableCount: execution.items.filter((item) => item.metaplexAvailable).length,
+      metaplexWriteCount: execution.items.filter((item) => item.writeSummary.metaplexContextUpdated).length,
       notifyCandidateCount: execution.items.filter((item) => item.notifyCandidate).length,
       notifyWouldSendCount: execution.items.filter((item) => item.notifyWouldSend).length,
       notifySentCount: execution.items.filter((item) => item.notifySent).length,
