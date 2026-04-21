@@ -275,6 +275,14 @@ function buildCountByValue(values: Array<string | null>): CountByValue[] {
     });
 }
 
+function computeRate(numerator: number, denominator: number): number | null {
+  if (denominator === 0) {
+    return null;
+  }
+
+  return Number((numerator / denominator).toFixed(4));
+}
+
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
@@ -467,6 +475,13 @@ async function run(): Promise<void> {
           hasXAndMetricCount,
           hasTelegramAndMetricCount,
           metaplexHitAndMetricCount,
+          hasWebsiteMetricRate: computeRate(hasWebsiteAndMetricCount, hasWebsiteCount),
+          hasXMetricRate: computeRate(hasXAndMetricCount, hasXCount),
+          hasTelegramMetricRate: computeRate(hasTelegramAndMetricCount, hasTelegramCount),
+          metaplexHitMetricRate: computeRate(
+            metaplexHitAndMetricCount,
+            metaplexHitCount,
+          ),
         },
         scoreRankCounts,
         metadataStatusCounts,

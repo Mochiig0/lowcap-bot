@@ -4951,6 +4951,10 @@ async function run(): Promise<void> {
           hasXAndMetricCount: number;
           hasTelegramAndMetricCount: number;
           metaplexHitAndMetricCount: number;
+          hasWebsiteMetricRate: number | null;
+          hasXMetricRate: number | null;
+          hasTelegramMetricRate: number | null;
+          metaplexHitMetricRate: number | null;
         };
         scoreRankCounts: Record<string, number>;
         metadataStatusCounts: Record<string, number>;
@@ -5020,6 +5024,10 @@ async function run(): Promise<void> {
         parsed.summary.hasXAndMetricCount < 1 ||
         parsed.summary.hasTelegramAndMetricCount < 1 ||
         parsed.summary.metaplexHitAndMetricCount < 1 ||
+        parsed.summary.hasWebsiteMetricRate !== 1 ||
+        parsed.summary.hasXMetricRate !== 1 ||
+        parsed.summary.hasTelegramMetricRate !== 1 ||
+        parsed.summary.metaplexHitMetricRate !== 1 ||
         !Array.isArray(parsed.currentSourceCounts) ||
         parsed.currentSourceCounts.length === 0 ||
         !Array.isArray(parsed.originSourceCounts) ||
