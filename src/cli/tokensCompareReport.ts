@@ -7,6 +7,8 @@ type TokensCompareReportArgs = {
   source?: string;
   metadataStatus?: string;
   hardRejected?: boolean;
+  outcomeBucket?: OutcomeBucket;
+  outcomeBucketReason?: OutcomeBucketReason;
   interestingFlagsOnly: boolean;
   hasWebsite?: boolean;
   hasX?: boolean;
@@ -113,7 +115,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--outcomeBucket <winner|non_winner|unresolved>] [--outcomeBucketReason <no_metric|multiple_missing|multiple_gte_threshold|multiple_below_threshold>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -218,6 +220,34 @@ function parseChangedFieldArg(value: string, key: string): ChangedField {
   printUsageAndExit(`Invalid value for ${key}: ${value}`);
 }
 
+function parseOutcomeBucketArg(value: string, key: string): OutcomeBucket {
+  const buckets: OutcomeBucket[] = ["winner", "non_winner", "unresolved"];
+
+  if (buckets.includes(value as OutcomeBucket)) {
+    return value as OutcomeBucket;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
+function parseOutcomeBucketReasonArg(
+  value: string,
+  key: string,
+): OutcomeBucketReason {
+  const reasons: OutcomeBucketReason[] = [
+    "no_metric",
+    "multiple_missing",
+    "multiple_gte_threshold",
+    "multiple_below_threshold",
+  ];
+
+  if (reasons.includes(value as OutcomeBucketReason)) {
+    return value as OutcomeBucketReason;
+  }
+
+  printUsageAndExit(`Invalid value for ${key}: ${value}`);
+}
+
 function parseArgs(argv: string[]): TokensCompareReportArgs {
   const out: Partial<TokensCompareReportArgs> = {
     interestingFlagsOnly: false,
@@ -250,6 +280,12 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--hardRejected":
         out.hardRejected = parseBooleanArg(value, key);
+        break;
+      case "--outcomeBucket":
+        out.outcomeBucket = parseOutcomeBucketArg(value, key);
+        break;
+      case "--outcomeBucketReason":
+        out.outcomeBucketReason = parseOutcomeBucketReasonArg(value, key);
         break;
       case "--hasWebsite":
         out.hasWebsite = parseBooleanArg(value, key);
@@ -595,6 +631,20 @@ async function run(): Promise<void> {
     }
 
     if (
+      args.outcomeBucket !== undefined &&
+      item.outcomeBucket !== args.outcomeBucket
+    ) {
+      return false;
+    }
+
+    if (
+      args.outcomeBucketReason !== undefined &&
+      item.outcomeBucketReason !== args.outcomeBucketReason
+    ) {
+      return false;
+    }
+
+    if (
       args.hasWebsite !== undefined &&
       (item.reviewFlags === null || item.reviewFlags.hasWebsite !== args.hasWebsite)
     ) {
@@ -718,6 +768,8 @@ async function run(): Promise<void> {
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
           hardRejected: args.hardRejected ?? null,
+          outcomeBucket: args.outcomeBucket ?? null,
+          outcomeBucketReason: args.outcomeBucketReason ?? null,
           interestingFlagsOnly: args.interestingFlagsOnly,
           hasWebsite: args.hasWebsite ?? null,
           hasX: args.hasX ?? null,

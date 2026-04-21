@@ -7692,6 +7692,130 @@ async function run(): Promise<void> {
         throw new Error("tokens compare report hasWebsite filter returned unexpected rows");
       }
 
+      const winnerBucketOnly = await runCliJson<{
+        count: number;
+        preFilterCount: number;
+        filteredCount: number;
+        filters: {
+          outcomeBucket: "winner" | "non_winner" | "unresolved" | null;
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold"
+            | null;
+        };
+        items: Array<{
+          mint: string;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
+        }>;
+      }>(
+        "tokens compare report winner outcome bucket",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--outcomeBucket",
+          "winner",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        winnerBucketOnly.filters.outcomeBucket !== "winner" ||
+        !winnerBucketOnly.items.some((item) => item.mint === context.metricMint) ||
+        winnerBucketOnly.items.some(
+          (item) =>
+            item.outcomeBucket !== "winner" ||
+            item.outcomeBucketReason !== "multiple_gte_threshold",
+        )
+      ) {
+        throw new Error("tokens compare report winner outcome bucket filter returned unexpected rows");
+      }
+
+      const nonWinnerBucketOnly = await runCliJson<{
+        filteredCount: number;
+        items: Array<{
+          mint: string;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
+        }>;
+      }>(
+        "tokens compare report non-winner outcome bucket",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--outcomeBucket",
+          "non_winner",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        !nonWinnerBucketOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
+        nonWinnerBucketOnly.items.some(
+          (item) =>
+            item.outcomeBucket !== "non_winner" ||
+            item.outcomeBucketReason !== "multiple_below_threshold",
+        )
+      ) {
+        throw new Error(
+          "tokens compare report non-winner outcome bucket filter returned unexpected rows",
+        );
+      }
+
+      const unresolvedBucketOnly = await runCliJson<{
+        filteredCount: number;
+        items: Array<{
+          mint: string;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
+        }>;
+      }>(
+        "tokens compare report unresolved outcome bucket",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--outcomeBucket",
+          "unresolved",
+          "--outcomeBucketReason",
+          "multiple_missing",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        unresolvedBucketOnly.filteredCount === 0 ||
+        unresolvedBucketOnly.items.some(
+          (item) =>
+            item.outcomeBucket !== "unresolved" ||
+            item.outcomeBucketReason !== "multiple_missing",
+        )
+      ) {
+        throw new Error(
+          "tokens compare report unresolved outcome bucket filter returned unexpected rows",
+        );
+      }
+
       const sparseFlagNoiseMints = Array.from({ length: 12 }, (_, index) =>
         `${context.smokeId}_GECKO_COMPARE_NOISE_${index}`,
       );
