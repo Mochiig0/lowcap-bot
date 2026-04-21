@@ -234,6 +234,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - current lowcap-bot operating stance remains detect-first: broad GeckoTerminal detect continues to act as the primary discovery surface, while enrich / rescore / metric stay bounded follow-up lanes and remain sensitive to live rate limits
 - this keeps the operating split intentionally conservative: source-surface compare stays read-only, and review flags remain observation-first descriptive context rather than score-weight inputs
 - taken together, current follow-up and review outputs are still for accumulation, comparison, and operating judgment rather than ground-truth proof or immediate weighting changes
+- repeated bounded live runs have continued to reproduce that same shape: broad detect behavior remains stable, while follow-up lanes stay rate-limit constrained and only promote a small recent slice from `mint_only` to `partial`
+- under that operating shape, recent Gecko-origin cohorts still accumulate `mint_only` tokens faster than bounded follow-up clears them, so read-only review queue pending counts naturally build without changing the detect-first stance
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
