@@ -7474,6 +7474,35 @@ async function run(): Promise<void> {
         throw new Error("tokens compare report did not expose expected review flags");
       }
 
+      const hasWebsiteOnly = await runCliJson<{
+        count: number;
+        items: Array<{
+          mint: string;
+          reviewFlags: {
+            hasWebsite: boolean;
+          } | null;
+        }>;
+      }>(
+        "tokens compare report hasWebsite filter",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--hasWebsite",
+          "true",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        !hasWebsiteOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
+        hasWebsiteOnly.items.some((item) => item.reviewFlags?.hasWebsite !== true)
+      ) {
+        throw new Error("tokens compare report hasWebsite filter returned unexpected rows");
+      }
+
       const changedOnly = await runCliJson<{
         count: number;
         items: Array<{

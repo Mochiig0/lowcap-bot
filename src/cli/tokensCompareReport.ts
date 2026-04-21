@@ -7,6 +7,10 @@ type TokensCompareReportArgs = {
   source?: string;
   metadataStatus?: string;
   hardRejected?: boolean;
+  hasWebsite?: boolean;
+  hasX?: boolean;
+  hasTelegram?: boolean;
+  metaplexHit?: boolean;
   hasMetrics?: boolean;
   entryVsCurrentChanged?: boolean;
   changedField?: ChangedField;
@@ -90,7 +94,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -222,6 +226,18 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--hardRejected":
         out.hardRejected = parseBooleanArg(value, key);
+        break;
+      case "--hasWebsite":
+        out.hasWebsite = parseBooleanArg(value, key);
+        break;
+      case "--hasX":
+        out.hasX = parseBooleanArg(value, key);
+        break;
+      case "--hasTelegram":
+        out.hasTelegram = parseBooleanArg(value, key);
+        break;
+      case "--metaplexHit":
+        out.metaplexHit = parseBooleanArg(value, key);
         break;
       case "--hasMetrics":
         out.hasMetrics = parseBooleanArg(value, key);
@@ -487,6 +503,31 @@ async function run(): Promise<void> {
   });
 
   const filteredItems = items.filter((item) => {
+    if (
+      args.hasWebsite !== undefined &&
+      (item.reviewFlags === null || item.reviewFlags.hasWebsite !== args.hasWebsite)
+    ) {
+      return false;
+    }
+
+    if (args.hasX !== undefined && (item.reviewFlags === null || item.reviewFlags.hasX !== args.hasX)) {
+      return false;
+    }
+
+    if (
+      args.hasTelegram !== undefined &&
+      (item.reviewFlags === null || item.reviewFlags.hasTelegram !== args.hasTelegram)
+    ) {
+      return false;
+    }
+
+    if (
+      args.metaplexHit !== undefined &&
+      (item.reviewFlags === null || item.reviewFlags.metaplexHit !== args.metaplexHit)
+    ) {
+      return false;
+    }
+
     if (args.hasMetrics === true && item.metricsCount === 0) {
       return false;
     }
@@ -582,6 +623,10 @@ async function run(): Promise<void> {
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
           hardRejected: args.hardRejected ?? null,
+          hasWebsite: args.hasWebsite ?? null,
+          hasX: args.hasX ?? null,
+          hasTelegram: args.hasTelegram ?? null,
+          metaplexHit: args.metaplexHit ?? null,
           hasMetrics: args.hasMetrics ?? null,
           entryVsCurrentChanged: args.entryVsCurrentChanged ?? null,
           changedField: args.changedField ?? null,
