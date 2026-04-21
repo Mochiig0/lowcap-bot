@@ -55,6 +55,9 @@ type SelectedToken = {
   metricsCount: number;
   latestMetricObservedAt: string | null;
   latestMetricSource: string | null;
+  latestPeakFdv24h: number | null;
+  latestMaxMultiple15m: number | null;
+  latestTimeToPeakMinutes: number | null;
   reviewFlags: ReviewFlagsView | null;
 };
 
@@ -214,6 +217,9 @@ function buildSelectedToken(token: {
   metrics: Array<{
     observedAt: Date;
     source: string | null;
+    peakFdv24h: number | null;
+    maxMultiple15m: number | null;
+    timeToPeakMinutes: number | null;
   }>;
   _count: {
     metrics: number;
@@ -251,6 +257,9 @@ function buildSelectedToken(token: {
     metricsCount: token._count.metrics,
     latestMetricObservedAt: latestMetric?.observedAt.toISOString() ?? null,
     latestMetricSource: latestMetric?.source ?? null,
+    latestPeakFdv24h: latestMetric?.peakFdv24h ?? null,
+    latestMaxMultiple15m: latestMetric?.maxMultiple15m ?? null,
+    latestTimeToPeakMinutes: latestMetric?.timeToPeakMinutes ?? null,
     reviewFlags,
   };
 }
@@ -334,6 +343,9 @@ async function run(): Promise<void> {
         select: {
           observedAt: true,
           source: true,
+          peakFdv24h: true,
+          maxMultiple15m: true,
+          timeToPeakMinutes: true,
         },
       },
       _count: {
@@ -387,6 +399,10 @@ async function run(): Promise<void> {
   let hasTelegramAndMetricCount = 0;
   let metaplexHitAndMetricCount = 0;
   let descriptionPresentAndMetricCount = 0;
+  let latestMetricPresentCount = 0;
+  let latestMultiplePresentCount = 0;
+  let latestPeakPresentCount = 0;
+  let latestTimeToPeakPresentCount = 0;
 
   for (const token of sortedTokens) {
     incrementObjectCount(scoreRankCounts, token.scoreRank);
@@ -413,6 +429,22 @@ async function run(): Promise<void> {
     }
 
     metricCount += token.metricsCount;
+
+    if (token.latestMetricObservedAt !== null) {
+      latestMetricPresentCount += 1;
+    }
+
+    if (token.latestMaxMultiple15m !== null) {
+      latestMultiplePresentCount += 1;
+    }
+
+    if (token.latestPeakFdv24h !== null) {
+      latestPeakPresentCount += 1;
+    }
+
+    if (token.latestTimeToPeakMinutes !== null) {
+      latestTimeToPeakPresentCount += 1;
+    }
 
     if (token.hardRejected) {
       hardRejectedCount += 1;
@@ -522,6 +554,20 @@ async function run(): Promise<void> {
               metaplexHitAndMetricCount,
             ),
           },
+          metricCompletenessSummary: {
+            latestMetricPresentCount,
+            latestMultiplePresentCount,
+            latestPeakPresentCount,
+            latestTimeToPeakPresentCount,
+            latestMetricMissingCount: sortedTokens.length - latestMetricPresentCount,
+            latestMultipleMissingCount: sortedTokens.length - latestMultiplePresentCount,
+            latestPeakMissingCount: sortedTokens.length - latestPeakPresentCount,
+            latestTimeToPeakMissingCount:
+              sortedTokens.length - latestTimeToPeakPresentCount,
+            latestMetricSourceCounts: buildCountByValue(
+              sortedTokens.map((token) => token.latestMetricSource),
+            ),
+          },
         },
         scoreRankCounts,
         metadataStatusCounts,
@@ -543,6 +589,9 @@ async function run(): Promise<void> {
           metricsCount: token.metricsCount,
           latestMetricObservedAt: token.latestMetricObservedAt,
           latestMetricSource: token.latestMetricSource,
+          latestPeakFdv24h: token.latestPeakFdv24h,
+          latestMaxMultiple15m: token.latestMaxMultiple15m,
+          latestTimeToPeakMinutes: token.latestTimeToPeakMinutes,
           enrichedAt: token.enrichedAt,
           rescoredAt: token.rescoredAt,
           createdAt: token.createdAt,

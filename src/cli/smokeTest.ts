@@ -4974,6 +4974,20 @@ async function run(): Promise<void> {
               metricRate: number | null;
             };
           };
+          metricCompletenessSummary: {
+            latestMetricPresentCount: number;
+            latestMultiplePresentCount: number;
+            latestPeakPresentCount: number;
+            latestTimeToPeakPresentCount: number;
+            latestMetricMissingCount: number;
+            latestMultipleMissingCount: number;
+            latestPeakMissingCount: number;
+            latestTimeToPeakMissingCount: number;
+            latestMetricSourceCounts: Array<{
+              value: string | null;
+              count: number;
+            }>;
+          };
         };
         scoreRankCounts: Record<string, number>;
         metadataStatusCounts: Record<string, number>;
@@ -5067,6 +5081,17 @@ async function run(): Promise<void> {
           parsed.summary.metaplexHitAndMetricCount ||
         parsed.summary.interestingFlagComparison.metaplexHit.metricRate !==
           parsed.summary.metaplexHitMetricRate ||
+        parsed.summary.metricCompletenessSummary.latestMetricPresentCount !==
+          parsed.summary.metricTokenCount ||
+        parsed.summary.metricCompletenessSummary.latestMetricMissingCount !==
+          parsed.summary.geckoOriginTokenCount -
+            parsed.summary.metricCompletenessSummary.latestMetricPresentCount ||
+        parsed.summary.metricCompletenessSummary.latestMultiplePresentCount < 1 ||
+        parsed.summary.metricCompletenessSummary.latestPeakPresentCount < 1 ||
+        parsed.summary.metricCompletenessSummary.latestTimeToPeakPresentCount < 1 ||
+        !parsed.summary.metricCompletenessSummary.latestMetricSourceCounts.some(
+          (item) => item.value === "smoke-gecko-review-flags" && item.count >= 1,
+        ) ||
         !Array.isArray(parsed.currentSourceCounts) ||
         parsed.currentSourceCounts.length === 0 ||
         !Array.isArray(parsed.originSourceCounts) ||
