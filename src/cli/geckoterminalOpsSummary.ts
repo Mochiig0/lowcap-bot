@@ -369,6 +369,7 @@ async function run(): Promise<void> {
   let hasXAndMetricCount = 0;
   let hasTelegramAndMetricCount = 0;
   let metaplexHitAndMetricCount = 0;
+  let descriptionPresentAndMetricCount = 0;
 
   for (const token of sortedTokens) {
     incrementObjectCount(scoreRankCounts, token.scoreRank);
@@ -438,6 +439,9 @@ async function run(): Promise<void> {
 
       if (token.reviewFlags.descriptionPresent) {
         descriptionPresentCount += 1;
+        if (hasMetrics) {
+          descriptionPresentAndMetricCount += 1;
+        }
       }
     }
   }
@@ -475,12 +479,17 @@ async function run(): Promise<void> {
           hasXAndMetricCount,
           hasTelegramAndMetricCount,
           metaplexHitAndMetricCount,
+          descriptionPresentAndMetricCount,
           hasWebsiteMetricRate: computeRate(hasWebsiteAndMetricCount, hasWebsiteCount),
           hasXMetricRate: computeRate(hasXAndMetricCount, hasXCount),
           hasTelegramMetricRate: computeRate(hasTelegramAndMetricCount, hasTelegramCount),
           metaplexHitMetricRate: computeRate(
             metaplexHitAndMetricCount,
             metaplexHitCount,
+          ),
+          descriptionPresentMetricRate: computeRate(
+            descriptionPresentAndMetricCount,
+            descriptionPresentCount,
           ),
         },
         scoreRankCounts,
