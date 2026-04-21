@@ -31,6 +31,7 @@ model Token {
   scoreTotal       Int      @default(0)
   scoreRank        String   @default("C")
   scoreBreakdown   Json?
+  reviewFlagsJson  Json?
   entrySnapshot    Json?
   importedAt       DateTime @default(now())
   enrichedAt       DateTime?

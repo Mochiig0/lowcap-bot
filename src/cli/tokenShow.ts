@@ -142,6 +142,7 @@ async function run(): Promise<void> {
         scoreRank: token.scoreRank,
         scoreTotal: token.scoreTotal,
         scoreBreakdown: token.scoreBreakdown,
+        reviewFlags: token.reviewFlagsJson,
         devWallet: token.dev?.wallet ?? null,
         metricsCount: token._count.metrics,
         latestMetric,

@@ -65,6 +65,7 @@ type SelectedToken = {
   importedAt: string;
   enrichedAt: string | null;
   rescoredAt: string | null;
+  reviewFlagsJson: unknown;
   selectionAnchorAt: string;
   selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
   isGeckoterminalOrigin: boolean;
@@ -118,6 +119,15 @@ type MetaplexCollectedContext = {
   };
   availableFields: string[];
   missingFields: string[];
+};
+
+type ReviewFlagsJson = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
 };
 
 type ProcessedItem = {
@@ -1205,6 +1215,82 @@ function hasUsefulMetaplexCollectedContext(context: MetaplexCollectedContext | n
   return context !== null && context.availableFields.length > 0;
 }
 
+function collectReviewFlagLinks(
+  geckoContext: CollectedContext | null,
+  metaplexContext: MetaplexCollectedContext | null,
+): string[] {
+  return dedupeStrings([
+    geckoContext?.links.website,
+    geckoContext?.links.x,
+    geckoContext?.links.telegram,
+    ...(geckoContext?.links.websites ?? []),
+    ...(geckoContext?.links.xCandidates ?? []),
+    ...(geckoContext?.links.telegramCandidates ?? []),
+    ...(geckoContext?.links.otherLinks ?? []),
+    metaplexContext?.links.website,
+    metaplexContext?.links.x,
+    metaplexContext?.links.telegram,
+    ...(metaplexContext?.links.websites ?? []),
+    ...(metaplexContext?.links.xCandidates ?? []),
+    ...(metaplexContext?.links.telegramCandidates ?? []),
+    ...(metaplexContext?.links.otherLinks ?? []),
+  ]);
+}
+
+function buildReviewFlagsJson(
+  geckoContext: CollectedContext | null,
+  metaplexContext: MetaplexCollectedContext | null,
+): ReviewFlagsJson {
+  const links = collectReviewFlagLinks(geckoContext, metaplexContext);
+
+  return {
+    hasWebsite:
+      typeof geckoContext?.links.website === "string" || typeof metaplexContext?.links.website === "string",
+    hasX: typeof geckoContext?.links.x === "string" || typeof metaplexContext?.links.x === "string",
+    hasTelegram:
+      typeof geckoContext?.links.telegram === "string" ||
+      typeof metaplexContext?.links.telegram === "string",
+    metaplexHit: metaplexContext !== null,
+    descriptionPresent:
+      typeof geckoContext?.metadataText.description === "string" ||
+      typeof metaplexContext?.metadataText.description === "string",
+    linkCount: links.length,
+  };
+}
+
+function extractSavedReviewFlags(reviewFlagsJson: unknown): ReviewFlagsJson | null {
+  if (!isRecord(reviewFlagsJson)) {
+    return null;
+  }
+
+  const hasWebsite = reviewFlagsJson.hasWebsite;
+  const hasX = reviewFlagsJson.hasX;
+  const hasTelegram = reviewFlagsJson.hasTelegram;
+  const metaplexHit = reviewFlagsJson.metaplexHit;
+  const descriptionPresent = reviewFlagsJson.descriptionPresent;
+  const linkCount = reviewFlagsJson.linkCount;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
 function extractSavedCollectedContext(entrySnapshot: unknown): CollectedContext | null {
   if (!isRecord(entrySnapshot)) {
     return null;
@@ -1366,12 +1452,16 @@ async function saveCollectedContexts(
   updates: {
     geckoterminalTokenSnapshot?: CollectedContext;
     metaplexMetadataUri?: MetaplexCollectedContext;
+    reviewFlagsJson?: ReviewFlagsJson;
   },
 ): Promise<void> {
   await db.token.update({
     where: { id: tokenId },
     data: {
       entrySnapshot: mergeEntrySnapshotWithContextCapture(entrySnapshot, updates) as Prisma.InputJsonValue,
+      ...(updates.reviewFlagsJson
+        ? { reviewFlagsJson: updates.reviewFlagsJson as Prisma.InputJsonValue }
+        : {}),
     },
   });
 }
@@ -1392,6 +1482,7 @@ function buildSelectedToken(token: {
   enrichedAt: Date | null;
   rescoredAt: Date | null;
   entrySnapshot: unknown;
+  reviewFlagsJson: unknown;
 }): SelectedToken {
   const firstSeen = extractFirstSeenSourceSnapshot(token.entrySnapshot);
   const originSource =
@@ -1413,6 +1504,7 @@ function buildSelectedToken(token: {
     scoreRank: token.scoreRank,
     hardRejected: token.hardRejected,
     entrySnapshot: token.entrySnapshot,
+    reviewFlagsJson: token.reviewFlagsJson,
     createdAt: token.createdAt.toISOString(),
     importedAt: token.importedAt.toISOString(),
     enrichedAt: token.enrichedAt?.toISOString() ?? null,
@@ -1460,6 +1552,7 @@ async function selectTokens(args: Args): Promise<{
         enrichedAt: true,
         rescoredAt: true,
         entrySnapshot: true,
+        reviewFlagsJson: true,
       },
     });
 
@@ -1503,6 +1596,7 @@ async function selectTokens(args: Args): Promise<{
       enrichedAt: true,
       rescoredAt: true,
       entrySnapshot: true,
+      reviewFlagsJson: true,
     },
   });
 
@@ -1657,6 +1751,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
   let metaplexContextUpdated = false;
   const savedContext = extractSavedCollectedContext(token.entrySnapshot);
   const savedMetaplexContext = extractSavedMetaplexCollectedContext(token.entrySnapshot);
+  const savedReviewFlags = extractSavedReviewFlags(token.reviewFlagsJson);
   const savedContextFields = savedContext?.availableFields ?? [];
   const metaplexSavedFields = savedMetaplexContext?.availableFields ?? [];
   let contextAvailable = false;
@@ -1753,6 +1848,14 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       }
     }
 
+    const effectiveGeckoContext = contextWouldWrite ? collectedContext : savedContext;
+    const effectiveMetaplexContext =
+      metaplexWouldWrite && metaplexCollectedContext ? metaplexCollectedContext : savedMetaplexContext;
+    const reviewFlagsJson = buildReviewFlagsJson(effectiveGeckoContext, effectiveMetaplexContext);
+    const reviewFlagsWouldWrite =
+      savedReviewFlags === null ||
+      JSON.stringify(savedReviewFlags) !== JSON.stringify(reviewFlagsJson);
+
     if (args.write) {
       if (enrichPlanResult?.hasChange) {
         await enrichTokenByMint(token.mint, patch);
@@ -1762,12 +1865,17 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       const writtenRescore = await rescoreTokenByMint(token.mint);
       rescoreUpdated = true;
 
-      if (contextWouldWrite || (metaplexWouldWrite && metaplexCollectedContext)) {
+      if (
+        contextWouldWrite ||
+        (metaplexWouldWrite && metaplexCollectedContext) ||
+        reviewFlagsWouldWrite
+      ) {
         await saveCollectedContexts(token.id, token.entrySnapshot, {
           ...(contextWouldWrite ? { geckoterminalTokenSnapshot: collectedContext } : {}),
           ...(metaplexWouldWrite && metaplexCollectedContext
             ? { metaplexMetadataUri: metaplexCollectedContext }
             : {}),
+          ...(reviewFlagsWouldWrite ? { reviewFlagsJson } : {}),
         });
         contextUpdated = contextWouldWrite;
         metaplexContextUpdated = metaplexWouldWrite && metaplexCollectedContext !== null;

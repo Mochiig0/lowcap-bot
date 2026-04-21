@@ -4444,6 +4444,7 @@ async function run(): Promise<void> {
             scoreTotal: true,
             scoreRank: true,
             hardRejected: true,
+            reviewFlagsJson: true,
             entrySnapshot: true,
           },
         });
@@ -4496,6 +4497,12 @@ async function run(): Promise<void> {
           !Array.isArray(updatedSavedMetaplexSnapshot.links)
             ? (updatedSavedMetaplexSnapshot.links as Record<string, unknown>)
             : null;
+        const updatedReviewFlags =
+          updatedToken?.reviewFlagsJson &&
+          typeof updatedToken.reviewFlagsJson === "object" &&
+          !Array.isArray(updatedToken.reviewFlagsJson)
+            ? (updatedToken.reviewFlagsJson as Record<string, unknown>)
+            : null;
 
         if (
           !updatedToken ||
@@ -4525,9 +4532,49 @@ async function run(): Promise<void> {
           updatedSavedMetaplexLinks?.website !== "https://example.com/metaplex-secondary" ||
           updatedSavedMetaplexLinks?.x !== "https://x.com/metaplex_secondary" ||
           updatedSavedMetaplexLinks?.telegram !== "https://t.me/metaplexsecondary" ||
-          updatedSavedMetaplexLinks?.anyLinks !== true
+          updatedSavedMetaplexLinks?.anyLinks !== true ||
+          !updatedReviewFlags ||
+          updatedReviewFlags.hasWebsite !== true ||
+          updatedReviewFlags.hasX !== true ||
+          updatedReviewFlags.hasTelegram !== true ||
+          updatedReviewFlags.metaplexHit !== true ||
+          updatedReviewFlags.descriptionPresent !== true ||
+          updatedReviewFlags.linkCount !== 7
         ) {
           throw new Error("geckoterminal enrich rescore write did not persist expected token fields");
+        }
+
+        const geckoShown = await runCliJson<{
+          mint: string;
+          reviewFlags: {
+            hasWebsite: boolean;
+            hasX: boolean;
+            hasTelegram: boolean;
+            metaplexHit: boolean;
+            descriptionPresent: boolean;
+            linkCount: number;
+          } | null;
+        }>(
+          "geckoterminal enrich rescore token show",
+          "src/cli/tokenShow.ts",
+          [
+            "--mint",
+            context.geckoEnrichRescoreMint,
+          ],
+          context.smokeId,
+        );
+
+        if (
+          geckoShown.mint !== context.geckoEnrichRescoreMint ||
+          !geckoShown.reviewFlags ||
+          geckoShown.reviewFlags.hasWebsite !== true ||
+          geckoShown.reviewFlags.hasX !== true ||
+          geckoShown.reviewFlags.hasTelegram !== true ||
+          geckoShown.reviewFlags.metaplexHit !== true ||
+          geckoShown.reviewFlags.descriptionPresent !== true ||
+          geckoShown.reviewFlags.linkCount !== 7
+        ) {
+          throw new Error("token show did not expose expected review flags");
         }
 
         const rerun = await runCliJson<{
@@ -6995,6 +7042,7 @@ async function run(): Promise<void> {
         mint: string;
         hasCurrentText: boolean;
         metadataStatus: string;
+        reviewFlags: Record<string, unknown> | null;
         latestMetric: { id: number } | null;
         enrichedAt: string | null;
         rescoredAt: string | null;
@@ -7020,6 +7068,10 @@ async function run(): Promise<void> {
         throw new Error("token show returned unexpected hasCurrentText for mint-only token");
       }
 
+      if (mintOnly.reviewFlags !== null) {
+        throw new Error("token show returned unexpected reviewFlags for mint-only token");
+      }
+
       if (mintOnly.latestMetric) {
         throw new Error("token show returned unexpected latestMetric for mint-only token");
       }
@@ -7032,6 +7084,7 @@ async function run(): Promise<void> {
         mint: string;
         hasCurrentText: boolean;
         metadataStatus: string;
+        reviewFlags: Record<string, unknown> | null;
         latestMetric: { id: number } | null;
         enrichedAt: string | null;
         rescoredAt: string | null;
@@ -7055,6 +7108,10 @@ async function run(): Promise<void> {
 
       if (parsed.hasCurrentText !== true) {
         throw new Error("token show returned unexpected hasCurrentText for token with current text");
+      }
+
+      if (parsed.reviewFlags !== null) {
+        throw new Error("token show returned unexpected reviewFlags for non-gecko token");
       }
 
       if (!parsed.latestMetric) {
