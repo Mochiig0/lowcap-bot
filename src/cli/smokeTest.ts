@@ -5117,6 +5117,10 @@ async function run(): Promise<void> {
           intervalSeconds: number;
           dexPollCount: number;
         };
+        geckoPoolCreatedAtMin: string | null;
+        geckoPoolCreatedAtMax: string | null;
+        dexUpdatedAtMin: string | null;
+        dexUpdatedAtMax: string | null;
         geckoCount: number;
         dexCount: number;
         overlapCount: number;
@@ -5125,6 +5129,23 @@ async function run(): Promise<void> {
         overlapMints: string[];
         onlyGeckoMints: string[];
         onlyDexMints: string[];
+        representativeSamples: {
+          overlap: Array<{
+            mint: string;
+            geckoPoolCreatedAt: string | null;
+            dexUpdatedAt: string | null;
+          }>;
+          onlyGecko: Array<{
+            mint: string;
+            geckoPoolCreatedAt: string | null;
+            dexUpdatedAt: string | null;
+          }>;
+          onlyDex: Array<{
+            mint: string;
+            geckoPoolCreatedAt: string | null;
+            dexUpdatedAt: string | null;
+          }>;
+        };
       }>(
         "geckoterminal dexscreener coverage compare",
         "src/cli/compareCoverageGeckoterminalDexscreener.ts",
@@ -5160,6 +5181,10 @@ async function run(): Promise<void> {
         parsed.selection.timeoutSeconds !== 30 ||
         parsed.selection.intervalSeconds !== 10 ||
         parsed.selection.dexPollCount !== 1 ||
+        parsed.geckoPoolCreatedAtMin !== "2026-04-18T02:13:55.000Z" ||
+        parsed.geckoPoolCreatedAtMax !== "2026-04-18T02:13:55.000Z" ||
+        parsed.dexUpdatedAtMin !== null ||
+        parsed.dexUpdatedAtMax !== null ||
         parsed.geckoCount !== 1 ||
         parsed.dexCount !== 1 ||
         parsed.overlapCount !== 1 ||
@@ -5167,7 +5192,14 @@ async function run(): Promise<void> {
         parsed.onlyDexCount !== 0 ||
         parsed.overlapMints[0] !== "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
         parsed.onlyGeckoMints.length !== 0 ||
-        parsed.onlyDexMints.length !== 0
+        parsed.onlyDexMints.length !== 0 ||
+        parsed.representativeSamples.overlap[0]?.mint !==
+          "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
+        parsed.representativeSamples.overlap[0]?.geckoPoolCreatedAt !==
+          "2026-04-18T02:13:55.000Z" ||
+        parsed.representativeSamples.overlap[0]?.dexUpdatedAt !== null ||
+        parsed.representativeSamples.onlyGecko.length !== 0 ||
+        parsed.representativeSamples.onlyDex.length !== 0
       ) {
         throw new Error("geckoterminal dexscreener coverage compare returned unexpected output");
       }

@@ -227,7 +227,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:geckoterminal:new-pools` keeps one-shot mode fail-fast, but in watch mode records cycle-level failures and continues the next cycle
 - `compare:geckoterminal:dexscreener` fetches one live GeckoTerminal candidate, then bounded-polls DexScreener `token-profiles/latest/v1` and reports whether that mint appears during the polling window
 - `compare:geckoterminal:dexscreener` is read-only and does not write, watch, checkpoint, or hand off into `import:mint`
-- `compare:coverage:geckoterminal:dexscreener` is the read-only batch coverage spot check that fetches one current GeckoTerminal `new_pools` page, collects accepted Gecko mints, gathers accepted DexScreener Solana token-profile mints over a short bounded window, and reports overlap plus source-only mint sets without writing anything
+- `compare:coverage:geckoterminal:dexscreener` is the read-only batch coverage spot check that fetches one current GeckoTerminal `new_pools` page, collects accepted Gecko mints, gathers accepted DexScreener Solana token-profile mints over a short bounded window, and reports overlap plus source-only mint sets together with a small source-native time summary (`pool_created_at` / `updatedAt`) without writing anything
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`

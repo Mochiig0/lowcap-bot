@@ -44,6 +44,12 @@ type DexSourceEvent = {
   };
 };
 
+type NativeTimeSample = {
+  mint: string;
+  geckoPoolCreatedAt: string | null;
+  dexUpdatedAt: string | null;
+};
+
 type ComparisonOutput = {
   readOnly: true;
   geckoApiUrl: string;
@@ -61,6 +67,10 @@ type ComparisonOutput = {
     dexPollCount: number;
     elapsedMs: number;
   };
+  geckoPoolCreatedAtMin: string | null;
+  geckoPoolCreatedAtMax: string | null;
+  dexUpdatedAtMin: string | null;
+  dexUpdatedAtMax: string | null;
   geckoCount: number;
   dexCount: number;
   overlapCount: number;
@@ -69,6 +79,11 @@ type ComparisonOutput = {
   overlapMints: string[];
   onlyGeckoMints: string[];
   onlyDexMints: string[];
+  representativeSamples: {
+    overlap: NativeTimeSample[];
+    onlyGecko: NativeTimeSample[];
+    onlyDex: NativeTimeSample[];
+  };
 };
 
 class CliUsageError extends Error {
@@ -179,6 +194,20 @@ function readRequiredString(input: JsonObject, key: string, context: string): st
   return value;
 }
 
+function normalizeOptionalIsoDateString(value: unknown): string | null {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Date.parse(normalized);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+
+  return new Date(parsed).toISOString();
+}
+
 function buildGeckoRawForIndex(raw: unknown, index: number): unknown {
   const input = ensureObject(raw, "raw");
   const dataRaw = input.data;
@@ -207,6 +236,7 @@ function buildGeckoRawForIndex(raw: unknown, index: number): unknown {
 async function loadGeckoCandidates(args: Args): Promise<{
   detectedAt: string;
   acceptedMints: string[];
+  poolCreatedAtByMint: Record<string, string | null>;
 }> {
   const detectedAt = new Date().toISOString();
   const raw = args.geckoFile
@@ -220,6 +250,7 @@ async function loadGeckoCandidates(args: Args): Promise<{
   }
 
   const accepted = new Set<string>();
+  const poolCreatedAtByMint: Record<string, string | null> = {};
 
   for (let index = 0; index < dataRaw.length; index += 1) {
     const candidate = buildGeckoterminalNewPoolsDetectorCandidate(
@@ -229,12 +260,16 @@ async function loadGeckoCandidates(args: Args): Promise<{
     const detectorResult = evaluateDetectorCandidate(candidate);
     if (detectorResult.ok) {
       accepted.add(detectorResult.mint);
+      poolCreatedAtByMint[detectorResult.mint] = normalizeOptionalIsoDateString(
+        candidate.payload.poolCreatedAt,
+      );
     }
   }
 
   return {
     detectedAt,
     acceptedMints: Array.from(accepted).sort(),
+    poolCreatedAtByMint,
   };
 }
 
@@ -307,8 +342,15 @@ function buildDexDetectorCandidate(event: DexSourceEvent): DetectorCandidate {
   };
 }
 
-function extractAcceptedDexMints(parsed: unknown, fallbackDetectedAt: string): string[] {
+function extractAcceptedDexMints(
+  parsed: unknown,
+  fallbackDetectedAt: string,
+): {
+  acceptedMints: string[];
+  updatedAtByMint: Record<string, string | null>;
+} {
   const accepted = new Set<string>();
+  const updatedAtByMint: Record<string, string | null> = {};
 
   if (Array.isArray(parsed)) {
     for (const [index, item] of parsed.entries()) {
@@ -321,42 +363,63 @@ function extractAcceptedDexMints(parsed: unknown, fallbackDetectedAt: string): s
       const result = evaluateDetectorCandidate(buildDexDetectorCandidate(event));
       if (result.ok) {
         accepted.add(result.mint);
+        updatedAtByMint[result.mint] = normalizeOptionalIsoDateString(profile.updatedAt);
       }
     }
 
-    return Array.from(accepted).sort();
+    return {
+      acceptedMints: Array.from(accepted).sort(),
+      updatedAtByMint,
+    };
   }
 
   const input = ensureObject(parsed, "dex");
   if (looksLikeSourceEvent(input)) {
     const event = parseDexSourceEvent(input, "dex");
     if (!isSolanaSourceEvent(event)) {
-      return [];
+      return {
+        acceptedMints: [],
+        updatedAtByMint,
+      };
     }
 
     const result = evaluateDetectorCandidate(buildDexDetectorCandidate(event));
     if (result.ok) {
       accepted.add(result.mint);
+      updatedAtByMint[result.mint] = normalizeOptionalIsoDateString(event.payload.updatedAt);
     }
 
-    return Array.from(accepted).sort();
+    return {
+      acceptedMints: Array.from(accepted).sort(),
+      updatedAtByMint,
+    };
   }
 
   const profile = input as DexscreenerTokenProfile;
   if (!isSolanaRawProfile(profile)) {
-    return [];
+    return {
+      acceptedMints: [],
+      updatedAtByMint,
+    };
   }
 
   const event = normalizeRawProfileToSourceEvent(profile, fallbackDetectedAt);
   const result = evaluateDetectorCandidate(buildDexDetectorCandidate(event));
   if (result.ok) {
     accepted.add(result.mint);
+    updatedAtByMint[result.mint] = normalizeOptionalIsoDateString(profile.updatedAt);
   }
 
-  return Array.from(accepted).sort();
+  return {
+    acceptedMints: Array.from(accepted).sort(),
+    updatedAtByMint,
+  };
 }
 
-async function loadDexMintsFromFile(filePath: string): Promise<string[]> {
+async function loadDexMintsFromFile(filePath: string): Promise<{
+  acceptedMints: string[];
+  updatedAtByMint: Record<string, string | null>;
+}> {
   const raw = await readFile(filePath, "utf-8");
   const parsed = JSON.parse(raw) as unknown;
   return extractAcceptedDexMints(parsed, new Date().toISOString());
@@ -394,12 +457,13 @@ async function collectDexMints(args: Args): Promise<{
   elapsedMs: number;
   pollCount: number;
   acceptedMints: string[];
+  updatedAtByMint: Record<string, string | null>;
 }> {
   const startedAt = new Date().toISOString();
   const startedMs = Date.now();
 
   if (args.dexFile) {
-    const acceptedMints = await loadDexMintsFromFile(args.dexFile);
+    const { acceptedMints, updatedAtByMint } = await loadDexMintsFromFile(args.dexFile);
     const completedAt = new Date().toISOString();
 
     return {
@@ -408,17 +472,27 @@ async function collectDexMints(args: Args): Promise<{
       elapsedMs: Date.now() - startedMs,
       pollCount: 1,
       acceptedMints,
+      updatedAtByMint,
     };
   }
 
   const accepted = new Set<string>();
+  const updatedAtByMint: Record<string, string | null> = {};
   let pollCount = 0;
 
   while (Date.now() - startedMs <= args.timeoutSeconds * 1_000) {
     const parsed = await fetchDexRaw();
-    const mints = extractAcceptedDexMints(parsed, new Date().toISOString());
-    for (const mint of mints) {
+    const { acceptedMints, updatedAtByMint: cycleUpdatedAtByMint } = extractAcceptedDexMints(
+      parsed,
+      new Date().toISOString(),
+    );
+    for (const mint of acceptedMints) {
       accepted.add(mint);
+    }
+    for (const [mint, updatedAt] of Object.entries(cycleUpdatedAtByMint)) {
+      if (updatedAtByMint[mint] === undefined) {
+        updatedAtByMint[mint] = updatedAt;
+      }
     }
 
     pollCount += 1;
@@ -438,6 +512,7 @@ async function collectDexMints(args: Args): Promise<{
     elapsedMs: Date.now() - startedMs,
     pollCount,
     acceptedMints: Array.from(accepted).sort(),
+    updatedAtByMint,
   };
 }
 
@@ -451,6 +526,38 @@ function computeOverlap(left: string[], right: string[]): string[] {
   return left.filter((mint) => rightSet.has(mint)).sort();
 }
 
+function computeDateRange(values: Array<string | null | undefined>): {
+  min: string | null;
+  max: string | null;
+} {
+  const filtered = values.filter((value): value is string => typeof value === "string");
+  if (filtered.length === 0) {
+    return {
+      min: null,
+      max: null,
+    };
+  }
+
+  const sorted = [...filtered].sort();
+  return {
+    min: sorted[0] ?? null,
+    max: sorted[sorted.length - 1] ?? null,
+  };
+}
+
+function buildRepresentativeSamples(
+  mints: string[],
+  geckoPoolCreatedAtByMint: Record<string, string | null>,
+  dexUpdatedAtByMint: Record<string, string | null>,
+  limit = 3,
+): NativeTimeSample[] {
+  return mints.slice(0, limit).map((mint) => ({
+    mint,
+    geckoPoolCreatedAt: geckoPoolCreatedAtByMint[mint] ?? null,
+    dexUpdatedAt: dexUpdatedAtByMint[mint] ?? null,
+  }));
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const gecko = await loadGeckoCandidates(args);
@@ -458,6 +565,8 @@ async function main(): Promise<void> {
   const overlapMints = computeOverlap(gecko.acceptedMints, dex.acceptedMints);
   const onlyGeckoMints = computeDifference(gecko.acceptedMints, dex.acceptedMints);
   const onlyDexMints = computeDifference(dex.acceptedMints, gecko.acceptedMints);
+  const geckoPoolCreatedAtRange = computeDateRange(Object.values(gecko.poolCreatedAtByMint));
+  const dexUpdatedAtRange = computeDateRange(Object.values(dex.updatedAtByMint));
 
   const output: ComparisonOutput = {
     readOnly: true,
@@ -476,6 +585,10 @@ async function main(): Promise<void> {
       dexPollCount: dex.pollCount,
       elapsedMs: dex.elapsedMs,
     },
+    geckoPoolCreatedAtMin: geckoPoolCreatedAtRange.min,
+    geckoPoolCreatedAtMax: geckoPoolCreatedAtRange.max,
+    dexUpdatedAtMin: dexUpdatedAtRange.min,
+    dexUpdatedAtMax: dexUpdatedAtRange.max,
     geckoCount: gecko.acceptedMints.length,
     dexCount: dex.acceptedMints.length,
     overlapCount: overlapMints.length,
@@ -484,6 +597,23 @@ async function main(): Promise<void> {
     overlapMints,
     onlyGeckoMints,
     onlyDexMints,
+    representativeSamples: {
+      overlap: buildRepresentativeSamples(
+        overlapMints,
+        gecko.poolCreatedAtByMint,
+        dex.updatedAtByMint,
+      ),
+      onlyGecko: buildRepresentativeSamples(
+        onlyGeckoMints,
+        gecko.poolCreatedAtByMint,
+        dex.updatedAtByMint,
+      ),
+      onlyDex: buildRepresentativeSamples(
+        onlyDexMints,
+        gecko.poolCreatedAtByMint,
+        dex.updatedAtByMint,
+      ),
+    },
   };
 
   console.log(JSON.stringify(output, null, 2));
