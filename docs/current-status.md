@@ -35,6 +35,10 @@ pnpm compare:geckoterminal:dexscreener [--timeoutSeconds <N>] [--intervalSeconds
 ```
 
 ```bash
+pnpm compare:coverage:geckoterminal:dexscreener [--geckoFile <PATH>] [--dexFile <PATH>] [--timeoutSeconds <N>] [--intervalSeconds <N>]
+```
+
+```bash
 pnpm token:enrich -- --mint <MINT> [--name <NAME>] [--symbol <SYMBOL>] [--desc <TEXT>] [--source <SOURCE>]
 ```
 
@@ -118,13 +122,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 2. Use `pnpm detect:dexscreener:token-profiles` when one DexScreener token-profiles pass should be evaluated as a dry-run or handed off into `import:mint` with `--write`.
 3. Use `pnpm detect:geckoterminal:new-pools` when one live or file-backed GeckoTerminal `new_pools` sample should be normalized into candidates as a one-shot dry-run, handed off into `import:mint` with `--write`, or watched with a simple GeckoTerminal-specific checkpoint in `--watch --write`.
 4. Use `pnpm compare:geckoterminal:dexscreener` when one GeckoTerminal mint candidate should be compared against bounded DexScreener `token-profiles/latest/v1` polling as read-only observation.
-5. Use `pnpm import:mint:file` when mint-only intake already exists as one local JSON object with an `items` array.
-6. Use `pnpm import:mint:source-file` when one source-specific raw event file needs to be normalized into the same mint-only boundary.
-7. Use `pnpm token:enrich` to fill current token fields after mint-only intake.
-8. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
-9. Use `pnpm token:enrich-rescore:geckoterminal` when recent GeckoTerminal-origin tokens should be fetched once, previewed as enrich plus rescore in dry-run, or updated in one batch with `--write`.
-10. Use `pnpm metric:snapshot:geckoterminal` to fetch one-shot current GeckoTerminal token snapshots for recent GeckoTerminal-origin tokens and append `Metric` rows only with `--write`.
-11. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
+5. Use `pnpm compare:coverage:geckoterminal:dexscreener` when one short read-only batch spot check should compare the current GeckoTerminal candidate set against DexScreener candidates by overlap and source-only mint sets.
+6. Use `pnpm import:mint:file` when mint-only intake already exists as one local JSON object with an `items` array.
+7. Use `pnpm import:mint:source-file` when one source-specific raw event file needs to be normalized into the same mint-only boundary.
+8. Use `pnpm token:enrich` to fill current token fields after mint-only intake.
+9. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
+10. Use `pnpm token:enrich-rescore:geckoterminal` when recent GeckoTerminal-origin tokens should be fetched once, previewed as enrich plus rescore in dry-run, or updated in one batch with `--write`.
+11. Use `pnpm metric:snapshot:geckoterminal` to fetch one-shot current GeckoTerminal token snapshots for recent GeckoTerminal-origin tokens and append `Metric` rows only with `--write`.
+12. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
 
 ### Full Import Path
 
@@ -139,6 +144,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `pnpm metrics:report` is the read-only metric inspection view.
 - `pnpm ops:summary:geckoterminal` is the read-only recent Gecko-origin operations overview.
 - `pnpm review:queue:geckoterminal` is the read-only recent Gecko-origin review queue for next-look extraction.
+- `pnpm compare:coverage:geckoterminal:dexscreener` is the read-only short-window batch coverage spot check for overlap, Gecko-only, and Dex-only mint sets.
 
 ### Current Operational Constraints
 
@@ -221,6 +227,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:geckoterminal:new-pools` keeps one-shot mode fail-fast, but in watch mode records cycle-level failures and continues the next cycle
 - `compare:geckoterminal:dexscreener` fetches one live GeckoTerminal candidate, then bounded-polls DexScreener `token-profiles/latest/v1` and reports whether that mint appears during the polling window
 - `compare:geckoterminal:dexscreener` is read-only and does not write, watch, checkpoint, or hand off into `import:mint`
+- `compare:coverage:geckoterminal:dexscreener` is the read-only batch coverage spot check that fetches one current GeckoTerminal `new_pools` page, collects accepted Gecko mints, gathers accepted DexScreener Solana token-profile mints over a short bounded window, and reports overlap plus source-only mint sets without writing anything
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`

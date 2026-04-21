@@ -5081,6 +5081,98 @@ async function run(): Promise<void> {
       await rm(packageStderrPath, { force: true });
     });
 
+    await runStep("geckoterminal dexscreener coverage compare", async () => {
+      await writeFile(
+        context.dexscreenerContextCompareFilePath,
+        `${JSON.stringify(
+          {
+            source: "dexscreener-token-profiles-latest-v1",
+            eventType: "token_detected",
+            detectedAt: "2026-04-21T00:00:00.000Z",
+            payload: {
+              mintAddress: "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+              chainId: "solana",
+              tokenAddress: "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+            },
+          },
+          null,
+          2,
+        )}\n`,
+        "utf-8",
+      );
+
+      const [tokenCountBefore, metricCountBefore] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      const parsed = await runCliJson<{
+        readOnly: boolean;
+        selection: {
+          geckoMode: "fetch" | "file";
+          geckoFile: string | null;
+          dexMode: "poll" | "file";
+          dexFile: string | null;
+          timeoutSeconds: number;
+          intervalSeconds: number;
+          dexPollCount: number;
+        };
+        geckoCount: number;
+        dexCount: number;
+        overlapCount: number;
+        onlyGeckoCount: number;
+        onlyDexCount: number;
+        overlapMints: string[];
+        onlyGeckoMints: string[];
+        onlyDexMints: string[];
+      }>(
+        "geckoterminal dexscreener coverage compare",
+        "src/cli/compareCoverageGeckoterminalDexscreener.ts",
+        [
+          "--geckoFile",
+          "fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json",
+          "--dexFile",
+          context.dexscreenerContextCompareFilePath,
+          "--timeoutSeconds",
+          "30",
+          "--intervalSeconds",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      const [tokenCountAfter, metricCountAfter] = await Promise.all([
+        db.token.count(),
+        db.metric.count(),
+      ]);
+
+      if (
+        tokenCountBefore !== tokenCountAfter ||
+        metricCountBefore !== metricCountAfter
+      ) {
+        throw new Error("geckoterminal dexscreener coverage compare was not read-only");
+      }
+
+      if (
+        parsed.readOnly !== true ||
+        parsed.selection.geckoMode !== "file" ||
+        parsed.selection.dexMode !== "file" ||
+        parsed.selection.timeoutSeconds !== 30 ||
+        parsed.selection.intervalSeconds !== 10 ||
+        parsed.selection.dexPollCount !== 1 ||
+        parsed.geckoCount !== 1 ||
+        parsed.dexCount !== 1 ||
+        parsed.overlapCount !== 1 ||
+        parsed.onlyGeckoCount !== 0 ||
+        parsed.onlyDexCount !== 0 ||
+        parsed.overlapMints[0] !== "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
+        parsed.onlyGeckoMints.length !== 0 ||
+        parsed.onlyDexMints.length !== 0
+      ) {
+        throw new Error("geckoterminal dexscreener coverage compare returned unexpected output");
+      }
+    });
+
     await runStep("geckoterminal review queue", async () => {
       const [tokenCountBefore, metricCountBefore] = await Promise.all([
         db.token.count(),

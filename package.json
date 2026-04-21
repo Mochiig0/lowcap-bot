@@ -18,6 +18,7 @@
     "detect:dexscreener:token-profiles": "tsx src/cli/detectDexscreenerTokenProfiles.ts",
     "detect:geckoterminal:new-pools": "tsx src/cli/detectGeckoterminalNewPools.ts",
     "compare:geckoterminal:dexscreener": "tsx src/cli/compareGeckoterminalDexscreener.ts",
+    "compare:coverage:geckoterminal:dexscreener": "node --import tsx src/cli/compareCoverageGeckoterminalDexscreener.ts",
     "import:min": "tsx src/cli/importMin.ts",
     "import:file": "tsx src/cli/importFile.ts",
     "trend:update": "tsx src/cli/updateTrend.ts",
