@@ -7,6 +7,11 @@ type TokensCompareReportArgs = {
   source?: string;
   metadataStatus?: string;
   hardRejected?: boolean;
+  hasLatestMetric?: boolean;
+  hasLatestMultiple?: boolean;
+  hasLatestPeakFdv24h?: boolean;
+  hasLatestTimeToPeak?: boolean;
+  latestMetricSource?: string;
   outcomeBucket?: OutcomeBucket;
   outcomeBucketReason?: OutcomeBucketReason;
   interestingFlagsOnly: boolean;
@@ -124,7 +129,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--outcomeBucket <winner|non_winner|unresolved>] [--outcomeBucketReason <no_metric|multiple_missing|multiple_gte_threshold|multiple_below_threshold>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasLatestMetric <true|false>] [--hasLatestMultiple <true|false>] [--hasLatestPeakFdv24h <true|false>] [--hasLatestTimeToPeak <true|false>] [--latestMetricSource <SOURCE>] [--outcomeBucket <winner|non_winner|unresolved>] [--outcomeBucketReason <no_metric|multiple_missing|multiple_gte_threshold|multiple_below_threshold>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -289,6 +294,21 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
         break;
       case "--hardRejected":
         out.hardRejected = parseBooleanArg(value, key);
+        break;
+      case "--hasLatestMetric":
+        out.hasLatestMetric = parseBooleanArg(value, key);
+        break;
+      case "--hasLatestMultiple":
+        out.hasLatestMultiple = parseBooleanArg(value, key);
+        break;
+      case "--hasLatestPeakFdv24h":
+        out.hasLatestPeakFdv24h = parseBooleanArg(value, key);
+        break;
+      case "--hasLatestTimeToPeak":
+        out.hasLatestTimeToPeak = parseBooleanArg(value, key);
+        break;
+      case "--latestMetricSource":
+        out.latestMetricSource = value === "" ? undefined : value;
         break;
       case "--outcomeBucket":
         out.outcomeBucket = parseOutcomeBucketArg(value, key);
@@ -661,6 +681,41 @@ async function run(): Promise<void> {
     }
 
     if (
+      args.hasLatestMetric !== undefined &&
+      item.metricCompleteness.hasLatestMetric !== args.hasLatestMetric
+    ) {
+      return false;
+    }
+
+    if (
+      args.hasLatestMultiple !== undefined &&
+      item.metricCompleteness.hasLatestMultiple !== args.hasLatestMultiple
+    ) {
+      return false;
+    }
+
+    if (
+      args.hasLatestPeakFdv24h !== undefined &&
+      item.metricCompleteness.hasLatestPeakFdv24h !== args.hasLatestPeakFdv24h
+    ) {
+      return false;
+    }
+
+    if (
+      args.hasLatestTimeToPeak !== undefined &&
+      item.metricCompleteness.hasLatestTimeToPeak !== args.hasLatestTimeToPeak
+    ) {
+      return false;
+    }
+
+    if (
+      args.latestMetricSource !== undefined &&
+      item.metricCompleteness.latestMetricSource !== args.latestMetricSource
+    ) {
+      return false;
+    }
+
+    if (
       args.outcomeBucket !== undefined &&
       item.outcomeBucket !== args.outcomeBucket
     ) {
@@ -810,6 +865,11 @@ async function run(): Promise<void> {
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
           hardRejected: args.hardRejected ?? null,
+          hasLatestMetric: args.hasLatestMetric ?? null,
+          hasLatestMultiple: args.hasLatestMultiple ?? null,
+          hasLatestPeakFdv24h: args.hasLatestPeakFdv24h ?? null,
+          hasLatestTimeToPeak: args.hasLatestTimeToPeak ?? null,
+          latestMetricSource: args.latestMetricSource ?? null,
           outcomeBucket: args.outcomeBucket ?? null,
           outcomeBucketReason: args.outcomeBucketReason ?? null,
           interestingFlagsOnly: args.interestingFlagsOnly,

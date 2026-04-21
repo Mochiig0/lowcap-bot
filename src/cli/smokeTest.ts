@@ -7636,6 +7636,7 @@ async function run(): Promise<void> {
         latestPeakMissingCount: number;
         filters: {
           interestingFlagsOnly: boolean;
+          hasLatestMultiple?: boolean | null;
         };
         items: Array<{
           mint: string;
@@ -7701,6 +7702,54 @@ async function run(): Promise<void> {
         )
       ) {
         throw new Error("tokens compare report interestingFlagsOnly returned unexpected rows");
+      }
+
+      const interestingFlagsMissingMultiple = await runCliJson<{
+        filteredCount: number;
+        filters: {
+          interestingFlagsOnly: boolean;
+          hasLatestMultiple: boolean | null;
+        };
+        items: Array<{
+          mint: string;
+          metricCompleteness: {
+            hasLatestMetric: boolean;
+            latestMetricSource: string | null;
+            hasLatestMultiple: boolean;
+          };
+        }>;
+      }>(
+        "tokens compare report interesting flags missing multiple",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--interestingFlagsOnly",
+          "--hasLatestMultiple",
+          "false",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        interestingFlagsMissingMultiple.filters.interestingFlagsOnly !== true ||
+        interestingFlagsMissingMultiple.filters.hasLatestMultiple !== false ||
+        interestingFlagsMissingMultiple.filteredCount === 0 ||
+        !interestingFlagsMissingMultiple.items.some(
+          (item) =>
+            item.metricCompleteness.hasLatestMetric === true &&
+            item.metricCompleteness.latestMetricSource === "geckoterminal.token_snapshot" &&
+            item.metricCompleteness.hasLatestMultiple === false,
+        ) ||
+        interestingFlagsMissingMultiple.items.some(
+          (item) => item.metricCompleteness.hasLatestMultiple !== false,
+        )
+      ) {
+        throw new Error(
+          "tokens compare report hasLatestMultiple=false filter returned unexpected rows",
+        );
       }
 
       const hasWebsiteOnly = await runCliJson<{
@@ -7855,6 +7904,69 @@ async function run(): Promise<void> {
       ) {
         throw new Error(
           "tokens compare report unresolved outcome bucket filter returned unexpected rows",
+        );
+      }
+
+      const unresolvedMultipleMissingFromSnapshot = await runCliJson<{
+        filteredCount: number;
+        filters: {
+          outcomeBucket: "winner" | "non_winner" | "unresolved" | null;
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold"
+            | null;
+          latestMetricSource: string | null;
+        };
+        items: Array<{
+          mint: string;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
+          metricCompleteness: {
+            latestMetricSource: string | null;
+            hasLatestMultiple: boolean;
+          };
+        }>;
+      }>(
+        "tokens compare report unresolved multiple-missing latest metric source",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--outcomeBucket",
+          "unresolved",
+          "--outcomeBucketReason",
+          "multiple_missing",
+          "--latestMetricSource",
+          "geckoterminal.token_snapshot",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        unresolvedMultipleMissingFromSnapshot.filters.outcomeBucket !== "unresolved" ||
+        unresolvedMultipleMissingFromSnapshot.filters.outcomeBucketReason !==
+          "multiple_missing" ||
+        unresolvedMultipleMissingFromSnapshot.filters.latestMetricSource !==
+          "geckoterminal.token_snapshot" ||
+        unresolvedMultipleMissingFromSnapshot.filteredCount === 0 ||
+        unresolvedMultipleMissingFromSnapshot.items.some(
+          (item) =>
+            item.outcomeBucket !== "unresolved" ||
+            item.outcomeBucketReason !== "multiple_missing" ||
+            item.metricCompleteness.latestMetricSource !== "geckoterminal.token_snapshot" ||
+            item.metricCompleteness.hasLatestMultiple !== false,
+        )
+      ) {
+        throw new Error(
+          "tokens compare report latestMetricSource filter returned unexpected rows",
         );
       }
 

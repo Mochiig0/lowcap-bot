@@ -99,7 +99,7 @@ const lines = [
   "  Show current token inventory rows as JSON, including createdAt, updatedAt, enrichedAt, and rescoredAt.",
   "  Example: pnpm tokens:report -- --source manual --metadataStatus mint_only --createdAfter 2026-04-16T00:00:00.000Z --limit 10",
   "",
-  "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--outcomeBucket <winner|non_winner|unresolved>] [--outcomeBucketReason <no_metric|multiple_missing|multiple_gte_threshold|multiple_below_threshold>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--limit 20]",
+  "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hasLatestMetric <true|false>] [--hasLatestMultiple <true|false>] [--hasLatestPeakFdv24h <true|false>] [--hasLatestTimeToPeak <true|false>] [--latestMetricSource <SOURCE>] [--outcomeBucket <winner|non_winner|unresolved>] [--outcomeBucketReason <no_metric|multiple_missing|multiple_gte_threshold|multiple_below_threshold>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--limit 20]",
   "  Show entry-vs-current comparison rows as JSON.",
   "  Example: pnpm tokens:compare-report -- --metadataStatus enriched --limit 10",
   "",
