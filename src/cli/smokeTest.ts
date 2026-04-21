@@ -4957,6 +4957,23 @@ async function run(): Promise<void> {
           hasTelegramMetricRate: number | null;
           metaplexHitMetricRate: number | null;
           descriptionPresentMetricRate: number | null;
+          interestingFlagComparison: {
+            hasWebsite: {
+              count: number;
+              andMetricCount: number;
+              metricRate: number | null;
+            };
+            descriptionPresent: {
+              count: number;
+              andMetricCount: number;
+              metricRate: number | null;
+            };
+            metaplexHit: {
+              count: number;
+              andMetricCount: number;
+              metricRate: number | null;
+            };
+          };
         };
         scoreRankCounts: Record<string, number>;
         metadataStatusCounts: Record<string, number>;
@@ -5032,6 +5049,24 @@ async function run(): Promise<void> {
         parsed.summary.hasTelegramMetricRate !== 1 ||
         parsed.summary.metaplexHitMetricRate !== 1 ||
         parsed.summary.descriptionPresentMetricRate !== 1 ||
+        parsed.summary.interestingFlagComparison.hasWebsite.count !==
+          parsed.summary.hasWebsiteCount ||
+        parsed.summary.interestingFlagComparison.hasWebsite.andMetricCount !==
+          parsed.summary.hasWebsiteAndMetricCount ||
+        parsed.summary.interestingFlagComparison.hasWebsite.metricRate !==
+          parsed.summary.hasWebsiteMetricRate ||
+        parsed.summary.interestingFlagComparison.descriptionPresent.count !==
+          parsed.summary.descriptionPresentCount ||
+        parsed.summary.interestingFlagComparison.descriptionPresent.andMetricCount !==
+          parsed.summary.descriptionPresentAndMetricCount ||
+        parsed.summary.interestingFlagComparison.descriptionPresent.metricRate !==
+          parsed.summary.descriptionPresentMetricRate ||
+        parsed.summary.interestingFlagComparison.metaplexHit.count !==
+          parsed.summary.metaplexHitCount ||
+        parsed.summary.interestingFlagComparison.metaplexHit.andMetricCount !==
+          parsed.summary.metaplexHitAndMetricCount ||
+        parsed.summary.interestingFlagComparison.metaplexHit.metricRate !==
+          parsed.summary.metaplexHitMetricRate ||
         !Array.isArray(parsed.currentSourceCounts) ||
         parsed.currentSourceCounts.length === 0 ||
         !Array.isArray(parsed.originSourceCounts) ||

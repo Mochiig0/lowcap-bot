@@ -28,6 +28,12 @@ type ReviewFlagsView = {
   linkCount: number;
 };
 
+type InterestingFlagSummary = {
+  count: number;
+  andMetricCount: number;
+  metricRate: number | null;
+};
+
 type SelectedToken = {
   id: number;
   mint: string;
@@ -283,6 +289,17 @@ function computeRate(numerator: number, denominator: number): number | null {
   return Number((numerator / denominator).toFixed(4));
 }
 
+function buildInterestingFlagSummary(
+  count: number,
+  andMetricCount: number,
+): InterestingFlagSummary {
+  return {
+    count,
+    andMetricCount,
+    metricRate: computeRate(andMetricCount, count),
+  };
+}
+
 async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
@@ -491,6 +508,20 @@ async function run(): Promise<void> {
             descriptionPresentAndMetricCount,
             descriptionPresentCount,
           ),
+          interestingFlagComparison: {
+            hasWebsite: buildInterestingFlagSummary(
+              hasWebsiteCount,
+              hasWebsiteAndMetricCount,
+            ),
+            descriptionPresent: buildInterestingFlagSummary(
+              descriptionPresentCount,
+              descriptionPresentAndMetricCount,
+            ),
+            metaplexHit: buildInterestingFlagSummary(
+              metaplexHitCount,
+              metaplexHitAndMetricCount,
+            ),
+          },
         },
         scoreRankCounts,
         metadataStatusCounts,
