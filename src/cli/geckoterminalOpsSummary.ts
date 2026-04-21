@@ -19,6 +19,15 @@ type FirstSeenSourceSnapshot = {
   detectedAt?: unknown;
 };
 
+type ReviewFlagsView = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
+};
+
 type SelectedToken = {
   id: number;
   mint: string;
@@ -40,6 +49,7 @@ type SelectedToken = {
   metricsCount: number;
   latestMetricObservedAt: string | null;
   latestMetricSource: string | null;
+  reviewFlags: ReviewFlagsView | null;
 };
 
 type CountByValue = {
@@ -145,6 +155,41 @@ function extractFirstSeenSourceSnapshot(entrySnapshot: unknown): FirstSeenSource
   return firstSeenSourceSnapshot as FirstSeenSourceSnapshot;
 }
 
+function extractReviewFlags(reviewFlagsJson: unknown): ReviewFlagsView | null {
+  if (!reviewFlagsJson || typeof reviewFlagsJson !== "object" || Array.isArray(reviewFlagsJson)) {
+    return null;
+  }
+
+  const hasWebsite = (reviewFlagsJson as JsonObject).hasWebsite;
+  const hasX = (reviewFlagsJson as JsonObject).hasX;
+  const hasTelegram = (reviewFlagsJson as JsonObject).hasTelegram;
+  const metaplexHit = (reviewFlagsJson as JsonObject).metaplexHit;
+  const descriptionPresent = (reviewFlagsJson as JsonObject).descriptionPresent;
+  const linkCount = (reviewFlagsJson as JsonObject).linkCount;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number" ||
+    !Number.isInteger(linkCount) ||
+    linkCount < 0
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
 function buildSelectedToken(token: {
   id: number;
   mint: string;
@@ -159,6 +204,7 @@ function buildSelectedToken(token: {
   enrichedAt: Date | null;
   rescoredAt: Date | null;
   entrySnapshot: unknown;
+  reviewFlagsJson: unknown;
   metrics: Array<{
     observedAt: Date;
     source: string | null;
@@ -174,6 +220,7 @@ function buildSelectedToken(token: {
       : token.source;
   const detectedAt = readOptionalDateString(firstSeen?.detectedAt);
   const latestMetric = token.metrics[0];
+  const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
 
   return {
     id: token.id,
@@ -198,6 +245,7 @@ function buildSelectedToken(token: {
     metricsCount: token._count.metrics,
     latestMetricObservedAt: latestMetric?.observedAt.toISOString() ?? null,
     latestMetricSource: latestMetric?.source ?? null,
+    reviewFlags,
   };
 }
 
@@ -254,6 +302,7 @@ async function run(): Promise<void> {
       enrichedAt: true,
       rescoredAt: true,
       entrySnapshot: true,
+      reviewFlagsJson: true,
       metrics: {
         orderBy: [{ observedAt: "desc" }, { id: "desc" }],
         take: 1,
@@ -302,6 +351,12 @@ async function run(): Promise<void> {
   let metricCount = 0;
   let hardRejectedCount = 0;
   let notifyCandidateCount = 0;
+  let reviewFlagsTokenCount = 0;
+  let hasWebsiteCount = 0;
+  let hasXCount = 0;
+  let hasTelegramCount = 0;
+  let metaplexHitCount = 0;
+  let descriptionPresentCount = 0;
 
   for (const token of sortedTokens) {
     incrementObjectCount(scoreRankCounts, token.scoreRank);
@@ -336,6 +391,30 @@ async function run(): Promise<void> {
     if (token.scoreRank === "S" && !token.hardRejected) {
       notifyCandidateCount += 1;
     }
+
+    if (token.reviewFlags !== null) {
+      reviewFlagsTokenCount += 1;
+
+      if (token.reviewFlags.hasWebsite) {
+        hasWebsiteCount += 1;
+      }
+
+      if (token.reviewFlags.hasX) {
+        hasXCount += 1;
+      }
+
+      if (token.reviewFlags.hasTelegram) {
+        hasTelegramCount += 1;
+      }
+
+      if (token.reviewFlags.metaplexHit) {
+        metaplexHitCount += 1;
+      }
+
+      if (token.reviewFlags.descriptionPresent) {
+        descriptionPresentCount += 1;
+      }
+    }
   }
 
   console.log(
@@ -361,6 +440,12 @@ async function run(): Promise<void> {
           metricCount,
           hardRejectedCount,
           notifyCandidateCount,
+          reviewFlagsTokenCount,
+          hasWebsiteCount,
+          hasXCount,
+          hasTelegramCount,
+          metaplexHitCount,
+          descriptionPresentCount,
         },
         scoreRankCounts,
         metadataStatusCounts,

@@ -4921,6 +4921,12 @@ async function run(): Promise<void> {
           metricCount: number;
           hardRejectedCount: number;
           notifyCandidateCount: number;
+          reviewFlagsTokenCount: number;
+          hasWebsiteCount: number;
+          hasXCount: number;
+          hasTelegramCount: number;
+          metaplexHitCount: number;
+          descriptionPresentCount: number;
         };
         scoreRankCounts: Record<string, number>;
         metadataStatusCounts: Record<string, number>;
@@ -4980,6 +4986,12 @@ async function run(): Promise<void> {
         parsed.summary.rescoredTokenCount < 1 ||
         parsed.summary.metricTokenCount < 1 ||
         parsed.summary.metricCount < 1 ||
+        parsed.summary.reviewFlagsTokenCount < 1 ||
+        parsed.summary.hasWebsiteCount < 1 ||
+        parsed.summary.hasXCount < 1 ||
+        parsed.summary.hasTelegramCount < 1 ||
+        parsed.summary.metaplexHitCount < 1 ||
+        parsed.summary.descriptionPresentCount < 1 ||
         !Array.isArray(parsed.currentSourceCounts) ||
         parsed.currentSourceCounts.length === 0 ||
         !Array.isArray(parsed.originSourceCounts) ||
