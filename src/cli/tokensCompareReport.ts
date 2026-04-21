@@ -7,6 +7,7 @@ type TokensCompareReportArgs = {
   source?: string;
   metadataStatus?: string;
   hardRejected?: boolean;
+  interestingFlagsOnly: boolean;
   hasWebsite?: boolean;
   hasX?: boolean;
   hasTelegram?: boolean;
@@ -65,11 +66,18 @@ type ReviewFlagsView = {
   linkCount: number;
 };
 
+type InterestingFlagsView = {
+  hasWebsite: boolean;
+  descriptionPresent: boolean;
+  metaplexHit: boolean;
+};
+
 type CompareReportItem = {
   mint: string;
   name: string | null;
   symbol: string | null;
   metadataStatus: string;
+  interestingFlags: InterestingFlagsView | null;
   entryScoreRank: string | null;
   entryScoreTotal: number | null;
   currentScoreRank: string;
@@ -94,7 +102,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
+      "pnpm tokens:compare-report -- [--rank <RANK>] [--source <SOURCE>] [--metadataStatus <STATUS>] [--hardRejected <true|false>] [--interestingFlagsOnly] [--hasWebsite <true|false>] [--hasX <true|false>] [--hasTelegram <true|false>] [--metaplexHit <true|false>] [--hasMetrics <true|false>] [--entryVsCurrentChanged <true|false>] [--changedField <FIELD>] [--minChangedFieldsCount <N>] [--minMetricsCount <N>] [--minEntryScoreTotal <NUM>] [--minCurrentScoreTotal <NUM>] [--entryScoreRank <S|A|B|C>] [--currentScoreRank <S|A|B|C>] [--sortBy <FIELD>] [--sortOrder <asc|desc>] [--limit 20]",
     ].join("\n"),
   );
   process.exit(1);
@@ -201,6 +209,7 @@ function parseChangedFieldArg(value: string, key: string): ChangedField {
 
 function parseArgs(argv: string[]): TokensCompareReportArgs {
   const out: Partial<TokensCompareReportArgs> = {
+    interestingFlagsOnly: false,
     sortOrder: "desc",
     limit: 20,
   };
@@ -210,6 +219,10 @@ function parseArgs(argv: string[]): TokensCompareReportArgs {
     const value = argv[i + 1];
 
     if (!key.startsWith("--")) continue;
+    if (key === "--interestingFlagsOnly") {
+      out.interestingFlagsOnly = true;
+      continue;
+    }
     if (value === undefined || value.startsWith("--")) {
       printUsageAndExit(`Missing value for ${key}`);
     }
@@ -345,6 +358,18 @@ function countReviewFlags(reviewFlags: ReviewFlagsView | null): number {
     reviewFlags.descriptionPresent,
     reviewFlags.linkCount > 0,
   ].filter(Boolean).length;
+}
+
+function extractInterestingFlags(reviewFlags: ReviewFlagsView | null): InterestingFlagsView | null {
+  if (reviewFlags === null) {
+    return null;
+  }
+
+  return {
+    hasWebsite: reviewFlags.hasWebsite,
+    descriptionPresent: reviewFlags.descriptionPresent,
+    metaplexHit: reviewFlags.metaplexHit,
+  };
 }
 
 function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
@@ -487,6 +512,7 @@ async function run(): Promise<void> {
       name: token.name,
       symbol: token.symbol,
       metadataStatus: token.metadataStatus,
+      interestingFlags: extractInterestingFlags(reviewFlags),
       entryScoreRank: entrySnapshot.scoreRank,
       entryScoreTotal: entrySnapshot.scoreTotal,
       currentScoreRank: token.scoreRank,
@@ -507,6 +533,16 @@ async function run(): Promise<void> {
   });
 
   const filteredItems = items.filter((item) => {
+    if (
+      args.interestingFlagsOnly &&
+      (item.interestingFlags === null ||
+        (!item.interestingFlags.hasWebsite &&
+          !item.interestingFlags.descriptionPresent &&
+          !item.interestingFlags.metaplexHit))
+    ) {
+      return false;
+    }
+
     if (
       args.hasWebsite !== undefined &&
       (item.reviewFlags === null || item.reviewFlags.hasWebsite !== args.hasWebsite)
@@ -631,6 +667,7 @@ async function run(): Promise<void> {
           source: args.source ?? null,
           metadataStatus: args.metadataStatus ?? null,
           hardRejected: args.hardRejected ?? null,
+          interestingFlagsOnly: args.interestingFlagsOnly,
           hasWebsite: args.hasWebsite ?? null,
           hasX: args.hasX ?? null,
           hasTelegram: args.hasTelegram ?? null,

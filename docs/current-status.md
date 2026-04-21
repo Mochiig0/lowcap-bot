@@ -313,7 +313,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `tokens:compare-report` supports `minChangedFieldsCount` for minimum entry-vs-current change-count filtering
 - `tokens:compare-report` supports `minEntryScoreTotal` and `minCurrentScoreTotal` for score-threshold filtering
 - `tokens:compare-report` supports `entryScoreRank` and `currentScoreRank` for exact rank filtering
-- `tokens:compare-report` supports `hasWebsite`, `hasX`, `hasTelegram`, and `metaplexHit` as minimal read-only filters over stored observational `reviewFlags`
+- `tokens:compare-report` supports `hasWebsite`, `hasX`, `hasTelegram`, and `metaplexHit` as minimal read-only filters over stored observational `reviewFlags`, and `--interestingFlagsOnly` as a small side-by-side focus over `hasWebsite`, `descriptionPresent`, and `metaplexHit`
 - `tokens:compare-report` supports `sortBy` and `sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `changedFieldsCount`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`
 - `tokens:compare-report` returns entry-vs-outcome summary rows across multiple tokens, including `entryScoreTotal`, `entryVsCurrentChanged`, `changedFields`, `changedFieldsCount`, and `metricsCount`
 - `tokens:compare-report` now also includes stored `reviewFlags` and `reviewFlagsCount` when present, as read-only observational compare fields rather than score inputs

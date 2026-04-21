@@ -7514,8 +7514,16 @@ async function run(): Promise<void> {
         count: number;
         preFilterCount: number;
         filteredCount: number;
+        filters: {
+          interestingFlagsOnly: boolean;
+        };
         items: Array<{
           mint: string;
+          interestingFlags: {
+            hasWebsite: boolean;
+            descriptionPresent: boolean;
+            metaplexHit: boolean;
+          } | null;
           reviewFlags: {
             hasWebsite: boolean;
             hasX: boolean;
@@ -7544,6 +7552,10 @@ async function run(): Promise<void> {
 
       if (
         !geckoCompareItem ||
+        !geckoCompareItem.interestingFlags ||
+        geckoCompareItem.interestingFlags.hasWebsite !== true ||
+        geckoCompareItem.interestingFlags.descriptionPresent !== true ||
+        geckoCompareItem.interestingFlags.metaplexHit !== true ||
         geckoCompareItem.reviewFlagsCount !== 6 ||
         !geckoCompareItem.reviewFlags ||
         geckoCompareItem.reviewFlags.hasWebsite !== true ||
@@ -7557,6 +7569,54 @@ async function run(): Promise<void> {
       }
       if (geckoCompareWithFlags.filteredCount !== geckoCompareWithFlags.items.length) {
         throw new Error("tokens compare report gecko review flags filteredCount mismatch");
+      }
+
+      const interestingFlagsOnly = await runCliJson<{
+        count: number;
+        preFilterCount: number;
+        filteredCount: number;
+        filters: {
+          interestingFlagsOnly: boolean;
+        };
+        items: Array<{
+          mint: string;
+          metadataStatus: string;
+          interestingFlags: {
+            hasWebsite: boolean;
+            descriptionPresent: boolean;
+            metaplexHit: boolean;
+          } | null;
+          metricsCount: number;
+          latestMetricObservedAt: string | null;
+          latestPeakFdv24h: number | null;
+          latestMaxMultiple15m: number | null;
+        }>;
+      }>(
+        "tokens compare report interesting flags only",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--interestingFlagsOnly",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        interestingFlagsOnly.filters.interestingFlagsOnly !== true ||
+        interestingFlagsOnly.filteredCount !== interestingFlagsOnly.items.length ||
+        !interestingFlagsOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
+        interestingFlagsOnly.items.some(
+          (item) =>
+            item.interestingFlags === null ||
+            (!item.interestingFlags.hasWebsite &&
+              !item.interestingFlags.descriptionPresent &&
+              !item.interestingFlags.metaplexHit),
+        )
+      ) {
+        throw new Error("tokens compare report interestingFlagsOnly returned unexpected rows");
       }
 
       const hasWebsiteOnly = await runCliJson<{
