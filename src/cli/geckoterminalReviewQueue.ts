@@ -28,6 +28,15 @@ type QueueName =
   | "enrichPending"
   | "metricPending";
 
+type ReviewFlagsView = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
+};
+
 type SelectedToken = {
   id: number;
   mint: string;
@@ -49,6 +58,8 @@ type SelectedToken = {
   metricsCount: number;
   latestMetricObservedAt: string | null;
   latestMetricSource: string | null;
+  reviewFlags: ReviewFlagsView | null;
+  reviewFlagsCount: number;
 };
 
 type ReviewQueueItem = {
@@ -70,6 +81,8 @@ type ReviewQueueItem = {
   metricsCount: number;
   latestMetricObservedAt: string | null;
   latestMetricSource: string | null;
+  reviewFlags: ReviewFlagsView | null;
+  reviewFlagsCount: number;
   queuesMatched: QueueName[];
   reviewReasons: string[];
 };
@@ -172,6 +185,56 @@ function extractFirstSeenSourceSnapshot(entrySnapshot: unknown): FirstSeenSource
   return firstSeenSourceSnapshot as FirstSeenSourceSnapshot;
 }
 
+function extractReviewFlags(reviewFlagsJson: unknown): ReviewFlagsView | null {
+  if (!reviewFlagsJson || typeof reviewFlagsJson !== "object" || Array.isArray(reviewFlagsJson)) {
+    return null;
+  }
+
+  const hasWebsite = (reviewFlagsJson as JsonObject).hasWebsite;
+  const hasX = (reviewFlagsJson as JsonObject).hasX;
+  const hasTelegram = (reviewFlagsJson as JsonObject).hasTelegram;
+  const metaplexHit = (reviewFlagsJson as JsonObject).metaplexHit;
+  const descriptionPresent = (reviewFlagsJson as JsonObject).descriptionPresent;
+  const linkCount = (reviewFlagsJson as JsonObject).linkCount;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number" ||
+    !Number.isInteger(linkCount) ||
+    linkCount < 0
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
+function countReviewFlags(reviewFlags: ReviewFlagsView | null): number {
+  if (reviewFlags === null) {
+    return 0;
+  }
+
+  return [
+    reviewFlags.hasWebsite,
+    reviewFlags.hasX,
+    reviewFlags.hasTelegram,
+    reviewFlags.metaplexHit,
+    reviewFlags.descriptionPresent,
+    reviewFlags.linkCount > 0,
+  ].filter(Boolean).length;
+}
+
 function buildSelectedToken(token: {
   id: number;
   mint: string;
@@ -186,6 +249,7 @@ function buildSelectedToken(token: {
   enrichedAt: Date | null;
   rescoredAt: Date | null;
   entrySnapshot: unknown;
+  reviewFlagsJson: unknown;
   metrics: Array<{
     observedAt: Date;
     source: string | null;
@@ -201,6 +265,7 @@ function buildSelectedToken(token: {
       : token.source;
   const detectedAt = readOptionalDateString(firstSeen?.detectedAt);
   const latestMetric = token.metrics[0];
+  const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
 
   return {
     id: token.id,
@@ -225,6 +290,8 @@ function buildSelectedToken(token: {
     metricsCount: token._count.metrics,
     latestMetricObservedAt: latestMetric?.observedAt.toISOString() ?? null,
     latestMetricSource: latestMetric?.source ?? null,
+    reviewFlags,
+    reviewFlagsCount: countReviewFlags(reviewFlags),
   };
 }
 
@@ -351,6 +418,8 @@ function buildReviewQueueItem(token: SelectedToken, staleAfterHours: number): Re
     metricsCount: token.metricsCount,
     latestMetricObservedAt: token.latestMetricObservedAt,
     latestMetricSource: token.latestMetricSource,
+    reviewFlags: token.reviewFlags,
+    reviewFlagsCount: token.reviewFlagsCount,
     queuesMatched,
     reviewReasons: buildReviewReasons(token, staleAfterHours, ageHours),
   };
@@ -414,6 +483,7 @@ async function run(): Promise<void> {
       enrichedAt: true,
       rescoredAt: true,
       entrySnapshot: true,
+      reviewFlagsJson: true,
       metrics: {
         orderBy: [{ observedAt: "desc" }, { id: "desc" }],
         take: 1,

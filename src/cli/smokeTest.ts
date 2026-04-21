@@ -5323,6 +5323,15 @@ async function run(): Promise<void> {
         queues: {
           notifyCandidate: Array<{
             mint: string;
+            reviewFlagsCount: number;
+            reviewFlags: {
+              hasWebsite: boolean;
+              hasX: boolean;
+              hasTelegram: boolean;
+              metaplexHit: boolean;
+              descriptionPresent: boolean;
+              linkCount: number;
+            } | null;
             queuesMatched: string[];
             reviewReasons: string[];
           }>;
@@ -5354,6 +5363,8 @@ async function run(): Promise<void> {
         };
         preview: Array<{
           mint: string;
+          reviewFlagsCount: number;
+          reviewFlags: Record<string, unknown> | null;
           queuesMatched: string[];
           reviewReasons: string[];
           metricsCount: number;
@@ -5416,6 +5427,9 @@ async function run(): Promise<void> {
       const notifyCandidateMints = new Set(
         parsed.queues.notifyCandidate.map((item) => item.mint),
       );
+      const notifyCandidateItem = parsed.queues.notifyCandidate.find(
+        (item) => item.mint === context.geckoEnrichRescoreMint,
+      );
       const rescorePendingMints = new Set(
         parsed.queues.rescorePending.map((item) => item.mint),
       );
@@ -5432,12 +5446,27 @@ async function run(): Promise<void> {
       }
 
       if (
+        !notifyCandidateItem ||
+        notifyCandidateItem.reviewFlagsCount !== 6 ||
+        !notifyCandidateItem.reviewFlags ||
+        notifyCandidateItem.reviewFlags.hasWebsite !== true ||
+        notifyCandidateItem.reviewFlags.hasX !== true ||
+        notifyCandidateItem.reviewFlags.hasTelegram !== true ||
+        notifyCandidateItem.reviewFlags.metaplexHit !== true ||
+        notifyCandidateItem.reviewFlags.descriptionPresent !== true ||
+        notifyCandidateItem.reviewFlags.linkCount !== 7
+      ) {
+        throw new Error("geckoterminal review queue did not expose expected review flags");
+      }
+
+      if (
         parsed.preview.some(
           (item) =>
             !Array.isArray(item.queuesMatched) ||
             item.queuesMatched.length === 0 ||
             !Array.isArray(item.reviewReasons) ||
-            typeof item.metricsCount !== "number",
+            typeof item.metricsCount !== "number" ||
+            typeof item.reviewFlagsCount !== "number",
         )
       ) {
         throw new Error("geckoterminal review queue preview returned unexpected item fields");
