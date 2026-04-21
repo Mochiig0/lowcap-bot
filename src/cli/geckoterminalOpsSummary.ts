@@ -357,6 +357,10 @@ async function run(): Promise<void> {
   let hasTelegramCount = 0;
   let metaplexHitCount = 0;
   let descriptionPresentCount = 0;
+  let hasWebsiteAndMetricCount = 0;
+  let hasXAndMetricCount = 0;
+  let hasTelegramAndMetricCount = 0;
+  let metaplexHitAndMetricCount = 0;
 
   for (const token of sortedTokens) {
     incrementObjectCount(scoreRankCounts, token.scoreRank);
@@ -394,21 +398,34 @@ async function run(): Promise<void> {
 
     if (token.reviewFlags !== null) {
       reviewFlagsTokenCount += 1;
+      const hasMetrics = token.metricsCount > 0;
 
       if (token.reviewFlags.hasWebsite) {
         hasWebsiteCount += 1;
+        if (hasMetrics) {
+          hasWebsiteAndMetricCount += 1;
+        }
       }
 
       if (token.reviewFlags.hasX) {
         hasXCount += 1;
+        if (hasMetrics) {
+          hasXAndMetricCount += 1;
+        }
       }
 
       if (token.reviewFlags.hasTelegram) {
         hasTelegramCount += 1;
+        if (hasMetrics) {
+          hasTelegramAndMetricCount += 1;
+        }
       }
 
       if (token.reviewFlags.metaplexHit) {
         metaplexHitCount += 1;
+        if (hasMetrics) {
+          metaplexHitAndMetricCount += 1;
+        }
       }
 
       if (token.reviewFlags.descriptionPresent) {
@@ -446,6 +463,10 @@ async function run(): Promise<void> {
           hasTelegramCount,
           metaplexHitCount,
           descriptionPresentCount,
+          hasWebsiteAndMetricCount,
+          hasXAndMetricCount,
+          hasTelegramAndMetricCount,
+          metaplexHitAndMetricCount,
         },
         scoreRankCounts,
         metadataStatusCounts,

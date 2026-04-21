@@ -4896,6 +4896,26 @@ async function run(): Promise<void> {
     });
 
     await runStep("geckoterminal ops summary", async () => {
+      const geckoReviewFlagToken = await db.token.findUnique({
+        where: { mint: context.geckoEnrichRescoreMint },
+        select: { id: true },
+      });
+
+      if (!geckoReviewFlagToken) {
+        throw new Error("geckoterminal ops summary missing gecko review-flag token");
+      }
+
+      await db.metric.create({
+        data: {
+          tokenId: geckoReviewFlagToken.id,
+          source: "smoke-gecko-review-flags",
+          observedAt: new Date("2026-04-21T00:25:00.000Z"),
+          peakFdv24h: 123_000,
+          maxMultiple15m: 1.8,
+          timeToPeakMinutes: 12,
+        },
+      });
+
       const [tokenCountBefore, metricCountBefore] = await Promise.all([
         db.token.count(),
         db.metric.count(),
@@ -4927,6 +4947,10 @@ async function run(): Promise<void> {
           hasTelegramCount: number;
           metaplexHitCount: number;
           descriptionPresentCount: number;
+          hasWebsiteAndMetricCount: number;
+          hasXAndMetricCount: number;
+          hasTelegramAndMetricCount: number;
+          metaplexHitAndMetricCount: number;
         };
         scoreRankCounts: Record<string, number>;
         metadataStatusCounts: Record<string, number>;
@@ -4992,6 +5016,10 @@ async function run(): Promise<void> {
         parsed.summary.hasTelegramCount < 1 ||
         parsed.summary.metaplexHitCount < 1 ||
         parsed.summary.descriptionPresentCount < 1 ||
+        parsed.summary.hasWebsiteAndMetricCount < 1 ||
+        parsed.summary.hasXAndMetricCount < 1 ||
+        parsed.summary.hasTelegramAndMetricCount < 1 ||
+        parsed.summary.metaplexHitAndMetricCount < 1 ||
         !Array.isArray(parsed.currentSourceCounts) ||
         parsed.currentSourceCounts.length === 0 ||
         !Array.isArray(parsed.originSourceCounts) ||
