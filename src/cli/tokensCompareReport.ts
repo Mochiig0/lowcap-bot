@@ -72,12 +72,15 @@ type InterestingFlagsView = {
   metaplexHit: boolean;
 };
 
+type OutcomeBucket = "winner" | "non_winner" | "unresolved";
+
 type CompareReportItem = {
   mint: string;
   name: string | null;
   symbol: string | null;
   metadataStatus: string;
   interestingFlags: InterestingFlagsView | null;
+  outcomeBucket: OutcomeBucket;
   entryScoreRank: string | null;
   entryScoreTotal: number | null;
   currentScoreRank: string;
@@ -93,6 +96,8 @@ type CompareReportItem = {
   latestMaxMultiple15m: number | null;
   latestTimeToPeakMinutes: number | null;
 };
+
+const WORKING_WINNER_MAX_MULTIPLE_15M = 2;
 
 function printUsageAndExit(message?: string): never {
   if (message) {
@@ -372,6 +377,24 @@ function extractInterestingFlags(reviewFlags: ReviewFlagsView | null): Interesti
   };
 }
 
+function deriveOutcomeBucket(
+  metricsCount: number,
+  latestMaxMultiple15m: number | null,
+): OutcomeBucket {
+  if (metricsCount === 0) {
+    return "unresolved";
+  }
+
+  if (
+    latestMaxMultiple15m !== null &&
+    latestMaxMultiple15m >= WORKING_WINNER_MAX_MULTIPLE_15M
+  ) {
+    return "winner";
+  }
+
+  return "non_winner";
+}
+
 function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
   if (!isRecord(entrySnapshot)) {
     return {
@@ -513,6 +536,10 @@ async function run(): Promise<void> {
       symbol: token.symbol,
       metadataStatus: token.metadataStatus,
       interestingFlags: extractInterestingFlags(reviewFlags),
+      outcomeBucket: deriveOutcomeBucket(
+        token._count.metrics,
+        latestMetric?.maxMultiple15m ?? null,
+      ),
       entryScoreRank: entrySnapshot.scoreRank,
       entryScoreTotal: entrySnapshot.scoreTotal,
       currentScoreRank: token.scoreRank,

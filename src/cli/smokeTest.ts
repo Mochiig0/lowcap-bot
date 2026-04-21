@@ -7450,6 +7450,7 @@ async function run(): Promise<void> {
         filteredCount: number;
         items: Array<{
           mint: string;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
           entryVsCurrentChanged: boolean;
           changedFields: string[];
           changedFieldsCount: number;
@@ -7492,6 +7493,10 @@ async function run(): Promise<void> {
         throw new Error("tokens compare report did not include latest metric summary");
       }
 
+      if (reportItem.outcomeBucket !== "winner") {
+        throw new Error("tokens compare report did not classify metric token as winner");
+      }
+
       if (typeof reportItem.entryVsCurrentChanged !== "boolean") {
         throw new Error("tokens compare report did not include entryVsCurrentChanged");
       }
@@ -7510,6 +7515,10 @@ async function run(): Promise<void> {
         );
       }
 
+      if (!parsed.items.some((item) => item.outcomeBucket === "unresolved")) {
+        throw new Error("tokens compare report did not include any unresolved rows");
+      }
+
       const geckoCompareWithFlags = await runCliJson<{
         count: number;
         preFilterCount: number;
@@ -7524,6 +7533,7 @@ async function run(): Promise<void> {
             descriptionPresent: boolean;
             metaplexHit: boolean;
           } | null;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
           reviewFlags: {
             hasWebsite: boolean;
             hasX: boolean;
@@ -7563,7 +7573,8 @@ async function run(): Promise<void> {
         geckoCompareItem.reviewFlags.hasTelegram !== true ||
         geckoCompareItem.reviewFlags.metaplexHit !== true ||
         geckoCompareItem.reviewFlags.descriptionPresent !== true ||
-        geckoCompareItem.reviewFlags.linkCount !== 7
+        geckoCompareItem.reviewFlags.linkCount !== 7 ||
+        geckoCompareItem.outcomeBucket !== "non_winner"
       ) {
         throw new Error("tokens compare report did not expose expected review flags");
       }
@@ -7581,6 +7592,7 @@ async function run(): Promise<void> {
         items: Array<{
           mint: string;
           metadataStatus: string;
+          outcomeBucket: "winner" | "non_winner" | "unresolved";
           interestingFlags: {
             hasWebsite: boolean;
             descriptionPresent: boolean;
@@ -7608,6 +7620,7 @@ async function run(): Promise<void> {
         interestingFlagsOnly.filters.interestingFlagsOnly !== true ||
         interestingFlagsOnly.filteredCount !== interestingFlagsOnly.items.length ||
         !interestingFlagsOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
+        !interestingFlagsOnly.items.some((item) => item.outcomeBucket === "non_winner") ||
         interestingFlagsOnly.items.some(
           (item) =>
             item.interestingFlags === null ||
