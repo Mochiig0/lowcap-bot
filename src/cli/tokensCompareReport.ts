@@ -419,49 +419,53 @@ async function run(): Promise<void> {
   const argv = process.argv.slice(2).filter((arg) => arg !== "--");
   const args = parseArgs(argv);
 
-  const tokens = await db.token.findMany({
-    where: {
-      ...(args.rank ? { scoreRank: args.rank } : {}),
-      ...(args.source ? { source: args.source } : {}),
-      ...(args.metadataStatus ? { metadataStatus: args.metadataStatus } : {}),
-      ...(args.hardRejected !== undefined
-        ? { hardRejected: args.hardRejected }
-        : {}),
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: args.limit,
-    select: {
-      mint: true,
-      name: true,
-      symbol: true,
-      description: true,
-      metadataStatus: true,
-      hardRejected: true,
-      hardRejectReason: true,
-      scoreRank: true,
-      scoreTotal: true,
-      entrySnapshot: true,
-      reviewFlagsJson: true,
-      _count: {
-        select: {
-          metrics: true,
+  const where = {
+    ...(args.rank ? { scoreRank: args.rank } : {}),
+    ...(args.source ? { source: args.source } : {}),
+    ...(args.metadataStatus ? { metadataStatus: args.metadataStatus } : {}),
+    ...(args.hardRejected !== undefined
+      ? { hardRejected: args.hardRejected }
+      : {}),
+  };
+
+  const [preFilterCount, tokens] = await Promise.all([
+    db.token.count({ where }),
+    db.token.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        mint: true,
+        name: true,
+        symbol: true,
+        description: true,
+        metadataStatus: true,
+        hardRejected: true,
+        hardRejectReason: true,
+        scoreRank: true,
+        scoreTotal: true,
+        entrySnapshot: true,
+        reviewFlagsJson: true,
+        _count: {
+          select: {
+            metrics: true,
+          },
+        },
+        metrics: {
+          orderBy: [
+            { observedAt: "desc" },
+            { id: "desc" },
+          ],
+          take: 1,
+          select: {
+            observedAt: true,
+            peakFdv24h: true,
+            maxMultiple15m: true,
+            timeToPeakMinutes: true,
+          },
         },
       },
-      metrics: {
-        orderBy: [
-          { observedAt: "desc" },
-          { id: "desc" },
-        ],
-        take: 1,
-        select: {
-          observedAt: true,
-          peakFdv24h: true,
-          maxMultiple15m: true,
-          timeToPeakMinutes: true,
-        },
-      },
-    },
-  });
+    }),
+  ]);
 
   const items = tokens.map((token): CompareReportItem => {
     const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
@@ -614,10 +618,14 @@ async function run(): Promise<void> {
     });
   }
 
+  const limitedItems = filteredItems.slice(0, args.limit);
+
   console.log(
     JSON.stringify(
       {
-        count: tokens.length,
+        count: Math.min(preFilterCount, args.limit),
+        preFilterCount,
+        filteredCount: limitedItems.length,
         filters: {
           rank: args.rank ?? null,
           source: args.source ?? null,
@@ -640,7 +648,7 @@ async function run(): Promise<void> {
           sortOrder: args.sortOrder,
           limit: args.limit,
         },
-        items: filteredItems,
+        items: limitedItems,
       },
       null,
       2,

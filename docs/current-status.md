@@ -141,6 +141,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 
 - `pnpm token:compare` is the single-token read-only comparison view.
 - `pnpm tokens:compare-report` is the multi-token read-only comparison view.
+- `pnpm tokens:compare-report` now reports `preFilterCount` and `filteredCount`, and applies `limit` after item-level review-flag filters so sparse review-flag holders are still visible in small result windows.
 - `pnpm metrics:report` is the read-only metric inspection view.
 - `pnpm ops:summary:geckoterminal` is the read-only recent Gecko-origin operations overview.
 - `pnpm review:queue:geckoterminal` is the read-only recent Gecko-origin review queue for next-look extraction.

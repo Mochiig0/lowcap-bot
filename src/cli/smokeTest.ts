@@ -7411,6 +7411,8 @@ async function run(): Promise<void> {
     await runStep("tokens compare report", async () => {
       const parsed = await runCliJson<{
         count: number;
+        preFilterCount: number;
+        filteredCount: number;
         items: Array<{
           mint: string;
           entryVsCurrentChanged: boolean;
@@ -7442,6 +7444,9 @@ async function run(): Promise<void> {
       if (parsed.count === 0) {
         throw new Error("tokens compare report returned no rows");
       }
+      if (parsed.filteredCount !== parsed.items.length) {
+        throw new Error("tokens compare report filteredCount did not match items length");
+      }
 
       const reportItem = parsed.items.find((item) => item.mint === context.metricMint);
       if (!reportItem) {
@@ -7472,6 +7477,8 @@ async function run(): Promise<void> {
 
       const geckoCompareWithFlags = await runCliJson<{
         count: number;
+        preFilterCount: number;
+        filteredCount: number;
         items: Array<{
           mint: string;
           reviewFlags: {
@@ -7513,9 +7520,14 @@ async function run(): Promise<void> {
       ) {
         throw new Error("tokens compare report did not expose expected review flags");
       }
+      if (geckoCompareWithFlags.filteredCount !== geckoCompareWithFlags.items.length) {
+        throw new Error("tokens compare report gecko review flags filteredCount mismatch");
+      }
 
       const hasWebsiteOnly = await runCliJson<{
         count: number;
+        preFilterCount: number;
+        filteredCount: number;
         items: Array<{
           mint: string;
           reviewFlags: {
@@ -7541,6 +7553,87 @@ async function run(): Promise<void> {
         hasWebsiteOnly.items.some((item) => item.reviewFlags?.hasWebsite !== true)
       ) {
         throw new Error("tokens compare report hasWebsite filter returned unexpected rows");
+      }
+
+      const sparseFlagNoiseMints = Array.from({ length: 12 }, (_, index) =>
+        `${context.smokeId}_GECKO_COMPARE_NOISE_${index}`,
+      );
+
+      await db.token.createMany({
+        data: sparseFlagNoiseMints.map((mint) => ({
+          mint,
+          source: "geckoterminal.new_pools",
+          metadataStatus: "mint_only",
+        })),
+      });
+
+      const hasXSparseHolder = await runCliJson<{
+        count: number;
+        preFilterCount: number;
+        filteredCount: number;
+        items: Array<{
+          mint: string;
+          reviewFlags: {
+            hasX: boolean;
+            hasTelegram: boolean;
+          } | null;
+        }>;
+      }>(
+        "tokens compare report hasX sparse holder",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--hasX",
+          "true",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        !hasXSparseHolder.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
+        hasXSparseHolder.items.some((item) => item.reviewFlags?.hasX !== true) ||
+        hasXSparseHolder.filteredCount !== hasXSparseHolder.items.length ||
+        hasXSparseHolder.preFilterCount <= hasXSparseHolder.count
+      ) {
+        throw new Error("tokens compare report hasX sparse holder filter did not return expected rows");
+      }
+
+      const hasTelegramSparseHolder = await runCliJson<{
+        count: number;
+        preFilterCount: number;
+        filteredCount: number;
+        items: Array<{
+          mint: string;
+          reviewFlags: {
+            hasTelegram: boolean;
+          } | null;
+        }>;
+      }>(
+        "tokens compare report hasTelegram sparse holder",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--hasTelegram",
+          "true",
+          "--limit",
+          "10",
+        ],
+        context.smokeId,
+      );
+
+      if (
+        !hasTelegramSparseHolder.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
+        hasTelegramSparseHolder.items.some((item) => item.reviewFlags?.hasTelegram !== true) ||
+        hasTelegramSparseHolder.filteredCount !== hasTelegramSparseHolder.items.length ||
+        hasTelegramSparseHolder.preFilterCount <= hasTelegramSparseHolder.count
+      ) {
+        throw new Error(
+          "tokens compare report hasTelegram sparse holder filter did not return expected rows",
+        );
       }
 
       const changedOnly = await runCliJson<{
