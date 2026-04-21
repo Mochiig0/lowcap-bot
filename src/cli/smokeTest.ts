@@ -7364,6 +7364,15 @@ async function run(): Promise<void> {
           entryVsCurrentChanged: boolean;
           changedFields: string[];
           changedFieldsCount: number;
+          reviewFlags: {
+            hasWebsite: boolean;
+            hasX: boolean;
+            hasTelegram: boolean;
+            metaplexHit: boolean;
+            descriptionPresent: boolean;
+            linkCount: number;
+          } | null;
+          reviewFlagsCount: number;
           latestMetricObservedAt: string | null;
         }>;
       }>(
@@ -7407,6 +7416,50 @@ async function run(): Promise<void> {
         throw new Error(
           "tokens compare report changedFields length did not match changedFieldsCount",
         );
+      }
+
+      const geckoCompareWithFlags = await runCliJson<{
+        count: number;
+        items: Array<{
+          mint: string;
+          reviewFlags: {
+            hasWebsite: boolean;
+            hasX: boolean;
+            hasTelegram: boolean;
+            metaplexHit: boolean;
+            descriptionPresent: boolean;
+            linkCount: number;
+          } | null;
+          reviewFlagsCount: number;
+        }>;
+      }>(
+        "tokens compare report gecko review flags",
+        "src/cli/tokensCompareReport.ts",
+        [
+          "--source",
+          "geckoterminal.new_pools",
+          "--limit",
+          "20",
+        ],
+        context.smokeId,
+      );
+
+      const geckoCompareItem = geckoCompareWithFlags.items.find(
+        (item) => item.mint === context.geckoEnrichRescoreMint,
+      );
+
+      if (
+        !geckoCompareItem ||
+        geckoCompareItem.reviewFlagsCount !== 6 ||
+        !geckoCompareItem.reviewFlags ||
+        geckoCompareItem.reviewFlags.hasWebsite !== true ||
+        geckoCompareItem.reviewFlags.hasX !== true ||
+        geckoCompareItem.reviewFlags.hasTelegram !== true ||
+        geckoCompareItem.reviewFlags.metaplexHit !== true ||
+        geckoCompareItem.reviewFlags.descriptionPresent !== true ||
+        geckoCompareItem.reviewFlags.linkCount !== 7
+      ) {
+        throw new Error("tokens compare report did not expose expected review flags");
       }
 
       const changedOnly = await runCliJson<{

@@ -52,6 +52,15 @@ type EntrySnapshotView = {
   hardRejectReason: string | null;
 };
 
+type ReviewFlagsView = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
+};
+
 type CompareReportItem = {
   mint: string;
   name: string | null;
@@ -65,6 +74,8 @@ type CompareReportItem = {
   changedFields: ChangedField[];
   changedFieldsCount: number;
   metricsCount: number;
+  reviewFlags: ReviewFlagsView | null;
+  reviewFlagsCount: number;
   latestMetricObservedAt: string | null;
   latestPeakFdv24h: number | null;
   latestMaxMultiple15m: number | null;
@@ -270,6 +281,56 @@ function readOptionalNumber(value: unknown): number | null {
   return typeof value === "number" && !Number.isNaN(value) ? value : null;
 }
 
+function extractReviewFlags(reviewFlagsJson: unknown): ReviewFlagsView | null {
+  if (!isRecord(reviewFlagsJson)) {
+    return null;
+  }
+
+  const hasWebsite = reviewFlagsJson.hasWebsite;
+  const hasX = reviewFlagsJson.hasX;
+  const hasTelegram = reviewFlagsJson.hasTelegram;
+  const metaplexHit = reviewFlagsJson.metaplexHit;
+  const descriptionPresent = reviewFlagsJson.descriptionPresent;
+  const linkCount = reviewFlagsJson.linkCount;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number" ||
+    !Number.isInteger(linkCount) ||
+    linkCount < 0
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
+function countReviewFlags(reviewFlags: ReviewFlagsView | null): number {
+  if (reviewFlags === null) {
+    return 0;
+  }
+
+  return [
+    reviewFlags.hasWebsite,
+    reviewFlags.hasX,
+    reviewFlags.hasTelegram,
+    reviewFlags.metaplexHit,
+    reviewFlags.descriptionPresent,
+    reviewFlags.linkCount > 0,
+  ].filter(Boolean).length;
+}
+
 function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
   if (!isRecord(entrySnapshot)) {
     return {
@@ -364,6 +425,7 @@ async function run(): Promise<void> {
       scoreRank: true,
       scoreTotal: true,
       entrySnapshot: true,
+      reviewFlagsJson: true,
       _count: {
         select: {
           metrics: true,
@@ -388,6 +450,7 @@ async function run(): Promise<void> {
   const items = tokens.map((token): CompareReportItem => {
     const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
     const latestMetric = token.metrics[0] ?? null;
+    const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
     const changedFields = listChangedFields(entrySnapshot, {
       name: token.name,
       symbol: token.symbol,
@@ -412,6 +475,8 @@ async function run(): Promise<void> {
       changedFields,
       changedFieldsCount,
       metricsCount: token._count.metrics,
+      reviewFlags,
+      reviewFlagsCount: countReviewFlags(reviewFlags),
       latestMetricObservedAt: latestMetric
         ? latestMetric.observedAt.toISOString()
         : null,
