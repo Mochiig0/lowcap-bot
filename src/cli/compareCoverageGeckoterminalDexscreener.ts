@@ -23,6 +23,8 @@ type Args = {
   dexFile?: string;
   timeoutSeconds: number;
   intervalSeconds: number;
+  recheckAfterSeconds?: number;
+  recheckSampleLimit: number;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -50,6 +52,12 @@ type NativeTimeSample = {
   dexUpdatedAt: string | null;
 };
 
+type RecheckSample = {
+  mint: string;
+  initialGeckoPoolCreatedAt: string | null;
+  laterDexUpdatedAt: string | null;
+};
+
 type ComparisonOutput = {
   readOnly: true;
   geckoApiUrl: string;
@@ -64,6 +72,8 @@ type ComparisonOutput = {
     dexCollectionCompletedAt: string;
     timeoutSeconds: number;
     intervalSeconds: number;
+    recheckAfterSeconds: number | null;
+    recheckSampleLimit: number;
     dexPollCount: number;
     elapsedMs: number;
   };
@@ -76,13 +86,22 @@ type ComparisonOutput = {
   overlapCount: number;
   onlyGeckoCount: number;
   onlyDexCount: number;
+  recheckedMintCount: number;
+  laterSeenOnDexCount: number;
+  stillOnlyGeckoCount: number;
   overlapMints: string[];
   onlyGeckoMints: string[];
   onlyDexMints: string[];
+  laterSeenOnDexMints: string[];
+  stillOnlyGeckoMints: string[];
   representativeSamples: {
     overlap: NativeTimeSample[];
     onlyGecko: NativeTimeSample[];
     onlyDex: NativeTimeSample[];
+  };
+  recheckRepresentativeSamples: {
+    laterSeenOnDex: RecheckSample[];
+    stillOnlyGecko: RecheckSample[];
   };
 };
 
@@ -96,7 +115,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm compare:coverage:geckoterminal:dexscreener [--geckoFile <PATH>] [--dexFile <PATH>] [--timeoutSeconds <N>] [--intervalSeconds <N>]",
+    "pnpm compare:coverage:geckoterminal:dexscreener [--geckoFile <PATH>] [--dexFile <PATH>] [--timeoutSeconds <N>] [--intervalSeconds <N>] [--recheckAfterSeconds <N>] [--recheckSampleLimit <N>]",
     "",
     "Defaults:",
     `- fetches one live GeckoTerminal new_pools page from ${GECKOTERMINAL_API_URL}`,
@@ -104,6 +123,7 @@ function getUsageText(): string {
     "- stays read-only and does not write, checkpoint, or hand off into import:mint",
     "- compares unique accepted candidate mints only",
     "- defaults to --timeoutSeconds 60 and --intervalSeconds 15",
+    "- optional recheck mode waits before one more Dex collection for a small onlyGecko sample",
     "- if --geckoFile or --dexFile is set, that source is read from file instead of live fetch",
   ].join("\n");
 }
@@ -126,6 +146,7 @@ function parseArgs(argv: string[]): Args {
   const out: Args = {
     timeoutSeconds: 60,
     intervalSeconds: 15,
+    recheckSampleLimit: 3,
   };
 
   for (let i = 0; i < normalizedArgv.length; i += 1) {
@@ -151,6 +172,12 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--intervalSeconds":
         out.intervalSeconds = parsePositiveIntegerArg(value, key);
+        break;
+      case "--recheckAfterSeconds":
+        out.recheckAfterSeconds = parsePositiveIntegerArg(value, key);
+        break;
+      case "--recheckSampleLimit":
+        out.recheckSampleLimit = parsePositiveIntegerArg(value, key);
         break;
       default:
         throw new CliUsageError(`Unknown arg: ${key}`);
@@ -558,6 +585,19 @@ function buildRepresentativeSamples(
   }));
 }
 
+function buildRecheckSamples(
+  mints: string[],
+  geckoPoolCreatedAtByMint: Record<string, string | null>,
+  dexUpdatedAtByMint: Record<string, string | null>,
+  limit = 3,
+): RecheckSample[] {
+  return mints.slice(0, limit).map((mint) => ({
+    mint,
+    initialGeckoPoolCreatedAt: geckoPoolCreatedAtByMint[mint] ?? null,
+    laterDexUpdatedAt: dexUpdatedAtByMint[mint] ?? null,
+  }));
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const gecko = await loadGeckoCandidates(args);
@@ -567,6 +607,23 @@ async function main(): Promise<void> {
   const onlyDexMints = computeDifference(dex.acceptedMints, gecko.acceptedMints);
   const geckoPoolCreatedAtRange = computeDateRange(Object.values(gecko.poolCreatedAtByMint));
   const dexUpdatedAtRange = computeDateRange(Object.values(dex.updatedAtByMint));
+  let laterSeenOnDexMints: string[] = [];
+  let stillOnlyGeckoMints: string[] = [];
+  let laterDexUpdatedAtByMint: Record<string, string | null> = {};
+
+  if (args.recheckAfterSeconds !== undefined) {
+    const recheckTargetMints = onlyGeckoMints.slice(0, args.recheckSampleLimit);
+
+    if (recheckTargetMints.length > 0) {
+      await sleep(args.recheckAfterSeconds * 1_000);
+      const recheckDex = await collectDexMints(args);
+      const laterDexMintSet = new Set(recheckDex.acceptedMints);
+      laterDexUpdatedAtByMint = recheckDex.updatedAtByMint;
+
+      laterSeenOnDexMints = recheckTargetMints.filter((mint) => laterDexMintSet.has(mint));
+      stillOnlyGeckoMints = recheckTargetMints.filter((mint) => !laterDexMintSet.has(mint));
+    }
+  }
 
   const output: ComparisonOutput = {
     readOnly: true,
@@ -582,6 +639,8 @@ async function main(): Promise<void> {
       dexCollectionCompletedAt: dex.completedAt,
       timeoutSeconds: args.timeoutSeconds,
       intervalSeconds: args.intervalSeconds,
+      recheckAfterSeconds: args.recheckAfterSeconds ?? null,
+      recheckSampleLimit: args.recheckSampleLimit,
       dexPollCount: dex.pollCount,
       elapsedMs: dex.elapsedMs,
     },
@@ -594,9 +653,14 @@ async function main(): Promise<void> {
     overlapCount: overlapMints.length,
     onlyGeckoCount: onlyGeckoMints.length,
     onlyDexCount: onlyDexMints.length,
+    recheckedMintCount: laterSeenOnDexMints.length + stillOnlyGeckoMints.length,
+    laterSeenOnDexCount: laterSeenOnDexMints.length,
+    stillOnlyGeckoCount: stillOnlyGeckoMints.length,
     overlapMints,
     onlyGeckoMints,
     onlyDexMints,
+    laterSeenOnDexMints,
+    stillOnlyGeckoMints,
     representativeSamples: {
       overlap: buildRepresentativeSamples(
         overlapMints,
@@ -612,6 +676,18 @@ async function main(): Promise<void> {
         onlyDexMints,
         gecko.poolCreatedAtByMint,
         dex.updatedAtByMint,
+      ),
+    },
+    recheckRepresentativeSamples: {
+      laterSeenOnDex: buildRecheckSamples(
+        laterSeenOnDexMints,
+        gecko.poolCreatedAtByMint,
+        laterDexUpdatedAtByMint,
+      ),
+      stillOnlyGecko: buildRecheckSamples(
+        stillOnlyGeckoMints,
+        gecko.poolCreatedAtByMint,
+        laterDexUpdatedAtByMint,
       ),
     },
   };

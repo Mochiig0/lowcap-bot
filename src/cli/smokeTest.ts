@@ -5090,9 +5090,10 @@ async function run(): Promise<void> {
             eventType: "token_detected",
             detectedAt: "2026-04-21T00:00:00.000Z",
             payload: {
-              mintAddress: "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+              mintAddress: "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW",
               chainId: "solana",
-              tokenAddress: "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+              tokenAddress: "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW",
+              updatedAt: "2026-04-16T13:35:37.123Z",
             },
           },
           null,
@@ -5115,6 +5116,8 @@ async function run(): Promise<void> {
           dexFile: string | null;
           timeoutSeconds: number;
           intervalSeconds: number;
+          recheckAfterSeconds: number | null;
+          recheckSampleLimit: number;
           dexPollCount: number;
         };
         geckoPoolCreatedAtMin: string | null;
@@ -5126,9 +5129,14 @@ async function run(): Promise<void> {
         overlapCount: number;
         onlyGeckoCount: number;
         onlyDexCount: number;
+        recheckedMintCount: number;
+        laterSeenOnDexCount: number;
+        stillOnlyGeckoCount: number;
         overlapMints: string[];
         onlyGeckoMints: string[];
         onlyDexMints: string[];
+        laterSeenOnDexMints: string[];
+        stillOnlyGeckoMints: string[];
         representativeSamples: {
           overlap: Array<{
             mint: string;
@@ -5146,6 +5154,18 @@ async function run(): Promise<void> {
             dexUpdatedAt: string | null;
           }>;
         };
+        recheckRepresentativeSamples: {
+          laterSeenOnDex: Array<{
+            mint: string;
+            initialGeckoPoolCreatedAt: string | null;
+            laterDexUpdatedAt: string | null;
+          }>;
+          stillOnlyGecko: Array<{
+            mint: string;
+            initialGeckoPoolCreatedAt: string | null;
+            laterDexUpdatedAt: string | null;
+          }>;
+        };
       }>(
         "geckoterminal dexscreener coverage compare",
         "src/cli/compareCoverageGeckoterminalDexscreener.ts",
@@ -5158,6 +5178,10 @@ async function run(): Promise<void> {
           "30",
           "--intervalSeconds",
           "10",
+          "--recheckAfterSeconds",
+          "1",
+          "--recheckSampleLimit",
+          "1",
         ],
         context.smokeId,
       );
@@ -5180,26 +5204,43 @@ async function run(): Promise<void> {
         parsed.selection.dexMode !== "file" ||
         parsed.selection.timeoutSeconds !== 30 ||
         parsed.selection.intervalSeconds !== 10 ||
+        parsed.selection.recheckAfterSeconds !== 1 ||
+        parsed.selection.recheckSampleLimit !== 1 ||
         parsed.selection.dexPollCount !== 1 ||
         parsed.geckoPoolCreatedAtMin !== "2026-04-18T02:13:55.000Z" ||
         parsed.geckoPoolCreatedAtMax !== "2026-04-18T02:13:55.000Z" ||
-        parsed.dexUpdatedAtMin !== null ||
-        parsed.dexUpdatedAtMax !== null ||
+        parsed.dexUpdatedAtMin !== "2026-04-16T13:35:37.123Z" ||
+        parsed.dexUpdatedAtMax !== "2026-04-16T13:35:37.123Z" ||
         parsed.geckoCount !== 1 ||
         parsed.dexCount !== 1 ||
-        parsed.overlapCount !== 1 ||
-        parsed.onlyGeckoCount !== 0 ||
-        parsed.onlyDexCount !== 0 ||
-        parsed.overlapMints[0] !== "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
-        parsed.onlyGeckoMints.length !== 0 ||
-        parsed.onlyDexMints.length !== 0 ||
-        parsed.representativeSamples.overlap[0]?.mint !==
+        parsed.overlapCount !== 0 ||
+        parsed.onlyGeckoCount !== 1 ||
+        parsed.onlyDexCount !== 1 ||
+        parsed.recheckedMintCount !== 1 ||
+        parsed.laterSeenOnDexCount !== 0 ||
+        parsed.stillOnlyGeckoCount !== 1 ||
+        parsed.overlapMints.length !== 0 ||
+        parsed.onlyGeckoMints[0] !== "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
+        parsed.onlyDexMints[0] !== "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW" ||
+        parsed.laterSeenOnDexMints.length !== 0 ||
+        parsed.stillOnlyGeckoMints[0] !== "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
+        parsed.representativeSamples.overlap.length !== 0 ||
+        parsed.representativeSamples.onlyGecko[0]?.mint !==
           "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
-        parsed.representativeSamples.overlap[0]?.geckoPoolCreatedAt !==
+        parsed.representativeSamples.onlyGecko[0]?.geckoPoolCreatedAt !==
           "2026-04-18T02:13:55.000Z" ||
-        parsed.representativeSamples.overlap[0]?.dexUpdatedAt !== null ||
-        parsed.representativeSamples.onlyGecko.length !== 0 ||
-        parsed.representativeSamples.onlyDex.length !== 0
+        parsed.representativeSamples.onlyGecko[0]?.dexUpdatedAt !== null ||
+        parsed.representativeSamples.onlyDex[0]?.mint !==
+          "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW" ||
+        parsed.representativeSamples.onlyDex[0]?.geckoPoolCreatedAt !== null ||
+        parsed.representativeSamples.onlyDex[0]?.dexUpdatedAt !==
+          "2026-04-16T13:35:37.123Z" ||
+        parsed.recheckRepresentativeSamples.laterSeenOnDex.length !== 0 ||
+        parsed.recheckRepresentativeSamples.stillOnlyGecko[0]?.mint !==
+          "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
+        parsed.recheckRepresentativeSamples.stillOnlyGecko[0]?.initialGeckoPoolCreatedAt !==
+          "2026-04-18T02:13:55.000Z" ||
+        parsed.recheckRepresentativeSamples.stillOnlyGecko[0]?.laterDexUpdatedAt !== null
       ) {
         throw new Error("geckoterminal dexscreener coverage compare returned unexpected output");
       }

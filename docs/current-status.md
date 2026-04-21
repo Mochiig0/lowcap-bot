@@ -35,7 +35,7 @@ pnpm compare:geckoterminal:dexscreener [--timeoutSeconds <N>] [--intervalSeconds
 ```
 
 ```bash
-pnpm compare:coverage:geckoterminal:dexscreener [--geckoFile <PATH>] [--dexFile <PATH>] [--timeoutSeconds <N>] [--intervalSeconds <N>]
+pnpm compare:coverage:geckoterminal:dexscreener [--geckoFile <PATH>] [--dexFile <PATH>] [--timeoutSeconds <N>] [--intervalSeconds <N>] [--recheckAfterSeconds <N>] [--recheckSampleLimit <N>]
 ```
 
 ```bash
@@ -144,7 +144,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `pnpm metrics:report` is the read-only metric inspection view.
 - `pnpm ops:summary:geckoterminal` is the read-only recent Gecko-origin operations overview.
 - `pnpm review:queue:geckoterminal` is the read-only recent Gecko-origin review queue for next-look extraction.
-- `pnpm compare:coverage:geckoterminal:dexscreener` is the read-only short-window batch coverage spot check for overlap, Gecko-only, and Dex-only mint sets.
+- `pnpm compare:coverage:geckoterminal:dexscreener` is the read-only short-window batch coverage spot check for overlap, Gecko-only, and Dex-only mint sets, with optional bounded Dex recheck for a small Gecko-only sample.
 
 ### Current Operational Constraints
 
