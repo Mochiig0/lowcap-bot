@@ -74,6 +74,14 @@ type InterestingFlagsView = {
   metaplexHit: boolean;
 };
 
+type MetricCompletenessView = {
+  hasLatestMetric: boolean;
+  latestMetricSource: string | null;
+  hasLatestMultiple: boolean;
+  hasLatestPeakFdv24h: boolean;
+  hasLatestTimeToPeak: boolean;
+};
+
 type OutcomeBucket = "winner" | "non_winner" | "unresolved";
 type OutcomeBucketReason =
   | "no_metric"
@@ -87,6 +95,7 @@ type CompareReportItem = {
   symbol: string | null;
   metadataStatus: string;
   interestingFlags: InterestingFlagsView | null;
+  metricCompleteness: MetricCompletenessView;
   outcomeBucket: OutcomeBucket;
   outcomeBucketReason: OutcomeBucketReason;
   entryScoreRank: string | null;
@@ -419,6 +428,25 @@ function extractInterestingFlags(reviewFlags: ReviewFlagsView | null): Interesti
   };
 }
 
+function buildMetricCompleteness(
+  latestMetric: {
+    source?: string | null;
+    maxMultiple15m?: number | null;
+    peakFdv24h?: number | null;
+    timeToPeakMinutes?: number | null;
+  } | null,
+): MetricCompletenessView {
+  return {
+    hasLatestMetric: latestMetric !== null,
+    latestMetricSource: latestMetric?.source ?? null,
+    hasLatestMultiple: latestMetric?.maxMultiple15m !== null && latestMetric?.maxMultiple15m !== undefined,
+    hasLatestPeakFdv24h: latestMetric?.peakFdv24h !== null && latestMetric?.peakFdv24h !== undefined,
+    hasLatestTimeToPeak:
+      latestMetric?.timeToPeakMinutes !== null &&
+      latestMetric?.timeToPeakMinutes !== undefined,
+  };
+}
+
 function deriveOutcomeBucket(
   metricsCount: number,
   latestMaxMultiple15m: number | null,
@@ -564,6 +592,7 @@ async function run(): Promise<void> {
           take: 1,
           select: {
             observedAt: true,
+            source: true,
             peakFdv24h: true,
             maxMultiple15m: true,
             timeToPeakMinutes: true,
@@ -598,6 +627,7 @@ async function run(): Promise<void> {
       symbol: token.symbol,
       metadataStatus: token.metadataStatus,
       interestingFlags: extractInterestingFlags(reviewFlags),
+      metricCompleteness: buildMetricCompleteness(latestMetric),
       outcomeBucket: outcomeBucket.outcomeBucket,
       outcomeBucketReason: outcomeBucket.outcomeBucketReason,
       entryScoreRank: entrySnapshot.scoreRank,
@@ -756,6 +786,15 @@ async function run(): Promise<void> {
   }
 
   const limitedItems = filteredItems.slice(0, args.limit);
+  const latestMetricMissingCount = limitedItems.filter(
+    (item) => !item.metricCompleteness.hasLatestMetric,
+  ).length;
+  const latestMultipleMissingCount = limitedItems.filter(
+    (item) => !item.metricCompleteness.hasLatestMultiple,
+  ).length;
+  const latestPeakMissingCount = limitedItems.filter(
+    (item) => !item.metricCompleteness.hasLatestPeakFdv24h,
+  ).length;
 
   console.log(
     JSON.stringify(
@@ -763,6 +802,9 @@ async function run(): Promise<void> {
         count: Math.min(preFilterCount, args.limit),
         preFilterCount,
         filteredCount: limitedItems.length,
+        latestMetricMissingCount,
+        latestMultipleMissingCount,
+        latestPeakMissingCount,
         filters: {
           rank: args.rank ?? null,
           source: args.source ?? null,

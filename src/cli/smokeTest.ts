@@ -7606,12 +7606,22 @@ async function run(): Promise<void> {
         count: number;
         preFilterCount: number;
         filteredCount: number;
+        latestMetricMissingCount: number;
+        latestMultipleMissingCount: number;
+        latestPeakMissingCount: number;
         filters: {
           interestingFlagsOnly: boolean;
         };
         items: Array<{
           mint: string;
           metadataStatus: string;
+          metricCompleteness: {
+            hasLatestMetric: boolean;
+            latestMetricSource: string | null;
+            hasLatestMultiple: boolean;
+            hasLatestPeakFdv24h: boolean;
+            hasLatestTimeToPeak: boolean;
+          };
           outcomeBucket: "winner" | "non_winner" | "unresolved";
           outcomeBucketReason:
             | "no_metric"
@@ -7644,11 +7654,18 @@ async function run(): Promise<void> {
       if (
         interestingFlagsOnly.filters.interestingFlagsOnly !== true ||
         interestingFlagsOnly.filteredCount !== interestingFlagsOnly.items.length ||
+        interestingFlagsOnly.latestMetricMissingCount !== 0 ||
+        interestingFlagsOnly.latestMultipleMissingCount === 0 ||
+        interestingFlagsOnly.latestPeakMissingCount === 0 ||
         !interestingFlagsOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
         !interestingFlagsOnly.items.some(
           (item) =>
             item.outcomeBucket === "unresolved" &&
-            item.outcomeBucketReason === "multiple_missing",
+            item.outcomeBucketReason === "multiple_missing" &&
+            item.metricCompleteness.hasLatestMetric === true &&
+            item.metricCompleteness.latestMetricSource === "geckoterminal.token_snapshot" &&
+            item.metricCompleteness.hasLatestMultiple === false &&
+            item.metricCompleteness.hasLatestPeakFdv24h === false,
         ) ||
         interestingFlagsOnly.items.some(
           (item) =>
