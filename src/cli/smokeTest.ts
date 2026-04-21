@@ -7451,6 +7451,11 @@ async function run(): Promise<void> {
         items: Array<{
           mint: string;
           outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
           entryVsCurrentChanged: boolean;
           changedFields: string[];
           changedFieldsCount: number;
@@ -7496,6 +7501,9 @@ async function run(): Promise<void> {
       if (reportItem.outcomeBucket !== "winner") {
         throw new Error("tokens compare report did not classify metric token as winner");
       }
+      if (reportItem.outcomeBucketReason !== "multiple_gte_threshold") {
+        throw new Error("tokens compare report did not classify metric token reason");
+      }
 
       if (typeof reportItem.entryVsCurrentChanged !== "boolean") {
         throw new Error("tokens compare report did not include entryVsCurrentChanged");
@@ -7515,8 +7523,14 @@ async function run(): Promise<void> {
         );
       }
 
-      if (!parsed.items.some((item) => item.outcomeBucket === "unresolved")) {
-        throw new Error("tokens compare report did not include any unresolved rows");
+      if (
+        !parsed.items.some(
+          (item) =>
+            item.outcomeBucket === "unresolved" &&
+            item.outcomeBucketReason === "no_metric",
+        )
+      ) {
+        throw new Error("tokens compare report did not include any no-metric unresolved rows");
       }
 
       const geckoCompareWithFlags = await runCliJson<{
@@ -7534,6 +7548,11 @@ async function run(): Promise<void> {
             metaplexHit: boolean;
           } | null;
           outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
           reviewFlags: {
             hasWebsite: boolean;
             hasX: boolean;
@@ -7574,7 +7593,8 @@ async function run(): Promise<void> {
         geckoCompareItem.reviewFlags.metaplexHit !== true ||
         geckoCompareItem.reviewFlags.descriptionPresent !== true ||
         geckoCompareItem.reviewFlags.linkCount !== 7 ||
-        geckoCompareItem.outcomeBucket !== "non_winner"
+        geckoCompareItem.outcomeBucket !== "non_winner" ||
+        geckoCompareItem.outcomeBucketReason !== "multiple_below_threshold"
       ) {
         throw new Error("tokens compare report did not expose expected review flags");
       }
@@ -7593,6 +7613,11 @@ async function run(): Promise<void> {
           mint: string;
           metadataStatus: string;
           outcomeBucket: "winner" | "non_winner" | "unresolved";
+          outcomeBucketReason:
+            | "no_metric"
+            | "multiple_missing"
+            | "multiple_gte_threshold"
+            | "multiple_below_threshold";
           interestingFlags: {
             hasWebsite: boolean;
             descriptionPresent: boolean;
@@ -7620,7 +7645,11 @@ async function run(): Promise<void> {
         interestingFlagsOnly.filters.interestingFlagsOnly !== true ||
         interestingFlagsOnly.filteredCount !== interestingFlagsOnly.items.length ||
         !interestingFlagsOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
-        !interestingFlagsOnly.items.some((item) => item.outcomeBucket === "non_winner") ||
+        !interestingFlagsOnly.items.some(
+          (item) =>
+            item.outcomeBucket === "unresolved" &&
+            item.outcomeBucketReason === "multiple_missing",
+        ) ||
         interestingFlagsOnly.items.some(
           (item) =>
             item.interestingFlags === null ||

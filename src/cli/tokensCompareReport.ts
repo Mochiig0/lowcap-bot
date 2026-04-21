@@ -73,6 +73,11 @@ type InterestingFlagsView = {
 };
 
 type OutcomeBucket = "winner" | "non_winner" | "unresolved";
+type OutcomeBucketReason =
+  | "no_metric"
+  | "multiple_missing"
+  | "multiple_gte_threshold"
+  | "multiple_below_threshold";
 
 type CompareReportItem = {
   mint: string;
@@ -81,6 +86,7 @@ type CompareReportItem = {
   metadataStatus: string;
   interestingFlags: InterestingFlagsView | null;
   outcomeBucket: OutcomeBucket;
+  outcomeBucketReason: OutcomeBucketReason;
   entryScoreRank: string | null;
   entryScoreTotal: number | null;
   currentScoreRank: string;
@@ -380,19 +386,35 @@ function extractInterestingFlags(reviewFlags: ReviewFlagsView | null): Interesti
 function deriveOutcomeBucket(
   metricsCount: number,
   latestMaxMultiple15m: number | null,
-): OutcomeBucket {
+): {
+  outcomeBucket: OutcomeBucket;
+  outcomeBucketReason: OutcomeBucketReason;
+} {
   if (metricsCount === 0) {
-    return "unresolved";
+    return {
+      outcomeBucket: "unresolved",
+      outcomeBucketReason: "no_metric",
+    };
   }
 
-  if (
-    latestMaxMultiple15m !== null &&
-    latestMaxMultiple15m >= WORKING_WINNER_MAX_MULTIPLE_15M
-  ) {
-    return "winner";
+  if (latestMaxMultiple15m === null) {
+    return {
+      outcomeBucket: "unresolved",
+      outcomeBucketReason: "multiple_missing",
+    };
   }
 
-  return "non_winner";
+  if (latestMaxMultiple15m >= WORKING_WINNER_MAX_MULTIPLE_15M) {
+    return {
+      outcomeBucket: "winner",
+      outcomeBucketReason: "multiple_gte_threshold",
+    };
+  }
+
+  return {
+    outcomeBucket: "non_winner",
+    outcomeBucketReason: "multiple_below_threshold",
+  };
 }
 
 function extractEntrySnapshotView(entrySnapshot: unknown): EntrySnapshotView {
@@ -519,6 +541,10 @@ async function run(): Promise<void> {
     const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
     const latestMetric = token.metrics[0] ?? null;
     const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
+    const outcomeBucket = deriveOutcomeBucket(
+      token._count.metrics,
+      latestMetric?.maxMultiple15m ?? null,
+    );
     const changedFields = listChangedFields(entrySnapshot, {
       name: token.name,
       symbol: token.symbol,
@@ -536,10 +562,8 @@ async function run(): Promise<void> {
       symbol: token.symbol,
       metadataStatus: token.metadataStatus,
       interestingFlags: extractInterestingFlags(reviewFlags),
-      outcomeBucket: deriveOutcomeBucket(
-        token._count.metrics,
-        latestMetric?.maxMultiple15m ?? null,
-      ),
+      outcomeBucket: outcomeBucket.outcomeBucket,
+      outcomeBucketReason: outcomeBucket.outcomeBucketReason,
       entryScoreRank: entrySnapshot.scoreRank,
       entryScoreTotal: entrySnapshot.scoreTotal,
       currentScoreRank: token.scoreRank,
