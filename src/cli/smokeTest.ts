@@ -6294,6 +6294,159 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("geckoterminal manual targets", async () => {
+      const manualTargetMint = `${context.smokeId.toLowerCase()}manualtargetpump`;
+      const smokeManualTargetMint = `SMOKE_${context.smokeId}_MANUAL_TARGET`;
+      const manualTargetTimestamp = new Date(Date.now() - 7 * 60 * 60 * 1_000);
+
+      await db.token.create({
+        data: {
+          mint: manualTargetMint,
+          source: "geckoterminal.new_pools",
+          name: "manual target token",
+          symbol: "MTT",
+          metadataStatus: "partial",
+          enrichedAt: manualTargetTimestamp,
+          rescoredAt: manualTargetTimestamp,
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: manualTargetTimestamp.toISOString(),
+            },
+          },
+          reviewFlagsJson: {
+            hasWebsite: true,
+            hasX: false,
+            hasTelegram: false,
+            metaplexHit: false,
+            descriptionPresent: true,
+            linkCount: 1,
+          },
+        },
+      });
+
+      await db.token.create({
+        data: {
+          mint: smokeManualTargetMint,
+          source: "geckoterminal.new_pools",
+          name: "smoke manual target",
+          symbol: "SMT",
+          metadataStatus: "partial",
+          enrichedAt: manualTargetTimestamp,
+          rescoredAt: manualTargetTimestamp,
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: manualTargetTimestamp.toISOString(),
+            },
+          },
+        },
+      });
+
+      try {
+        const [tokenCountBefore, metricCountBefore] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        const parsed = await runCliJson<{
+          readOnly: boolean;
+          originSource: string;
+          selection: {
+            sinceHours: number;
+            limit: number;
+            pumpOnly: boolean;
+            staleAfterHours: number;
+            geckoOriginTokenCount: number;
+            pumpFilteredTokenCount: number;
+            excludedSmokeCount: number;
+            eligibleManualTargetCount: number;
+            selectedCount: number;
+          };
+          summary: {
+            selectedCount: number;
+            selectionAnchorKindCounts: Record<string, number>;
+            reviewFlagsCountDistribution: Record<string, number>;
+          };
+          representativeRows: Array<{
+            mint: string;
+            name: string | null;
+            symbol: string | null;
+            metadataStatus: string;
+            selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
+            pendingAgeMinutes: number;
+            reviewFlagsCount: number;
+            queuesMatched: string[];
+            latestMetricObservedAt: string | null;
+            latestMetricSource: string | null;
+          }>;
+        }>(
+          "geckoterminal manual targets",
+          "src/cli/geckoterminalManualTargets.ts",
+          [
+            "--sinceHours",
+            "24",
+            "--limit",
+            "10",
+          ],
+          context.smokeId,
+        );
+
+        const [tokenCountAfter, metricCountAfter] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        if (tokenCountBefore !== tokenCountAfter || metricCountBefore !== metricCountAfter) {
+          throw new Error("geckoterminal manual targets was not read-only");
+        }
+
+        const selectionAnchorKindCountTotal = Object.values(
+          parsed.summary.selectionAnchorKindCounts,
+        ).reduce((sum, count) => sum + count, 0);
+        const reviewFlagsCountDistributionTotal = Object.values(
+          parsed.summary.reviewFlagsCountDistribution,
+        ).reduce((sum, count) => sum + count, 0);
+
+        if (
+          parsed.readOnly !== true ||
+          parsed.originSource !== "geckoterminal.new_pools" ||
+          parsed.selection.sinceHours !== 24 ||
+          parsed.selection.limit !== 10 ||
+          parsed.selection.pumpOnly !== false ||
+          parsed.selection.staleAfterHours !== 6 ||
+          parsed.selection.geckoOriginTokenCount < 1 ||
+          parsed.selection.pumpFilteredTokenCount < parsed.selection.selectedCount ||
+          parsed.selection.excludedSmokeCount < 1 ||
+          parsed.selection.eligibleManualTargetCount < 1 ||
+          parsed.selection.selectedCount < 1 ||
+          parsed.summary.selectedCount !== parsed.selection.selectedCount ||
+          selectionAnchorKindCountTotal !== parsed.selection.selectedCount ||
+          reviewFlagsCountDistributionTotal !== parsed.selection.selectedCount ||
+          !parsed.representativeRows.some((item) => item.mint === manualTargetMint) ||
+          parsed.representativeRows.some(
+            (item) =>
+              item.mint.startsWith("SMOKE_") ||
+              item.metadataStatus !== "partial" ||
+              !item.queuesMatched.includes("staleReview") ||
+              !item.queuesMatched.includes("metricPending") ||
+              item.latestMetricObservedAt !== null ||
+              item.latestMetricSource !== null,
+          )
+        ) {
+          throw new Error("geckoterminal manual targets returned unexpected output");
+        }
+      } finally {
+        await db.token.deleteMany({
+          where: {
+            mint: {
+              in: [manualTargetMint, smokeManualTargetMint],
+            },
+          },
+        });
+      }
+    });
+
     await runStep("geckoterminal metric priority window check", async () => {
       const helperBaseTimestamp = Date.now();
       const helperDatabaseUrl = `file:/tmp/${context.smokeId}-metric-priority-window-check.db`;

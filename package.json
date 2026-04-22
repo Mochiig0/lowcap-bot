@@ -32,6 +32,7 @@
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
     "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "review:pending-shape:geckoterminal": "node --import tsx src/cli/geckoterminalPendingShape.ts",
+    "review:manual-targets:geckoterminal": "node --import tsx src/cli/geckoterminalManualTargets.ts",
     "metric:priority-window-check:geckoterminal": "node --import tsx src/cli/metricPriorityWindowCheckGeckoterminal.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
     "token:compare": "tsx src/cli/tokenCompare.ts",
