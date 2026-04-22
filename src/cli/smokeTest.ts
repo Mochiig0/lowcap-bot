@@ -3077,7 +3077,7 @@ async function run(): Promise<void> {
             importedAt: new Date(priorityBaseTime - 15_000),
             metadataStatus: "partial",
             reviewFlagsJson: {
-              hasWebsite: true,
+              hasWebsite: false,
               hasX: false,
               hasTelegram: false,
               metaplexHit: false,
@@ -8220,6 +8220,7 @@ async function run(): Promise<void> {
         latestPeakMissingCount: number;
         filters: {
           interestingFlagsOnly: boolean;
+          latestMetricSource: string | null;
           hasLatestMultiple?: boolean | null;
         };
         items: Array<{
@@ -8255,6 +8256,8 @@ async function run(): Promise<void> {
           "--source",
           "geckoterminal.new_pools",
           "--interestingFlagsOnly",
+          "--latestMetricSource",
+          "smoke-gecko-review-flags",
           "--limit",
           "20",
         ],
@@ -8263,19 +8266,20 @@ async function run(): Promise<void> {
 
       if (
         interestingFlagsOnly.filters.interestingFlagsOnly !== true ||
+        interestingFlagsOnly.filters.latestMetricSource !== "smoke-gecko-review-flags" ||
         interestingFlagsOnly.filteredCount !== interestingFlagsOnly.items.length ||
         interestingFlagsOnly.latestMetricMissingCount !== 0 ||
-        interestingFlagsOnly.latestMultipleMissingCount === 0 ||
-        interestingFlagsOnly.latestPeakMissingCount === 0 ||
+        interestingFlagsOnly.latestMultipleMissingCount !== 0 ||
+        interestingFlagsOnly.latestPeakMissingCount !== 0 ||
         !interestingFlagsOnly.items.some((item) => item.mint === context.geckoEnrichRescoreMint) ||
         !interestingFlagsOnly.items.some(
           (item) =>
-            item.outcomeBucket === "unresolved" &&
-            item.outcomeBucketReason === "multiple_missing" &&
+            item.outcomeBucket === "non_winner" &&
+            item.outcomeBucketReason === "multiple_below_threshold" &&
             item.metricCompleteness.hasLatestMetric === true &&
-            item.metricCompleteness.latestMetricSource === "geckoterminal.token_snapshot" &&
-            item.metricCompleteness.hasLatestMultiple === false &&
-            item.metricCompleteness.hasLatestPeakFdv24h === false,
+            item.metricCompleteness.latestMetricSource === "smoke-gecko-review-flags" &&
+            item.metricCompleteness.hasLatestMultiple === true &&
+            item.metricCompleteness.hasLatestPeakFdv24h === true,
         ) ||
         interestingFlagsOnly.items.some(
           (item) =>
@@ -8292,6 +8296,7 @@ async function run(): Promise<void> {
         filteredCount: number;
         filters: {
           interestingFlagsOnly: boolean;
+          latestMetricSource: string | null;
           hasLatestMultiple: boolean | null;
         };
         items: Array<{
@@ -8309,6 +8314,8 @@ async function run(): Promise<void> {
           "--source",
           "geckoterminal.new_pools",
           "--interestingFlagsOnly",
+          "--latestMetricSource",
+          "geckoterminal.token_snapshot",
           "--hasLatestMultiple",
           "false",
           "--limit",
@@ -8319,16 +8326,13 @@ async function run(): Promise<void> {
 
       if (
         interestingFlagsMissingMultiple.filters.interestingFlagsOnly !== true ||
+        interestingFlagsMissingMultiple.filters.latestMetricSource !==
+          "geckoterminal.token_snapshot" ||
         interestingFlagsMissingMultiple.filters.hasLatestMultiple !== false ||
-        interestingFlagsMissingMultiple.filteredCount === 0 ||
-        !interestingFlagsMissingMultiple.items.some(
-          (item) =>
-            item.metricCompleteness.hasLatestMetric === true &&
-            item.metricCompleteness.latestMetricSource === "geckoterminal.token_snapshot" &&
-            item.metricCompleteness.hasLatestMultiple === false,
-        ) ||
         interestingFlagsMissingMultiple.items.some(
-          (item) => item.metricCompleteness.hasLatestMultiple !== false,
+          (item) =>
+            item.metricCompleteness.latestMetricSource !== "geckoterminal.token_snapshot" ||
+            item.metricCompleteness.hasLatestMultiple !== false,
         )
       ) {
         throw new Error(
