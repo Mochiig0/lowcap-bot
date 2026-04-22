@@ -28,6 +28,10 @@ type QueueName =
   | "enrichPending"
   | "metricPending";
 
+type PendingAgeBucket = "lte5m" | "lte15m" | "lte60m" | "gt60m";
+
+type PendingAgeBucketCounts = Record<PendingAgeBucket, number>;
+
 type ReviewFlagsView = {
   hasWebsite: boolean;
   hasX: boolean;
@@ -78,6 +82,8 @@ type ReviewQueueItem = {
   selectionAnchorAt: string;
   selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
   ageHours: number;
+  pendingAgeMinutes: number;
+  pendingAgeBucket: PendingAgeBucket;
   metricsCount: number;
   latestMetricObservedAt: string | null;
   latestMetricSource: string | null;
@@ -331,6 +337,42 @@ function getAgeHours(selectionAnchorAt: string): number {
   return Number(((Date.now() - Date.parse(selectionAnchorAt)) / (60 * 60 * 1_000)).toFixed(2));
 }
 
+function getPendingAgeMinutes(selectionAnchorAt: string): number {
+  return Math.max(0, Math.floor((Date.now() - Date.parse(selectionAnchorAt)) / 60_000));
+}
+
+function getPendingAgeBucket(pendingAgeMinutes: number): PendingAgeBucket {
+  if (pendingAgeMinutes <= 5) {
+    return "lte5m";
+  }
+
+  if (pendingAgeMinutes <= 15) {
+    return "lte15m";
+  }
+
+  if (pendingAgeMinutes <= 60) {
+    return "lte60m";
+  }
+
+  return "gt60m";
+}
+
+function createPendingAgeBucketCounts(): PendingAgeBucketCounts {
+  return {
+    lte5m: 0,
+    lte15m: 0,
+    lte60m: 0,
+    gt60m: 0,
+  };
+}
+
+function summarizePendingAgeBuckets(items: ReviewQueueItem[]): PendingAgeBucketCounts {
+  return items.reduce<PendingAgeBucketCounts>((counts, item) => {
+    counts[item.pendingAgeBucket] += 1;
+    return counts;
+  }, createPendingAgeBucketCounts());
+}
+
 function buildReviewReasons(
   token: SelectedToken,
   staleAfterHours: number,
@@ -397,6 +439,7 @@ function buildQueuesMatched(
 
 function buildReviewQueueItem(token: SelectedToken, staleAfterHours: number): ReviewQueueItem {
   const ageHours = getAgeHours(token.selectionAnchorAt);
+  const pendingAgeMinutes = getPendingAgeMinutes(token.selectionAnchorAt);
   const queuesMatched = buildQueuesMatched(token, staleAfterHours, ageHours);
 
   return {
@@ -415,6 +458,8 @@ function buildReviewQueueItem(token: SelectedToken, staleAfterHours: number): Re
     selectionAnchorAt: token.selectionAnchorAt,
     selectionAnchorKind: token.selectionAnchorKind,
     ageHours,
+    pendingAgeMinutes,
+    pendingAgeBucket: getPendingAgeBucket(pendingAgeMinutes),
     metricsCount: token.metricsCount,
     latestMetricObservedAt: token.latestMetricObservedAt,
     latestMetricSource: token.latestMetricSource,
@@ -540,6 +585,8 @@ async function run(): Promise<void> {
   const metricPending = reviewItems
     .filter((item) => item.queuesMatched.includes("metricPending"))
     .sort(sortBySelectionAnchorDesc);
+  const enrichPendingAgeBuckets = summarizePendingAgeBuckets(enrichPending);
+  const metricPendingAgeBuckets = summarizePendingAgeBuckets(metricPending);
 
   const preview = reviewItems
     .filter((item) => item.queuesMatched.length > 0)
@@ -590,6 +637,8 @@ async function run(): Promise<void> {
           enrichPendingCount: enrichPending.length,
           rescorePendingCount: rescorePending.length,
           metricPendingCount: metricPending.length,
+          enrichPendingAgeBuckets,
+          metricPendingAgeBuckets,
           notifyCandidateCount: notifyCandidates.length,
           staleReviewCount: staleReview.length,
           highPriorityRecentCount: highPriorityRecent.length,

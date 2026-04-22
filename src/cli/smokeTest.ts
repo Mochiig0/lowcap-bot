@@ -5428,6 +5428,18 @@ async function run(): Promise<void> {
           enrichPendingCount: number;
           rescorePendingCount: number;
           metricPendingCount: number;
+          enrichPendingAgeBuckets: {
+            lte5m: number;
+            lte15m: number;
+            lte60m: number;
+            gt60m: number;
+          };
+          metricPendingAgeBuckets: {
+            lte5m: number;
+            lte15m: number;
+            lte60m: number;
+            gt60m: number;
+          };
           notifyCandidateCount: number;
           staleReviewCount: number;
           highPriorityRecentCount: number;
@@ -5455,6 +5467,8 @@ async function run(): Promise<void> {
           staleReview: Array<{
             mint: string;
             ageHours: number;
+            pendingAgeMinutes: number;
+            pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
             queuesMatched: string[];
           }>;
           rescorePending: Array<{
@@ -5465,11 +5479,15 @@ async function run(): Promise<void> {
           enrichPending: Array<{
             mint: string;
             metadataStatus: string;
+            pendingAgeMinutes: number;
+            pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
             queuesMatched: string[];
           }>;
           metricPending: Array<{
             mint: string;
             metricsCount: number;
+            pendingAgeMinutes: number;
+            pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
             queuesMatched: string[];
           }>;
         };
@@ -5518,6 +5536,16 @@ async function run(): Promise<void> {
         parsed.summary.enrichPendingCount < 1 ||
         parsed.summary.rescorePendingCount < 1 ||
         parsed.summary.metricPendingCount < 1 ||
+        parsed.summary.enrichPendingAgeBuckets.lte5m +
+          parsed.summary.enrichPendingAgeBuckets.lte15m +
+          parsed.summary.enrichPendingAgeBuckets.lte60m +
+          parsed.summary.enrichPendingAgeBuckets.gt60m !==
+          parsed.summary.enrichPendingCount ||
+        parsed.summary.metricPendingAgeBuckets.lte5m +
+          parsed.summary.metricPendingAgeBuckets.lte15m +
+          parsed.summary.metricPendingAgeBuckets.lte60m +
+          parsed.summary.metricPendingAgeBuckets.gt60m !==
+          parsed.summary.metricPendingCount ||
         parsed.summary.notifyCandidateCount < 1 ||
         !Array.isArray(parsed.preview) ||
         parsed.preview.length === 0
@@ -5555,6 +5583,23 @@ async function run(): Promise<void> {
         !metricPendingMints.has(context.geckoterminalDetectRunnerMint)
       ) {
         throw new Error("geckoterminal review queue did not include expected queue items");
+      }
+
+      if (
+        parsed.queues.enrichPending.some(
+          (item) =>
+            typeof item.pendingAgeMinutes !== "number" ||
+            item.pendingAgeMinutes < 0 ||
+            !["lte5m", "lte15m", "lte60m", "gt60m"].includes(item.pendingAgeBucket),
+        ) ||
+        parsed.queues.metricPending.some(
+          (item) =>
+            typeof item.pendingAgeMinutes !== "number" ||
+            item.pendingAgeMinutes < 0 ||
+            !["lte5m", "lte15m", "lte60m", "gt60m"].includes(item.pendingAgeBucket),
+        )
+      ) {
+        throw new Error("geckoterminal review queue did not expose expected pending age fields");
       }
 
       if (
@@ -5597,10 +5642,18 @@ async function run(): Promise<void> {
         summary: {
           geckoOriginTokenCount: number;
           enrichPendingCount: number;
+          enrichPendingAgeBuckets: {
+            lte5m: number;
+            lte15m: number;
+            lte60m: number;
+            gt60m: number;
+          };
         };
         queues: {
           enrichPending: Array<{
             mint: string;
+            pendingAgeMinutes: number;
+            pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
           }>;
         };
         preview: Array<{
@@ -5647,10 +5700,14 @@ async function run(): Promise<void> {
         pumpOnlyParsed.summary.geckoOriginTokenCount !==
           pumpOnlyParsed.selection.geckoOriginTokenCount ||
         pumpOnlyParsed.summary.enrichPendingCount < 1 ||
+        pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte5m +
+          pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte15m +
+        pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte60m +
+          pumpOnlyParsed.summary.enrichPendingAgeBuckets.gt60m !==
+          pumpOnlyParsed.summary.enrichPendingCount ||
         !pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescorePumpMint) ||
         pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescoreNonPumpMint) ||
         pumpOnlyParsed.preview.length === 0 ||
-        !pumpOnlyPreviewMints.has(context.geckoEnrichRescorePumpMint) ||
         pumpOnlyPreviewMints.has(context.geckoEnrichRescoreNonPumpMint) ||
         pumpOnlyParsed.preview.some((item) => !item.mint.endsWith("pump"))
       ) {
