@@ -67,12 +67,16 @@ type ParsedAvailability = {
   availableFields: string[];
 };
 
+type ErrorCategory = "timeout" | "network_error" | "unknown_error";
+
 type SourceResult = {
   sourceId: string;
   family: string;
   endpoint: string;
   status: "ok" | "not_found" | "error";
   rateLimited: boolean;
+  errorCategory: ErrorCategory | null;
+  errorCode: string | null;
   availableFields: string[];
   metadata: {
     name: string | null;
@@ -98,6 +102,8 @@ type AvailabilitySummary = {
   notFoundCount: number;
   fetchErrorCount: number;
   rateLimitedCount: number;
+  errorCategoryCounts: Record<string, number>;
+  errorCodeCounts: Record<string, number>;
   nameAvailableCount: number;
   symbolAvailableCount: number;
   descriptionAvailableCount: number;
@@ -244,6 +250,11 @@ class MetaplexFetchError extends SourceFetchError {
     this.detail = detail;
   }
 }
+
+type ErrorWithCause = Error & {
+  cause?: unknown;
+  code?: unknown;
+};
 
 function getUsageText(): string {
   return [
@@ -1322,6 +1333,8 @@ function buildEmptySummary(source: ComparedSource): AvailabilitySummary {
     notFoundCount: 0,
     fetchErrorCount: 0,
     rateLimitedCount: 0,
+    errorCategoryCounts: {},
+    errorCodeCounts: {},
     nameAvailableCount: 0,
     symbolAvailableCount: 0,
     descriptionAvailableCount: 0,
@@ -1329,6 +1342,70 @@ function buildEmptySummary(source: ComparedSource): AvailabilitySummary {
     xAvailableCount: 0,
     telegramAvailableCount: 0,
     anyLinksAvailableCount: 0,
+  };
+}
+
+function readErrorCode(error: unknown): string | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const directCode = (error as ErrorWithCause).code;
+  if (typeof directCode === "string" && directCode.trim().length > 0) {
+    return directCode.trim();
+  }
+
+  const cause = (error as ErrorWithCause).cause;
+  if (!isRecord(cause)) {
+    return null;
+  }
+
+  const causeCode = cause.code;
+  return typeof causeCode === "string" && causeCode.trim().length > 0 ? causeCode.trim() : null;
+}
+
+function classifyNonHttpFetchError(error: SourceFetchError | Error): ErrorCategory | null {
+  if (error instanceof SourceFetchError && error.status !== null) {
+    return null;
+  }
+
+  const message = error.message.trim().toLowerCase();
+  const name = error.name.trim().toLowerCase();
+  const errorCode = readErrorCode(error)?.trim().toUpperCase() ?? null;
+
+  if (
+    name === "timeouterror" ||
+    name === "aborterror" ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    errorCode === "ETIMEDOUT" ||
+    errorCode === "UND_ERR_CONNECT_TIMEOUT" ||
+    errorCode === "UND_ERR_HEADERS_TIMEOUT" ||
+    errorCode === "UND_ERR_BODY_TIMEOUT"
+  ) {
+    return "timeout";
+  }
+
+  if (
+    errorCode !== null ||
+    message === "fetch failed" ||
+    message.includes("network") ||
+    message.includes("socket") ||
+    message.includes("connect")
+  ) {
+    return "network_error";
+  }
+
+  return "unknown_error";
+}
+
+function buildErrorObservation(error: SourceFetchError | Error): {
+  errorCategory: ErrorCategory | null;
+  errorCode: string | null;
+} {
+  return {
+    errorCategory: classifyNonHttpFetchError(error),
+    errorCode: readErrorCode(error),
   };
 }
 
@@ -1363,6 +1440,14 @@ function updateSummaryFromError(summary: AvailabilitySummary, error: SourceFetch
 
   if (error instanceof SourceFetchError && error.rateLimited) {
     summary.rateLimitedCount += 1;
+  }
+
+  const observation = buildErrorObservation(error);
+  if (observation.errorCategory !== null) {
+    incrementCount(summary.errorCategoryCounts, observation.errorCategory);
+  }
+  if (observation.errorCode !== null) {
+    incrementCount(summary.errorCodeCounts, observation.errorCode);
   }
 }
 
@@ -1432,6 +1517,7 @@ async function run(): Promise<void> {
             status: "error",
             rateLimited:
               dexscreenerFetchError instanceof SourceFetchError && dexscreenerFetchError.rateLimited,
+            ...buildErrorObservation(dexscreenerFetchError),
             availableFields: [],
             metadata: null,
             links: null,
@@ -1450,6 +1536,8 @@ async function run(): Promise<void> {
             endpoint: source.endpoint,
             status: "not_found",
             rateLimited: false,
+            errorCategory: null,
+            errorCode: null,
             availableFields: [],
             metadata: null,
             links: null,
@@ -1467,6 +1555,8 @@ async function run(): Promise<void> {
           endpoint: source.endpoint,
           status: "ok",
           rateLimited: false,
+          errorCategory: null,
+          errorCode: null,
           availableFields: availability.availableFields,
           metadata: availability.metadata,
           links: {
@@ -1526,6 +1616,8 @@ async function run(): Promise<void> {
             endpoint: source.endpoint,
             status: "ok",
             rateLimited: false,
+            errorCategory: null,
+            errorCode: null,
             availableFields: availability.availableFields,
             metadata: availability.metadata,
             links: {
@@ -1571,6 +1663,8 @@ async function run(): Promise<void> {
               endpoint: source.endpoint,
               status: "not_found",
               rateLimited: false,
+              errorCategory: null,
+              errorCode: null,
               availableFields: [],
               metadata: null,
               links: null,
@@ -1607,6 +1701,7 @@ async function run(): Promise<void> {
             endpoint: source.endpoint,
             status: "error",
             rateLimited: normalizedError instanceof SourceFetchError && normalizedError.rateLimited,
+            ...buildErrorObservation(normalizedError),
             availableFields: [],
             metadata: null,
             links: null,
@@ -1652,6 +1747,8 @@ async function run(): Promise<void> {
           endpoint: source.endpoint,
           status: "ok",
           rateLimited: false,
+          errorCategory: null,
+          errorCode: null,
           availableFields: availability.availableFields,
           metadata: availability.metadata,
           links: {
@@ -1679,6 +1776,7 @@ async function run(): Promise<void> {
           endpoint: source.endpoint,
           status: "error",
           rateLimited: normalizedError instanceof SourceFetchError && normalizedError.rateLimited,
+          ...buildErrorObservation(normalizedError),
           availableFields: [],
           metadata: null,
           links: null,

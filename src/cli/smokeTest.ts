@@ -7354,6 +7354,8 @@ async function run(): Promise<void> {
             notFoundCount: number;
             fetchErrorCount: number;
             rateLimitedCount: number;
+            errorCategoryCounts: Record<string, number>;
+            errorCodeCounts: Record<string, number>;
             descriptionAvailableCount: number;
             websiteAvailableCount: number;
             xAvailableCount: number;
@@ -7367,6 +7369,8 @@ async function run(): Promise<void> {
               family: string;
               status: string;
               rateLimited: boolean;
+              errorCategory: string | null;
+              errorCode: string | null;
               detail: Record<string, unknown> | null;
               metadata: {
                 description: string | null;
@@ -7468,6 +7472,8 @@ async function run(): Promise<void> {
           dexscreenerSummary.notFoundCount !== 0 ||
           dexscreenerSummary.fetchErrorCount !== 0 ||
           dexscreenerSummary.rateLimitedCount !== 0 ||
+          Object.keys(dexscreenerSummary.errorCategoryCounts).length !== 0 ||
+          Object.keys(dexscreenerSummary.errorCodeCounts).length !== 0 ||
           dexscreenerSummary.descriptionAvailableCount !== 1 ||
           dexscreenerSummary.websiteAvailableCount !== 1 ||
           dexscreenerSummary.xAvailableCount !== 1 ||
@@ -7477,6 +7483,8 @@ async function run(): Promise<void> {
           metaplexSummary.notFoundCount !== 0 ||
           metaplexSummary.fetchErrorCount !== 0 ||
           metaplexSummary.rateLimitedCount !== 0 ||
+          Object.keys(metaplexSummary.errorCategoryCounts).length !== 0 ||
+          Object.keys(metaplexSummary.errorCodeCounts).length !== 0 ||
           metaplexSummary.descriptionAvailableCount !== 1 ||
           metaplexSummary.websiteAvailableCount !== 1 ||
           metaplexSummary.xAvailableCount !== 1 ||
@@ -7517,6 +7525,8 @@ async function run(): Promise<void> {
             (item) =>
               item.status !== "ok" ||
               item.rateLimited !== false ||
+              item.errorCategory !== null ||
+              item.errorCode !== null ||
               (item.family === "metaplex" &&
                 (item.detail?.uri !== "https://example.com/metaplex-metadata.json" ||
                   item.metadata?.description !== "metaplex context description" ||
