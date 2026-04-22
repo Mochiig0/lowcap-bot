@@ -38,6 +38,9 @@ type SmokeContext = {
   metricSnapshotGapMint: string;
   metricSnapshotPumpMint: string;
   metricSnapshotNonPumpMint: string;
+  metricSnapshotPriorityMintOnlyMint: string;
+  metricSnapshotPriorityPartialMint: string;
+  metricSnapshotPriorityFlaggedMint: string;
   metricSnapshotRateLimitMints: [string, string];
   geckoEnrichRescoreRateLimitMints: [string, string];
   geckoEnrichRescoreMint: string;
@@ -259,6 +262,9 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricSnapshotGapMint,
           context.metricSnapshotPumpMint,
           context.metricSnapshotNonPumpMint,
+          context.metricSnapshotPriorityMintOnlyMint,
+          context.metricSnapshotPriorityPartialMint,
+          context.metricSnapshotPriorityFlaggedMint,
           ...context.metricSnapshotRateLimitMints,
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
@@ -309,6 +315,9 @@ async function cleanup(context: SmokeContext): Promise<void> {
           context.metricSnapshotGapMint,
           context.metricSnapshotPumpMint,
           context.metricSnapshotNonPumpMint,
+          context.metricSnapshotPriorityMintOnlyMint,
+          context.metricSnapshotPriorityPartialMint,
+          context.metricSnapshotPriorityFlaggedMint,
           ...context.metricSnapshotRateLimitMints,
           ...context.geckoEnrichRescoreRateLimitMints,
           context.geckoEnrichRescoreMint,
@@ -388,6 +397,9 @@ async function run(): Promise<void> {
     metricSnapshotGapMint: `${smokeId}_METRIC_SNAPSHOT_GAP`,
     metricSnapshotPumpMint: `${smokeId}_METRIC_SNAPSHOT_FASTpump`,
     metricSnapshotNonPumpMint: `${smokeId}_METRIC_SNAPSHOT_FAST_NON_PUMP`,
+    metricSnapshotPriorityMintOnlyMint: `${smokeId}_METRIC_SNAPSHOT_PRIORITY_MINT_ONLYpump`,
+    metricSnapshotPriorityPartialMint: `${smokeId}_METRIC_SNAPSHOT_PRIORITY_PARTIALpump`,
+    metricSnapshotPriorityFlaggedMint: `${smokeId}_METRIC_SNAPSHOT_PRIORITY_FLAGGEDpump`,
     metricSnapshotRateLimitMints: [
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_1`,
       `${smokeId}_METRIC_SNAPSHOT_RATE_LIMIT_2`,
@@ -2990,6 +3002,216 @@ async function run(): Promise<void> {
           throw new Error(
             "metric snapshot geckoterminal single non-pump should remain available outside pump-only batch mode",
           );
+        }
+
+        await db.token.update({
+          where: {
+            mint: context.metricSnapshotPumpMint,
+          },
+          data: {
+            createdAt: new Date(Date.now() - 5 * 60_000),
+            importedAt: new Date(Date.now() - 5 * 60_000),
+          },
+        });
+
+        for (const mint of [
+          context.metricSnapshotPriorityMintOnlyMint,
+          context.metricSnapshotPriorityPartialMint,
+          context.metricSnapshotPriorityFlaggedMint,
+        ]) {
+          await runCliJson<{
+            mint: string;
+            created: boolean;
+          }>(
+            `metric snapshot geckoterminal priority import ${mint}`,
+            "src/cli/importMint.ts",
+            [
+              "--mint",
+              mint,
+              "--source",
+              "geckoterminal.new_pools",
+            ],
+            context.smokeId,
+          );
+        }
+
+        const priorityBaseTime = Date.now();
+        await db.token.update({
+          where: {
+            mint: context.metricSnapshotPriorityMintOnlyMint,
+          },
+          data: {
+            createdAt: new Date(priorityBaseTime - 5_000),
+            importedAt: new Date(priorityBaseTime - 5_000),
+            metadataStatus: "mint_only",
+            entrySnapshot: {
+              firstSeenSourceSnapshot: {
+                source: "geckoterminal.new_pools",
+                detectedAt: new Date(priorityBaseTime - 5_000).toISOString(),
+              },
+            },
+          },
+        });
+        await db.token.update({
+          where: {
+            mint: context.metricSnapshotPriorityPartialMint,
+          },
+          data: {
+            createdAt: new Date(priorityBaseTime - 10_000),
+            importedAt: new Date(priorityBaseTime - 10_000),
+            metadataStatus: "partial",
+            entrySnapshot: {
+              firstSeenSourceSnapshot: {
+                source: "geckoterminal.new_pools",
+                detectedAt: new Date(priorityBaseTime - 10_000).toISOString(),
+              },
+            },
+          },
+        });
+        await db.token.update({
+          where: {
+            mint: context.metricSnapshotPriorityFlaggedMint,
+          },
+          data: {
+            createdAt: new Date(priorityBaseTime - 15_000),
+            importedAt: new Date(priorityBaseTime - 15_000),
+            metadataStatus: "partial",
+            reviewFlagsJson: {
+              hasWebsite: true,
+              hasX: false,
+              hasTelegram: false,
+              metaplexHit: false,
+              descriptionPresent: false,
+              linkCount: 1,
+            },
+            entrySnapshot: {
+              firstSeenSourceSnapshot: {
+                source: "geckoterminal.new_pools",
+                detectedAt: new Date(priorityBaseTime - 15_000).toISOString(),
+              },
+            },
+          },
+        });
+
+        const defaultPrioritySelection = await runCliJson<{
+          mode: string;
+          selection: {
+            limit: number | null;
+            sinceMinutes: number | null;
+            pumpOnly: boolean;
+            prioritizeRichPending: boolean;
+            selectedCount: number;
+            selectedSummary: {
+              mintOnlyCount: number;
+              nonMintOnlyCount: number;
+              withReviewFlagsJsonCount: number;
+              withReviewFlagsCount: number;
+            };
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+          }>;
+        }>(
+          "metric snapshot geckoterminal default priority order",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--limit",
+            "3",
+            "--sinceMinutes",
+            "1",
+            "--pumpOnly",
+          ],
+          context.smokeId,
+        );
+
+        const defaultPriorityMints = defaultPrioritySelection.items.map((item) => item.token.mint);
+        if (
+          defaultPrioritySelection.mode !== "recent_batch" ||
+          defaultPrioritySelection.selection.limit !== 3 ||
+          defaultPrioritySelection.selection.sinceMinutes !== 1 ||
+          defaultPrioritySelection.selection.pumpOnly !== true ||
+          defaultPrioritySelection.selection.prioritizeRichPending !== false ||
+          defaultPrioritySelection.selection.selectedCount !== 3 ||
+          defaultPrioritySelection.selection.selectedSummary.mintOnlyCount !== 1 ||
+          defaultPrioritySelection.selection.selectedSummary.nonMintOnlyCount !== 2 ||
+          defaultPrioritySelection.selection.selectedSummary.withReviewFlagsJsonCount !== 1 ||
+          defaultPrioritySelection.selection.selectedSummary.withReviewFlagsCount !== 1 ||
+          defaultPrioritySelection.summary.selectedCount !== 3 ||
+          defaultPrioritySelection.summary.okCount !== 3 ||
+          defaultPriorityMints[0] !== context.metricSnapshotPriorityMintOnlyMint ||
+          defaultPriorityMints[1] !== context.metricSnapshotPriorityPartialMint ||
+          defaultPriorityMints[2] !== context.metricSnapshotPriorityFlaggedMint ||
+          defaultPrioritySelection.items.some((item) => item.status !== "ok")
+        ) {
+          throw new Error("metric snapshot geckoterminal default recent order was unexpected");
+        }
+
+        const prioritizedSelection = await runCliJson<{
+          mode: string;
+          selection: {
+            limit: number | null;
+            sinceMinutes: number | null;
+            pumpOnly: boolean;
+            prioritizeRichPending: boolean;
+            selectedCount: number;
+            selectedSummary: {
+              mintOnlyCount: number;
+              nonMintOnlyCount: number;
+              withReviewFlagsJsonCount: number;
+              withReviewFlagsCount: number;
+            };
+          };
+          summary: {
+            selectedCount: number;
+            okCount: number;
+          };
+          items: Array<{
+            token: {
+              mint: string;
+            };
+            status: string;
+          }>;
+        }>(
+          "metric snapshot geckoterminal prioritize rich pending",
+          "src/cli/metricSnapshotGeckoterminal.ts",
+          [
+            "--limit",
+            "3",
+            "--sinceMinutes",
+            "1",
+            "--pumpOnly",
+            "--prioritizeRichPending",
+          ],
+          context.smokeId,
+        );
+
+        const prioritizedMints = prioritizedSelection.items.map((item) => item.token.mint);
+        if (
+          prioritizedSelection.mode !== "recent_batch" ||
+          prioritizedSelection.selection.limit !== 3 ||
+          prioritizedSelection.selection.sinceMinutes !== 1 ||
+          prioritizedSelection.selection.pumpOnly !== true ||
+          prioritizedSelection.selection.prioritizeRichPending !== true ||
+          prioritizedSelection.selection.selectedCount !== 3 ||
+          prioritizedSelection.selection.selectedSummary.mintOnlyCount !== 1 ||
+          prioritizedSelection.selection.selectedSummary.nonMintOnlyCount !== 2 ||
+          prioritizedSelection.selection.selectedSummary.withReviewFlagsJsonCount !== 1 ||
+          prioritizedSelection.selection.selectedSummary.withReviewFlagsCount !== 1 ||
+          prioritizedSelection.summary.selectedCount !== 3 ||
+          prioritizedSelection.summary.okCount !== 3 ||
+          prioritizedMints[0] !== context.metricSnapshotPriorityFlaggedMint ||
+          prioritizedMints[1] !== context.metricSnapshotPriorityPartialMint ||
+          prioritizedMints[2] !== context.metricSnapshotPriorityMintOnlyMint ||
+          prioritizedSelection.items.some((item) => item.status !== "ok")
+        ) {
+          throw new Error("metric snapshot geckoterminal prioritized recent order was unexpected");
         }
 
         const watchDryRun = await runCliJson<{

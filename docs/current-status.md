@@ -67,7 +67,7 @@ pnpm metric:add -- --mint <MINT> [--source <SOURCE>] [--launchPrice <NUM>] [--pe
 ```
 
 ```bash
-pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
+pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
 ```
 
 ```bash
@@ -302,6 +302,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `metric:add` is append-only; repeated submissions with the same values still create new `Metric` rows
 - `metric:snapshot:geckoterminal` fetches one live GeckoTerminal token snapshot per selected token and stays dry-run by default
 - `metric:snapshot:geckoterminal` selects recent GeckoTerminal-origin tokens by `firstSeenSourceSnapshot.detectedAt` when present, otherwise by `Token.createdAt`
+- `metric:snapshot:geckoterminal --prioritizeRichPending` is an experimental default-off batch-only selection preference that keeps the existing recency order inside ties but pulls non-`mint_only` rows, then rows with stored `reviewFlagsJson`, then rows with positive `reviewFlagsCount` slightly earlier
 - `metric:snapshot:geckoterminal --pumpOnly` is batch-only narrowing for mint strings ending with `pump`, intended for trailing observation of the same fast-follow cohort while leaving `--mint` single-token execution unchanged
 - `metric:snapshot:geckoterminal --write` appends one `Metric` row per successful snapshot without mutating token fields
 - `metric:snapshot:geckoterminal --watch` repeats the same selection and snapshot cycle at a fixed interval and keeps going after cycle-level failures

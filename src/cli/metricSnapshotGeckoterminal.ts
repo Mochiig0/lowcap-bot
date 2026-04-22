@@ -26,6 +26,7 @@ type MetricSnapshotArgs = {
   limit: number;
   sinceMinutes: number;
   pumpOnly: boolean;
+  prioritizeRichPending: boolean;
   minGapMinutes?: number;
   intervalSeconds: number;
   maxIterations?: number;
@@ -40,9 +41,21 @@ type SelectedToken = {
   currentSource: string | null;
   createdAt: string;
   originSource: string | null;
+  metadataStatus: string;
+  hasReviewFlagsJson: boolean;
+  reviewFlagsCount: number;
   selectionAnchorAt: string;
   selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
   isGeckoterminalOrigin: boolean;
+};
+
+type ReviewFlagsView = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
 };
 
 type SnapshotTopPool = {
@@ -108,6 +121,13 @@ type ProcessedTokenResult = {
   error?: string;
 };
 
+type SelectedTokenSummary = {
+  mintOnlyCount: number;
+  nonMintOnlyCount: number;
+  withReviewFlagsJsonCount: number;
+  withReviewFlagsCount: number;
+};
+
 type CliOutput = {
   mode: "single" | "recent_batch";
   dryRun: boolean;
@@ -120,8 +140,10 @@ type CliOutput = {
     sinceMinutes: number | null;
     sinceCutoff: string | null;
     pumpOnly: boolean;
+    prioritizeRichPending: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
+    selectedSummary: SelectedTokenSummary;
   };
   summary: {
     selectedCount: number;
@@ -144,8 +166,10 @@ type WatchCycleResult = {
     sinceMinutes: number | null;
     sinceCutoff: string | null;
     pumpOnly: boolean;
+    prioritizeRichPending: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
+    selectedSummary: SelectedTokenSummary;
   };
   summary: {
     selectedCount: number;
@@ -175,6 +199,8 @@ type WatchOutput = {
     limit: number | null;
     sinceMinutes: number | null;
     pumpOnly: boolean;
+    prioritizeRichPending: boolean;
+    selectedSummary: SelectedTokenSummary;
   };
   cycleCount: number;
   failedCount: number;
@@ -206,7 +232,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
@@ -214,6 +240,7 @@ function getUsageText(): string {
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     `- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter`,
+    `- recent batch mode may also prefer non-mint_only and review-flagged rows via experimental --prioritizeRichPending; default selection order stays unchanged when omitted`,
     `- skips a token before fetch only when --minGapMinutes is set and the latest Metric for the same token+source is still recent`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
     `- loops only when --watch is set`,
@@ -249,6 +276,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     pumpOnly: false,
+    prioritizeRichPending: false,
     intervalSeconds: DEFAULT_INTERVAL_SECONDS,
     source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
   };
@@ -260,11 +288,13 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
       throw new CliUsageError("");
     }
 
-    if (key === "--write" || key === "--watch") {
+    if (key === "--write" || key === "--watch" || key === "--prioritizeRichPending") {
       if (key === "--write") {
         out.write = true;
-      } else {
+      } else if (key === "--watch") {
         out.watch = true;
+      } else {
+        out.prioritizeRichPending = true;
       }
       continue;
     }
@@ -388,6 +418,60 @@ function readOptionalDateString(value: unknown): string | null {
   return new Date(parsed).toISOString();
 }
 
+function hasStoredReviewFlags(reviewFlagsJson: unknown): boolean {
+  return reviewFlagsJson !== null && reviewFlagsJson !== undefined;
+}
+
+function extractReviewFlags(reviewFlagsJson: unknown): ReviewFlagsView | null {
+  if (!reviewFlagsJson || typeof reviewFlagsJson !== "object" || Array.isArray(reviewFlagsJson)) {
+    return null;
+  }
+
+  const hasWebsite = (reviewFlagsJson as JsonObject).hasWebsite;
+  const hasX = (reviewFlagsJson as JsonObject).hasX;
+  const hasTelegram = (reviewFlagsJson as JsonObject).hasTelegram;
+  const metaplexHit = (reviewFlagsJson as JsonObject).metaplexHit;
+  const descriptionPresent = (reviewFlagsJson as JsonObject).descriptionPresent;
+  const linkCount = (reviewFlagsJson as JsonObject).linkCount;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number" ||
+    !Number.isInteger(linkCount) ||
+    linkCount < 0
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
+function countReviewFlags(reviewFlags: ReviewFlagsView | null): number {
+  if (reviewFlags === null) {
+    return 0;
+  }
+
+  return [
+    reviewFlags.hasWebsite,
+    reviewFlags.hasX,
+    reviewFlags.hasTelegram,
+    reviewFlags.metaplexHit,
+    reviewFlags.descriptionPresent,
+    reviewFlags.linkCount > 0,
+  ].filter(Boolean).length;
+}
+
 function isRateLimitErrorMessage(message: string | undefined): boolean {
   if (typeof message !== "string") {
     return false;
@@ -460,6 +544,8 @@ function buildSelectedToken(token: {
   source: string | null;
   createdAt: Date;
   entrySnapshot: unknown;
+  metadataStatus: string;
+  reviewFlagsJson: unknown;
 }): SelectedToken {
   const firstSeen = extractFirstSeenSourceSnapshot(token.entrySnapshot);
   const originSource =
@@ -467,6 +553,7 @@ function buildSelectedToken(token: {
       ? firstSeen.source
       : token.source;
   const detectedAt = readOptionalDateString(firstSeen?.detectedAt);
+  const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
 
   return {
     id: token.id,
@@ -474,12 +561,66 @@ function buildSelectedToken(token: {
     currentSource: token.source,
     createdAt: token.createdAt.toISOString(),
     originSource: originSource ?? null,
+    metadataStatus: token.metadataStatus,
+    hasReviewFlagsJson: hasStoredReviewFlags(token.reviewFlagsJson),
+    reviewFlagsCount: countReviewFlags(reviewFlags),
     selectionAnchorAt: detectedAt ?? token.createdAt.toISOString(),
     selectionAnchorKind: detectedAt ? "firstSeenDetectedAt" : "createdAt",
     isGeckoterminalOrigin:
       token.source === GECKOTERMINAL_NEW_POOLS_SOURCE ||
       originSource === GECKOTERMINAL_NEW_POOLS_SOURCE,
   };
+}
+
+function getRichPendingPriorityScore(token: SelectedToken): number {
+  return (
+    (token.metadataStatus !== "mint_only" ? 4 : 0) +
+    (token.hasReviewFlagsJson ? 2 : 0) +
+    (token.reviewFlagsCount > 0 ? 1 : 0)
+  );
+}
+
+function summarizeSelectedTokens(tokens: SelectedToken[]): SelectedTokenSummary {
+  return tokens.reduce<SelectedTokenSummary>(
+    (summary, token) => {
+      if (token.metadataStatus === "mint_only") {
+        summary.mintOnlyCount += 1;
+      } else {
+        summary.nonMintOnlyCount += 1;
+      }
+
+      if (token.hasReviewFlagsJson) {
+        summary.withReviewFlagsJsonCount += 1;
+      }
+
+      if (token.reviewFlagsCount > 0) {
+        summary.withReviewFlagsCount += 1;
+      }
+
+      return summary;
+    },
+    {
+      mintOnlyCount: 0,
+      nonMintOnlyCount: 0,
+      withReviewFlagsJsonCount: 0,
+      withReviewFlagsCount: 0,
+    },
+  );
+}
+
+function prioritizeRichPendingTokens(tokens: SelectedToken[]): SelectedToken[] {
+  return tokens
+    .map((token, index) => ({ token, index }))
+    .sort((left, right) => {
+      const priorityDelta =
+        getRichPendingPriorityScore(right.token) - getRichPendingPriorityScore(left.token);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ token }) => token);
 }
 
 function isPumpMint(mint: string): boolean {
@@ -501,6 +642,8 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
         source: true,
         createdAt: true,
         entrySnapshot: true,
+        metadataStatus: true,
+        reviewFlagsJson: true,
       },
     });
 
@@ -530,6 +673,8 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
       source: true,
       createdAt: true,
       entrySnapshot: true,
+      metadataStatus: true,
+      reviewFlagsJson: true,
     },
   });
 
@@ -551,7 +696,10 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
   const pumpEligibleTokens = args.pumpOnly
     ? recentGeckoTokens.filter((token) => isPumpMint(token.mint))
     : recentGeckoTokens;
-  const selectedTokens = pumpEligibleTokens.slice(0, args.limit);
+  const orderedTokens = args.prioritizeRichPending
+    ? prioritizeRichPendingTokens(pumpEligibleTokens)
+    : pumpEligibleTokens;
+  const selectedTokens = orderedTokens.slice(0, args.limit);
 
   return {
     mode: "recent_batch",
@@ -874,8 +1022,10 @@ function buildOneShotOutput(
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
       pumpOnly: !args.mint && args.pumpOnly,
+      prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       selectedCount: execution.selectedTokens.length,
       skippedNonPumpCount: execution.skippedNonPumpCount,
+      selectedSummary: summarizeSelectedTokens(execution.selectedTokens),
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
@@ -904,8 +1054,10 @@ function createFailedCycleResult(
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: null,
       pumpOnly: !args.mint && args.pumpOnly,
+      prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       selectedCount: 0,
       skippedNonPumpCount: 0,
+      selectedSummary: summarizeSelectedTokens([]),
     },
     summary: {
       selectedCount: 0,
@@ -937,8 +1089,10 @@ function buildWatchCycleResult(
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
       pumpOnly: !args.mint && args.pumpOnly,
+      prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       selectedCount: execution.selectedTokens.length,
       skippedNonPumpCount: execution.skippedNonPumpCount,
+      selectedSummary: summarizeSelectedTokens(execution.selectedTokens),
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
@@ -994,6 +1148,23 @@ function buildWatchOutput(
       limit: args.mint ? null : args.limit,
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       pumpOnly: !args.mint && args.pumpOnly,
+      prioritizeRichPending: !args.mint && args.prioritizeRichPending,
+      selectedSummary: cycles.reduce<SelectedTokenSummary>(
+        (summary, cycle) => {
+          summary.mintOnlyCount += cycle.selection.selectedSummary.mintOnlyCount;
+          summary.nonMintOnlyCount += cycle.selection.selectedSummary.nonMintOnlyCount;
+          summary.withReviewFlagsJsonCount +=
+            cycle.selection.selectedSummary.withReviewFlagsJsonCount;
+          summary.withReviewFlagsCount += cycle.selection.selectedSummary.withReviewFlagsCount;
+          return summary;
+        },
+        {
+          mintOnlyCount: 0,
+          nonMintOnlyCount: 0,
+          withReviewFlagsJsonCount: 0,
+          withReviewFlagsCount: 0,
+        },
+      ),
     },
     cycleCount: cycles.length,
     failedCount: cycles.filter((cycle) => cycle.failed).length,
