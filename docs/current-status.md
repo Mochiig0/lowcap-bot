@@ -302,6 +302,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `metric:snapshot:geckoterminal --minGapMinutes <N>` skips a token before fetch when the newest `Metric` for the same token and metric source is newer than `N` minutes
 - `metric:snapshot:geckoterminal` always saves `observedAt`, `source`, and a sanitized `rawJson` snapshot, and saves `volume24h` only when GeckoTerminal exposes token-level `volume_usd.h24`
 - `metric:snapshot:geckoterminal` keeps FDV, market cap, and reserve/liquidity-style values in `rawJson` only instead of forcing them into mismatched metric schema fields
+- as of 2026-04-22, repo-local current truth still does not confirm a direct existing source for `maxMultiple15m`, `peakFdv24h`, and `timeToPeakMinutes`; the current next-best external candidate is SolanaTracker `GET /chart/{token}` with `type=1m`, `time_from`, `time_to`, and `marketCap=true`
+- docs shape suggests that SolanaTracker chart data may support peak market-cap proxy and time-to-peak derivation, while `maxMultiple15m` would still need a separate price anchor; this remains docs-verified and live-unconfirmed because the current live endpoint requires an API key and the authenticated payload shape has not yet been confirmed
 - `import:min` forwards the minimum manual intake fields into `import`
 - `import:min` parses `mint`, `name`, `symbol`, and optional `source`, `desc`, `dev`, then delegates to `src/cli/import.ts`
 - `import:file` reads one JSON object and forwards supported fields into `import`
