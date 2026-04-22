@@ -237,6 +237,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - repeated bounded live runs have continued to reproduce that same shape: broad detect behavior remains stable, while follow-up lanes stay rate-limit constrained and only promote a small recent slice from `mint_only` to `partial`
 - under that operating shape, recent Gecko-origin cohorts still accumulate `mint_only` tokens faster than bounded follow-up clears them, so read-only review queue pending counts naturally build without changing the detect-first stance
 - current review-queue age summaries and oldest-pending previews also suggest that this backlog is often long-lived rather than only slightly delayed: many-hour pending rows can accumulate naturally under the present rate-limit-constrained follow-up shape
+- recent pending-shape checks also suggest that this backlog is not only dominated by `mint_only` / no-review-flags rows, but that minority pending shapes such as `partial` rows with `reviewFlags` are currently sparse as well
+- taken together, the present queue backlog still reads mainly as a thin-token follow-up backlog rather than a backlog concentrated in richer or more review-significant rows
 - that should be read as a description of the current detect-first / bounded-follow-up operating split, not as evidence that the detect-first discovery stance itself is failing
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
