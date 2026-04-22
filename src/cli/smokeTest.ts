@@ -5865,23 +5865,56 @@ async function run(): Promise<void> {
     });
 
     await runStep("geckoterminal pending shape", async () => {
-      const [tokenCountBefore, metricCountBefore] = await Promise.all([
-        db.token.count(),
-        db.metric.count(),
-      ]);
+      const pendingShapeFixtureMint = `R${context.smokeId.replace(/[^1-9A-HJ-NP-Za-km-z]/g, "8").padEnd(43, "B").slice(0, 43)}`;
+      const pendingShapeFixtureTimestamp = new Date();
 
-      const parsed = await runCliJson<{
+      await db.token.create({
+        data: {
+          mint: pendingShapeFixtureMint,
+          source: "geckoterminal.new_pools",
+          name: "pending shape flagged",
+          symbol: "PSF",
+          metadataStatus: "partial",
+          enrichedAt: pendingShapeFixtureTimestamp,
+          rescoredAt: pendingShapeFixtureTimestamp,
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: pendingShapeFixtureTimestamp.toISOString(),
+            },
+          },
+          reviewFlagsJson: {
+            hasWebsite: true,
+            hasX: false,
+            hasTelegram: false,
+            metaplexHit: false,
+            descriptionPresent: true,
+            linkCount: 1,
+          },
+        },
+      });
+
+      try {
+        const [tokenCountBefore, metricCountBefore] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
+
+        const parsed = await runCliJson<{
         readOnly: boolean;
         originSource: string;
         selection: {
           sinceHours: number;
           limit: number;
           pumpOnly: boolean;
+          metadataStatus: "mint_only" | "partial" | "enriched" | null;
+          minReviewFlagsCount: number;
           staleAfterHours: number;
           geckoOriginTokenCount: number;
           pumpFilteredTokenCount: number;
           excludedSmokeCount: number;
           eligiblePendingCount: number;
+          filteredPendingCount: number;
           selectedPendingCount: number;
         };
         summary: {
@@ -5898,84 +5931,144 @@ async function run(): Promise<void> {
           reviewFlagsCount: number;
           queuesMatched: string[];
         }>;
-      }>(
-        "geckoterminal pending shape",
-        "src/cli/geckoterminalPendingShape.ts",
-        [
-          "--sinceHours",
-          "24",
-          "--limit",
-          "10",
-        ],
-        context.smokeId,
-      );
+        }>(
+          "geckoterminal pending shape",
+          "src/cli/geckoterminalPendingShape.ts",
+          [
+            "--sinceHours",
+            "24",
+            "--limit",
+            "10",
+          ],
+          context.smokeId,
+        );
 
-      const [tokenCountAfter, metricCountAfter] = await Promise.all([
-        db.token.count(),
-        db.metric.count(),
-      ]);
+        const [tokenCountAfter, metricCountAfter] = await Promise.all([
+          db.token.count(),
+          db.metric.count(),
+        ]);
 
-      if (
-        tokenCountBefore !== tokenCountAfter ||
-        metricCountBefore !== metricCountAfter
-      ) {
-        throw new Error("geckoterminal pending shape was not read-only");
-      }
+        if (
+          tokenCountBefore !== tokenCountAfter ||
+          metricCountBefore !== metricCountAfter
+        ) {
+          throw new Error("geckoterminal pending shape was not read-only");
+        }
 
-      const metadataStatusCountTotal = Object.values(parsed.summary.metadataStatusCounts).reduce(
-        (sum, count) => sum + count,
-        0,
-      );
-      const selectionAnchorKindCountTotal = Object.values(
-        parsed.summary.selectionAnchorKindCounts,
-      ).reduce((sum, count) => sum + count, 0);
-      const reviewFlagsCountDistributionTotal = Object.values(
-        parsed.summary.reviewFlagsCountDistribution,
-      ).reduce((sum, count) => sum + count, 0);
-      const queuesMatchedPatternCountTotal = Object.values(
-        parsed.summary.queuesMatchedPatternCounts,
-      ).reduce((sum, count) => sum + count, 0);
+        const metadataStatusCountTotal = Object.values(parsed.summary.metadataStatusCounts).reduce(
+          (sum, count) => sum + count,
+          0,
+        );
+        const selectionAnchorKindCountTotal = Object.values(
+          parsed.summary.selectionAnchorKindCounts,
+        ).reduce((sum, count) => sum + count, 0);
+        const reviewFlagsCountDistributionTotal = Object.values(
+          parsed.summary.reviewFlagsCountDistribution,
+        ).reduce((sum, count) => sum + count, 0);
+        const queuesMatchedPatternCountTotal = Object.values(
+          parsed.summary.queuesMatchedPatternCounts,
+        ).reduce((sum, count) => sum + count, 0);
 
-      if (
-        parsed.readOnly !== true ||
-        parsed.originSource !== "geckoterminal.new_pools" ||
-        parsed.selection.sinceHours !== 24 ||
-        parsed.selection.limit !== 10 ||
-        parsed.selection.pumpOnly !== false ||
-        parsed.selection.staleAfterHours !== 6 ||
-        parsed.selection.geckoOriginTokenCount < 1 ||
-        parsed.selection.pumpFilteredTokenCount < parsed.selection.selectedPendingCount ||
-        parsed.selection.excludedSmokeCount < 1 ||
-        parsed.selection.eligiblePendingCount < parsed.selection.selectedPendingCount ||
-        parsed.selection.selectedPendingCount < 1 ||
-        metadataStatusCountTotal !== parsed.selection.selectedPendingCount ||
-        selectionAnchorKindCountTotal !== parsed.selection.selectedPendingCount ||
-        reviewFlagsCountDistributionTotal !== parsed.selection.selectedPendingCount ||
-        queuesMatchedPatternCountTotal !== parsed.selection.selectedPendingCount ||
-        !Array.isArray(parsed.representativeRows) ||
-        parsed.representativeRows.length === 0 ||
-        parsed.representativeRows.length > 10
-      ) {
-        throw new Error("geckoterminal pending shape returned unexpected summary");
-      }
+        if (
+          parsed.readOnly !== true ||
+          parsed.originSource !== "geckoterminal.new_pools" ||
+          parsed.selection.sinceHours !== 24 ||
+          parsed.selection.limit !== 10 ||
+          parsed.selection.pumpOnly !== false ||
+          parsed.selection.metadataStatus !== null ||
+          parsed.selection.minReviewFlagsCount !== 0 ||
+          parsed.selection.staleAfterHours !== 6 ||
+          parsed.selection.geckoOriginTokenCount < 1 ||
+          parsed.selection.pumpFilteredTokenCount < parsed.selection.selectedPendingCount ||
+          parsed.selection.excludedSmokeCount < 1 ||
+          parsed.selection.eligiblePendingCount < parsed.selection.selectedPendingCount ||
+          parsed.selection.filteredPendingCount !== parsed.selection.eligiblePendingCount ||
+          parsed.selection.selectedPendingCount < 1 ||
+          metadataStatusCountTotal !== parsed.selection.selectedPendingCount ||
+          selectionAnchorKindCountTotal !== parsed.selection.selectedPendingCount ||
+          reviewFlagsCountDistributionTotal !== parsed.selection.selectedPendingCount ||
+          queuesMatchedPatternCountTotal !== parsed.selection.selectedPendingCount ||
+          !Array.isArray(parsed.representativeRows) ||
+          parsed.representativeRows.length === 0 ||
+          parsed.representativeRows.length > 10
+        ) {
+          throw new Error("geckoterminal pending shape returned unexpected summary");
+        }
 
-      if (
-        parsed.representativeRows.some(
-          (item) =>
-            item.mint.startsWith("SMOKE_") ||
-            typeof item.metadataStatus !== "string" ||
-            !["firstSeenDetectedAt", "createdAt"].includes(item.selectionAnchorKind) ||
-            typeof item.pendingAgeMinutes !== "number" ||
-            item.pendingAgeMinutes < 0 ||
-            typeof item.reviewFlagsCount !== "number" ||
-            !Array.isArray(item.queuesMatched) ||
-            item.queuesMatched.length === 0 ||
-            !item.queuesMatched.some((queue) =>
-              ["enrichPending", "rescorePending", "metricPending"].includes(queue),
-            ),
-        )
-      ) {
-        throw new Error("geckoterminal pending shape returned unexpected representative rows");
+        if (
+          parsed.representativeRows.some(
+            (item) =>
+              item.mint.startsWith("SMOKE_") ||
+              typeof item.metadataStatus !== "string" ||
+              !["firstSeenDetectedAt", "createdAt"].includes(item.selectionAnchorKind) ||
+              typeof item.pendingAgeMinutes !== "number" ||
+              item.pendingAgeMinutes < 0 ||
+              typeof item.reviewFlagsCount !== "number" ||
+              !Array.isArray(item.queuesMatched) ||
+              item.queuesMatched.length === 0 ||
+              !item.queuesMatched.some((queue) =>
+                ["enrichPending", "rescorePending", "metricPending"].includes(queue),
+              ),
+          )
+        ) {
+          throw new Error("geckoterminal pending shape returned unexpected representative rows");
+        }
+
+        const filteredParsed = await runCliJson<{
+        readOnly: boolean;
+        selection: {
+          metadataStatus: "mint_only" | "partial" | "enriched" | null;
+          minReviewFlagsCount: number;
+          filteredPendingCount: number;
+          selectedPendingCount: number;
+        };
+        representativeRows: Array<{
+          mint: string;
+          metadataStatus: string;
+          reviewFlagsCount: number;
+          queuesMatched: string[];
+        }>;
+        }>(
+          "geckoterminal pending shape filtered",
+          "src/cli/geckoterminalPendingShape.ts",
+          [
+            "--sinceHours",
+            "24",
+            "--limit",
+            "5",
+            "--metadataStatus",
+            "partial",
+            "--minReviewFlagsCount",
+            "1",
+          ],
+          context.smokeId,
+        );
+
+        if (
+          filteredParsed.readOnly !== true ||
+          filteredParsed.selection.metadataStatus !== "partial" ||
+          filteredParsed.selection.minReviewFlagsCount !== 1 ||
+          filteredParsed.selection.filteredPendingCount < 1 ||
+          filteredParsed.selection.selectedPendingCount < 1 ||
+          !filteredParsed.representativeRows.some(
+            (item) => item.mint === pendingShapeFixtureMint,
+          ) ||
+          filteredParsed.representativeRows.some(
+            (item) =>
+              item.metadataStatus !== "partial" ||
+              item.reviewFlagsCount < 1 ||
+              item.mint.startsWith("SMOKE_") ||
+              !item.queuesMatched.includes("metricPending"),
+          )
+        ) {
+          throw new Error("geckoterminal pending shape filtered output did not expose expected exception rows");
+        }
+      } finally {
+        await db.token.deleteMany({
+          where: {
+            mint: pendingShapeFixtureMint,
+          },
+        });
       }
     });
 

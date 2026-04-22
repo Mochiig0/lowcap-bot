@@ -11,6 +11,8 @@ type Args = {
   sinceHours: number;
   limit: number;
   pumpOnly: boolean;
+  metadataStatus?: "mint_only" | "partial" | "enriched";
+  minReviewFlagsCount: number;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -63,10 +65,21 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm review:pending-shape:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]",
+      "pnpm review:pending-shape:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly] [--metadataStatus <STATUS>] [--minReviewFlagsCount <N>]",
     ].join("\n"),
   );
   process.exit(1);
+}
+
+function parseMetadataStatusArg(
+  value: string,
+  key: string,
+): "mint_only" | "partial" | "enriched" {
+  if (value === "mint_only" || value === "partial" || value === "enriched") {
+    return value;
+  }
+
+  printUsageAndExit(`Invalid metadataStatus for ${key}: ${value}`);
 }
 
 function parsePositiveIntArg(value: string, key: string): number {
@@ -87,6 +100,7 @@ function parseArgs(argv: string[]): Args {
     sinceHours: DEFAULT_SINCE_HOURS,
     limit: DEFAULT_LIMIT,
     pumpOnly: false,
+    minReviewFlagsCount: 0,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -112,6 +126,12 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--limit":
         out.limit = parsePositiveIntArg(value, key);
+        break;
+      case "--metadataStatus":
+        out.metadataStatus = parseMetadataStatusArg(value, key);
+        break;
+      case "--minReviewFlagsCount":
+        out.minReviewFlagsCount = parsePositiveIntArg(value, key);
         break;
       default:
         printUsageAndExit(`Unknown arg: ${key}`);
@@ -390,7 +410,18 @@ async function run(): Promise<void> {
   const pendingItems = smokeExcludedTokens
     .map((token) => buildPendingShapeItem(token, staleAfterHours))
     .filter((item): item is PendingShapeItem => item !== null);
-  const selectedRows = pendingItems.slice(0, args.limit);
+  const filteredPendingItems = pendingItems.filter((item) => {
+    if (args.metadataStatus && item.metadataStatus !== args.metadataStatus) {
+      return false;
+    }
+
+    if (item.reviewFlagsCount < args.minReviewFlagsCount) {
+      return false;
+    }
+
+    return true;
+  });
+  const selectedRows = filteredPendingItems.slice(0, args.limit);
 
   const metadataStatusCounts: Record<string, number> = {};
   const selectionAnchorKindCounts: Record<string, number> = {};
@@ -413,12 +444,15 @@ async function run(): Promise<void> {
           sinceHours: args.sinceHours,
           limit: args.limit,
           pumpOnly: args.pumpOnly,
+          metadataStatus: args.metadataStatus ?? null,
+          minReviewFlagsCount: args.minReviewFlagsCount,
           staleAfterHours,
           sinceCutoff: sinceCutoff.toISOString(),
           geckoOriginTokenCount: geckoOriginTokens.length,
           pumpFilteredTokenCount: pumpFilteredTokens.length,
           excludedSmokeCount: pumpFilteredTokens.length - smokeExcludedTokens.length,
           eligiblePendingCount: pendingItems.length,
+          filteredPendingCount: filteredPendingItems.length,
           selectedPendingCount: selectedRows.length,
         },
         summary: {
