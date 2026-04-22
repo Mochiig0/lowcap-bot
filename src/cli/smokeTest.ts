@@ -6294,6 +6294,217 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("geckoterminal metric priority window check", async () => {
+      const helperBaseTimestamp = Date.now();
+      const helperDatabaseUrl = `file:/tmp/${context.smokeId}-metric-priority-window-check.db`;
+      const helperDatabasePath = helperDatabaseUrl.slice("file:".length);
+      const helperOutputPath = `/tmp/${context.smokeId}-metric-priority-window-check.json`;
+      const helperCleanFlaggedMint = `clean-${context.smokeId}-window-flagged`;
+      const helperCleanPartialMint = `clean-${context.smokeId}-window-partial`;
+      const helperCleanMintOnlyMint = `clean-${context.smokeId}-window-mint-only`;
+      const helperSmokeMints = [
+        `SMOKE_${context.smokeId}_WINDOW_0`,
+        `SMOKE_${context.smokeId}_WINDOW_1`,
+        `SMOKE_${context.smokeId}_WINDOW_2`,
+      ];
+      const helperSeedTokens = [
+        {
+          mint: helperCleanFlaggedMint,
+          source: "geckoterminal.new_pools",
+          metadataStatus: "partial",
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: new Date(helperBaseTimestamp).toISOString(),
+            },
+          },
+          reviewFlagsJson: {
+            hasWebsite: true,
+            hasX: false,
+            hasTelegram: false,
+            metaplexHit: false,
+            descriptionPresent: true,
+            linkCount: 1,
+          },
+        },
+        {
+          mint: helperCleanPartialMint,
+          source: "geckoterminal.new_pools",
+          metadataStatus: "partial",
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: new Date(helperBaseTimestamp - 10_000).toISOString(),
+            },
+          },
+        },
+        {
+          mint: helperCleanMintOnlyMint,
+          source: "geckoterminal.new_pools",
+          metadataStatus: "mint_only",
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: new Date(helperBaseTimestamp - 20_000).toISOString(),
+            },
+          },
+        },
+        ...helperSmokeMints.map((mint, index) => ({
+          mint,
+          source: "geckoterminal.new_pools",
+          metadataStatus: "mint_only",
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: "geckoterminal.new_pools",
+              detectedAt: new Date(
+                helperBaseTimestamp - (150 * 60_000 + index * 1_000),
+              ).toISOString(),
+            },
+          },
+        })),
+      ];
+      const helperSeedCommandSource = [
+        'import { PrismaClient } from "@prisma/client";',
+        "(async () => {",
+        "  const db = new PrismaClient();",
+        `  const helperSeedTokens = ${JSON.stringify(helperSeedTokens, null, 2)};`,
+        "  for (const token of helperSeedTokens) {",
+        "    await db.token.create({ data: token });",
+        "  }",
+        "  await db.$disconnect();",
+        "})().catch((error) => {",
+        '  console.error(error instanceof Error ? error.message : String(error));',
+        "  process.exit(1);",
+        "});",
+      ].join("\n");
+
+      try {
+        await runCommand(
+          "geckoterminal metric priority window check db push",
+          "bash",
+          [
+            "-lc",
+            `DATABASE_URL=${shellEscape(helperDatabaseUrl)} pnpm exec prisma db push --skip-generate`,
+          ],
+        );
+
+        await runCommand(
+          "geckoterminal metric priority window check seed",
+          "bash",
+          [
+            "-lc",
+            `DATABASE_URL=${shellEscape(helperDatabaseUrl)} node --import tsx -e ${shellEscape(helperSeedCommandSource)}`,
+          ],
+        );
+
+        await runCommand(
+          "geckoterminal metric priority window check cli",
+          "bash",
+          [
+            "-lc",
+            `DATABASE_URL=${shellEscape(helperDatabaseUrl)} node --import tsx src/cli/metricPriorityWindowCheckGeckoterminal.ts --sinceMinutesList 60,180 --topLimits 5,10,20 > ${shellEscape(helperOutputPath)}`,
+          ],
+        );
+
+        const parsed = parseJson<{
+          readOnly: boolean;
+          originSource: string;
+          selection: {
+            sinceMinutesList: number[];
+            topLimits: number[];
+            pumpOnly: boolean;
+          };
+          windows: Array<{
+            sinceMinutes: number;
+            eligibleCount: number;
+            smokeCount: number;
+            top5SmokeCount: number;
+            top10SmokeCount: number;
+            top20SmokeCount: number;
+            firstNonMintOnlyRank: number | null;
+            firstReviewFlagsJsonRank: number | null;
+            firstReviewFlagsCountRank: number | null;
+            cleanCandidate: boolean;
+            topLimitSmokeCounts: Record<string, number>;
+            representativeTopMints: string[];
+          }>;
+          cleanCandidates: Array<{
+            sinceMinutes: number;
+            eligibleCount: number;
+            top20SmokeCount: number;
+            cleanCandidate: boolean;
+          }>;
+        }>(
+          "geckoterminal metric priority window check",
+          await readFile(helperOutputPath, "utf-8"),
+        );
+
+        const sixtyMinuteWindow = parsed.windows.find((item) => item.sinceMinutes === 60);
+        const oneEightyMinuteWindow = parsed.windows.find((item) => item.sinceMinutes === 180);
+
+        if (
+          parsed.readOnly !== true ||
+          parsed.originSource !== "geckoterminal.new_pools" ||
+          parsed.selection.pumpOnly !== false ||
+          JSON.stringify(parsed.selection.sinceMinutesList) !== JSON.stringify([60, 180]) ||
+          JSON.stringify(parsed.selection.topLimits) !== JSON.stringify([5, 10, 20]) ||
+          !sixtyMinuteWindow ||
+          !oneEightyMinuteWindow
+        ) {
+          throw new Error("geckoterminal metric priority window check returned unexpected selection");
+        }
+
+        if (
+          sixtyMinuteWindow.eligibleCount !== 3 ||
+          sixtyMinuteWindow.smokeCount !== 0 ||
+          sixtyMinuteWindow.top5SmokeCount !== 0 ||
+          sixtyMinuteWindow.top10SmokeCount !== 0 ||
+          sixtyMinuteWindow.top20SmokeCount !== 0 ||
+          sixtyMinuteWindow.firstNonMintOnlyRank !== 1 ||
+          sixtyMinuteWindow.firstReviewFlagsJsonRank !== 1 ||
+          sixtyMinuteWindow.firstReviewFlagsCountRank !== 1 ||
+          sixtyMinuteWindow.cleanCandidate !== true ||
+          sixtyMinuteWindow.topLimitSmokeCounts["5"] !== 0 ||
+          sixtyMinuteWindow.topLimitSmokeCounts["10"] !== 0 ||
+          sixtyMinuteWindow.topLimitSmokeCounts["20"] !== 0 ||
+          !sixtyMinuteWindow.representativeTopMints.includes(helperCleanFlaggedMint)
+        ) {
+          throw new Error("geckoterminal metric priority window check did not expose expected clean window");
+        }
+
+        if (
+          oneEightyMinuteWindow.eligibleCount !== 6 ||
+          oneEightyMinuteWindow.smokeCount !== 3 ||
+          oneEightyMinuteWindow.top5SmokeCount !== 2 ||
+          oneEightyMinuteWindow.top10SmokeCount !== 3 ||
+          oneEightyMinuteWindow.top20SmokeCount !== 3 ||
+          oneEightyMinuteWindow.firstNonMintOnlyRank !== 1 ||
+          oneEightyMinuteWindow.firstReviewFlagsJsonRank !== 1 ||
+          oneEightyMinuteWindow.firstReviewFlagsCountRank !== 1 ||
+          oneEightyMinuteWindow.cleanCandidate !== false ||
+          oneEightyMinuteWindow.topLimitSmokeCounts["5"] !== 2 ||
+          oneEightyMinuteWindow.topLimitSmokeCounts["10"] !== 3 ||
+          oneEightyMinuteWindow.topLimitSmokeCounts["20"] !== 3
+        ) {
+          throw new Error("geckoterminal metric priority window check did not expose expected mixed window");
+        }
+
+        if (
+          parsed.cleanCandidates.length !== 1 ||
+          parsed.cleanCandidates[0]?.sinceMinutes !== 60 ||
+          parsed.cleanCandidates[0]?.eligibleCount !== 3 ||
+          parsed.cleanCandidates[0]?.top20SmokeCount !== 0 ||
+          parsed.cleanCandidates[0]?.cleanCandidate !== true
+        ) {
+          throw new Error("geckoterminal metric priority window check cleanCandidates were unexpected");
+        }
+      } finally {
+        await rm(helperOutputPath, { force: true });
+        await rm(helperDatabasePath, { force: true });
+        await rm(`${helperDatabasePath}-journal`, { force: true });
+      }
+    });
+
     await runStep("geckoterminal context capture", async () => {
       const previousSnapshotFile = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
 
