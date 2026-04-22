@@ -5440,6 +5440,16 @@ async function run(): Promise<void> {
             lte60m: number;
             gt60m: number;
           };
+          enrichPendingAgeMinutesSummary: {
+            min: number;
+            median: number;
+            max: number;
+          } | null;
+          metricPendingAgeMinutesSummary: {
+            min: number;
+            median: number;
+            max: number;
+          } | null;
           notifyCandidateCount: number;
           staleReviewCount: number;
           highPriorityRecentCount: number;
@@ -5541,11 +5551,21 @@ async function run(): Promise<void> {
           parsed.summary.enrichPendingAgeBuckets.lte60m +
           parsed.summary.enrichPendingAgeBuckets.gt60m !==
           parsed.summary.enrichPendingCount ||
+        parsed.summary.enrichPendingAgeMinutesSummary === null ||
+        parsed.summary.enrichPendingAgeMinutesSummary.min >
+          parsed.summary.enrichPendingAgeMinutesSummary.median ||
+        parsed.summary.enrichPendingAgeMinutesSummary.median >
+          parsed.summary.enrichPendingAgeMinutesSummary.max ||
         parsed.summary.metricPendingAgeBuckets.lte5m +
           parsed.summary.metricPendingAgeBuckets.lte15m +
           parsed.summary.metricPendingAgeBuckets.lte60m +
           parsed.summary.metricPendingAgeBuckets.gt60m !==
           parsed.summary.metricPendingCount ||
+        parsed.summary.metricPendingAgeMinutesSummary === null ||
+        parsed.summary.metricPendingAgeMinutesSummary.min >
+          parsed.summary.metricPendingAgeMinutesSummary.median ||
+        parsed.summary.metricPendingAgeMinutesSummary.median >
+          parsed.summary.metricPendingAgeMinutesSummary.max ||
         parsed.summary.notifyCandidateCount < 1 ||
         !Array.isArray(parsed.preview) ||
         parsed.preview.length === 0
@@ -5648,6 +5668,11 @@ async function run(): Promise<void> {
             lte60m: number;
             gt60m: number;
           };
+          enrichPendingAgeMinutesSummary: {
+            min: number;
+            median: number;
+            max: number;
+          } | null;
         };
         queues: {
           enrichPending: Array<{
@@ -5702,9 +5727,14 @@ async function run(): Promise<void> {
         pumpOnlyParsed.summary.enrichPendingCount < 1 ||
         pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte5m +
           pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte15m +
-        pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte60m +
+          pumpOnlyParsed.summary.enrichPendingAgeBuckets.lte60m +
           pumpOnlyParsed.summary.enrichPendingAgeBuckets.gt60m !==
           pumpOnlyParsed.summary.enrichPendingCount ||
+        pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary === null ||
+        pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.min >
+          pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.median ||
+        pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.median >
+          pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.max ||
         !pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescorePumpMint) ||
         pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescoreNonPumpMint) ||
         pumpOnlyParsed.preview.length === 0 ||

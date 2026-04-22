@@ -32,6 +32,12 @@ type PendingAgeBucket = "lte5m" | "lte15m" | "lte60m" | "gt60m";
 
 type PendingAgeBucketCounts = Record<PendingAgeBucket, number>;
 
+type PendingAgeMinutesSummary = {
+  min: number;
+  median: number;
+  max: number;
+};
+
 type ReviewFlagsView = {
   hasWebsite: boolean;
   hasX: boolean;
@@ -373,6 +379,29 @@ function summarizePendingAgeBuckets(items: ReviewQueueItem[]): PendingAgeBucketC
   }, createPendingAgeBucketCounts());
 }
 
+function summarizePendingAgeMinutes(
+  items: ReviewQueueItem[],
+): PendingAgeMinutesSummary | null {
+  if (items.length === 0) {
+    return null;
+  }
+
+  const sortedMinutes = items
+    .map((item) => item.pendingAgeMinutes)
+    .sort((left, right) => left - right);
+  const middleIndex = Math.floor(sortedMinutes.length / 2);
+  const median =
+    sortedMinutes.length % 2 === 0
+      ? Math.floor((sortedMinutes[middleIndex - 1] + sortedMinutes[middleIndex]) / 2)
+      : sortedMinutes[middleIndex];
+
+  return {
+    min: sortedMinutes[0],
+    median,
+    max: sortedMinutes[sortedMinutes.length - 1],
+  };
+}
+
 function buildReviewReasons(
   token: SelectedToken,
   staleAfterHours: number,
@@ -587,6 +616,8 @@ async function run(): Promise<void> {
     .sort(sortBySelectionAnchorDesc);
   const enrichPendingAgeBuckets = summarizePendingAgeBuckets(enrichPending);
   const metricPendingAgeBuckets = summarizePendingAgeBuckets(metricPending);
+  const enrichPendingAgeMinutesSummary = summarizePendingAgeMinutes(enrichPending);
+  const metricPendingAgeMinutesSummary = summarizePendingAgeMinutes(metricPending);
 
   const preview = reviewItems
     .filter((item) => item.queuesMatched.length > 0)
@@ -639,6 +670,8 @@ async function run(): Promise<void> {
           metricPendingCount: metricPending.length,
           enrichPendingAgeBuckets,
           metricPendingAgeBuckets,
+          enrichPendingAgeMinutesSummary,
+          metricPendingAgeMinutesSummary,
           notifyCandidateCount: notifyCandidates.length,
           staleReviewCount: staleReview.length,
           highPriorityRecentCount: highPriorityRecent.length,
