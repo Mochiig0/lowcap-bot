@@ -242,6 +242,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - that should be read as a description of the current detect-first / bounded-follow-up operating split, not as evidence that the detect-first discovery stance itself is failing
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
+- for safe local confirmation, start with one file-backed detect dry-run such as `pnpm detect:dexscreener:token-profiles -- --file <fixture>` or `pnpm detect:geckoterminal:new-pools -- --file <fixture>` so checkpoint files stay untouched
+- then use `--watch --write --maxIterations 1 --checkpointFile /tmp/<name>.json` on the same fixture-backed detect command when one isolated checkpoint write should be verified without touching the default repo-local cursor path
+- `metric:snapshot:geckoterminal` may also be checked locally with `--watch --maxIterations 1`, but it does not use checkpoint files and only appends `Metric` rows when `--write` is set
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - `scripts/run-geckoterminal-detect-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm detect:geckoterminal:new-pools -- --watch --write`
 - `scripts/run-geckoterminal-enrich-rescore-notify-fast.sh` is the repo-local fast follow runner for very recent incomplete Gecko-origin pump mints, and loops the one-shot `pnpm token:enrich-rescore:geckoterminal -- --write --notify --pumpOnly` batch with a default cadence of 60 seconds, 3 tokens, a 15-minute lookback, an optional start delay, and an extra cooldown only after rate-limited batches
