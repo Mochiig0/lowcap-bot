@@ -5501,6 +5501,28 @@ async function run(): Promise<void> {
             queuesMatched: string[];
           }>;
         };
+        oldestPendingPreview: {
+          oldestEnrichPending: Array<{
+            mint: string;
+            metadataStatus: string;
+            selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
+            pendingAgeMinutes: number;
+            pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
+            queuesMatched: string[];
+            reviewFlagsCount: number;
+            reviewFlags: Record<string, unknown> | null;
+          }>;
+          oldestMetricPending: Array<{
+            mint: string;
+            metadataStatus: string;
+            selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
+            pendingAgeMinutes: number;
+            pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
+            queuesMatched: string[];
+            reviewFlagsCount: number;
+            reviewFlags: Record<string, unknown> | null;
+          }>;
+        };
         preview: Array<{
           mint: string;
           reviewFlagsCount: number;
@@ -5622,6 +5644,42 @@ async function run(): Promise<void> {
         throw new Error("geckoterminal review queue did not expose expected pending age fields");
       }
 
+      const oldestEnrichPending = parsed.oldestPendingPreview.oldestEnrichPending;
+      const oldestMetricPending = parsed.oldestPendingPreview.oldestMetricPending;
+
+      if (
+        !Array.isArray(oldestEnrichPending) ||
+        !Array.isArray(oldestMetricPending) ||
+        oldestEnrichPending.length > 3 ||
+        oldestMetricPending.length > 3 ||
+        oldestEnrichPending.some(
+          (item, index, items) =>
+            typeof item.metadataStatus !== "string" ||
+            !["firstSeenDetectedAt", "createdAt"].includes(item.selectionAnchorKind) ||
+            typeof item.pendingAgeMinutes !== "number" ||
+            item.pendingAgeMinutes < 0 ||
+            !["lte5m", "lte15m", "lte60m", "gt60m"].includes(item.pendingAgeBucket) ||
+            !Array.isArray(item.queuesMatched) ||
+            !item.queuesMatched.includes("enrichPending") ||
+            typeof item.reviewFlagsCount !== "number" ||
+            (index > 0 && items[index - 1]!.pendingAgeMinutes < item.pendingAgeMinutes),
+        ) ||
+        oldestMetricPending.some(
+          (item, index, items) =>
+            typeof item.metadataStatus !== "string" ||
+            !["firstSeenDetectedAt", "createdAt"].includes(item.selectionAnchorKind) ||
+            typeof item.pendingAgeMinutes !== "number" ||
+            item.pendingAgeMinutes < 0 ||
+            !["lte5m", "lte15m", "lte60m", "gt60m"].includes(item.pendingAgeBucket) ||
+            !Array.isArray(item.queuesMatched) ||
+            !item.queuesMatched.includes("metricPending") ||
+            typeof item.reviewFlagsCount !== "number" ||
+            (index > 0 && items[index - 1]!.pendingAgeMinutes < item.pendingAgeMinutes),
+        )
+      ) {
+        throw new Error("geckoterminal review queue oldest pending preview returned unexpected items");
+      }
+
       if (
         !notifyCandidateItem ||
         notifyCandidateItem.reviewFlagsCount !== 6 ||
@@ -5681,6 +5739,11 @@ async function run(): Promise<void> {
             pendingAgeBucket: "lte5m" | "lte15m" | "lte60m" | "gt60m";
           }>;
         };
+        oldestPendingPreview: {
+          oldestEnrichPending: Array<{
+            mint: string;
+          }>;
+        };
         preview: Array<{
           mint: string;
         }>;
@@ -5735,6 +5798,10 @@ async function run(): Promise<void> {
           pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.median ||
         pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.median >
           pumpOnlyParsed.summary.enrichPendingAgeMinutesSummary.max ||
+        pumpOnlyParsed.oldestPendingPreview.oldestEnrichPending.length > 3 ||
+        pumpOnlyParsed.oldestPendingPreview.oldestEnrichPending.some(
+          (item) => !item.mint.endsWith("pump"),
+        ) ||
         !pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescorePumpMint) ||
         pumpOnlyEnrichPendingMints.has(context.geckoEnrichRescoreNonPumpMint) ||
         pumpOnlyParsed.preview.length === 0 ||

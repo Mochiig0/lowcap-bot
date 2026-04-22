@@ -6,6 +6,7 @@ import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNew
 const DEFAULT_SINCE_HOURS = 24;
 const DEFAULT_LIMIT = 5;
 const DEFAULT_STALE_AFTER_HOURS = 6;
+const OLDEST_PENDING_PREVIEW_LIMIT = 3;
 
 type Args = {
   sinceHours: number;
@@ -97,6 +98,17 @@ type ReviewQueueItem = {
   reviewFlagsCount: number;
   queuesMatched: QueueName[];
   reviewReasons: string[];
+};
+
+type OldestPendingPreviewItem = {
+  mint: string;
+  metadataStatus: string;
+  selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
+  pendingAgeMinutes: number;
+  pendingAgeBucket: PendingAgeBucket;
+  queuesMatched: QueueName[];
+  reviewFlagsCount: number;
+  reviewFlags: ReviewFlagsView | null;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -521,8 +533,35 @@ function sortByAgeDesc(left: ReviewQueueItem, right: ReviewQueueItem): number {
   return sortBySelectionAnchorDesc(left, right);
 }
 
+function sortByPendingAgeDesc(left: ReviewQueueItem, right: ReviewQueueItem): number {
+  if (right.pendingAgeMinutes !== left.pendingAgeMinutes) {
+    return right.pendingAgeMinutes - left.pendingAgeMinutes;
+  }
+
+  const leftTime = Date.parse(left.selectionAnchorAt);
+  const rightTime = Date.parse(right.selectionAnchorAt);
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+
+  return left.mint.localeCompare(right.mint);
+}
+
 function limitItems(items: ReviewQueueItem[], limit: number): ReviewQueueItem[] {
   return items.slice(0, limit);
+}
+
+function buildOldestPendingPreviewItem(item: ReviewQueueItem): OldestPendingPreviewItem {
+  return {
+    mint: item.mint,
+    metadataStatus: item.metadataStatus,
+    selectionAnchorKind: item.selectionAnchorKind,
+    pendingAgeMinutes: item.pendingAgeMinutes,
+    pendingAgeBucket: item.pendingAgeBucket,
+    queuesMatched: item.queuesMatched,
+    reviewFlagsCount: item.reviewFlagsCount,
+    reviewFlags: item.reviewFlags,
+  };
 }
 
 function isPumpMint(mint: string): boolean {
@@ -618,6 +657,16 @@ async function run(): Promise<void> {
   const metricPendingAgeBuckets = summarizePendingAgeBuckets(metricPending);
   const enrichPendingAgeMinutesSummary = summarizePendingAgeMinutes(enrichPending);
   const metricPendingAgeMinutesSummary = summarizePendingAgeMinutes(metricPending);
+  const oldestPendingPreview = {
+    oldestEnrichPending: [...enrichPending]
+      .sort(sortByPendingAgeDesc)
+      .slice(0, OLDEST_PENDING_PREVIEW_LIMIT)
+      .map(buildOldestPendingPreviewItem),
+    oldestMetricPending: [...metricPending]
+      .sort(sortByPendingAgeDesc)
+      .slice(0, OLDEST_PENDING_PREVIEW_LIMIT)
+      .map(buildOldestPendingPreviewItem),
+  };
 
   const preview = reviewItems
     .filter((item) => item.queuesMatched.length > 0)
@@ -684,6 +733,7 @@ async function run(): Promise<void> {
           enrichPending: limitItems(enrichPending, args.limit),
           metricPending: limitItems(metricPending, args.limit),
         },
+        oldestPendingPreview,
         preview: limitItems(preview, args.limit),
       },
       null,
