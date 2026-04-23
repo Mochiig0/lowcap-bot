@@ -2688,6 +2688,153 @@ async function run(): Promise<void> {
       }
     });
 
+    await runStep("detect dexscreener safe local confirmation", async () => {
+      const helperDbPath = `/tmp/${context.smokeId}-detect-dexscreener-local-confirm.db`;
+      const helperDatabaseUrl = `file:${helperDbPath}`;
+      const helperCheckpointPath =
+        `/tmp/${context.smokeId}-detect-dexscreener-local-confirm.json`;
+      const helperOutputPath =
+        `/tmp/${context.smokeId}-detect-dexscreener-local-confirm.stdout.json`;
+      const defaultCheckpointPath =
+        "data/checkpoints/dexscreener-token-profiles-latest-v1.json";
+      const defaultCheckpointBefore = await snapshotFile(defaultCheckpointPath);
+
+      await rm(helperDbPath, { force: true });
+      await rm(`${helperDbPath}-journal`, { force: true });
+      await rm(`${helperDbPath}-shm`, { force: true });
+      await rm(`${helperDbPath}-wal`, { force: true });
+      await rm(helperCheckpointPath, { force: true });
+      await rm(helperOutputPath, { force: true });
+
+      try {
+        const helperEnv = {
+          ...process.env,
+          DATABASE_URL: helperDatabaseUrl,
+        };
+
+        await execFileAsync(
+          "bash",
+          [
+            "-lc",
+            "pnpm exec prisma db push --skip-generate",
+          ],
+          {
+            cwd: process.cwd(),
+            env: helperEnv,
+          },
+        );
+
+        await execFileAsync(
+          "bash",
+          [
+            "-lc",
+            [
+              "node --import tsx src/cli/detectDexscreenerTokenProfiles.ts",
+              "--file fixtures/source-events/dexscreener-token-profiles-latest-v1.solana-pzcekaa.json",
+              "--watch",
+              "--write",
+              "--maxIterations 1",
+              `--checkpointFile ${shellEscape(helperCheckpointPath)}`,
+              `> ${shellEscape(helperOutputPath)}`,
+            ].join(" "),
+          ],
+          {
+            cwd: process.cwd(),
+            env: helperEnv,
+          },
+        );
+
+        const parsed = parseJson<{
+          checkpointEnabled: boolean;
+          checkpointFile?: string;
+          importedCount: number;
+          cycles: Array<{
+            cycle: number;
+            importedCount: number;
+          }>;
+        }>(
+          "detect dexscreener safe local confirmation",
+          await readFile(helperOutputPath, "utf-8"),
+        );
+
+        if (
+          parsed.checkpointEnabled !== true ||
+          parsed.checkpointFile !== helperCheckpointPath ||
+          parsed.importedCount !== 1 ||
+          parsed.cycles.length !== 1 ||
+          parsed.cycles[0]?.cycle !== 1 ||
+          parsed.cycles[0]?.importedCount !== 1
+        ) {
+          throw new Error(
+            "detect dexscreener safe local confirmation returned unexpected summary",
+          );
+        }
+
+        const checkpointParsed = parseJson<{
+          source?: string;
+          cursor?: string;
+        }>(
+          "detect dexscreener safe local confirmation checkpoint",
+          await readFile(helperCheckpointPath, "utf-8"),
+        );
+
+        if (
+          checkpointParsed.source !== "dexscreener-token-profiles-latest-v1" ||
+          checkpointParsed.cursor !== "2026-04-16T13:35:37.123Z"
+        ) {
+          throw new Error(
+            "detect dexscreener safe local confirmation checkpoint was not created as expected",
+          );
+        }
+
+        const helperDb = new PrismaClient({
+          datasources: {
+            db: {
+              url: helperDatabaseUrl,
+            },
+          },
+        });
+
+        try {
+          const helperTokens = await helperDb.token.findMany({
+            select: {
+              mint: true,
+              source: true,
+            },
+          });
+
+          if (
+            helperTokens.length !== 1 ||
+            helperTokens[0]?.mint !== "PzcEKaaQ5csrxfhu2bFqVfxJm7Cmm1QHJ4mjuD894wW" ||
+            helperTokens[0]?.source !== "dexscreener-token-profiles-latest-v1"
+          ) {
+            throw new Error(
+              "detect dexscreener safe local confirmation did not write the expected token into the temp database",
+            );
+          }
+        } finally {
+          await helperDb.$disconnect();
+        }
+
+        const defaultCheckpointAfter = await snapshotFile(defaultCheckpointPath);
+        if (
+          JSON.stringify(defaultCheckpointBefore) !==
+          JSON.stringify(defaultCheckpointAfter)
+        ) {
+          throw new Error(
+            "detect dexscreener safe local confirmation unexpectedly touched the repo-local default checkpoint path",
+          );
+        }
+      } finally {
+        await rm(helperDbPath, { force: true });
+        await rm(`${helperDbPath}-journal`, { force: true });
+        await rm(`${helperDbPath}-shm`, { force: true });
+        await rm(`${helperDbPath}-wal`, { force: true });
+        await rm(helperCheckpointPath, { force: true });
+        await rm(helperOutputPath, { force: true });
+      }
+    });
+
     await runStep("detect geckoterminal safe local confirmation", async () => {
       const helperDbPath = `/tmp/${context.smokeId}-detect-geckoterminal-local-confirm.db`;
       const helperDatabaseUrl = `file:${helperDbPath}`;
