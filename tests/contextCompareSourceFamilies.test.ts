@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createServer } from "node:http";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -146,6 +147,7 @@ async function runContextCompareSourceFamilies(
     geckoTopPoolsFile?: string;
     dexscreenerProfilesFile?: string;
     metaplexFixtureFile?: string;
+    solanaRpcUrl?: string;
   },
 ): Promise<CommandResult> {
   const stdoutPath = join(
@@ -190,6 +192,7 @@ async function runContextCompareSourceFamilies(
           ...(options?.metaplexFixtureFile
             ? { METAPLEX_METADATA_URI_FILE: options.metaplexFixtureFile }
             : {}),
+          ...(options?.solanaRpcUrl ? { LOWCAP_SOLANA_RPC_URL: options.solanaRpcUrl } : {}),
         },
       },
     );
@@ -449,6 +452,176 @@ test("context:compare:source-families boundary", async (t) => {
       assert.equal(sample?.sourceResults.every((item) => item.rateLimited === false), true);
       assert.equal(sample?.sourceResults.find((item) => item.family === "dexscreener")?.metadata?.description, "dex family description");
       assert.equal(sample?.sourceResults.find((item) => item.family === "metaplex")?.detail?.uri, "https://example.com/metaplex-family.json");
+    });
+  });
+
+  await t.test("keeps overall success while surfacing metaplex not_found details", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "context-compare-source-families-metaplex-not-found.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const geckoTopPoolsFile = join(dir, "gecko-top-pools.json");
+      const dexscreenerProfilesFile = join(dir, "dexscreener-profiles.json");
+      const pumpMint = "11111111111111111111111111111111pump";
+      const nonPumpMint = "111111111111111111111111111111112";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, pumpMint);
+      await seedToken(databaseUrl, nonPumpMint);
+
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${pumpMint}`,
+              type: "token",
+              attributes: {
+                address: pumpMint,
+                name: "context source family token",
+                symbol: "CSF",
+                description: "gecko family description",
+                websites: ["https://example.com/gecko-family"],
+                twitter_username: "gecko_family",
+                telegram_handle: "geckofamily",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      await writeFile(
+        geckoTopPoolsFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${pumpMint}`,
+              type: "token",
+              attributes: {
+                address: pumpMint,
+                name: "context source family token",
+                symbol: "CSF",
+                description: "gecko top pools description",
+                websites: ["https://example.com/gecko-top-pools"],
+                twitter_username: "gecko_top_pools",
+                telegram_handle: "geckotoppools",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      await writeFile(
+        dexscreenerProfilesFile,
+        JSON.stringify(
+          [
+            {
+              tokenAddress: pumpMint,
+              chainId: "solana",
+              description: "dex family description",
+              links: [
+                {
+                  type: "website",
+                  url: "https://example.com/dex-family",
+                },
+                {
+                  type: "twitter",
+                  url: "https://x.com/dex_family",
+                },
+                {
+                  type: "telegram",
+                  url: "https://t.me/dexfamily",
+                },
+              ],
+            },
+          ],
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      const requests: Array<string> = [];
+      const server = createServer((req, res) => {
+        requests.push(req.url ?? "");
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: "lowcap-bot-context-compare-metaplex",
+            result: {
+              value: null,
+            },
+          }),
+        );
+      });
+
+      await new Promise<void>((resolve) => {
+        server.listen(0, "127.0.0.1", () => resolve());
+      });
+
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close();
+        throw new Error("metaplex not_found rpc stub did not return a TCP address");
+      }
+
+      try {
+        const result = await runContextCompareSourceFamilies(
+          ["--limit", "1", "--sinceHours", "1"],
+          {
+            databaseUrl,
+            geckoSnapshotFile,
+            geckoTopPoolsFile,
+            dexscreenerProfilesFile,
+            solanaRpcUrl: `http://127.0.0.1:${address.port}`,
+          },
+        );
+
+        assert.equal(result.ok, true, result.stderr);
+        if (!result.ok) return;
+
+        const parsed = JSON.parse(result.stdout) as ContextCompareSourceFamiliesOutput;
+        const metaplexSummary = parsed.availabilitySummary.find(
+          (item) => item.sourceId === "metaplex.metadata_uri",
+        );
+        const metaplexSourceResult = parsed.sampleResults[0]?.sourceResults.find(
+          (item) => item.sourceId === "metaplex.metadata_uri",
+        );
+
+        assert.equal(parsed.readOnly, true);
+        assert.equal(parsed.selection.selectedCount, 1);
+        assert.equal(metaplexSummary?.okCount, 0);
+        assert.equal(metaplexSummary?.notFoundCount, 1);
+        assert.equal(metaplexSummary?.fetchErrorCount, 0);
+        assert.deepEqual(parsed.metaplexDeepDive.fetchErrorBreakdown, {});
+        assert.deepEqual(parsed.metaplexDeepDive.notFoundReasonSummary, {
+          metadata_account_missing: 1,
+        });
+        assert.equal(parsed.metaplexDeepDive.okSummary.okWithOffchainCount, 0);
+        assert.equal(parsed.metaplexDeepDive.okSummary.okWithoutOffchainCount, 0);
+        assert.equal(parsed.metaplexDeepDive.sampleDetails.length, 1);
+        assert.equal(parsed.metaplexDeepDive.sampleDetails[0]?.mint, pumpMint);
+        assert.equal(parsed.metaplexDeepDive.sampleDetails[0]?.status, "not_found");
+        assert.equal(
+          parsed.metaplexDeepDive.sampleDetails[0]?.detail?.reason,
+          "metadata_account_missing",
+        );
+        assert.equal(metaplexSourceResult?.status, "not_found");
+        assert.equal(metaplexSourceResult?.rateLimited, false);
+        assert.equal(metaplexSourceResult?.errorCategory, null);
+        assert.equal(metaplexSourceResult?.errorCode, null);
+        assert.equal(requests.length, 1);
+      } finally {
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()));
+        });
+      }
     });
   });
 
