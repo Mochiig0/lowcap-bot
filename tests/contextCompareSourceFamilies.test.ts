@@ -783,6 +783,149 @@ test("context:compare:source-families boundary", async (t) => {
     });
   });
 
+  await t.test("keeps overall success while surfacing geckoterminal fetch_error details", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "context-compare-source-families-gecko-fetch-error.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-snapshot-invalid.json");
+      const geckoTopPoolsFile = join(dir, "gecko-top-pools.json");
+      const dexscreenerProfilesFile = join(dir, "dexscreener-profiles.json");
+      const metaplexFixtureFile = join(dir, "metaplex-fixture.json");
+      const pumpMint = "GeckoSourceFamiliesFetchError11111111111111111111pump";
+      const nonPumpMint = "GeckoSourceFamiliesFetchErrorNonPump1111111111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, pumpMint);
+      await seedToken(databaseUrl, nonPumpMint);
+
+      await writeFile(geckoSnapshotFile, "{\n", "utf-8");
+
+      await writeFile(
+        geckoTopPoolsFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${pumpMint}`,
+              type: "token",
+              attributes: {
+                address: pumpMint,
+                name: "context source family token",
+                symbol: "CSF",
+                description: "gecko top pools description",
+                websites: ["https://example.com/gecko-top-pools"],
+                twitter_username: "gecko_top_pools",
+                telegram_handle: "geckotoppools",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      await writeFile(
+        dexscreenerProfilesFile,
+        JSON.stringify(
+          [
+            {
+              tokenAddress: pumpMint,
+              chainId: "solana",
+              description: "dex family description",
+              links: [
+                {
+                  type: "website",
+                  url: "https://example.com/dex-family",
+                },
+                {
+                  type: "twitter",
+                  url: "https://x.com/dex_family",
+                },
+                {
+                  type: "telegram",
+                  url: "https://t.me/dexfamily",
+                },
+              ],
+            },
+          ],
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(
+          {
+            onchain: {
+              mint: pumpMint,
+              name: "metaplex onchain token",
+              symbol: "MTPX",
+              uri: "https://example.com/metaplex-family.json",
+            },
+            offchain: {
+              name: "metaplex family token",
+              symbol: "MTPX",
+              description: "metaplex family description",
+              external_url: "https://example.com/metaplex-family",
+              extensions: {
+                twitter: "metaplex_family",
+                telegram: "metaplexfamily",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      const result = await runContextCompareSourceFamilies(
+        ["--limit", "1", "--sinceHours", "1"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          geckoTopPoolsFile,
+          dexscreenerProfilesFile,
+          metaplexFixtureFile,
+        },
+      );
+
+      assert.equal(result.ok, true, result.stderr);
+      if (!result.ok) return;
+
+      const parsed = JSON.parse(result.stdout) as ContextCompareSourceFamiliesOutput;
+      const geckoSummary = parsed.availabilitySummary.find(
+        (item) => item.sourceId === "geckoterminal.token_snapshot",
+      );
+      const geckoTopPoolsSummary = parsed.availabilitySummary.find(
+        (item) => item.sourceId === "geckoterminal.token_snapshot_with_top_pools",
+      );
+      const geckoSourceResult = parsed.sampleResults[0]?.sourceResults.find(
+        (item) => item.sourceId === "geckoterminal.token_snapshot",
+      );
+
+      assert.equal(parsed.readOnly, true);
+      assert.equal(parsed.selection.selectedCount, 1);
+      assert.equal(geckoSummary?.family, "geckoterminal");
+      assert.equal(geckoSummary?.okCount, 0);
+      assert.equal(geckoSummary?.notFoundCount, 0);
+      assert.equal(geckoSummary?.fetchErrorCount, 1);
+      assert.equal(geckoSummary?.rateLimitedCount, 0);
+      assert.deepEqual(geckoSummary?.errorCategoryCounts, { unknown_error: 1 });
+      assert.deepEqual(geckoSummary?.errorCodeCounts, {});
+      assert.equal(geckoTopPoolsSummary?.okCount, 1);
+      assert.equal(geckoTopPoolsSummary?.fetchErrorCount, 0);
+      assert.equal(parsed.sampleResults.length, 1);
+      assert.equal(geckoSourceResult?.status, "error");
+      assert.equal(geckoSourceResult?.rateLimited, false);
+      assert.equal(geckoSourceResult?.errorCategory, "unknown_error");
+      assert.equal(geckoSourceResult?.errorCode, null);
+      assert.equal(geckoSourceResult?.metadata, null);
+      assert.equal(geckoSourceResult?.links, null);
+    });
+  });
+
   await t.test("rejects unknown args", async () => {
     const result = await runContextCompareSourceFamilies(["--mint", "SomeMint"]);
 
