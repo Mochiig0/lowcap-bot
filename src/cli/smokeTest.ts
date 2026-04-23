@@ -1,8 +1,10 @@
 import "dotenv/config";
 
 import { execFile } from "node:child_process";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, rm, stat, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
+
+import { PrismaClient } from "@prisma/client";
 
 import { db } from "./db.js";
 
@@ -131,6 +133,43 @@ function parseJson<T>(step: string, raw: string): T {
 
 function shellEscape(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+type FileSnapshot =
+  | {
+      exists: false;
+    }
+  | {
+      exists: true;
+      mtimeMs: number;
+      size: number;
+      content: string;
+    };
+
+async function snapshotFile(path: string): Promise<FileSnapshot> {
+  try {
+    const [fileStat, content] = await Promise.all([
+      stat(path),
+      readFile(path, "utf-8"),
+    ]);
+
+    return {
+      exists: true,
+      mtimeMs: fileStat.mtimeMs,
+      size: fileStat.size,
+      content,
+    };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code?: string }).code === "ENOENT"
+    ) {
+      return { exists: false };
+    }
+
+    throw error;
+  }
 }
 
 async function runCliJson<T>(
@@ -2646,6 +2685,157 @@ async function run(): Promise<void> {
         if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
           throw error;
         }
+      }
+    });
+
+    await runStep("detect geckoterminal safe local confirmation", async () => {
+      const helperDbPath = `/tmp/${context.smokeId}-detect-geckoterminal-local-confirm.db`;
+      const helperDatabaseUrl = `file:${helperDbPath}`;
+      const helperCheckpointPath =
+        `/tmp/${context.smokeId}-detect-geckoterminal-local-confirm.json`;
+      const helperOutputPath =
+        `/tmp/${context.smokeId}-detect-geckoterminal-local-confirm.stdout.json`;
+      const defaultCheckpointPath = "data/checkpoints/geckoterminal-new-pools.json";
+      const defaultCheckpointBefore = await snapshotFile(defaultCheckpointPath);
+
+      await rm(helperDbPath, { force: true });
+      await rm(`${helperDbPath}-journal`, { force: true });
+      await rm(`${helperDbPath}-shm`, { force: true });
+      await rm(`${helperDbPath}-wal`, { force: true });
+      await rm(helperCheckpointPath, { force: true });
+      await rm(helperOutputPath, { force: true });
+
+      try {
+        const helperEnv = {
+          ...process.env,
+          DATABASE_URL: helperDatabaseUrl,
+        };
+
+        await execFileAsync(
+          "bash",
+          [
+            "-lc",
+            "pnpm exec prisma db push --skip-generate",
+          ],
+          {
+            cwd: process.cwd(),
+            env: helperEnv,
+          },
+        );
+
+        await execFileAsync(
+          "bash",
+          [
+            "-lc",
+            [
+              "node --import tsx src/cli/detectGeckoterminalNewPools.ts",
+              "--file fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json",
+              "--watch",
+              "--write",
+              "--maxIterations 1",
+              `--checkpointFile ${shellEscape(helperCheckpointPath)}`,
+              `> ${shellEscape(helperOutputPath)}`,
+            ].join(" "),
+          ],
+          {
+            cwd: process.cwd(),
+            env: helperEnv,
+          },
+        );
+
+        const parsed = parseJson<{
+          checkpointEnabled: boolean;
+          checkpointFile?: string;
+          importedCount: number;
+          cycles: Array<{
+            cycle: number;
+            importedCount: number;
+          }>;
+        }>(
+          "detect geckoterminal safe local confirmation",
+          await readFile(helperOutputPath, "utf-8"),
+        );
+
+        if (
+          parsed.checkpointEnabled !== true ||
+          parsed.checkpointFile !== helperCheckpointPath ||
+          parsed.importedCount !== 1 ||
+          parsed.cycles.length !== 1 ||
+          parsed.cycles[0]?.cycle !== 1 ||
+          parsed.cycles[0]?.importedCount !== 1
+        ) {
+          throw new Error(
+            "detect geckoterminal safe local confirmation returned unexpected summary",
+          );
+        }
+
+        const checkpointParsed = parseJson<{
+          source?: string;
+          cursor?: {
+            poolCreatedAt?: string;
+            poolAddress?: string;
+          };
+        }>(
+          "detect geckoterminal safe local confirmation checkpoint",
+          await readFile(helperCheckpointPath, "utf-8"),
+        );
+
+        if (
+          checkpointParsed.source !== "geckoterminal.new_pools" ||
+          checkpointParsed.cursor?.poolCreatedAt !== "2026-04-18T02:13:55.000Z" ||
+          checkpointParsed.cursor?.poolAddress !==
+            "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc"
+        ) {
+          throw new Error(
+            "detect geckoterminal safe local confirmation checkpoint was not created as expected",
+          );
+        }
+
+        const helperDb = new PrismaClient({
+          datasources: {
+            db: {
+              url: helperDatabaseUrl,
+            },
+          },
+        });
+
+        try {
+          const helperTokens = await helperDb.token.findMany({
+            select: {
+              mint: true,
+              source: true,
+            },
+          });
+
+          if (
+            helperTokens.length !== 1 ||
+            helperTokens[0]?.mint !== "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump" ||
+            helperTokens[0]?.source !== "geckoterminal.new_pools"
+          ) {
+            throw new Error(
+              "detect geckoterminal safe local confirmation did not write the expected token into the temp database",
+            );
+          }
+        } finally {
+          await helperDb.$disconnect();
+        }
+
+        const defaultCheckpointAfter = await snapshotFile(defaultCheckpointPath);
+        if (
+          JSON.stringify(defaultCheckpointBefore) !==
+          JSON.stringify(defaultCheckpointAfter)
+        ) {
+          throw new Error(
+            "detect geckoterminal safe local confirmation unexpectedly touched the repo-local default checkpoint path",
+          );
+        }
+      } finally {
+        await rm(helperDbPath, { force: true });
+        await rm(`${helperDbPath}-journal`, { force: true });
+        await rm(`${helperDbPath}-shm`, { force: true });
+        await rm(`${helperDbPath}-wal`, { force: true });
+        await rm(helperCheckpointPath, { force: true });
+        await rm(helperOutputPath, { force: true });
       }
     });
 
