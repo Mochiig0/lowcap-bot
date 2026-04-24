@@ -148,6 +148,32 @@ test("geckoterminalMetaplexLogsSummary boundary", async (t) => {
     );
   });
 
+  await t.test("exits non-zero when a summary line is malformed", async () => {
+    await withTempDir(async (dir) => {
+      const logPath = join(dir, "malformed.log");
+
+      await writeFile(
+        logPath,
+        "[token:enrich-rescore:geckoterminal] selected=1 metaplexAttemptedCount=1 metaplexAvailableCount=1 metaplexSavedCount=0 metaplexErrorKindCounts={\"metadata_account_missing\":\"bad\"}\n",
+        "utf8",
+      );
+
+      const result = await runGeckoterminalMetaplexLogsSummary([logPath]);
+
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.equal(result.code, 1);
+      }
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Failed to parse 1 enrich summary line\(s\)/);
+      assert.match(result.stderr, /line 1:/);
+      assert.match(
+        result.stderr,
+        /metaplexErrorKindCounts\.metadata_account_missing is not a finite number/,
+      );
+    });
+  });
+
   await t.test("returns zero totals when the log contains no summary lines", async () => {
     await withTempDir(async (dir) => {
       const logPath = join(dir, "empty.log");
