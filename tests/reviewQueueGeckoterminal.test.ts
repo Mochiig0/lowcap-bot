@@ -299,6 +299,49 @@ async function seedReviewQueue(databaseUrl: string): Promise<{
   }
 }
 
+async function seedHighPriorityRecentOnlyToken(databaseUrl: string): Promise<string> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const recentAt = new Date(Date.now() - 5 * 60 * 1_000);
+    const token = await db.token.create({
+      data: {
+        mint: "GeckoQueueRecentA11111111111111111111111111111pump",
+        name: "Gecko Queue Recent A Token",
+        symbol: "GQRA",
+        source: GECKO_SOURCE,
+        metadataStatus: "enriched",
+        scoreRank: "A",
+        scoreTotal: 72,
+        hardRejected: false,
+        createdAt: recentAt,
+        importedAt: recentAt,
+        enrichedAt: recentAt,
+        rescoredAt: recentAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: recentAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    return token.mint;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("reviewQueueGeckoterminal boundary", async (t) => {
   await t.test("returns a gecko review queue with stable top-level counts", async () => {
     await withTempDir(async (dir) => {
@@ -432,6 +475,48 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       result.stdout,
       /pnpm review:queue:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\]/,
     );
+  });
+
+  await t.test("sorts highPriorityRecent by selection anchor recency rather than score rank", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "priority-order.db")}`;
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedReviewQueue(databaseUrl);
+      const recentAMint = await seedHighPriorityRecentOnlyToken(databaseUrl);
+
+      const result = await runReviewQueueGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "5",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as ReviewQueueGeckoterminalOutput;
+      assert.equal(parsed.summary.notifyCandidateCount, 1);
+      assert.equal(parsed.summary.highPriorityRecentCount, 2);
+      assert.equal(parsed.queues.highPriorityRecent.length, 2);
+      assert.deepEqual(
+        parsed.queues.highPriorityRecent.map((item) => item.mint),
+        [recentAMint, seeded.notifyMint],
+      );
+      assert.deepEqual(parsed.queues.highPriorityRecent[0]?.queuesMatched, [
+        "highPriorityRecent",
+        "metricPending",
+      ]);
+      assert.deepEqual(parsed.queues.highPriorityRecent[0]?.reviewReasons, [
+        "high_priority_recent_rank",
+        "metric_pending",
+      ]);
+      assert.deepEqual(parsed.queues.highPriorityRecent[1]?.queuesMatched, [
+        "notifyCandidate",
+        "highPriorityRecent",
+      ]);
+    });
   });
 
   await t.test("returns empty queue groups when no gecko-origin token matches", async () => {
