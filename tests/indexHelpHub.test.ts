@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const execFileAsync = promisify(execFile);
 
@@ -21,34 +24,49 @@ type CommandFailure = {
 type CommandResult = CommandSuccess | CommandFailure;
 
 async function runIndexHelpHub(args: string[]): Promise<CommandResult> {
+  const captureDir = await mkdtemp(join(tmpdir(), "lowcap-index-help-hub-"));
+  const stdoutPath = join(captureDir, "stdout.log");
+  const stderrPath = join(captureDir, "stderr.log");
+
   try {
-    const { stdout, stderr } = await execFileAsync(
-      "node",
-      ["--import", "tsx", "src/index.ts", ...args],
-      {
-        cwd: process.cwd(),
-        env: process.env,
-      },
-    );
+    try {
+      await execFileAsync(
+        "bash",
+        [
+          "-lc",
+          'node --import tsx src/index.ts "$@" >"$STDOUT_FILE" 2>"$STDERR_FILE"',
+          "bash",
+          ...args,
+        ],
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            STDOUT_FILE: stdoutPath,
+            STDERR_FILE: stderrPath,
+          },
+        },
+      );
 
-    return {
-      ok: true,
-      stdout: stdout.trim(),
-      stderr: stderr.trim(),
-    };
-  } catch (error) {
-    const output = error as {
-      stdout?: string;
-      stderr?: string;
-      code?: number | null;
-    };
+      return {
+        ok: true,
+        stdout: (await readFile(stdoutPath, "utf-8")).trim(),
+        stderr: (await readFile(stderrPath, "utf-8")).trim(),
+      };
+    } catch (error) {
+      const output = error as {
+        code?: number | null;
+      };
 
-    return {
-      ok: false,
-      stdout: (output.stdout ?? "").trim(),
-      stderr: (output.stderr ?? "").trim(),
-      code: output.code ?? null,
-    };
+      return {
+        ok: false,
+        stdout: (await readFile(stdoutPath, "utf-8").catch(() => "")).trim(),
+        stderr: (await readFile(stderrPath, "utf-8").catch(() => "")).trim(),
+        code: output.code ?? null,
+      };
+    }
+  } finally {
+    await rm(captureDir, { recursive: true, force: true });
   }
 }
 

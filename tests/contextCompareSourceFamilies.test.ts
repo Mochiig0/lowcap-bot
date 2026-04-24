@@ -561,15 +561,47 @@ test("context:compare:source-families boundary", async (t) => {
         );
       });
 
-      await new Promise<void>((resolve) => {
-        server.listen(0, "127.0.0.1", () => resolve());
+      const listenOutcome = await new Promise<
+        | { ok: true; address: Exclude<ReturnType<typeof server.address>, string | null> }
+        | { ok: false; error: NodeJS.ErrnoException }
+      >((resolve) => {
+        const handleError = (error: NodeJS.ErrnoException) => {
+          server.off("listening", handleListening);
+          resolve({ ok: false, error });
+        };
+
+        const handleListening = () => {
+          server.off("error", handleError);
+
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            resolve({
+              ok: false,
+              error: Object.assign(new Error("metaplex not_found rpc stub did not return a TCP address"), {
+                code: "INVALID_SERVER_ADDRESS",
+              }),
+            });
+            return;
+          }
+
+          resolve({ ok: true, address });
+        };
+
+        server.once("error", handleError);
+        server.once("listening", handleListening);
+        server.listen(0, "127.0.0.1");
       });
 
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close();
-        throw new Error("metaplex not_found rpc stub did not return a TCP address");
+      if (!listenOutcome.ok) {
+        if (listenOutcome.error.code === "EPERM") {
+          t.skip("loopback listen is not permitted in this sandbox");
+          return;
+        }
+
+        throw listenOutcome.error;
       }
+
+      const address = listenOutcome.address;
 
       try {
         const result = await runContextCompareSourceFamilies(

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -42,37 +42,50 @@ async function runCheckPrismaTokenTable(
   runnerName: string,
   timeoutMs = "0",
 ): Promise<CommandResult> {
+  const captureDir = await mkdtemp(join(tmpdir(), "lowcap-check-prisma-run-"));
+  const stdoutPath = join(captureDir, "stdout.log");
+  const stderrPath = join(captureDir, "stderr.log");
+
   try {
-    const { stdout, stderr } = await execFileAsync(
-      "node",
-      ["./scripts/check-prisma-token-table.mjs", runnerName, timeoutMs],
-      {
-        cwd: process.cwd(),
-        env: {
-          ...process.env,
-          DATABASE_URL: databaseUrl,
+    try {
+      await execFileAsync(
+        "bash",
+        [
+          "-lc",
+          'node ./scripts/check-prisma-token-table.mjs "$RUNNER_NAME" "$TIMEOUT_MS" >"$STDOUT_FILE" 2>"$STDERR_FILE"',
+        ],
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            DATABASE_URL: databaseUrl,
+            RUNNER_NAME: runnerName,
+            TIMEOUT_MS: timeoutMs,
+            STDOUT_FILE: stdoutPath,
+            STDERR_FILE: stderrPath,
+          },
         },
-      },
-    );
+      );
 
-    return {
-      ok: true,
-      stdout: stdout.trim(),
-      stderr: stderr.trim(),
-    };
-  } catch (error) {
-    const output = error as {
-      stdout?: string;
-      stderr?: string;
-      code?: number | null;
-    };
+      return {
+        ok: true,
+        stdout: (await readFile(stdoutPath, "utf-8")).trim(),
+        stderr: (await readFile(stderrPath, "utf-8")).trim(),
+      };
+    } catch (error) {
+      const output = error as {
+        code?: number | null;
+      };
 
-    return {
-      ok: false,
-      stdout: (output.stdout ?? "").trim(),
-      stderr: (output.stderr ?? "").trim(),
-      code: output.code ?? null,
-    };
+      return {
+        ok: false,
+        stdout: (await readFile(stdoutPath, "utf-8").catch(() => "")).trim(),
+        stderr: (await readFile(stderrPath, "utf-8").catch(() => "")).trim(),
+        code: output.code ?? null,
+      };
+    }
+  } finally {
+    await rm(captureDir, { recursive: true, force: true });
   }
 }
 
