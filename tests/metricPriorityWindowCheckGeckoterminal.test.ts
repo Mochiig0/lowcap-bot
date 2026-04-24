@@ -254,6 +254,57 @@ async function seedPriorityWindowCheck(databaseUrl: string): Promise<{
   }
 }
 
+async function seedAdditionalRecentGeckoWindowTokens(databaseUrl: string): Promise<{
+  pumpMint: string;
+  nonPumpMint: string;
+}> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const baseTimestamp = Date.now();
+    const pumpMint = "clean-gecko-window-pump-token-pump";
+    const nonPumpMint = "clean-gecko-window-non-pump-token";
+
+    await db.token.create({
+      data: {
+        mint: pumpMint,
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: new Date(baseTimestamp).toISOString(),
+          },
+        },
+      },
+    });
+
+    await db.token.create({
+      data: {
+        mint: nonPumpMint,
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: new Date(baseTimestamp - 5_000).toISOString(),
+          },
+        },
+      },
+    });
+
+    return { pumpMint, nonPumpMint };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("metricPriorityWindowCheckGeckoterminal boundary", async (t) => {
   await t.test("returns stable clean-window and mixed-window summaries", async () => {
     await withTempDir(async (dir) => {
@@ -323,6 +374,52 @@ test("metricPriorityWindowCheckGeckoterminal boundary", async (t) => {
       assert.equal(parsed.cleanCandidates[0]?.eligibleCount, 3);
       assert.equal(parsed.cleanCandidates[0]?.top20SmokeCount, 0);
       assert.equal(parsed.cleanCandidates[0]?.cleanCandidate, true);
+    });
+  });
+
+  await t.test("narrows recent window cohorts to pump mints when pumpOnly is set", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "pump-only.db")}`;
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedAdditionalRecentGeckoWindowTokens(databaseUrl);
+      await seedPriorityWindowCheck(databaseUrl);
+
+      const defaultResult = await runMetricPriorityWindowCheckGeckoterminal(
+        ["--sinceMinutesList", "60", "--topLimits", "5,10,20"],
+        databaseUrl,
+      );
+      assert.equal(defaultResult.ok, true);
+      if (!defaultResult.ok) return;
+
+      const pumpOnlyResult = await runMetricPriorityWindowCheckGeckoterminal(
+        ["--sinceMinutesList", "60", "--topLimits", "5,10,20", "--pumpOnly"],
+        databaseUrl,
+      );
+      assert.equal(pumpOnlyResult.ok, true);
+      if (!pumpOnlyResult.ok) return;
+
+      const defaultParsed = JSON.parse(defaultResult.stdout) as MetricPriorityWindowCheckOutput;
+      const pumpOnlyParsed = JSON.parse(pumpOnlyResult.stdout) as MetricPriorityWindowCheckOutput;
+      const defaultWindow = defaultParsed.windows.find((item) => item.sinceMinutes === 60);
+      const pumpOnlyWindow = pumpOnlyParsed.windows.find((item) => item.sinceMinutes === 60);
+
+      assert.ok(defaultWindow);
+      assert.ok(pumpOnlyWindow);
+
+      assert.equal(defaultParsed.selection.pumpOnly, false);
+      assert.equal(defaultWindow?.eligibleCount, 5);
+      assert.equal(defaultWindow?.smokeCount, 0);
+      assert.equal(defaultWindow?.representativeTopMints.includes(seeded.pumpMint), true);
+      assert.equal(defaultWindow?.representativeTopMints.includes(seeded.nonPumpMint), true);
+
+      assert.equal(pumpOnlyParsed.selection.pumpOnly, true);
+      assert.equal(pumpOnlyWindow?.eligibleCount, 1);
+      assert.equal(pumpOnlyWindow?.smokeCount, 0);
+      assert.deepEqual(pumpOnlyWindow?.representativeTopMints, [seeded.pumpMint]);
+      assert.equal(pumpOnlyParsed.cleanCandidates.length, 1);
+      assert.equal(pumpOnlyParsed.cleanCandidates[0]?.sinceMinutes, 60);
+      assert.equal(pumpOnlyParsed.cleanCandidates[0]?.eligibleCount, 1);
     });
   });
 
