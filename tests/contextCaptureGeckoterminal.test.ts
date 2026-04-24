@@ -464,6 +464,113 @@ test("context:capture:geckoterminal keeps write mode as a no-op when collected c
   });
 });
 
+test("context:capture:geckoterminal writes useful single-mint context with --write", async () => {
+  await withTempDir(async (dir) => {
+    const databaseUrl = `file:${join(dir, "context-capture-write-success.db")}`;
+    const geckoSnapshotFile = join(dir, "gecko-context-write-success.json");
+    const mint = "GeckoContextCaptureWrite111111111111111111111pump";
+
+    await runDbPush(databaseUrl);
+    await seedToken(databaseUrl, mint);
+
+    await writeFile(
+      geckoSnapshotFile,
+      JSON.stringify(
+        {
+          data: {
+            id: `solana_${mint}`,
+            type: "token",
+            attributes: {
+              address: mint,
+              name: "context write token",
+              symbol: "CWRITE",
+              description: "context write description",
+              websites: ["https://example.com/context-write"],
+              twitter_username: "context_write",
+              telegram_handle: "contextwrite",
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const result = await runContextCaptureGeckoterminal(
+      ["--mint", mint, "--write"],
+      {
+        databaseUrl,
+        geckoSnapshotFile,
+      },
+    );
+
+    assert.equal(result.ok, true, result.stderr);
+    if (!result.ok) return;
+
+    const parsed = JSON.parse(result.stdout) as ContextCaptureGeckoterminalOutput;
+
+    assert.equal(parsed.mode, "single");
+    assert.equal(parsed.dryRun, false);
+    assert.equal(parsed.writeEnabled, true);
+    assert.equal(parsed.selection.mint, mint);
+    assert.equal(parsed.summary.selectedCount, 1);
+    assert.equal(parsed.summary.writeCount, 1);
+    assert.equal(parsed.summary.savedContextBeforeCount, 0);
+    assert.equal(parsed.items.length, 1);
+    assert.equal(parsed.items[0]?.token.mint, mint);
+    assert.equal(parsed.items[0]?.token.hasUsefulSavedContextCapture, false);
+    assert.equal(parsed.items[0]?.savedContextPresentBefore, false);
+    assert.equal(parsed.items[0]?.status, "ok");
+    assert.equal(parsed.items[0]?.wouldWrite, true);
+    assert.equal(parsed.items[0]?.writeSummary.dryRun, false);
+    assert.equal(parsed.items[0]?.writeSummary.updatedEntrySnapshot, true);
+
+    const token = await readToken(databaseUrl, mint);
+    assert.ok(token);
+    const entrySnapshot =
+      token.entrySnapshot &&
+      typeof token.entrySnapshot === "object" &&
+      !Array.isArray(token.entrySnapshot)
+        ? (token.entrySnapshot as Record<string, unknown>)
+        : null;
+    const contextCapture =
+      entrySnapshot?.contextCapture &&
+      typeof entrySnapshot.contextCapture === "object" &&
+      !Array.isArray(entrySnapshot.contextCapture)
+        ? (entrySnapshot.contextCapture as Record<string, unknown>)
+        : null;
+    const geckoSnapshot =
+      contextCapture?.geckoterminalTokenSnapshot &&
+      typeof contextCapture.geckoterminalTokenSnapshot === "object" &&
+      !Array.isArray(contextCapture.geckoterminalTokenSnapshot)
+        ? (contextCapture.geckoterminalTokenSnapshot as Record<string, unknown>)
+        : null;
+    const metadataText =
+      geckoSnapshot?.metadataText &&
+      typeof geckoSnapshot.metadataText === "object" &&
+      !Array.isArray(geckoSnapshot.metadataText)
+        ? (geckoSnapshot.metadataText as Record<string, unknown>)
+        : null;
+    const links =
+      geckoSnapshot?.links &&
+      typeof geckoSnapshot.links === "object" &&
+      !Array.isArray(geckoSnapshot.links)
+        ? (geckoSnapshot.links as Record<string, unknown>)
+        : null;
+
+    assert.equal(geckoSnapshot?.source, CONTEXT_SOURCE);
+    assert.equal(geckoSnapshot?.address, mint);
+    assert.equal(typeof geckoSnapshot?.capturedAt, "string");
+    assert.equal(metadataText?.name, "context write token");
+    assert.equal(metadataText?.symbol, "CWRITE");
+    assert.equal(metadataText?.description, "context write description");
+    assert.equal(links?.website, "https://example.com/context-write");
+    assert.equal(links?.x, "https://x.com/context_write");
+    assert.equal(links?.telegram, "https://t.me/contextwrite");
+  });
+});
+
 test("context:capture:geckoterminal accounts for already-captured and non-pump skips in recent batches", async () => {
   await withTempDir(async (dir) => {
     const databaseUrl = `file:${join(dir, "context-capture-skip-accounting.db")}`;
