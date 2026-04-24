@@ -131,6 +131,38 @@ done
     assert.match(result.stdout, /^arg=1$/m);
   });
 
+  await t.test("exits non-zero when the node preflight fails", async () => {
+    await writeStubExecutable(
+      tempDir,
+      "node",
+      `#!/usr/bin/env bash
+if [[ "$1" == "./scripts/check-prisma-token-table.mjs" ]]; then
+  echo "stub_preflight_failed=$2" >&2
+  exit 1
+fi
+exit 0
+`,
+    );
+    await writeStubExecutable(
+      tempDir,
+      "pnpm",
+      `#!/usr/bin/env bash
+echo "pnpm_should_not_run" >&2
+exit 0
+`,
+    );
+
+    const result = await runGeckoterminalWatch({
+      PATH: `${tempDir}:/usr/bin:/bin`,
+      DATABASE_URL: "file:/tmp/gecko-detect-wrapper.db",
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /stub_preflight_failed=geckoterminal-detect-watch/);
+  });
+
   await t.test("exits non-zero when pnpm is missing from PATH", async () => {
     const result = await runGeckoterminalWatch({
       PATH: "/usr/bin:/bin",
