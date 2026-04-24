@@ -257,6 +257,45 @@ async function seedPendingShape(databaseUrl: string): Promise<{
   }
 }
 
+async function seedMinorityPendingShape(databaseUrl: string): Promise<string> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const staleAt = new Date(Date.now() - 6.5 * 60 * 60 * 1_000);
+    const mint = "GeckoPendingShapeMinority333333333333333333333333333";
+
+    await db.token.create({
+      data: {
+        mint,
+        source: GECKO_SOURCE,
+        name: "Pending Shape Minority",
+        symbol: "PSM",
+        metadataStatus: "partial",
+        createdAt: staleAt,
+        importedAt: staleAt,
+        enrichedAt: staleAt,
+        rescoredAt: null,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: staleAt.toISOString(),
+          },
+        },
+      },
+    });
+
+    return mint;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("pendingShapeGeckoterminal boundary", async (t) => {
   await t.test("returns a pending-shape summary with stable top-level counts", async () => {
     await withTempDir(async (dir) => {
@@ -342,6 +381,44 @@ test("pendingShapeGeckoterminal boundary", async (t) => {
       result.stdout,
       /pnpm review:pending-shape:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\] \[--metadataStatus <STATUS>\] \[--minReviewFlagsCount <N>\]/,
     );
+  });
+
+  await t.test("counts a minority staleReview+rescorePending+metricPending pattern once", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "minority.db")}`;
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedPendingShape(databaseUrl);
+      const minorityMint = await seedMinorityPendingShape(databaseUrl);
+
+      const result = await runPendingShapeGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "10",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as PendingShapeGeckoterminalOutput;
+      assert.equal(parsed.selection.selectedPendingCount, 3);
+      assert.equal(
+        parsed.summary.queuesMatchedPatternCounts["staleReview+rescorePending+metricPending"],
+        1,
+      );
+      assert.deepEqual(
+        parsed.representativeRows.map((item) => item.mint),
+        [minorityMint, seeded.partialMint, seeded.mintOnlyMint],
+      );
+      assert.equal(parsed.representativeRows[0]?.metadataStatus, "partial");
+      assert.deepEqual(parsed.representativeRows[0]?.queuesMatched, [
+        "staleReview",
+        "rescorePending",
+        "metricPending",
+      ]);
+    });
   });
 
   await t.test("returns an empty result when no gecko-origin pending token matches", async () => {
