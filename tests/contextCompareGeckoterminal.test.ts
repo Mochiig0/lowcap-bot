@@ -320,6 +320,93 @@ test("context:compare:geckoterminal rejects unknown args", async () => {
   assert.match(result.stderr, /Unknown arg: --mint/);
 });
 
+test("context:compare:geckoterminal reports a mixed summary when one source fails and the other succeeds", async () => {
+  await withTempDir(async (dir) => {
+    const databaseUrl = `file:${join(dir, "context-compare-mixed.db")}`;
+    const geckoSnapshotFile = join(dir, "gecko-context-compare-invalid.json");
+    const geckoSnapshotWithTopPoolsFile = join(dir, "gecko-context-compare-top-pools.json");
+    const pumpMint = "GeckoContextCompareMixedPump11111111111111111111pump";
+    const nonPumpMint = "GeckoContextCompareMixedNonPump1111111111111111111";
+
+    await runDbPush(databaseUrl);
+    await seedToken(databaseUrl, pumpMint);
+    await seedToken(databaseUrl, nonPumpMint);
+
+    await writeFile(geckoSnapshotFile, "{not-json", "utf-8");
+    await writeFile(
+      geckoSnapshotWithTopPoolsFile,
+      JSON.stringify(
+        {
+          data: {
+            id: `solana_${pumpMint}`,
+            type: "token",
+            attributes: {
+              address: pumpMint,
+              name: "context compare top pools token",
+              symbol: "CCTP",
+              description: "top pools description",
+              websites: ["https://example.com/context-compare-top-pools"],
+              telegram_handle: "contextcomparetoppools",
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const result = await runContextCompareGeckoterminal(
+      ["--limit", "1", "--sinceHours", "1"],
+      {
+        databaseUrl,
+        geckoSnapshotFile,
+        geckoSnapshotWithTopPoolsFile,
+      },
+    );
+
+    assert.equal(result.ok, true, result.stderr);
+    if (!result.ok) return;
+
+    const parsed = JSON.parse(result.stdout) as ContextCompareGeckoterminalOutput;
+    const summaryBySource = new Map(
+      parsed.availabilitySummary.map((item) => [item.sourceId, item] as const),
+    );
+    const plainSummary = summaryBySource.get("geckoterminal.token_snapshot");
+    const topPoolsSummary = summaryBySource.get("geckoterminal.token_snapshot_with_top_pools");
+    const sourceResults = parsed.sampleResults[0]?.sourceResults ?? [];
+    const sourceResultById = new Map(sourceResults.map((item) => [item.sourceId, item] as const));
+    const plainResult = sourceResultById.get("geckoterminal.token_snapshot");
+    const topPoolsResult = sourceResultById.get("geckoterminal.token_snapshot_with_top_pools");
+
+    assert.deepEqual(
+      parsed.comparedSources.map((item) => item.id),
+      [
+        "geckoterminal.token_snapshot",
+        "geckoterminal.token_snapshot_with_top_pools",
+      ],
+    );
+    assert.equal(plainSummary?.totalChecked, 1);
+    assert.equal(plainSummary?.okCount, 0);
+    assert.equal(plainSummary?.fetchErrorCount, 1);
+    assert.equal(plainSummary?.rateLimitedCount, 0);
+    assert.equal(topPoolsSummary?.totalChecked, 1);
+    assert.equal(topPoolsSummary?.okCount, 1);
+    assert.equal(topPoolsSummary?.fetchErrorCount, 0);
+    assert.equal(topPoolsSummary?.rateLimitedCount, 0);
+    assert.equal(parsed.sampleResults.length, 1);
+    assert.equal(plainResult?.status, "error");
+    assert.equal(plainResult?.rateLimited, false);
+    assert.equal(plainResult?.metadata, null);
+    assert.equal(plainResult?.links, null);
+    assert.equal(typeof plainResult?.error, "string");
+    assert.equal(topPoolsResult?.status, "ok");
+    assert.equal(topPoolsResult?.rateLimited, false);
+    assert.equal(topPoolsResult?.metadata?.description, "top pools description");
+    assert.equal(topPoolsResult?.links?.telegram, "https://t.me/contextcomparetoppools");
+  });
+});
+
 test("context:compare:geckoterminal returns an empty success result when no matching tokens exist", async () => {
   await withTempDir(async (dir) => {
     const databaseUrl = `file:${join(dir, "context-compare-empty.db")}`;
