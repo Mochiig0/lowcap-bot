@@ -333,6 +333,48 @@ async function writeSnapshotFixture(filePath: string, mint: string): Promise<voi
   );
 }
 
+async function seedRecentMetric(
+  databaseUrl: string,
+  input: {
+    mint: string;
+    observedAt: Date;
+    source?: string;
+  },
+): Promise<void> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const token = await db.token.findUniqueOrThrow({
+      where: {
+        mint: input.mint,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await db.metric.create({
+      data: {
+        tokenId: token.id,
+        observedAt: input.observedAt,
+        source: input.source ?? METRIC_SOURCE,
+        volume24h: 999,
+        rawJson: {
+          seeded: true,
+        },
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 async function readMetrics(
   databaseUrl: string,
   mint: string,
@@ -508,6 +550,56 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       assert.equal(prioritizedParsed.selection.prioritizeRichPending, true);
       assert.equal(prioritizedParsed.items[0]?.token.mint, olderRichMint);
       assert.equal(prioritizedParsed.items[0]?.token.originSource, GECKO_ORIGIN_SOURCE);
+    });
+  });
+
+  await t.test("skips a selected token before fetch when minGapMinutes is newer than the latest metric", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "min-gap.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-min-gap-snapshot.json");
+      const skippedMint = "MetricSnapshotSkip11111111111111111111111111111pump";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: skippedMint,
+        createdAt: new Date(now - 2 * 60 * 1_000),
+        metadataStatus: "mint_only",
+      });
+      await seedRecentMetric(databaseUrl, {
+        mint: skippedMint,
+        observedAt: new Date(now - 60 * 1_000),
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, skippedMint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10", "--minGapMinutes", "5"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 1);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.summary.okCount, 0);
+      assert.equal(parsed.summary.skippedCount, 1);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.summary.writtenCount, 0);
+      assert.equal(parsed.items.length, 1);
+      assert.equal(parsed.items[0]?.token.mint, skippedMint);
+      assert.equal(parsed.items[0]?.status, "skipped_recent_metric");
+      assert.equal(parsed.items[0]?.metricCandidate, undefined);
+      assert.equal(parsed.items[0]?.writeSummary.dryRun, true);
+      assert.equal(parsed.items[0]?.writeSummary.wouldCreateMetric, false);
+      assert.equal(parsed.items[0]?.writeSummary.metricId, null);
+      assert.equal(parsed.items[0]?.minGapMinutes, 5);
+      assert.match(parsed.items[0]?.latestObservedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
+
+      const metrics = await readMetrics(databaseUrl, skippedMint);
+      assert.equal(metrics.length, 1);
+      assert.equal(metrics[0]?.source, METRIC_SOURCE);
+      assert.equal(metrics[0]?.volume24h, 999);
     });
   });
 
