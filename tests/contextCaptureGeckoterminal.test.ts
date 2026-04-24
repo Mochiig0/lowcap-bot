@@ -367,6 +367,96 @@ test("context:capture:geckoterminal rejects unknown args", async () => {
   assert.match(result.stderr, /Unknown arg: --source/);
 });
 
+test("context:capture:geckoterminal accounts for already-captured and non-pump skips in recent batches", async () => {
+  await withTempDir(async (dir) => {
+    const databaseUrl = `file:${join(dir, "context-capture-skip-accounting.db")}`;
+    const geckoSnapshotFile = join(dir, "gecko-context-skip-accounting.json");
+    const selectedMint = "GeckoContextCaptureSelected111111111111111111pump";
+    const alreadyCapturedPumpMint = "GeckoContextCaptureSaved11111111111111111111pump";
+    const nonPumpMint = "GeckoContextCaptureNonPump1111111111111111111111";
+
+    await runDbPush(databaseUrl);
+    await seedToken(databaseUrl, selectedMint);
+    await seedToken(databaseUrl, alreadyCapturedPumpMint, {
+      entrySnapshot: {
+        contextCapture: {
+          geckoterminalTokenSnapshot: {
+            source: CONTEXT_SOURCE,
+            capturedAt: new Date().toISOString(),
+            address: alreadyCapturedPumpMint,
+            metadataText: {
+              name: "saved token",
+              symbol: "SVD",
+              description: null,
+            },
+            links: {
+              website: "https://example.com/saved",
+              x: null,
+              telegram: null,
+              websites: ["https://example.com/saved"],
+              xCandidates: [],
+              telegramCandidates: [],
+              otherLinks: [],
+            },
+            availableFields: ["metadata.name", "metadata.symbol", "links.website"],
+            missingFields: ["metadata.description", "links.x", "links.telegram", "links.other"],
+          },
+        },
+      },
+    });
+    await seedToken(databaseUrl, nonPumpMint);
+
+    await writeFile(
+      geckoSnapshotFile,
+      JSON.stringify(
+        {
+          data: {
+            id: `solana_${selectedMint}`,
+            type: "token",
+            attributes: {
+              address: selectedMint,
+              name: "batch capture token",
+              symbol: "BCT",
+              description: "batch capture description",
+              telegram_handle: "batchcapture",
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const result = await runContextCaptureGeckoterminal(
+      ["--limit", "5", "--sinceHours", "1"],
+      {
+        databaseUrl,
+        geckoSnapshotFile,
+      },
+    );
+
+    assert.equal(result.ok, true, result.stderr);
+    if (!result.ok) return;
+
+    const parsed = JSON.parse(result.stdout) as ContextCaptureGeckoterminalOutput;
+
+    assert.equal(parsed.mode, "recent_batch");
+    assert.equal(parsed.selection.pumpOnly, true);
+    assert.equal(parsed.selection.selectedCount, 1);
+    assert.equal(parsed.selection.skippedAlreadyCapturedCount, 1);
+    assert.equal(parsed.selection.skippedNonPumpCount, 1);
+    assert.equal(parsed.summary.selectedCount, 1);
+    assert.equal(parsed.summary.savedContextBeforeCount, 0);
+    assert.equal(parsed.items.length, 1);
+    assert.equal(parsed.items[0]?.token.mint, selectedMint);
+    assert.equal(parsed.items[0]?.token.hasUsefulSavedContextCapture, false);
+    assert.equal(parsed.items[0]?.savedContextPresentBefore, false);
+    assert.equal(parsed.items[0]?.writeSummary.dryRun, true);
+    assert.equal(parsed.items[0]?.writeSummary.updatedEntrySnapshot, false);
+  });
+});
+
 test("context:capture:geckoterminal returns empty recent batch when no matching gecko tokens exist", async () => {
   await withTempDir(async (dir) => {
     const databaseUrl = `file:${join(dir, "context-capture-empty.db")}`;
