@@ -227,6 +227,41 @@ async function seedToken(
   }
 }
 
+async function seedBatchToken(
+  databaseUrl: string,
+  input: {
+    mint: string;
+    createdAt: Date;
+    name?: string | null;
+    symbol?: string | null;
+    metadataStatus?: string;
+  },
+): Promise<void> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    await db.token.create({
+      data: {
+        mint: input.mint,
+        source: GECKO_SOURCE,
+        name: input.name ?? null,
+        symbol: input.symbol ?? null,
+        metadataStatus: input.metadataStatus ?? "mint_only",
+        createdAt: input.createdAt,
+        importedAt: input.createdAt,
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 async function readToken(
   databaseUrl: string,
   mint: string,
@@ -388,6 +423,94 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(token?.metadataStatus, "mint_only");
       assert.equal(token?.rescoredAt, null);
       assert.equal(token?.reviewFlagsJson, null);
+    });
+  });
+
+  await t.test("selects the most recent incomplete gecko token and skips complete rows in recent batch mode", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "batch.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex.json");
+      const newerCompleteMint = "GeckoBatchComplete1111111111111111111111111111";
+      const newerIncompleteMint = "GeckoBatchIncomplete11111111111111111111111111";
+      const olderIncompleteMint = "GeckoBatchOlder1111111111111111111111111111111";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedBatchToken(databaseUrl, {
+        mint: olderIncompleteMint,
+        createdAt: new Date(now - 3 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newerIncompleteMint,
+        createdAt: new Date(now - 2 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newerCompleteMint,
+        createdAt: new Date(now - 60_000),
+        name: "Already Complete",
+        symbol: "DONE",
+        metadataStatus: "partial",
+      });
+
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${newerIncompleteMint}`,
+              type: "token",
+              attributes: {
+                address: newerIncompleteMint,
+                name: "Gecko Batch Token",
+                symbol: "GBT",
+                description: "batch fixture description",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(
+          {
+            status: "error",
+            kind: "rpc_http_error",
+            rateLimited: false,
+            message: "metaplex fixture error",
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const result = await runTokenEnrichRescoreGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          metaplexFixtureFile,
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.mint, null);
+      assert.equal(parsed.selection.selectedCount, 1);
+      assert.equal(parsed.selection.selectedIncompleteCount, 1);
+      assert.equal(parsed.selection.skippedCompleteCount, 1);
+      assert.equal(parsed.selection.skippedNonPumpCount, 0);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.items.length, 1);
+      assert.equal(parsed.items[0]?.token.mint, newerIncompleteMint);
+      assert.equal(parsed.items[0]?.token.metadataStatus, "mint_only");
+      assert.equal(parsed.items[0]?.token.originSource, GECKO_SOURCE);
+      assert.equal(parsed.items[0]?.selectedReason, "Token.createdAt");
     });
   });
 
