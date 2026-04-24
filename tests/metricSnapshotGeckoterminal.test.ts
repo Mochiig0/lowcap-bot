@@ -220,6 +220,119 @@ async function seedToken(databaseUrl: string, mint: string): Promise<void> {
   }
 }
 
+async function seedMetricSelectionToken(
+  databaseUrl: string,
+  input: {
+    mint: string;
+    createdAt: Date;
+    metadataStatus: "mint_only" | "partial" | "enriched";
+    reviewFlagsJson?: Record<string, unknown>;
+  },
+): Promise<void> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    await db.token.create({
+      data: {
+        mint: input.mint,
+        source: GECKO_ORIGIN_SOURCE,
+        createdAt: input.createdAt,
+        importedAt: input.createdAt,
+        metadataStatus: input.metadataStatus,
+        ...(input.metadataStatus !== "mint_only"
+          ? {
+              name: `${input.mint}-name`,
+              symbol: `${input.mint.slice(0, 4)}S`,
+              enrichedAt: input.createdAt,
+            }
+          : {}),
+        ...(input.reviewFlagsJson ? { reviewFlagsJson: input.reviewFlagsJson } : {}),
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+async function writeSnapshotFixture(filePath: string, mint: string): Promise<void> {
+  await writeFile(
+    filePath,
+    JSON.stringify(
+      {
+        data: {
+          id: `solana_${mint}`,
+          type: "token",
+          attributes: {
+            address: mint,
+            name: "Metric Snapshot Token",
+            symbol: "MST",
+            price_usd: "0.123",
+            fdv_usd: "25000",
+            total_reserve_in_usd: "1500",
+            volume_usd: {
+              h24: "1234",
+            },
+          },
+          relationships: {
+            top_pools: {
+              data: [
+                {
+                  id: "solana_metric_snapshot_pool",
+                  type: "pool",
+                },
+              ],
+            },
+          },
+        },
+        included: [
+          {
+            id: "solana_metric_snapshot_pool",
+            type: "pool",
+            attributes: {
+              address: "metric_snapshot_pool",
+              token_price_usd: "0.123",
+              fdv_usd: "25000",
+              reserve_in_usd: "1500",
+              volume_usd: {
+                h24: "321",
+              },
+            },
+            relationships: {
+              base_token: {
+                data: {
+                  id: `solana_${mint}`,
+                  type: "token",
+                },
+              },
+              quote_token: {
+                data: {
+                  id: "solana_So11111111111111111111111111111111111111112",
+                  type: "token",
+                },
+              },
+              dex: {
+                data: {
+                  id: "pumpswap",
+                  type: "dex",
+                },
+              },
+            },
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}
+
 async function readMetrics(
   databaseUrl: string,
   mint: string,
@@ -269,76 +382,7 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       await runDbPush(databaseUrl);
       await seedToken(databaseUrl, mint);
 
-      await writeFile(
-        geckoSnapshotFile,
-        JSON.stringify(
-          {
-            data: {
-              id: `solana_${mint}`,
-              type: "token",
-              attributes: {
-                address: mint,
-                name: "Metric Snapshot Token",
-                symbol: "MST",
-                price_usd: "0.123",
-                fdv_usd: "25000",
-                total_reserve_in_usd: "1500",
-                volume_usd: {
-                  h24: "1234",
-                },
-              },
-              relationships: {
-                top_pools: {
-                  data: [
-                    {
-                      id: "solana_metric_snapshot_pool",
-                      type: "pool",
-                    },
-                  ],
-                },
-              },
-            },
-            included: [
-              {
-                id: "solana_metric_snapshot_pool",
-                type: "pool",
-                attributes: {
-                  address: "metric_snapshot_pool",
-                  token_price_usd: "0.123",
-                  fdv_usd: "25000",
-                  reserve_in_usd: "1500",
-                  volume_usd: {
-                    h24: "321",
-                  },
-                },
-                relationships: {
-                  base_token: {
-                    data: {
-                      id: `solana_${mint}`,
-                      type: "token",
-                    },
-                  },
-                  quote_token: {
-                    data: {
-                      id: "solana_So11111111111111111111111111111111111111112",
-                      type: "token",
-                    },
-                  },
-                  dex: {
-                    data: {
-                      id: "pumpswap",
-                      type: "dex",
-                    },
-                  },
-                },
-              },
-            ],
-          },
-          null,
-          2,
-        ),
-        "utf8",
-      );
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
 
       const result = await runMetricSnapshotGeckoterminal(
         ["--mint", mint],
@@ -404,6 +448,66 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
 
       const metrics = await readMetrics(databaseUrl, mint);
       assert.deepEqual(metrics, []);
+    });
+  });
+
+  await t.test("prioritizeRichPending changes recent batch selection order toward richer pending rows", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "priority.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-priority-snapshot.json");
+      const newerThinMint = "MetricSnapshotThin11111111111111111111111111111pump";
+      const olderRichMint = "MetricSnapshotRich11111111111111111111111111111pump";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: newerThinMint,
+        createdAt: new Date(now - 30 * 1_000),
+        metadataStatus: "mint_only",
+      });
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: olderRichMint,
+        createdAt: new Date(now - 2 * 60 * 1_000),
+        metadataStatus: "partial",
+        reviewFlagsJson: {
+          hasWebsite: true,
+          hasX: false,
+          hasTelegram: false,
+          metaplexHit: false,
+          descriptionPresent: true,
+          linkCount: 1,
+        },
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, newerThinMint);
+
+      const defaultResult = await runMetricSnapshotGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(defaultResult.ok, true);
+
+      const prioritizedResult = await runMetricSnapshotGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10", "--prioritizeRichPending"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(prioritizedResult.ok, true);
+
+      const defaultParsed = JSON.parse(
+        defaultResult.stdout,
+      ) as MetricSnapshotGeckoterminalOutput;
+      const prioritizedParsed = JSON.parse(
+        prioritizedResult.stdout,
+      ) as MetricSnapshotGeckoterminalOutput;
+
+      assert.equal(defaultParsed.selection.selectedCount, 1);
+      assert.equal(defaultParsed.selection.prioritizeRichPending, false);
+      assert.equal(defaultParsed.items[0]?.token.mint, newerThinMint);
+      assert.equal(defaultParsed.items[0]?.token.originSource, GECKO_ORIGIN_SOURCE);
+
+      assert.equal(prioritizedParsed.selection.selectedCount, 1);
+      assert.equal(prioritizedParsed.selection.prioritizeRichPending, true);
+      assert.equal(prioritizedParsed.items[0]?.token.mint, olderRichMint);
+      assert.equal(prioritizedParsed.items[0]?.token.originSource, GECKO_ORIGIN_SOURCE);
     });
   });
 
