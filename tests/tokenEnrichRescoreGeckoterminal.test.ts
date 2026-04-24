@@ -42,6 +42,8 @@ type TokenEnrichRescoreGeckoterminalOutput = {
   };
   summary: {
     selectedCount: number;
+    selectedIncompleteCount: number;
+    skippedCompleteCount: number;
     okCount: number;
     errorCount: number;
     enrichWriteCount: number;
@@ -51,6 +53,9 @@ type TokenEnrichRescoreGeckoterminalOutput = {
     metaplexWriteCount: number;
     metaplexSavedCount: number;
     metaplexErrorKindCounts: Record<string, number>;
+    notifyCandidateCount: number;
+    notifyWouldSendCount: number;
+    notifySentCount: number;
     rateLimited: boolean;
     rateLimitedCount: number;
     abortedDueToRateLimit: boolean;
@@ -90,6 +95,11 @@ type TokenEnrichRescoreGeckoterminalOutput = {
       scoreRank: string;
       hardRejected: boolean;
     };
+    notifyCandidate: boolean;
+    notifyEligibleBefore: boolean;
+    notifyEligibleAfter: boolean;
+    notifyWouldSend: boolean;
+    notifySent: boolean;
     writeSummary: {
       dryRun: boolean;
       enrichUpdated: boolean;
@@ -511,6 +521,111 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(parsed.items[0]?.token.metadataStatus, "mint_only");
       assert.equal(parsed.items[0]?.token.originSource, GECKO_SOURCE);
       assert.equal(parsed.items[0]?.selectedReason, "Token.createdAt");
+    });
+  });
+
+  await t.test("surfaces notifyWouldSend in dry-run preview when the selected token newly becomes notify-eligible", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "notify-preview.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex.json");
+      const newerCompleteMint = "GeckoNotifyComplete111111111111111111111111111";
+      const targetMint = "GeckoNotifyTarget1111111111111111111111111111111";
+      const olderIncompleteMint = "GeckoNotifyOlder111111111111111111111111111111";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedBatchToken(databaseUrl, {
+        mint: olderIncompleteMint,
+        createdAt: new Date(now - 3 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: targetMint,
+        createdAt: new Date(now - 2 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newerCompleteMint,
+        createdAt: new Date(now - 60_000),
+        name: "Already Complete",
+        symbol: "ALRDY",
+        metadataStatus: "partial",
+      });
+
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${targetMint}`,
+              type: "token",
+              attributes: {
+                address: targetMint,
+                name: "pokemon dog newinfo",
+                symbol: "SMGET",
+                description: "gecko enrich context description",
+                websites: ["https://example.com/gecko-enrich"],
+                twitter_username: "gecko_enrich_token",
+                telegram_handle: "geckoenrich",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(
+          {
+            onchain: {
+              mint: targetMint,
+              uri: "https://example.com/metaplex-fast-follow.json",
+            },
+            offchain: {
+              description: "metaplex secondary description",
+              external_url: "https://example.com/metaplex-secondary",
+              extensions: {
+                twitter: "metaplex_secondary",
+                telegram: "metaplexsecondary",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const result = await runTokenEnrichRescoreGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          metaplexFixtureFile,
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 1);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.summary.selectedIncompleteCount, 1);
+      assert.equal(parsed.summary.skippedCompleteCount, 1);
+      assert.equal(parsed.summary.notifyCandidateCount, 1);
+      assert.equal(parsed.summary.notifyWouldSendCount, 1);
+      assert.equal(parsed.summary.notifySentCount, 0);
+      assert.equal(parsed.items.length, 1);
+      assert.equal(parsed.items[0]?.token.mint, targetMint);
+      assert.equal(parsed.items[0]?.selectedReason, "Token.createdAt");
+      assert.equal(parsed.items[0]?.rescorePreview?.scoreRank, "S");
+      assert.equal(parsed.items[0]?.notifyCandidate, true);
+      assert.equal(parsed.items[0]?.notifyEligibleBefore, false);
+      assert.equal(parsed.items[0]?.notifyEligibleAfter, true);
+      assert.equal(parsed.items[0]?.notifyWouldSend, true);
+      assert.equal(parsed.items[0]?.notifySent, false);
+      assert.equal(parsed.items[0]?.writeSummary.dryRun, true);
     });
   });
 
