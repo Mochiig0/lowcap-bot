@@ -242,6 +242,48 @@ async function seedManualTargets(databaseUrl: string): Promise<{
   }
 }
 
+async function seedAdditionalManualTarget(databaseUrl: string): Promise<string> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const recentStaleAt = new Date(Date.now() - 6.5 * 60 * 60 * 1_000);
+    const mint = "GeckoManualTargetRecent111111111111111111111111111pump";
+
+    await db.token.create({
+      data: {
+        mint,
+        source: GECKO_SOURCE,
+        name: "Recent Manual Target",
+        symbol: "RMT",
+        metadataStatus: "partial",
+        createdAt: recentStaleAt,
+        importedAt: recentStaleAt,
+        enrichedAt: recentStaleAt,
+        rescoredAt: recentStaleAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: recentStaleAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    return mint;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("manualTargetsGeckoterminal boundary", async (t) => {
   await t.test("returns manual targets with stable top-level fields", async () => {
     await withTempDir(async (dir) => {
@@ -312,6 +354,46 @@ test("manualTargetsGeckoterminal boundary", async (t) => {
       result.stdout,
       /pnpm review:manual-targets:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\]/,
     );
+  });
+
+  await t.test("orders representative manual targets by selection anchor recency", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "order.db")}`;
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedManualTargets(databaseUrl);
+      const recentMint = await seedAdditionalManualTarget(databaseUrl);
+
+      const result = await runManualTargetsGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "10",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as ManualTargetsGeckoterminalOutput;
+      assert.equal(parsed.selection.eligibleManualTargetCount, 2);
+      assert.equal(parsed.selection.selectedCount, 2);
+      assert.equal(parsed.summary.selectedCount, 2);
+      assert.deepEqual(
+        parsed.representativeRows.map((item) => item.mint),
+        [recentMint, seeded.targetMint],
+      );
+      assert.deepEqual(parsed.representativeRows[0]?.queuesMatched, [
+        "staleReview",
+        "metricPending",
+      ]);
+      assert.equal(parsed.representativeRows[0]?.metadataStatus, "partial");
+      assert.equal(parsed.representativeRows[1]?.metadataStatus, "partial");
+      assert.deepEqual(parsed.representativeRows[1]?.queuesMatched, [
+        "staleReview",
+        "metricPending",
+      ]);
+    });
   });
 
   await t.test("returns an empty result when no gecko manual target matches", async () => {
