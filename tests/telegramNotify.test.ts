@@ -106,6 +106,35 @@ test("telegram notify boundary", async (t) => {
     }
   });
 
+  await t.test("throws with response body when Telegram API returns non-OK", async () => {
+    delete process.env.LOWCAP_TELEGRAM_CAPTURE_FILE;
+    process.env.TELEGRAM_BOT_TOKEN = "test-token";
+    process.env.TELEGRAM_CHAT_ID = "test-chat";
+
+    const originalFetch = globalThis.fetch;
+    const fetchCalls: Array<{
+      input: unknown;
+      init?: RequestInit;
+    }> = [];
+
+    globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
+      fetchCalls.push({ input, init });
+      return new Response("telegram down", { status: 500 });
+    };
+
+    try {
+      await assert.rejects(
+        () => notifyTelegram("failed message"),
+        /Telegram notify failed \(500\): telegram down/,
+      );
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(String(fetchCalls[0]?.input), "https://api.telegram.org/bottest-token/sendMessage");
+      assert.equal(fetchCalls[0]?.init?.method, "POST");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   await t.test("builds a stable score notification message shape", () => {
     const message = buildScoreNotifyMessage({
       title: "S rank candidate",
