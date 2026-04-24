@@ -301,6 +301,44 @@ async function seedGeckoSummary(databaseUrl: string): Promise<{
   }
 }
 
+async function seedAdditionalGeckoOriginToken(
+  databaseUrl: string,
+  input: {
+    mint: string;
+    importedAt: Date;
+  },
+): Promise<void> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    await db.token.create({
+      data: {
+        mint: input.mint,
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        createdAt: input.importedAt,
+        importedAt: input.importedAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: input.importedAt.toISOString(),
+          },
+        },
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("opsSummaryGeckoterminal boundary", async (t) => {
   await t.test("returns a gecko summary with stable top-level counts", async () => {
     await withTempDir(async (dir) => {
@@ -408,6 +446,50 @@ test("opsSummaryGeckoterminal boundary", async (t) => {
       assert.equal(parsed.preview[0]?.latestMaxMultiple15m, 2.5);
       assert.equal(parsed.preview[0]?.latestTimeToPeakMinutes, 12);
       assert.match(parsed.preview[0]?.latestMetricObservedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
+    });
+  });
+
+  await t.test("narrows the gecko cohort to pump mints when pumpOnly is set", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "pump-only.db")}`;
+      const nonPumpMint = "GeckoSummaryNonPump1111111111111111111111111111";
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedGeckoSummary(databaseUrl);
+      await seedAdditionalGeckoOriginToken(databaseUrl, {
+        mint: nonPumpMint,
+        importedAt: new Date(Date.now() - 60_000),
+      });
+
+      const defaultResult = await runOpsSummaryGeckoterminal(
+        ["--sinceHours", "24", "--limit", "5"],
+        databaseUrl,
+      );
+      assert.equal(defaultResult.ok, true);
+
+      const pumpOnlyResult = await runOpsSummaryGeckoterminal(
+        ["--sinceHours", "24", "--limit", "5", "--pumpOnly"],
+        databaseUrl,
+      );
+      assert.equal(pumpOnlyResult.ok, true);
+
+      const defaultParsed = JSON.parse(defaultResult.stdout) as OpsSummaryGeckoterminalOutput;
+      const pumpOnlyParsed = JSON.parse(pumpOnlyResult.stdout) as OpsSummaryGeckoterminalOutput;
+
+      assert.equal(defaultParsed.selection.pumpOnly, false);
+      assert.equal(defaultParsed.selection.geckoOriginTokenCount, 2);
+      assert.equal(defaultParsed.selection.skippedNonPumpCount, 0);
+      assert.equal(defaultParsed.summary.geckoOriginTokenCount, 2);
+      assert.equal(defaultParsed.preview.length, 2);
+
+      assert.equal(pumpOnlyParsed.selection.pumpOnly, true);
+      assert.equal(pumpOnlyParsed.selection.geckoOriginTokenCount, 1);
+      assert.equal(pumpOnlyParsed.selection.skippedNonPumpCount, 1);
+      assert.equal(pumpOnlyParsed.summary.geckoOriginTokenCount, 1);
+      assert.equal(pumpOnlyParsed.preview.length, 1);
+      assert.equal(pumpOnlyParsed.preview[0]?.mint, seeded.geckoMint);
+      assert.equal(pumpOnlyParsed.preview[0]?.originSource, GECKO_SOURCE);
+      assert.equal(pumpOnlyParsed.preview[0]?.currentSource, GECKO_SOURCE);
     });
   });
 
