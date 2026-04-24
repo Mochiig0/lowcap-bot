@@ -367,6 +367,103 @@ test("context:capture:geckoterminal rejects unknown args", async () => {
   assert.match(result.stderr, /Unknown arg: --source/);
 });
 
+test("context:capture:geckoterminal keeps write mode as a no-op when collected context matches saved context", async () => {
+  await withTempDir(async (dir) => {
+    const databaseUrl = `file:${join(dir, "context-capture-write-noop.db")}`;
+    const geckoSnapshotFile = join(dir, "gecko-context-write-noop.json");
+    const mint = "GeckoContextCaptureNoop111111111111111111111pump";
+
+    await runDbPush(databaseUrl);
+    await seedToken(databaseUrl, mint, {
+      entrySnapshot: {
+        contextCapture: {
+          geckoterminalTokenSnapshot: {
+            source: CONTEXT_SOURCE,
+            capturedAt: new Date(0).toISOString(),
+            address: mint,
+            metadataText: {
+              name: "context noop token",
+              symbol: "CNOOP",
+              description: "context noop description",
+            },
+            links: {
+              website: "https://example.com/context-noop",
+              x: "https://x.com/context_noop",
+              telegram: "https://t.me/contextnoop",
+              websites: ["https://example.com/context-noop"],
+              xCandidates: ["https://x.com/context_noop"],
+              telegramCandidates: ["https://t.me/contextnoop"],
+              otherLinks: [],
+            },
+            availableFields: [
+              "metadata.name",
+              "metadata.symbol",
+              "metadata.description",
+              "links.website",
+              "links.x",
+              "links.telegram",
+            ],
+            missingFields: ["links.other"],
+          },
+        },
+      },
+    });
+
+    await writeFile(
+      geckoSnapshotFile,
+      JSON.stringify(
+        {
+          data: {
+            id: `solana_${mint}`,
+            type: "token",
+            attributes: {
+              address: mint,
+              name: "context noop token",
+              symbol: "CNOOP",
+              description: "context noop description",
+              websites: ["https://example.com/context-noop"],
+              twitter_username: "context_noop",
+              telegram_handle: "contextnoop",
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const result = await runContextCaptureGeckoterminal(
+      ["--mint", mint, "--write"],
+      {
+        databaseUrl,
+        geckoSnapshotFile,
+      },
+    );
+
+    assert.equal(result.ok, true, result.stderr);
+    if (!result.ok) return;
+
+    const parsed = JSON.parse(result.stdout) as ContextCaptureGeckoterminalOutput;
+
+    assert.equal(parsed.mode, "single");
+    assert.equal(parsed.dryRun, false);
+    assert.equal(parsed.writeEnabled, true);
+    assert.equal(parsed.selection.mint, mint);
+    assert.equal(parsed.summary.selectedCount, 1);
+    assert.equal(parsed.summary.writeCount, 0);
+    assert.equal(parsed.summary.savedContextBeforeCount, 1);
+    assert.equal(parsed.items.length, 1);
+    assert.equal(parsed.items[0]?.token.mint, mint);
+    assert.equal(parsed.items[0]?.token.hasUsefulSavedContextCapture, true);
+    assert.equal(parsed.items[0]?.savedContextPresentBefore, true);
+    assert.equal(parsed.items[0]?.status, "ok");
+    assert.equal(parsed.items[0]?.wouldWrite, false);
+    assert.equal(parsed.items[0]?.writeSummary.dryRun, false);
+    assert.equal(parsed.items[0]?.writeSummary.updatedEntrySnapshot, false);
+  });
+});
+
 test("context:capture:geckoterminal accounts for already-captured and non-pump skips in recent batches", async () => {
   await withTempDir(async (dir) => {
     const databaseUrl = `file:${join(dir, "context-capture-skip-accounting.db")}`;
