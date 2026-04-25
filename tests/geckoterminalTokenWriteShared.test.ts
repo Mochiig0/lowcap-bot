@@ -10,6 +10,7 @@ import {
   type GeckoTokenWriteDeps,
   type GeckoTokenWriteContextPreview,
   type GeckoTokenWriteExistingToken,
+  type GeckoTokenWriteMetaplexPreview,
   type GeckoTokenWriteInput,
   type GeckoTokenWriteResult,
   type GeckoTokenWriteStatus,
@@ -39,6 +40,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
     assert.equal(result.contextPreview, null);
+    assert.equal(result.metaplexPreview, null);
     assert.equal(result.contextWouldWrite, false);
     assert.equal(result.metaplexContextWouldWrite, false);
     assert.equal(result.enrichWritten, false);
@@ -85,6 +87,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       enrichPlan: null,
       rescorePreview: null,
       contextPreview: null,
+      metaplexPreview: null,
       contextWouldWrite: false,
       metaplexContextWouldWrite: false,
       enrichWritten: false,
@@ -148,6 +151,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
     assert.equal(result.contextPreview, null);
+    assert.equal(result.metaplexPreview, null);
   });
 
   await t.test("fetches and classifies a valid injected Gecko snapshot", async () => {
@@ -208,6 +212,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rateLimited, false);
     assert.equal(result.rateLimitScope, null);
     assert.equal(result.error, undefined);
+    assert.equal(result.metaplexPreview, null);
   });
 
   await t.test("builds an enrich preview when existing token and snapshot are present", async () => {
@@ -654,6 +659,72 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(item.contextAvailable, true);
     assert.equal(item.contextWouldWrite, true);
     assert.deepEqual(item.savedContextFields, ["metadata.name"]);
+    assert.deepEqual(item.writeSummary, {
+      dryRun: true,
+      enrichUpdated: false,
+      rescoreUpdated: false,
+      contextUpdated: false,
+      metaplexContextUpdated: false,
+    });
+  });
+
+  await t.test("maps metaplex preview fields into the CLI-compatible item", () => {
+    const metaplexPreview: GeckoTokenWriteMetaplexPreview = {
+      attempted: true,
+      available: true,
+      availableFields: ["metadata.description", "links.website"],
+      savedFields: ["metadata.description"],
+      wouldWrite: true,
+      patch: {
+        metaplexMetadataUri: {
+          source: "metaplex.metadata_uri",
+        },
+      },
+      preview: {
+        source: "metaplex.metadata_uri",
+      },
+      errorKind: null,
+      rateLimited: false,
+    };
+    const result: GeckoTokenWriteResult = {
+      ...buildUnsupportedGeckoTokenWriteResult({
+        mint: "GeckoTokenWriteMetaplex11111111111111111pump",
+        write: false,
+      }),
+      metaplexPreview,
+    };
+
+    const item = toGeckoTokenEnrichRescoreCliItem({
+      result,
+      selectedReason: "Token.createdAt",
+      writeEnabled: false,
+      token: {
+        id: 103,
+        mint: "GeckoTokenWriteMetaplex11111111111111111pump",
+        currentSource: "geckoterminal.new_pools",
+        originSource: "geckoterminal.new_pools",
+        metadataStatus: "mint_only",
+        name: null,
+        symbol: null,
+        description: null,
+        groupKey: null,
+        scoreRank: "C",
+        hardRejected: false,
+        createdAt: "2026-04-25T00:00:00.000Z",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        rescoredAt: null,
+        selectionAnchorAt: "2026-04-25T00:00:00.000Z",
+        selectionAnchorKind: "createdAt",
+        isGeckoterminalOrigin: true,
+      },
+    });
+
+    assert.equal(item.metaplexAttempted, true);
+    assert.equal(item.metaplexAvailable, true);
+    assert.equal(item.metaplexWouldWrite, true);
+    assert.deepEqual(item.metaplexSavedFields, ["metadata.description"]);
+    assert.equal(item.metaplexErrorKind, null);
     assert.deepEqual(item.writeSummary, {
       dryRun: true,
       enrichUpdated: false,

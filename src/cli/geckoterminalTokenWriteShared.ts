@@ -74,6 +74,18 @@ export type GeckoTokenWriteContextPreview = {
   preview: Record<string, unknown> | null;
 };
 
+export type GeckoTokenWriteMetaplexPreview = {
+  attempted: boolean;
+  available: boolean;
+  availableFields: string[];
+  savedFields: string[];
+  wouldWrite: boolean;
+  patch: Record<string, unknown> | null;
+  preview: Record<string, unknown> | null;
+  errorKind: string | null;
+  rateLimited: boolean;
+};
+
 export type GeckoTokenWriteSummary = {
   wouldEnrich: boolean;
   wouldRescore: boolean;
@@ -99,6 +111,7 @@ export type GeckoTokenWriteResult = {
   enrichPlan: GeckoTokenWriteEnrichPlan | null;
   rescorePreview: GeckoTokenWriteRescorePreview | null;
   contextPreview: GeckoTokenWriteContextPreview | null;
+  metaplexPreview: GeckoTokenWriteMetaplexPreview | null;
   contextWouldWrite: boolean;
   metaplexContextWouldWrite: boolean;
   enrichWritten: boolean;
@@ -592,6 +605,7 @@ export function toGeckoTokenEnrichRescoreCliItem(
   input: GeckoTokenCliItemAdapterInput,
 ): GeckoTokenEnrichRescoreCliItem {
   const contextPreview = input.result.contextPreview;
+  const metaplexPreview = input.result.metaplexPreview;
 
   return {
     token: input.token,
@@ -604,11 +618,13 @@ export function toGeckoTokenEnrichRescoreCliItem(
     contextWouldWrite:
       contextPreview?.wouldWrite ?? input.result.contextWouldWrite,
     savedContextFields: contextPreview?.savedFields ?? [],
-    metaplexAttempted: false,
-    metaplexAvailable: false,
-    metaplexWouldWrite: input.result.metaplexContextWouldWrite,
-    metaplexSavedFields: [],
-    metaplexErrorKind: input.result.metaplexErrorKind,
+    metaplexAttempted: metaplexPreview?.attempted ?? false,
+    metaplexAvailable: metaplexPreview?.available ?? false,
+    metaplexWouldWrite:
+      metaplexPreview?.wouldWrite ?? input.result.metaplexContextWouldWrite,
+    metaplexSavedFields: metaplexPreview?.savedFields ?? [],
+    metaplexErrorKind:
+      metaplexPreview?.errorKind ?? input.result.metaplexErrorKind,
     ...(input.result.enrichPlan ? { enrichPlan: input.result.enrichPlan } : {}),
     ...(input.result.rescorePreview
       ? { rescorePreview: input.result.rescorePreview }
@@ -646,6 +662,7 @@ export function buildUnsupportedGeckoTokenWriteResult(
     enrichPlan: null,
     rescorePreview: null,
     contextPreview: null,
+    metaplexPreview: null,
     contextWouldWrite: false,
     metaplexContextWouldWrite: false,
     enrichWritten: false,
