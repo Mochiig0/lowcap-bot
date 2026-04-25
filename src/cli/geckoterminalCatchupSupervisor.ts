@@ -127,6 +127,47 @@ type OperatorSummary = {
     | "inspect_blocking_safety_checks";
 };
 
+type WritePlan = {
+  enabled: false;
+  writeModeSupported: false;
+  recommendedInitialWriteArgs: {
+    limit: 1;
+    maxCycles: 1;
+    postCheck: true;
+    requireMetricAppend: true;
+  };
+  wouldWriteTokens: Array<{
+    cycle: number;
+    orderInCycle: number;
+    mint: string;
+  }>;
+  wouldAppendMetrics: Array<{
+    cycle: number;
+    mint: string;
+  }>;
+  requiresCaptureOnly: true;
+  postCheckPlan: {
+    enabled: true;
+    requireMetricPendingMatchesIncomplete: true;
+    requireSelectedLatestMetricPresent: true;
+  };
+  recoveryHints: {
+    metricOnlyAppendCandidates: string[];
+    cooldownRecommended: true;
+    resumeWithLimit: 1;
+    resumeWithMaxCycles: 1;
+  };
+};
+
+type WriteModeReadiness = {
+  readyForImplementation: false;
+  blockingReasons: [
+    "token_write_helper_not_extracted",
+    "metric_append_helper_not_extracted",
+  ];
+  nextImplementationStep: "extract_token_write_helper";
+};
+
 class CliUsageError extends Error {}
 
 function getUsageText(): string {
@@ -614,6 +655,60 @@ function buildOperatorSummary(
   };
 }
 
+function buildWritePlan(
+  selectedCandidates: SelectedCandidate[],
+  metricAppendPlan: MetricAppendPlanItem[],
+): WritePlan {
+  return {
+    enabled: false,
+    writeModeSupported: false,
+    recommendedInitialWriteArgs: {
+      limit: 1,
+      maxCycles: 1,
+      postCheck: true,
+      requireMetricAppend: true,
+    },
+    wouldWriteTokens: selectedCandidates
+      .filter((candidate) => candidate.wouldWriteToken)
+      .map((candidate) => ({
+        cycle: candidate.cycle,
+        orderInCycle: candidate.orderInCycle,
+        mint: candidate.mint,
+      })),
+    wouldAppendMetrics: metricAppendPlan
+      .filter((item) => item.wouldAppendMetric)
+      .map((item) => ({
+        cycle: item.cycle,
+        mint: item.mint,
+      })),
+    requiresCaptureOnly: true,
+    postCheckPlan: {
+      enabled: true,
+      requireMetricPendingMatchesIncomplete: true,
+      requireSelectedLatestMetricPresent: true,
+    },
+    recoveryHints: {
+      metricOnlyAppendCandidates: metricAppendPlan
+        .filter((item) => !item.wouldAppendMetric && item.metricsCount === 0)
+        .map((item) => item.mint),
+      cooldownRecommended: true,
+      resumeWithLimit: 1,
+      resumeWithMaxCycles: 1,
+    },
+  };
+}
+
+function buildWriteModeReadiness(): WriteModeReadiness {
+  return {
+    readyForImplementation: false,
+    blockingReasons: [
+      "token_write_helper_not_extracted",
+      "metric_append_helper_not_extracted",
+    ],
+    nextImplementationStep: "extract_token_write_helper",
+  };
+}
+
 async function run(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const sinceCutoff = new Date(Date.now() - args.sinceMinutes * 60_000);
@@ -702,6 +797,8 @@ async function run(): Promise<void> {
     metricAppendPlan,
     safetyChecks,
   );
+  const writePlan = buildWritePlan(selectedCandidates, metricAppendPlan);
+  const writeModeReadiness = buildWriteModeReadiness();
 
   console.log(
     JSON.stringify(
@@ -722,6 +819,8 @@ async function run(): Promise<void> {
           stopOnRateLimit: args.stopOnRateLimit,
         },
         summary,
+        writePlan,
+        writeModeReadiness,
         currentCounts,
         pendingCount: pendingTokens.length,
         wouldRunCycles: cycles.length,

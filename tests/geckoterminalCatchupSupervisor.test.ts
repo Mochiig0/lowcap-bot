@@ -56,6 +56,45 @@ type CatchupSupervisorOutput = {
       | "inspect_warning_safety_checks"
       | "inspect_blocking_safety_checks";
   };
+  writePlan: {
+    enabled: false;
+    writeModeSupported: false;
+    recommendedInitialWriteArgs: {
+      limit: 1;
+      maxCycles: 1;
+      postCheck: true;
+      requireMetricAppend: true;
+    };
+    wouldWriteTokens: Array<{
+      cycle: number;
+      orderInCycle: number;
+      mint: string;
+    }>;
+    wouldAppendMetrics: Array<{
+      cycle: number;
+      mint: string;
+    }>;
+    requiresCaptureOnly: true;
+    postCheckPlan: {
+      enabled: true;
+      requireMetricPendingMatchesIncomplete: true;
+      requireSelectedLatestMetricPresent: true;
+    };
+    recoveryHints: {
+      metricOnlyAppendCandidates: string[];
+      cooldownRecommended: true;
+      resumeWithLimit: 1;
+      resumeWithMaxCycles: 1;
+    };
+  };
+  writeModeReadiness: {
+    readyForImplementation: false;
+    blockingReasons: [
+      "token_write_helper_not_extracted",
+      "metric_append_helper_not_extracted",
+    ];
+    nextImplementationStep: "extract_token_write_helper";
+  };
   currentCounts: {
     pumpTotal: number;
     pumpComplete: number;
@@ -736,6 +775,36 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         warningSafetyChecks: [],
         nextRecommendedAction: "no_action",
       });
+      assert.equal(parsed.writePlan.enabled, false);
+      assert.equal(parsed.writePlan.writeModeSupported, false);
+      assert.deepEqual(parsed.writePlan.recommendedInitialWriteArgs, {
+        limit: 1,
+        maxCycles: 1,
+        postCheck: true,
+        requireMetricAppend: true,
+      });
+      assert.deepEqual(parsed.writePlan.wouldWriteTokens, []);
+      assert.deepEqual(parsed.writePlan.wouldAppendMetrics, []);
+      assert.equal(parsed.writePlan.requiresCaptureOnly, true);
+      assert.deepEqual(parsed.writePlan.postCheckPlan, {
+        enabled: true,
+        requireMetricPendingMatchesIncomplete: true,
+        requireSelectedLatestMetricPresent: true,
+      });
+      assert.deepEqual(parsed.writePlan.recoveryHints, {
+        metricOnlyAppendCandidates: [],
+        cooldownRecommended: true,
+        resumeWithLimit: 1,
+        resumeWithMaxCycles: 1,
+      });
+      assert.deepEqual(parsed.writeModeReadiness, {
+        readyForImplementation: false,
+        blockingReasons: [
+          "token_write_helper_not_extracted",
+          "metric_append_helper_not_extracted",
+        ],
+        nextImplementationStep: "extract_token_write_helper",
+      });
       assert.equal(parsed.stopReason, "no_pending_tokens");
       assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
@@ -842,6 +911,21 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         nextRecommendedAction: "run_planned_cycles",
       });
       assert.deepEqual(
+        parsed.writePlan.wouldWriteTokens.map((item) => [item.cycle, item.orderInCycle, item.mint]),
+        seeded.expectedSelectedMints.map((mint, index) => [
+          index < 2 ? 1 : 2,
+          (index % 2) + 1,
+          mint,
+        ]),
+      );
+      assert.deepEqual(
+        parsed.writePlan.wouldAppendMetrics.map((item) => [item.cycle, item.mint]),
+        seeded.expectedSelectedMints.map((mint, index) => [index < 2 ? 1 : 2, mint]),
+      );
+      assert.equal(parsed.writePlan.enabled, false);
+      assert.equal(parsed.writePlan.writeModeSupported, false);
+      assert.deepEqual(parsed.writePlan.recoveryHints.metricOnlyAppendCandidates, []);
+      assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
         seeded.expectedSelectedMints,
       );
@@ -935,6 +1019,14 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.deepEqual(parsed.summary.warningSafetyChecks, []);
       assert.equal(parsed.summary.nextRecommendedAction, "inspect_blocking_safety_checks");
       assert.deepEqual(
+        parsed.writePlan.wouldWriteTokens.map((item) => item.mint),
+        [seeded.smokeMint, seeded.metricPresentMint, seeded.hardRejectedMint],
+      );
+      assert.deepEqual(
+        parsed.writePlan.wouldAppendMetrics.map((item) => item.mint),
+        [seeded.smokeMint, seeded.hardRejectedMint],
+      );
+      assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
         [seeded.smokeMint, seeded.metricPresentMint, seeded.hardRejectedMint],
       );
@@ -1016,6 +1108,19 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         warningSafetyChecks: [],
         nextRecommendedAction: "inspect_blocking_safety_checks",
       });
+      assert.deepEqual(parsed.writePlan.wouldWriteTokens, [
+        {
+          cycle: 1,
+          orderInCycle: 1,
+          mint: seeded.hardRejectedMint,
+        },
+      ]);
+      assert.deepEqual(parsed.writePlan.wouldAppendMetrics, [
+        {
+          cycle: 1,
+          mint: seeded.hardRejectedMint,
+        },
+      ]);
       assert.equal(parsed.stopReason, "hard_rejected_candidates");
       assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
       assert.equal(safetyStatus(parsed, "source_origin"), "pass");
