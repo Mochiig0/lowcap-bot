@@ -18,9 +18,51 @@ export type GeckoTokenWriteInput = {
   write: boolean;
   notify?: false;
   captureFile?: string | null;
+  existingToken?: GeckoTokenWriteExistingToken;
+};
+
+export type GeckoTokenWriteExistingToken = {
+  mint: string;
+  name: string | null;
+  symbol: string | null;
+  description: string | null;
+  source: string | null;
+  metadataStatus: string;
+  importedAt: Date | string;
+  enrichedAt: Date | string | null;
+  scoreRank: string | null;
+  scoreTotal: number | null;
+  hardRejected: boolean | null;
+};
+
+export type GeckoTokenWriteEnrichPlan = {
+  hasPatch: boolean;
+  willUpdate: boolean;
+  patch: {
+    name?: string;
+    symbol?: string;
+  };
+  preview: {
+    metadataStatus: string;
+    name: string | null;
+    symbol: string | null;
+    description: string | null;
+  };
+};
+
+export type GeckoTokenWriteRescorePreview = {
+  ready: boolean;
+  normalizedText: string;
+  scoreTotal: number;
+  scoreRank: string;
+  hardRejected: boolean;
+  hardRejectReason: string | null;
 };
 
 export type GeckoTokenWriteSummary = {
+  wouldEnrich: boolean;
+  wouldRescore: boolean;
+  wouldWriteContext: boolean;
   enrichWritten: boolean;
   rescoreWritten: boolean;
   contextWritten: boolean;
@@ -38,6 +80,8 @@ export type GeckoTokenWriteResult = {
   scoreRank: string | null;
   scoreTotal: number | null;
   hardRejected: boolean | null;
+  enrichPlan: GeckoTokenWriteEnrichPlan | null;
+  rescorePreview: GeckoTokenWriteRescorePreview | null;
   contextWouldWrite: boolean;
   metaplexContextWouldWrite: boolean;
   enrichWritten: boolean;
@@ -117,6 +161,8 @@ export function buildUnsupportedGeckoTokenWriteResult(
     scoreRank: null,
     scoreTotal: null,
     hardRejected: null,
+    enrichPlan: null,
+    rescorePreview: null,
     contextWouldWrite: false,
     metaplexContextWouldWrite: false,
     enrichWritten: false,
@@ -124,6 +170,9 @@ export function buildUnsupportedGeckoTokenWriteResult(
     contextWritten: false,
     metaplexContextWritten: false,
     writeSummary: {
+      wouldEnrich: false,
+      wouldRescore: false,
+      wouldWriteContext: false,
       enrichWritten: false,
       rescoreWritten: false,
       contextWritten: false,

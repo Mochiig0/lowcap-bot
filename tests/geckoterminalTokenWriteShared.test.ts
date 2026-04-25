@@ -7,6 +7,7 @@ import {
   buildUnsupportedGeckoTokenWriteResult,
   runGeckoTokenWriteForMint,
   type GeckoTokenWriteDeps,
+  type GeckoTokenWriteExistingToken,
   type GeckoTokenWriteInput,
   type GeckoTokenWriteResult,
   type GeckoTokenWriteStatus,
@@ -32,6 +33,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.scoreRank, null);
     assert.equal(result.scoreTotal, null);
     assert.equal(result.hardRejected, null);
+    assert.equal(result.enrichPlan, null);
+    assert.equal(result.rescorePreview, null);
     assert.equal(result.contextWouldWrite, false);
     assert.equal(result.metaplexContextWouldWrite, false);
     assert.equal(result.enrichWritten, false);
@@ -39,6 +42,9 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.contextWritten, false);
     assert.equal(result.metaplexContextWritten, false);
     assert.deepEqual(result.writeSummary, {
+      wouldEnrich: false,
+      wouldRescore: false,
+      wouldWriteContext: false,
       enrichWritten: false,
       rescoreWritten: false,
       contextWritten: false,
@@ -71,6 +77,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       scoreRank: null,
       scoreTotal: null,
       hardRejected: null,
+      enrichPlan: null,
+      rescorePreview: null,
       contextWouldWrite: false,
       metaplexContextWouldWrite: false,
       enrichWritten: false,
@@ -78,6 +86,9 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       contextWritten: false,
       metaplexContextWritten: false,
       writeSummary: {
+        wouldEnrich: false,
+        wouldRescore: false,
+        wouldWriteContext: false,
         enrichWritten: false,
         rescoreWritten: false,
         contextWritten: false,
@@ -96,6 +107,19 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
   });
 
   await t.test("keeps the unsupported result when no fetch dependency is provided", async () => {
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint: "GeckoTokenWriteDeps111111111111111111111111pump",
+      name: null,
+      symbol: null,
+      description: null,
+      source: "geckoterminal.new_pools",
+      metadataStatus: "mint_only",
+      importedAt: "2026-04-25T00:00:00.000Z",
+      enrichedAt: null,
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+    };
     const deps: GeckoTokenWriteDeps = {
       now: () => new Date("2026-04-25T00:00:00.000Z"),
       fetchMetaplexContext: async () => {
@@ -108,12 +132,15 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       {
         mint: "GeckoTokenWriteDeps111111111111111111111111pump",
         write: false,
+        existingToken,
       },
       deps,
     );
 
     assert.equal(result.status, "error");
     assert.equal(result.error, GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED);
+    assert.equal(result.enrichPlan, null);
+    assert.equal(result.rescorePreview, null);
   });
 
   await t.test("fetches and classifies a valid injected Gecko snapshot", async () => {
@@ -146,6 +173,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.status, "ok");
     assert.equal(result.name, "Fetched Name");
     assert.equal(result.symbol, "FETCH");
+    assert.equal(result.enrichPlan, null);
+    assert.equal(result.rescorePreview, null);
     assert.equal(result.enrichWritten, false);
     assert.equal(result.rescoreWritten, false);
     assert.equal(result.contextWritten, false);
