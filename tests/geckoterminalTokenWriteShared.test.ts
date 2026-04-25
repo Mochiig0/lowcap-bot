@@ -8,6 +8,7 @@ import {
   runGeckoTokenWriteForMint,
   toGeckoTokenEnrichRescoreCliItem,
   type GeckoTokenWriteDeps,
+  type GeckoTokenWriteContextPreview,
   type GeckoTokenWriteExistingToken,
   type GeckoTokenWriteInput,
   type GeckoTokenWriteResult,
@@ -37,6 +38,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.fetchedSnapshot, null);
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
+    assert.equal(result.contextPreview, null);
     assert.equal(result.contextWouldWrite, false);
     assert.equal(result.metaplexContextWouldWrite, false);
     assert.equal(result.enrichWritten, false);
@@ -82,6 +84,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       fetchedSnapshot: null,
       enrichPlan: null,
       rescorePreview: null,
+      contextPreview: null,
       contextWouldWrite: false,
       metaplexContextWouldWrite: false,
       enrichWritten: false,
@@ -144,6 +147,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.error, GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED);
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
+    assert.equal(result.contextPreview, null);
   });
 
   await t.test("fetches and classifies a valid injected Gecko snapshot", async () => {
@@ -183,6 +187,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     });
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
+    assert.equal(result.contextPreview, null);
     assert.equal(result.enrichWritten, false);
     assert.equal(result.rescoreWritten, false);
     assert.equal(result.contextWritten, false);
@@ -444,6 +449,65 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(item.notifyCandidate, false);
     assert.equal(item.notifyWouldSend, false);
     assert.equal(item.notifySent, false);
+    assert.deepEqual(item.writeSummary, {
+      dryRun: true,
+      enrichUpdated: false,
+      rescoreUpdated: false,
+      contextUpdated: false,
+      metaplexContextUpdated: false,
+    });
+  });
+
+  await t.test("maps context preview fields into the CLI-compatible item", () => {
+    const contextPreview: GeckoTokenWriteContextPreview = {
+      available: true,
+      availableFields: ["metadata.name", "links.website"],
+      savedFields: ["metadata.name"],
+      wouldWrite: true,
+      patch: {
+        availableFields: ["metadata.name", "links.website"],
+      },
+      preview: {
+        source: "geckoterminal.token_snapshot",
+      },
+    };
+    const result: GeckoTokenWriteResult = {
+      ...buildUnsupportedGeckoTokenWriteResult({
+        mint: "GeckoTokenWriteContext1111111111111111111pump",
+        write: false,
+      }),
+      contextPreview,
+    };
+
+    const item = toGeckoTokenEnrichRescoreCliItem({
+      result,
+      selectedReason: "Token.createdAt",
+      writeEnabled: false,
+      token: {
+        id: 102,
+        mint: "GeckoTokenWriteContext1111111111111111111pump",
+        currentSource: "geckoterminal.new_pools",
+        originSource: "geckoterminal.new_pools",
+        metadataStatus: "mint_only",
+        name: null,
+        symbol: null,
+        description: null,
+        groupKey: null,
+        scoreRank: "C",
+        hardRejected: false,
+        createdAt: "2026-04-25T00:00:00.000Z",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        rescoredAt: null,
+        selectionAnchorAt: "2026-04-25T00:00:00.000Z",
+        selectionAnchorKind: "createdAt",
+        isGeckoterminalOrigin: true,
+      },
+    });
+
+    assert.equal(item.contextAvailable, true);
+    assert.equal(item.contextWouldWrite, true);
+    assert.deepEqual(item.savedContextFields, ["metadata.name"]);
     assert.deepEqual(item.writeSummary, {
       dryRun: true,
       enrichUpdated: false,

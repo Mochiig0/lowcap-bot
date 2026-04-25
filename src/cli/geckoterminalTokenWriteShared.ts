@@ -64,6 +64,15 @@ export type GeckoTokenWriteRescorePreview = {
 
 export type GeckoTokenWriteFetchedSnapshot = Record<string, unknown>;
 
+export type GeckoTokenWriteContextPreview = {
+  available: boolean;
+  availableFields: string[];
+  savedFields: string[];
+  wouldWrite: boolean;
+  patch: Record<string, unknown> | null;
+  preview: Record<string, unknown> | null;
+};
+
 export type GeckoTokenWriteSummary = {
   wouldEnrich: boolean;
   wouldRescore: boolean;
@@ -88,6 +97,7 @@ export type GeckoTokenWriteResult = {
   fetchedSnapshot: GeckoTokenWriteFetchedSnapshot | null;
   enrichPlan: GeckoTokenWriteEnrichPlan | null;
   rescorePreview: GeckoTokenWriteRescorePreview | null;
+  contextPreview: GeckoTokenWriteContextPreview | null;
   contextWouldWrite: boolean;
   metaplexContextWouldWrite: boolean;
   enrichWritten: boolean;
@@ -328,6 +338,8 @@ function isGeckoRateLimitError(error: unknown): boolean {
 export function toGeckoTokenEnrichRescoreCliItem(
   input: GeckoTokenCliItemAdapterInput,
 ): GeckoTokenEnrichRescoreCliItem {
+  const contextPreview = input.result.contextPreview;
+
   return {
     token: input.token,
     selectedReason: input.selectedReason,
@@ -335,9 +347,10 @@ export function toGeckoTokenEnrichRescoreCliItem(
     ...(input.result.fetchedSnapshot
       ? { fetchedSnapshot: input.result.fetchedSnapshot }
       : {}),
-    contextAvailable: false,
-    contextWouldWrite: input.result.contextWouldWrite,
-    savedContextFields: [],
+    contextAvailable: contextPreview?.available ?? false,
+    contextWouldWrite:
+      contextPreview?.wouldWrite ?? input.result.contextWouldWrite,
+    savedContextFields: contextPreview?.savedFields ?? [],
     metaplexAttempted: false,
     metaplexAvailable: false,
     metaplexWouldWrite: input.result.metaplexContextWouldWrite,
@@ -379,6 +392,7 @@ export function buildUnsupportedGeckoTokenWriteResult(
     fetchedSnapshot: null,
     enrichPlan: null,
     rescorePreview: null,
+    contextPreview: null,
     contextWouldWrite: false,
     metaplexContextWouldWrite: false,
     enrichWritten: false,
