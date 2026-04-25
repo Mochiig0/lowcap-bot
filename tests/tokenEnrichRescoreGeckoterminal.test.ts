@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { PrismaClient } from "@prisma/client";
 
 import {
+  GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR,
   runGeckoTokenWriteForMint,
   toGeckoTokenEnrichRescoreCliItem,
   type GeckoTokenEnrichRescoreCliToken,
@@ -991,6 +992,132 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(adapterItem.notifySent, cliItem.notifySent);
       assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
       assert.match(adapterItem.error ?? "", /429 Too Many Requests/);
+
+      const token = await readToken(databaseUrl, mint);
+      assert.equal(token?.name, null);
+      assert.equal(token?.symbol, null);
+      assert.equal(token?.metadataStatus, "mint_only");
+      assert.equal(token?.rescoredAt, null);
+      assert.equal(token?.reviewFlagsJson, null);
+    });
+  });
+
+  await t.test("matches primary Gecko invalid shape parity between CLI dry-run and helper adapter", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "primary-gecko-invalid-shape-parity.db")}`;
+      const mint = "GeckoPrimaryInvalidShapeParity111111111111pump";
+      const geckoSnapshotFile = join(dir, "invalid-gecko-snapshot.json");
+      const invalidSnapshot = {
+        data: {
+          id: `solana_${mint}`,
+          type: "token",
+        },
+      };
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(invalidSnapshot, null, 2),
+        "utf8",
+      );
+
+      const cliResult = await runTokenEnrichRescoreGeckoterminal(
+        ["--mint", mint],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+        },
+      );
+      assert.equal(cliResult.ok, true);
+
+      const parsed = JSON.parse(
+        cliResult.stdout,
+      ) as TokenEnrichRescoreGeckoterminalOutput;
+      const cliItem = parsed.items[0];
+      assert.ok(cliItem);
+
+      const existingToken: GeckoTokenWriteExistingToken = {
+        mint,
+        name: null,
+        symbol: null,
+        description: null,
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        reviewFlagsJson: null,
+      };
+      const helperResult = await runGeckoTokenWriteForMint(
+        {
+          mint,
+          write: false,
+          existingToken,
+        },
+        {
+          fetchTokenSnapshot: async () => invalidSnapshot,
+          fetchMetaplexContext: async () => {
+            throw new Error("Metaplex preview should not run after invalid Gecko shape");
+          },
+        },
+      );
+      const adapterItem = toGeckoTokenEnrichRescoreCliItem({
+        result: helperResult,
+        selectedReason: "Token.createdAt",
+        writeEnabled: false,
+        token: cliItem.token as unknown as GeckoTokenEnrichRescoreCliToken,
+      });
+
+      assert.equal(cliItem.status, "error");
+      assert.match(cliItem.error ?? "", /raw\.data\.attributes|shape/i);
+      assert.equal(cliItem.fetchedSnapshot, undefined);
+      assert.equal(cliItem.contextAvailable, false);
+      assert.equal(cliItem.contextWouldWrite, false);
+      assert.equal(cliItem.metaplexAttempted, false);
+      assert.equal(cliItem.metaplexAvailable, false);
+      assert.equal(cliItem.metaplexWouldWrite, false);
+      assert.equal(cliItem.metaplexErrorKind, null);
+      assert.equal(cliItem.enrichPlan, undefined);
+      assert.equal(cliItem.rescorePreview, undefined);
+      assert.equal(cliItem.notifyWouldSend, false);
+      assert.equal(cliItem.notifySent, false);
+      assert.deepEqual(cliItem.writeSummary, {
+        dryRun: true,
+        enrichUpdated: false,
+        rescoreUpdated: false,
+        contextUpdated: false,
+        metaplexContextUpdated: false,
+      });
+
+      assert.equal(helperResult.status, "error");
+      assert.equal(helperResult.error, GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
+      assert.equal(helperResult.rateLimited, false);
+      assert.equal(helperResult.rateLimitScope, null);
+      assert.equal(helperResult.fetchedSnapshot, null);
+      assert.equal(helperResult.enrichPlan, null);
+      assert.equal(helperResult.rescorePreview, null);
+      assert.equal(helperResult.contextPreview, null);
+      assert.equal(helperResult.metaplexPreview, null);
+      assert.equal(helperResult.reviewFlagsPreview, null);
+
+      assert.equal(adapterItem.status, cliItem.status);
+      assert.equal(adapterItem.selectedReason, cliItem.selectedReason);
+      assert.equal(adapterItem.fetchedSnapshot, undefined);
+      assert.equal(adapterItem.contextAvailable, cliItem.contextAvailable);
+      assert.equal(adapterItem.contextWouldWrite, cliItem.contextWouldWrite);
+      assert.equal(adapterItem.metaplexAttempted, cliItem.metaplexAttempted);
+      assert.equal(adapterItem.metaplexAvailable, cliItem.metaplexAvailable);
+      assert.equal(adapterItem.metaplexWouldWrite, cliItem.metaplexWouldWrite);
+      assert.equal(adapterItem.metaplexErrorKind, cliItem.metaplexErrorKind);
+      assert.equal(adapterItem.enrichPlan, undefined);
+      assert.equal(adapterItem.rescorePreview, undefined);
+      assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
+      assert.equal(adapterItem.notifySent, cliItem.notifySent);
+      assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
+      assert.match(adapterItem.error ?? "", /geckoterminal_snapshot_shape_error/);
 
       const token = await readToken(databaseUrl, mint);
       assert.equal(token?.name, null);
