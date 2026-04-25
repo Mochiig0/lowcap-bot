@@ -156,6 +156,7 @@ async function runTokenEnrichRescoreGeckoterminal(
     geckoSnapshotFile?: string;
     geckoSnapshotErrorOnce?: string;
     metaplexFixtureFile?: string;
+    helperShadow?: boolean;
   },
 ): Promise<CommandResult> {
   const stdoutPath = join(
@@ -193,6 +194,7 @@ async function runTokenEnrichRescoreGeckoterminal(
           ...(options?.metaplexFixtureFile
             ? { METAPLEX_METADATA_URI_FILE: options.metaplexFixtureFile }
             : {}),
+          LOWCAP_GECKO_TOKEN_WRITE_HELPER_SHADOW: options?.helperShadow ? "1" : "",
         },
       },
     );
@@ -527,6 +529,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
           databaseUrl,
           geckoSnapshotFile,
           metaplexFixtureFile,
+          helperShadow: true,
         },
       );
       assert.equal(cliResult.ok, true);
@@ -536,6 +539,18 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       ) as TokenEnrichRescoreGeckoterminalOutput;
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(parsed, "helperResult"),
+        false,
+      );
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(cliItem, "helperResult"),
+        false,
+      );
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(cliItem, "adapterItem"),
+        false,
+      );
 
       const existingToken: GeckoTokenWriteExistingToken = {
         mint,
@@ -1249,6 +1264,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         {
           databaseUrl,
           geckoSnapshotErrorOnce: rateLimitError,
+          helperShadow: true,
         },
       );
       assert.equal(cliResult.ok, true);

@@ -16,6 +16,12 @@ import {
   rescoreTokenByMint,
   type TokenRescorePreview,
 } from "./tokenRescoreShared.js";
+import {
+  runGeckoTokenWriteForMint,
+  toGeckoTokenEnrichRescoreCliItem,
+  type GeckoTokenEnrichRescoreCliToken,
+  type GeckoTokenWriteExistingToken,
+} from "./geckoterminalTokenWriteShared.js";
 import { buildScoreNotifyMessage, notifyTelegram } from "../notify/telegram.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
@@ -58,6 +64,7 @@ type SelectedToken = {
   symbol: string | null;
   description: string | null;
   groupKey: string | null;
+  scoreTotal: number | null;
   scoreRank: string;
   hardRejected: boolean;
   entrySnapshot: unknown;
@@ -267,6 +274,13 @@ class CliUsageError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "CliUsageError";
+  }
+}
+
+class HelperShadowParityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HelperShadowParityError";
   }
 }
 
@@ -1474,6 +1488,7 @@ function buildSelectedToken(token: {
   symbol: string | null;
   description: string | null;
   groupKey: string | null;
+  scoreTotal: number | null;
   scoreRank: string;
   hardRejected: boolean;
   metadataStatus: string;
@@ -1501,6 +1516,7 @@ function buildSelectedToken(token: {
     symbol: token.symbol,
     description: token.description,
     groupKey: token.groupKey,
+    scoreTotal: token.scoreTotal,
     scoreRank: token.scoreRank,
     hardRejected: token.hardRejected,
     entrySnapshot: token.entrySnapshot,
@@ -1544,6 +1560,7 @@ async function selectTokens(args: Args): Promise<{
         symbol: true,
         description: true,
         groupKey: true,
+        scoreTotal: true,
         scoreRank: true,
         hardRejected: true,
         metadataStatus: true,
@@ -1588,6 +1605,7 @@ async function selectTokens(args: Args): Promise<{
       symbol: true,
       description: true,
       groupKey: true,
+      scoreTotal: true,
       scoreRank: true,
       hardRejected: true,
       metadataStatus: true,
@@ -1722,6 +1740,259 @@ function buildTokenOutput(token: SelectedToken): ProcessedItem["token"] {
   };
 }
 
+type ShadowFetchReplay =
+  | {
+      ok: true;
+      value: unknown;
+    }
+  | {
+      ok: false;
+      error: unknown;
+    };
+
+function isHelperShadowEnabled(): boolean {
+  return process.env.LOWCAP_GECKO_TOKEN_WRITE_HELPER_SHADOW === "1";
+}
+
+function replayShadowFetch(replay: ShadowFetchReplay | null, context: string): unknown {
+  if (!replay) {
+    throw new Error(`${context} shadow replay was not captured`);
+  }
+
+  if (!replay.ok) {
+    throw replay.error;
+  }
+
+  return replay.value;
+}
+
+function buildHelperExistingToken(token: SelectedToken): GeckoTokenWriteExistingToken {
+  return {
+    mint: token.mint,
+    name: token.name,
+    symbol: token.symbol,
+    description: token.description,
+    source: token.currentSource,
+    metadataStatus: token.metadataStatus,
+    importedAt: token.importedAt,
+    enrichedAt: token.enrichedAt,
+    scoreRank: token.scoreRank,
+    scoreTotal: token.scoreTotal,
+    hardRejected: token.hardRejected,
+    entrySnapshot: token.entrySnapshot,
+    reviewFlagsJson: token.reviewFlagsJson,
+  };
+}
+
+function describeShadowValue(value: unknown): string {
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  return JSON.stringify(value);
+}
+
+function assertShadowFieldEqual(
+  mismatches: string[],
+  path: string,
+  actual: unknown,
+  expected: unknown,
+): void {
+  if (!Object.is(actual, expected)) {
+    mismatches.push(
+      `${path}: adapter=${describeShadowValue(actual)} existing=${describeShadowValue(expected)}`,
+    );
+  }
+}
+
+async function assertDryRunHelperShadowParity(input: {
+  args: Args;
+  token: SelectedToken;
+  item: ProcessedItem;
+  baseToken: GeckoTokenEnrichRescoreCliToken;
+  selectedReason: ProcessedItem["selectedReason"];
+  geckoSnapshotReplay: ShadowFetchReplay | null;
+  metaplexReplay: ShadowFetchReplay | null;
+}): Promise<void> {
+  if (input.args.write || !isHelperShadowEnabled()) {
+    return;
+  }
+
+  const helperResult = await runGeckoTokenWriteForMint(
+    {
+      mint: input.token.mint,
+      write: false,
+      notify: false,
+      existingToken: buildHelperExistingToken(input.token),
+    },
+    {
+      fetchTokenSnapshot: async () =>
+        replayShadowFetch(input.geckoSnapshotReplay, "geckoterminal token snapshot"),
+      fetchMetaplexContext: async () =>
+        replayShadowFetch(input.metaplexReplay, "metaplex metadata uri"),
+    },
+  );
+  const adapterItem = toGeckoTokenEnrichRescoreCliItem({
+    result: helperResult,
+    token: input.baseToken,
+    selectedReason: input.selectedReason,
+    writeEnabled: false,
+  });
+  const mismatches: string[] = [];
+
+  assertShadowFieldEqual(mismatches, "status", adapterItem.status, input.item.status);
+  assertShadowFieldEqual(
+    mismatches,
+    "selectedReason",
+    adapterItem.selectedReason,
+    input.item.selectedReason,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "fetchedSnapshot.name",
+    adapterItem.fetchedSnapshot?.name,
+    input.item.fetchedSnapshot?.name,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "fetchedSnapshot.symbol",
+    adapterItem.fetchedSnapshot?.symbol,
+    input.item.fetchedSnapshot?.symbol,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "contextAvailable",
+    adapterItem.contextAvailable,
+    input.item.contextAvailable,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "contextWouldWrite",
+    adapterItem.contextWouldWrite,
+    input.item.contextWouldWrite,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "metaplexAttempted",
+    adapterItem.metaplexAttempted,
+    input.item.metaplexAttempted,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "metaplexAvailable",
+    adapterItem.metaplexAvailable,
+    input.item.metaplexAvailable,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "metaplexWouldWrite",
+    adapterItem.metaplexWouldWrite,
+    input.item.metaplexWouldWrite,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "metaplexErrorKind",
+    adapterItem.metaplexErrorKind,
+    input.item.metaplexErrorKind,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "enrichPlan.hasPatch",
+    adapterItem.enrichPlan?.hasPatch,
+    input.item.enrichPlan?.hasPatch,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "enrichPlan.willUpdate",
+    adapterItem.enrichPlan?.willUpdate,
+    input.item.enrichPlan?.willUpdate,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "rescorePreview.ready",
+    adapterItem.rescorePreview?.ready,
+    input.item.rescorePreview?.ready,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "rescorePreview.scoreRank",
+    adapterItem.rescorePreview?.scoreRank,
+    input.item.rescorePreview?.scoreRank,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "rescorePreview.scoreTotal",
+    adapterItem.rescorePreview?.scoreTotal,
+    input.item.rescorePreview?.scoreTotal,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "rescorePreview.hardRejected",
+    adapterItem.rescorePreview?.hardRejected,
+    input.item.rescorePreview?.hardRejected,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "notifyEligibleBefore",
+    adapterItem.notifyEligibleBefore,
+    input.item.notifyEligibleBefore,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "notifyEligibleAfter",
+    adapterItem.notifyEligibleAfter,
+    input.item.notifyEligibleAfter,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "notifyWouldSend",
+    adapterItem.notifyWouldSend,
+    input.item.notifyWouldSend,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "notifySent",
+    adapterItem.notifySent,
+    input.item.notifySent,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "writeSummary.dryRun",
+    adapterItem.writeSummary.dryRun,
+    input.item.writeSummary.dryRun,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "writeSummary.enrichUpdated",
+    adapterItem.writeSummary.enrichUpdated,
+    input.item.writeSummary.enrichUpdated,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "writeSummary.rescoreUpdated",
+    adapterItem.writeSummary.rescoreUpdated,
+    input.item.writeSummary.rescoreUpdated,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "writeSummary.contextUpdated",
+    adapterItem.writeSummary.contextUpdated,
+    input.item.writeSummary.contextUpdated,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "writeSummary.metaplexContextUpdated",
+    adapterItem.writeSummary.metaplexContextUpdated,
+    input.item.writeSummary.metaplexContextUpdated,
+  );
+
+  if (mismatches.length > 0) {
+    throw new HelperShadowParityError(
+      `helper shadow parity mismatch for ${input.token.mint}: ${mismatches.join("; ")}`,
+    );
+  }
+}
+
 async function processToken(token: SelectedToken, args: Args): Promise<ProcessedItem> {
   const baseToken = buildTokenOutput(token);
   const selectedReason =
@@ -1760,9 +2031,19 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
   let metaplexAvailable = false;
   let metaplexWouldWrite = false;
   let metaplexErrorKind: string | null = null;
+  let geckoSnapshotReplay: ShadowFetchReplay | null = null;
+  let metaplexReplay: ShadowFetchReplay | null = null;
 
   try {
-    const raw = await fetchTokenSnapshotRaw(token.mint);
+    let raw: unknown;
+    try {
+      raw = await fetchTokenSnapshotRaw(token.mint);
+      geckoSnapshotReplay = { ok: true, value: raw };
+    } catch (error) {
+      geckoSnapshotReplay = { ok: false, error };
+      throw error;
+    }
+
     snapshot = parseSnapshotMetadata(raw);
     const collectedContext = parseCollectedContext(raw);
     contextAvailable = hasUsefulCollectedContext(collectedContext);
@@ -1830,7 +2111,15 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     let metaplexCollectedContext: MetaplexCollectedContext | null = null;
     try {
       metaplexAttempted = true;
-      const metaplexLookup = await fetchMetaplexLookupResult(token.mint);
+      let metaplexLookup: MetaplexLookupResult;
+      try {
+        metaplexLookup = await fetchMetaplexLookupResult(token.mint);
+        metaplexReplay = { ok: true, value: metaplexLookup };
+      } catch (error) {
+        metaplexReplay = { ok: false, error };
+        throw error;
+      }
+
       metaplexCollectedContext = parseMetaplexCollectedContext(metaplexLookup);
       metaplexAvailable = hasUsefulMetaplexCollectedContext(metaplexCollectedContext);
       const sameAsSaved =
@@ -1895,7 +2184,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       }
     }
 
-    return {
+    const item: ProcessedItem = {
       token: baseToken,
       selectedReason,
       status: "ok",
@@ -1923,8 +2212,23 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         metaplexContextUpdated,
       },
     };
+    await assertDryRunHelperShadowParity({
+      args,
+      token,
+      item,
+      baseToken,
+      selectedReason,
+      geckoSnapshotReplay,
+      metaplexReplay,
+    });
+
+    return item;
   } catch (error) {
-    return {
+    if (error instanceof HelperShadowParityError) {
+      throw error;
+    }
+
+    const item: ProcessedItem = {
       token: baseToken,
       selectedReason,
       status: "error",
@@ -1953,6 +2257,17 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       },
       error: error instanceof Error ? error.message : String(error),
     };
+    await assertDryRunHelperShadowParity({
+      args,
+      token,
+      item,
+      baseToken,
+      selectedReason,
+      geckoSnapshotReplay,
+      metaplexReplay,
+    });
+
+    return item;
   }
 }
 
