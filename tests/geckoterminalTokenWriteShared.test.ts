@@ -227,6 +227,30 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rateLimitScope, null);
     assert.equal(result.error, undefined);
     assert.equal(result.metaplexPreview, null);
+    assert.deepEqual(result.reviewFlagsPreview, {
+      flags: {
+        hasWebsite: false,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: false,
+        descriptionPresent: false,
+        linkCount: 0,
+      },
+      savedFlags: null,
+      wouldWrite: true,
+      patch: {
+        reviewFlagsJson: {
+          hasWebsite: false,
+          hasX: false,
+          hasTelegram: false,
+          metaplexHit: false,
+          descriptionPresent: false,
+          linkCount: 0,
+        },
+      },
+      reasons: ["saved_review_flags_missing"],
+    });
+    assert.equal(result.reviewFlagsWouldWrite, true);
   });
 
   await t.test("builds an enrich preview when existing token and snapshot are present", async () => {
@@ -293,8 +317,20 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.scoreRank, "C");
     assert.equal(result.scoreTotal, 0);
     assert.equal(result.hardRejected, false);
-    assert.equal(result.reviewFlagsPreview, null);
-    assert.equal(result.reviewFlagsWouldWrite, false);
+    assert.deepEqual(result.reviewFlagsPreview?.flags, {
+      hasWebsite: false,
+      hasX: false,
+      hasTelegram: false,
+      metaplexHit: false,
+      descriptionPresent: false,
+      linkCount: 0,
+    });
+    assert.deepEqual(result.reviewFlagsPreview?.savedFlags, null);
+    assert.equal(result.reviewFlagsPreview?.wouldWrite, true);
+    assert.deepEqual(result.reviewFlagsPreview?.reasons, [
+      "saved_review_flags_missing",
+    ]);
+    assert.equal(result.reviewFlagsWouldWrite, true);
     assert.equal(result.enrichWritten, false);
   });
 
@@ -401,6 +437,14 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
           },
         },
       },
+      reviewFlagsJson: {
+        hasWebsite: false,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: false,
+        descriptionPresent: false,
+        linkCount: 0,
+      },
     };
 
     const result = await runGeckoTokenWriteForMint(
@@ -434,6 +478,26 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.contextWouldWrite, false);
     assert.equal(result.writeSummary.wouldWriteContext, false);
     assert.equal(result.contextWritten, false);
+    assert.deepEqual(result.reviewFlagsPreview?.flags, {
+      hasWebsite: false,
+      hasX: false,
+      hasTelegram: false,
+      metaplexHit: false,
+      descriptionPresent: false,
+      linkCount: 0,
+    });
+    assert.deepEqual(result.reviewFlagsPreview?.savedFlags, {
+      hasWebsite: false,
+      hasX: false,
+      hasTelegram: false,
+      metaplexHit: false,
+      descriptionPresent: false,
+      linkCount: 0,
+    });
+    assert.equal(result.reviewFlagsPreview?.wouldWrite, false);
+    assert.equal(result.reviewFlagsPreview?.patch, null);
+    assert.deepEqual(result.reviewFlagsPreview?.reasons, []);
+    assert.equal(result.reviewFlagsWouldWrite, false);
   });
 
   await t.test("builds context preview from Gecko metadata text and links", async () => {
@@ -487,6 +551,19 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.contextPreview?.wouldWrite, true);
     assert.equal(result.writeSummary.wouldWriteContext, true);
     assert.equal(result.contextWritten, false);
+    assert.deepEqual(result.reviewFlagsPreview?.flags, {
+      hasWebsite: true,
+      hasX: true,
+      hasTelegram: true,
+      metaplexHit: false,
+      descriptionPresent: true,
+      linkCount: 5,
+    });
+    assert.equal(result.reviewFlagsPreview?.wouldWrite, true);
+    assert.deepEqual(result.reviewFlagsPreview?.reasons, [
+      "saved_review_flags_missing",
+    ]);
+    assert.equal(result.reviewFlagsWouldWrite, true);
   });
 
   await t.test("builds metaplex preview from an injected metadata lookup", async () => {
@@ -561,6 +638,16 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.metaplexContextWritten, false);
     assert.equal(result.rateLimited, false);
     assert.equal(result.rateLimitScope, null);
+    assert.deepEqual(result.reviewFlagsPreview?.flags, {
+      hasWebsite: true,
+      hasX: true,
+      hasTelegram: true,
+      metaplexHit: true,
+      descriptionPresent: true,
+      linkCount: 4,
+    });
+    assert.equal(result.reviewFlagsPreview?.wouldWrite, true);
+    assert.equal(result.reviewFlagsWouldWrite, true);
   });
 
   await t.test("keeps metaplex preview read-only when saved context already matches", async () => {
@@ -690,6 +777,16 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.metaplexContextWouldWrite, false);
     assert.equal(result.rateLimited, false);
     assert.equal(result.rateLimitScope, null);
+    assert.deepEqual(result.reviewFlagsPreview?.flags, {
+      hasWebsite: false,
+      hasX: false,
+      hasTelegram: false,
+      metaplexHit: false,
+      descriptionPresent: false,
+      linkCount: 0,
+    });
+    assert.equal(result.reviewFlagsPreview?.wouldWrite, true);
+    assert.equal(result.reviewFlagsWouldWrite, true);
   });
 
   await t.test("classifies metaplex rate limit without running writes", async () => {
@@ -736,6 +833,16 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rateLimitScope, null);
     assert.equal(result.contextWritten, false);
     assert.equal(result.metaplexContextWritten, false);
+    assert.deepEqual(result.reviewFlagsPreview?.flags, {
+      hasWebsite: false,
+      hasX: false,
+      hasTelegram: false,
+      metaplexHit: false,
+      descriptionPresent: false,
+      linkCount: 0,
+    });
+    assert.equal(result.reviewFlagsPreview?.wouldWrite, true);
+    assert.equal(result.reviewFlagsWouldWrite, true);
   });
 
   await t.test("reflects hard-rejected rescore preview fields", async () => {

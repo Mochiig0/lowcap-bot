@@ -513,6 +513,43 @@ function extractContextFields(context: Record<string, unknown> | null): string[]
   );
 }
 
+function extractSavedReviewFlags(
+  reviewFlagsJson: unknown,
+): GeckoTokenWriteReviewFlags | null {
+  if (!isRecord(reviewFlagsJson)) {
+    return null;
+  }
+
+  const {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  } = reviewFlagsJson;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
 function withoutCapturedAt(
   context: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -779,6 +816,158 @@ function buildMetaplexPreviewFromLookup(params: {
     preview,
     errorKind: null,
     rateLimited: false,
+  };
+}
+
+function readNestedOptionalString(
+  object: Record<string, unknown> | null,
+  path: string[],
+): string | null {
+  let current: unknown = object;
+  for (const segment of path) {
+    if (!isRecord(current)) {
+      return null;
+    }
+    current = current[segment];
+  }
+  return typeof current === "string" && current.trim().length > 0
+    ? current
+    : null;
+}
+
+function readNestedStringArray(
+  object: Record<string, unknown> | null,
+  path: string[],
+): string[] {
+  let current: unknown = object;
+  for (const segment of path) {
+    if (!isRecord(current)) {
+      return [];
+    }
+    current = current[segment];
+  }
+  return Array.isArray(current)
+    ? current.filter((value): value is string => typeof value === "string")
+    : [];
+}
+
+function collectReviewFlagLinks(
+  geckoContext: Record<string, unknown> | null,
+  metaplexContext: Record<string, unknown> | null,
+): string[] {
+  return dedupeStrings([
+    readNestedOptionalString(geckoContext, ["links", "website"]),
+    readNestedOptionalString(geckoContext, ["links", "x"]),
+    readNestedOptionalString(geckoContext, ["links", "telegram"]),
+    ...readNestedStringArray(geckoContext, ["links", "websites"]),
+    ...readNestedStringArray(geckoContext, ["links", "xCandidates"]),
+    ...readNestedStringArray(geckoContext, ["links", "telegramCandidates"]),
+    ...readNestedStringArray(geckoContext, ["links", "otherLinks"]),
+    readNestedOptionalString(metaplexContext, ["links", "website"]),
+    readNestedOptionalString(metaplexContext, ["links", "x"]),
+    readNestedOptionalString(metaplexContext, ["links", "telegram"]),
+    ...readNestedStringArray(metaplexContext, ["links", "websites"]),
+    ...readNestedStringArray(metaplexContext, ["links", "xCandidates"]),
+    ...readNestedStringArray(metaplexContext, ["links", "telegramCandidates"]),
+    ...readNestedStringArray(metaplexContext, ["links", "otherLinks"]),
+  ]);
+}
+
+function buildReviewFlagsFromContexts(
+  geckoContext: Record<string, unknown> | null,
+  metaplexContext: Record<string, unknown> | null,
+): GeckoTokenWriteReviewFlags {
+  const links = collectReviewFlagLinks(geckoContext, metaplexContext);
+
+  return {
+    hasWebsite:
+      typeof readNestedOptionalString(geckoContext, ["links", "website"]) ===
+        "string" ||
+      typeof readNestedOptionalString(metaplexContext, ["links", "website"]) ===
+        "string",
+    hasX:
+      typeof readNestedOptionalString(geckoContext, ["links", "x"]) ===
+        "string" ||
+      typeof readNestedOptionalString(metaplexContext, ["links", "x"]) ===
+        "string",
+    hasTelegram:
+      typeof readNestedOptionalString(geckoContext, ["links", "telegram"]) ===
+        "string" ||
+      typeof readNestedOptionalString(metaplexContext, [
+        "links",
+        "telegram",
+      ]) === "string",
+    metaplexHit: metaplexContext !== null,
+    descriptionPresent:
+      typeof readNestedOptionalString(geckoContext, [
+        "metadataText",
+        "description",
+      ]) === "string" ||
+      typeof readNestedOptionalString(metaplexContext, [
+        "metadataText",
+        "description",
+      ]) === "string",
+    linkCount: links.length,
+  };
+}
+
+function buildReviewFlagsReasons(params: {
+  flags: GeckoTokenWriteReviewFlags;
+  savedFlags: GeckoTokenWriteReviewFlags | null;
+}): string[] {
+  if (params.savedFlags === null) {
+    return ["saved_review_flags_missing"];
+  }
+
+  return (
+    [
+      "hasWebsite",
+      "hasX",
+      "hasTelegram",
+      "metaplexHit",
+      "descriptionPresent",
+      "linkCount",
+    ] as const
+  )
+    .filter((key) => params.savedFlags?.[key] !== params.flags[key])
+    .map((key) => `${key}_changed`);
+}
+
+function buildGeckoTokenWriteReviewFlagsPreview(params: {
+  contextPreview: GeckoTokenWriteContextPreview | null;
+  metaplexPreview: GeckoTokenWriteMetaplexPreview | null;
+  existingToken?: GeckoTokenWriteExistingToken;
+}): GeckoTokenWriteReviewFlagsPreview {
+  const savedGeckoContext = extractSavedGeckoContext(
+    params.existingToken?.entrySnapshot,
+  );
+  const savedMetaplexContext = extractSavedMetaplexContext(
+    params.existingToken?.entrySnapshot,
+  );
+  const geckoContext =
+    params.contextPreview?.wouldWrite && isRecord(params.contextPreview.preview)
+      ? params.contextPreview.preview
+      : savedGeckoContext;
+  const metaplexContext =
+    params.metaplexPreview?.wouldWrite && isRecord(params.metaplexPreview.preview)
+      ? params.metaplexPreview.preview
+      : savedMetaplexContext;
+  const flags = buildReviewFlagsFromContexts(geckoContext, metaplexContext);
+  const savedFlags = extractSavedReviewFlags(
+    params.existingToken?.reviewFlagsJson,
+  );
+  const wouldWrite =
+    savedFlags === null || JSON.stringify(savedFlags) !== JSON.stringify(flags);
+  const reasons = wouldWrite
+    ? buildReviewFlagsReasons({ flags, savedFlags })
+    : [];
+
+  return {
+    flags,
+    savedFlags,
+    wouldWrite,
+    patch: wouldWrite ? { reviewFlagsJson: flags } : null,
+    reasons,
   };
 }
 
@@ -1052,6 +1241,11 @@ export async function runGeckoTokenWriteForMint(
       deps,
       now,
     );
+    const reviewFlagsPreview = buildGeckoTokenWriteReviewFlagsPreview({
+      contextPreview,
+      metaplexPreview,
+      existingToken: input.existingToken,
+    });
     const enrichPlan = input.existingToken
       ? buildGeckoTokenWriteEnrichPlan({
           existingToken: input.existingToken,
@@ -1091,6 +1285,8 @@ export async function runGeckoTokenWriteForMint(
       rescorePreview,
       contextPreview,
       metaplexPreview,
+      reviewFlagsPreview,
+      reviewFlagsWouldWrite: reviewFlagsPreview.wouldWrite,
       contextWouldWrite: contextPreview?.wouldWrite ?? false,
       metaplexContextWouldWrite: metaplexPreview?.wouldWrite ?? false,
       metaplexErrorKind: metaplexPreview?.errorKind ?? null,
