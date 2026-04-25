@@ -62,6 +62,8 @@ export type GeckoTokenWriteRescorePreview = {
   hardRejectReason: string | null;
 };
 
+export type GeckoTokenWriteFetchedSnapshot = Record<string, unknown>;
+
 export type GeckoTokenWriteSummary = {
   wouldEnrich: boolean;
   wouldRescore: boolean;
@@ -83,6 +85,7 @@ export type GeckoTokenWriteResult = {
   scoreRank: string | null;
   scoreTotal: number | null;
   hardRejected: boolean | null;
+  fetchedSnapshot: GeckoTokenWriteFetchedSnapshot | null;
   enrichPlan: GeckoTokenWriteEnrichPlan | null;
   rescorePreview: GeckoTokenWriteRescorePreview | null;
   contextWouldWrite: boolean;
@@ -100,6 +103,64 @@ export type GeckoTokenWriteResult = {
   rateLimitScope: GeckoTokenWriteRateLimitScope;
   metaplexErrorKind: string | null;
   error?: string;
+};
+
+export type GeckoTokenEnrichRescoreCliToken = {
+  id: number;
+  mint: string;
+  currentSource: string | null;
+  originSource: string | null;
+  metadataStatus: string;
+  name: string | null;
+  symbol: string | null;
+  description: string | null;
+  groupKey: string | null;
+  scoreRank: string;
+  hardRejected: boolean;
+  createdAt: string;
+  importedAt: string;
+  enrichedAt: string | null;
+  rescoredAt: string | null;
+  selectionAnchorAt: string;
+  selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
+  isGeckoterminalOrigin: boolean;
+};
+
+export type GeckoTokenEnrichRescoreCliItem = {
+  token: GeckoTokenEnrichRescoreCliToken;
+  selectedReason: "firstSeenSourceSnapshot.detectedAt" | "Token.createdAt";
+  status: "ok" | "error";
+  fetchedSnapshot?: GeckoTokenWriteFetchedSnapshot;
+  contextAvailable: boolean;
+  contextWouldWrite: boolean;
+  savedContextFields: string[];
+  metaplexAttempted: boolean;
+  metaplexAvailable: boolean;
+  metaplexWouldWrite: boolean;
+  metaplexSavedFields: string[];
+  metaplexErrorKind: string | null;
+  enrichPlan?: GeckoTokenWriteEnrichPlan;
+  rescorePreview?: GeckoTokenWriteRescorePreview;
+  notifyCandidate: boolean;
+  notifyEligibleBefore: boolean;
+  notifyEligibleAfter: boolean;
+  notifyWouldSend: boolean;
+  notifySent: boolean;
+  writeSummary: {
+    dryRun: boolean;
+    enrichUpdated: boolean;
+    rescoreUpdated: boolean;
+    contextUpdated: boolean;
+    metaplexContextUpdated: boolean;
+  };
+  error?: string;
+};
+
+export type GeckoTokenCliItemAdapterInput = {
+  result: GeckoTokenWriteResult;
+  token: GeckoTokenEnrichRescoreCliToken;
+  selectedReason: "firstSeenSourceSnapshot.detectedAt" | "Token.createdAt";
+  writeEnabled: boolean;
 };
 
 export const GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED =
@@ -264,6 +325,44 @@ function isGeckoRateLimitError(error: unknown): boolean {
   return error.message.includes("429 Too Many Requests");
 }
 
+export function toGeckoTokenEnrichRescoreCliItem(
+  input: GeckoTokenCliItemAdapterInput,
+): GeckoTokenEnrichRescoreCliItem {
+  return {
+    token: input.token,
+    selectedReason: input.selectedReason,
+    status: input.result.status === "ok" ? "ok" : "error",
+    ...(input.result.fetchedSnapshot
+      ? { fetchedSnapshot: input.result.fetchedSnapshot }
+      : {}),
+    contextAvailable: false,
+    contextWouldWrite: input.result.contextWouldWrite,
+    savedContextFields: [],
+    metaplexAttempted: false,
+    metaplexAvailable: false,
+    metaplexWouldWrite: input.result.metaplexContextWouldWrite,
+    metaplexSavedFields: [],
+    metaplexErrorKind: input.result.metaplexErrorKind,
+    ...(input.result.enrichPlan ? { enrichPlan: input.result.enrichPlan } : {}),
+    ...(input.result.rescorePreview
+      ? { rescorePreview: input.result.rescorePreview }
+      : {}),
+    notifyCandidate: input.result.notifyEligibleAfter === true,
+    notifyEligibleBefore: input.result.notifyEligibleBefore ?? false,
+    notifyEligibleAfter: input.result.notifyEligibleAfter ?? false,
+    notifyWouldSend: input.result.notifyWouldSend,
+    notifySent: input.result.notifySent,
+    writeSummary: {
+      dryRun: !input.writeEnabled,
+      enrichUpdated: input.result.enrichWritten,
+      rescoreUpdated: input.result.rescoreWritten,
+      contextUpdated: input.result.contextWritten,
+      metaplexContextUpdated: input.result.metaplexContextWritten,
+    },
+    ...(input.result.error ? { error: input.result.error } : {}),
+  };
+}
+
 export function buildUnsupportedGeckoTokenWriteResult(
   input: GeckoTokenWriteInput,
 ): GeckoTokenWriteResult {
@@ -277,6 +376,7 @@ export function buildUnsupportedGeckoTokenWriteResult(
     scoreRank: null,
     scoreTotal: null,
     hardRejected: null,
+    fetchedSnapshot: null,
     enrichPlan: null,
     rescorePreview: null,
     contextWouldWrite: false,
@@ -349,6 +449,7 @@ export async function runGeckoTokenWriteForMint(
       status: "ok",
       name: snapshot.name,
       symbol: snapshot.symbol,
+      fetchedSnapshot: snapshot,
       metadataStatus: enrichPlan?.preview.metadataStatus ?? null,
       scoreRank: rescorePreview?.scoreRank ?? null,
       scoreTotal: rescorePreview?.scoreTotal ?? null,

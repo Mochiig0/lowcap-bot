@@ -6,6 +6,7 @@ import {
   GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR,
   buildUnsupportedGeckoTokenWriteResult,
   runGeckoTokenWriteForMint,
+  toGeckoTokenEnrichRescoreCliItem,
   type GeckoTokenWriteDeps,
   type GeckoTokenWriteExistingToken,
   type GeckoTokenWriteInput,
@@ -33,6 +34,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.scoreRank, null);
     assert.equal(result.scoreTotal, null);
     assert.equal(result.hardRejected, null);
+    assert.equal(result.fetchedSnapshot, null);
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
     assert.equal(result.contextWouldWrite, false);
@@ -77,6 +79,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       scoreRank: null,
       scoreTotal: null,
       hardRejected: null,
+      fetchedSnapshot: null,
       enrichPlan: null,
       rescorePreview: null,
       contextWouldWrite: false,
@@ -173,6 +176,11 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.status, "ok");
     assert.equal(result.name, "Fetched Name");
     assert.equal(result.symbol, "FETCH");
+    assert.deepEqual(result.fetchedSnapshot, {
+      address: "GeckoTokenWriteFetch11111111111111111111111pump",
+      name: "Fetched Name",
+      symbol: "FETCH",
+    });
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
     assert.equal(result.enrichWritten, false);
@@ -361,6 +369,90 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.notifyWouldSend, false);
   });
 
+  await t.test("maps helper result to the CLI-compatible item skeleton", async () => {
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint: "GeckoTokenWriteAdapter111111111111111111111pump",
+      name: null,
+      symbol: null,
+      description: null,
+      source: "geckoterminal.new_pools",
+      metadataStatus: "mint_only",
+      importedAt: "2026-04-25T00:00:00.000Z",
+      enrichedAt: null,
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+    };
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: existingToken.mint,
+        write: false,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async (mint) => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Adapter Name",
+              symbol: "ADAPT",
+            },
+          },
+        }),
+      },
+    );
+
+    const item = toGeckoTokenEnrichRescoreCliItem({
+      result,
+      selectedReason: "Token.createdAt",
+      writeEnabled: false,
+      token: {
+        id: 100,
+        mint: existingToken.mint,
+        currentSource: "geckoterminal.new_pools",
+        originSource: "geckoterminal.new_pools",
+        metadataStatus: "mint_only",
+        name: null,
+        symbol: null,
+        description: null,
+        groupKey: null,
+        scoreRank: "C",
+        hardRejected: false,
+        createdAt: "2026-04-25T00:00:00.000Z",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        rescoredAt: null,
+        selectionAnchorAt: "2026-04-25T00:00:00.000Z",
+        selectionAnchorKind: "createdAt",
+        isGeckoterminalOrigin: true,
+      },
+    });
+
+    assert.equal(item.status, "ok");
+    assert.equal(item.selectedReason, "Token.createdAt");
+    assert.deepEqual(item.fetchedSnapshot, result.fetchedSnapshot ?? undefined);
+    assert.deepEqual(item.enrichPlan, result.enrichPlan ?? undefined);
+    assert.deepEqual(item.rescorePreview, result.rescorePreview ?? undefined);
+    assert.equal(item.contextAvailable, false);
+    assert.equal(item.contextWouldWrite, false);
+    assert.deepEqual(item.savedContextFields, []);
+    assert.equal(item.metaplexAttempted, false);
+    assert.equal(item.metaplexAvailable, false);
+    assert.equal(item.metaplexWouldWrite, false);
+    assert.deepEqual(item.metaplexSavedFields, []);
+    assert.equal(item.metaplexErrorKind, null);
+    assert.equal(item.notifyCandidate, false);
+    assert.equal(item.notifyWouldSend, false);
+    assert.equal(item.notifySent, false);
+    assert.deepEqual(item.writeSummary, {
+      dryRun: true,
+      enrichUpdated: false,
+      rescoreUpdated: false,
+      contextUpdated: false,
+      metaplexContextUpdated: false,
+    });
+  });
+
   await t.test("classifies injected Gecko 429 errors as rate_limited", async () => {
     const result = await runGeckoTokenWriteForMint(
       {
@@ -380,6 +472,35 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rateLimited, true);
     assert.equal(result.rateLimitScope, "geckoterminal");
     assert.match(result.error ?? "", /429 Too Many Requests/);
+
+    const item = toGeckoTokenEnrichRescoreCliItem({
+      result,
+      selectedReason: "Token.createdAt",
+      writeEnabled: false,
+      token: {
+        id: 101,
+        mint: "GeckoTokenWriteRateLimit111111111111111111pump",
+        currentSource: "geckoterminal.new_pools",
+        originSource: "geckoterminal.new_pools",
+        metadataStatus: "mint_only",
+        name: null,
+        symbol: null,
+        description: null,
+        groupKey: null,
+        scoreRank: "C",
+        hardRejected: false,
+        createdAt: "2026-04-25T00:00:00.000Z",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        rescoredAt: null,
+        selectionAnchorAt: "2026-04-25T00:00:00.000Z",
+        selectionAnchorKind: "createdAt",
+        isGeckoterminalOrigin: true,
+      },
+    });
+
+    assert.equal(item.status, "error");
+    assert.match(item.error ?? "", /429 Too Many Requests/);
   });
 
   await t.test("classifies invalid injected Gecko snapshot shapes as errors", async () => {
