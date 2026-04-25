@@ -1891,6 +1891,21 @@ function applyDryRunAdapterContextFields(input: {
   input.item.savedContextFields = input.adapterItem.savedContextFields;
 }
 
+function applyDryRunAdapterMetaplexFields(input: {
+  args: Args;
+  item: ProcessedItem;
+  adapterItem: GeckoTokenEnrichRescoreCliItem | null;
+}): void {
+  if (input.args.write || !input.adapterItem) {
+    return;
+  }
+
+  input.item.metaplexAttempted = input.adapterItem.metaplexAttempted;
+  input.item.metaplexAvailable = input.adapterItem.metaplexAvailable;
+  input.item.metaplexWouldWrite = input.adapterItem.metaplexWouldWrite;
+  input.item.metaplexErrorKind = input.adapterItem.metaplexErrorKind;
+}
+
 function assertDryRunHelperShadowParity(input: {
   args: Args;
   item: ProcessedItem;
@@ -2289,6 +2304,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     });
     applyDryRunAdapterFetchedSnapshot({ args, item, adapterItem });
     applyDryRunAdapterContextFields({ args, item, adapterItem });
+    applyDryRunAdapterMetaplexFields({ args, item, adapterItem });
     assertDryRunHelperShadowParity({ args, item, adapterItem });
 
     return item;
@@ -2336,6 +2352,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     });
     applyDryRunAdapterFetchedSnapshot({ args, item, adapterItem });
     applyDryRunAdapterContextFields({ args, item, adapterItem });
+    applyDryRunAdapterMetaplexFields({ args, item, adapterItem });
     assertDryRunHelperShadowParity({ args, item, adapterItem });
 
     return item;
