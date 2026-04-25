@@ -19,6 +19,7 @@ import {
 import {
   runGeckoTokenWriteForMint,
   toGeckoTokenEnrichRescoreCliItem,
+  type GeckoTokenEnrichRescoreCliItem,
   type GeckoTokenEnrichRescoreCliToken,
   type GeckoTokenWriteExistingToken,
 } from "./geckoterminalTokenWriteShared.js";
@@ -1805,17 +1806,16 @@ function assertShadowFieldEqual(
   }
 }
 
-async function assertDryRunHelperShadowParity(input: {
+async function buildDryRunHelperAdapterItem(input: {
   args: Args;
   token: SelectedToken;
-  item: ProcessedItem;
   baseToken: GeckoTokenEnrichRescoreCliToken;
   selectedReason: ProcessedItem["selectedReason"];
   geckoSnapshotReplay: ShadowFetchReplay | null;
   metaplexReplay: ShadowFetchReplay | null;
-}): Promise<void> {
-  if (input.args.write || !isHelperShadowEnabled()) {
-    return;
+}): Promise<GeckoTokenEnrichRescoreCliItem | null> {
+  if (input.args.write) {
+    return null;
   }
 
   const helperResult = await runGeckoTokenWriteForMint(
@@ -1832,12 +1832,65 @@ async function assertDryRunHelperShadowParity(input: {
         replayShadowFetch(input.metaplexReplay, "metaplex metadata uri"),
     },
   );
-  const adapterItem = toGeckoTokenEnrichRescoreCliItem({
+  return toGeckoTokenEnrichRescoreCliItem({
     result: helperResult,
     token: input.baseToken,
     selectedReason: input.selectedReason,
     writeEnabled: false,
   });
+}
+
+function normalizeAdapterFetchedSnapshot(
+  adapterItem: GeckoTokenEnrichRescoreCliItem | null,
+): SnapshotMetadata | undefined {
+  const snapshot = adapterItem?.fetchedSnapshot;
+  if (!snapshot) {
+    return undefined;
+  }
+
+  const address = snapshot.address;
+  if (typeof address !== "string" || address.trim().length === 0) {
+    throw new Error("helper adapter fetchedSnapshot.address must be a non-empty string");
+  }
+
+  return {
+    address,
+    name: typeof snapshot.name === "string" ? snapshot.name : null,
+    symbol: typeof snapshot.symbol === "string" ? snapshot.symbol : null,
+  };
+}
+
+function applyDryRunAdapterFetchedSnapshot(input: {
+  args: Args;
+  item: ProcessedItem;
+  adapterItem: GeckoTokenEnrichRescoreCliItem | null;
+}): void {
+  if (input.args.write) {
+    return;
+  }
+
+  const fetchedSnapshot = normalizeAdapterFetchedSnapshot(input.adapterItem);
+  if (fetchedSnapshot) {
+    input.item.fetchedSnapshot = fetchedSnapshot;
+  } else {
+    delete input.item.fetchedSnapshot;
+  }
+}
+
+function assertDryRunHelperShadowParity(input: {
+  args: Args;
+  item: ProcessedItem;
+  adapterItem: GeckoTokenEnrichRescoreCliItem | null;
+}): void {
+  if (input.args.write || !isHelperShadowEnabled()) {
+    return;
+  }
+
+  if (!input.adapterItem) {
+    throw new HelperShadowParityError("helper shadow adapter item was not generated");
+  }
+
+  const adapterItem = input.adapterItem;
   const mismatches: string[] = [];
 
   assertShadowFieldEqual(mismatches, "status", adapterItem.status, input.item.status);
@@ -1988,7 +2041,7 @@ async function assertDryRunHelperShadowParity(input: {
 
   if (mismatches.length > 0) {
     throw new HelperShadowParityError(
-      `helper shadow parity mismatch for ${input.token.mint}: ${mismatches.join("; ")}`,
+      `helper shadow parity mismatch for ${input.item.token.mint}: ${mismatches.join("; ")}`,
     );
   }
 }
@@ -2212,15 +2265,16 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         metaplexContextUpdated,
       },
     };
-    await assertDryRunHelperShadowParity({
+    const adapterItem = await buildDryRunHelperAdapterItem({
       args,
       token,
-      item,
       baseToken,
       selectedReason,
       geckoSnapshotReplay,
       metaplexReplay,
     });
+    applyDryRunAdapterFetchedSnapshot({ args, item, adapterItem });
+    assertDryRunHelperShadowParity({ args, item, adapterItem });
 
     return item;
   } catch (error) {
@@ -2257,15 +2311,16 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       },
       error: error instanceof Error ? error.message : String(error),
     };
-    await assertDryRunHelperShadowParity({
+    const adapterItem = await buildDryRunHelperAdapterItem({
       args,
       token,
-      item,
       baseToken,
       selectedReason,
       geckoSnapshotReplay,
       metaplexReplay,
     });
+    applyDryRunAdapterFetchedSnapshot({ args, item, adapterItem });
+    assertDryRunHelperShadowParity({ args, item, adapterItem });
 
     return item;
   }
