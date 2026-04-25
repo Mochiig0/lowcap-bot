@@ -184,6 +184,113 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.error, undefined);
   });
 
+  await t.test("builds an enrich preview when existing token and snapshot are present", async () => {
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint: "GeckoTokenWritePreview111111111111111111111pump",
+      name: null,
+      symbol: null,
+      description: null,
+      source: "geckoterminal.new_pools",
+      metadataStatus: "mint_only",
+      importedAt: "2026-04-25T00:00:00.000Z",
+      enrichedAt: null,
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+    };
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: existingToken.mint,
+        write: false,
+        existingToken,
+      },
+      {
+        now: () => new Date("2026-04-25T01:00:00.000Z"),
+        fetchTokenSnapshot: async (mint) => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Preview Name",
+              symbol: "PREV",
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.metadataStatus, "partial");
+    assert.deepEqual(result.enrichPlan, {
+      hasPatch: true,
+      willUpdate: true,
+      patch: {
+        name: "Preview Name",
+        symbol: "PREV",
+      },
+      preview: {
+        metadataStatus: "partial",
+        name: "Preview Name",
+        symbol: "PREV",
+        description: null,
+      },
+    });
+    assert.equal(result.writeSummary.wouldEnrich, true);
+    assert.equal(result.writeSummary.wouldRescore, false);
+    assert.equal(result.rescorePreview, null);
+    assert.equal(result.enrichWritten, false);
+  });
+
+  await t.test("returns a no-patch enrich preview without planning writes", async () => {
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint: "GeckoTokenWriteNoPatch11111111111111111111pump",
+      name: "Same Name",
+      symbol: "SAME",
+      description: null,
+      source: "geckoterminal.new_pools",
+      metadataStatus: "partial",
+      importedAt: new Date("2026-04-25T00:00:00.000Z"),
+      enrichedAt: new Date("2026-04-25T00:30:00.000Z"),
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+    };
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: existingToken.mint,
+        write: false,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async (mint) => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Same Name",
+              symbol: "SAME",
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.deepEqual(result.enrichPlan, {
+      hasPatch: false,
+      willUpdate: false,
+      patch: {},
+      preview: {
+        metadataStatus: "partial",
+        name: "Same Name",
+        symbol: "SAME",
+        description: null,
+      },
+    });
+    assert.equal(result.writeSummary.wouldEnrich, false);
+    assert.equal(result.rescorePreview, null);
+  });
+
   await t.test("classifies injected Gecko 429 errors as rate_limited", async () => {
     const result = await runGeckoTokenWriteForMint(
       {

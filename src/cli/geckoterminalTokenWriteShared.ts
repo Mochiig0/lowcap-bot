@@ -1,3 +1,5 @@
+import { buildTokenEnrichPlan } from "./tokenEnrichShared.js";
+
 export type GeckoTokenWriteStatus = "ok" | "error" | "rate_limited";
 
 export type GeckoTokenWriteRateLimitScope =
@@ -140,6 +142,79 @@ function parseGeckoSnapshotMetadata(raw: unknown): GeckoSnapshotMetadata {
   };
 }
 
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function toNullableDate(value: Date | string | null): Date | null {
+  return value === null ? null : toDate(value);
+}
+
+function buildCurrentEnrichPlan(
+  existingToken: GeckoTokenWriteExistingToken,
+): GeckoTokenWriteEnrichPlan {
+  return {
+    hasPatch: false,
+    willUpdate: false,
+    patch: {},
+    preview: {
+      metadataStatus: existingToken.metadataStatus,
+      name: existingToken.name,
+      symbol: existingToken.symbol,
+      description: existingToken.description,
+    },
+  };
+}
+
+function buildGeckoTokenWriteEnrichPlan(params: {
+  existingToken: GeckoTokenWriteExistingToken;
+  snapshot: GeckoSnapshotMetadata;
+  now: Date;
+}): GeckoTokenWriteEnrichPlan {
+  const patch = {
+    ...(params.snapshot.name !== null &&
+    params.snapshot.name !== params.existingToken.name
+      ? { name: params.snapshot.name }
+      : {}),
+    ...(params.snapshot.symbol !== null &&
+    params.snapshot.symbol !== params.existingToken.symbol
+      ? { symbol: params.snapshot.symbol }
+      : {}),
+  };
+  const hasPatch = Object.keys(patch).length > 0;
+
+  if (!hasPatch) {
+    return buildCurrentEnrichPlan(params.existingToken);
+  }
+
+  const plan = buildTokenEnrichPlan(
+    {
+      mint: params.existingToken.mint,
+      name: params.existingToken.name,
+      symbol: params.existingToken.symbol,
+      description: params.existingToken.description,
+      source: params.existingToken.source,
+      metadataStatus: params.existingToken.metadataStatus,
+      importedAt: toDate(params.existingToken.importedAt),
+      enrichedAt: toNullableDate(params.existingToken.enrichedAt),
+    },
+    patch,
+    params.now,
+  );
+
+  return {
+    hasPatch,
+    willUpdate: plan.hasChange,
+    patch,
+    preview: {
+      metadataStatus: plan.preview.metadataStatus,
+      name: plan.preview.name,
+      symbol: plan.preview.symbol,
+      description: plan.preview.description,
+    },
+  };
+}
+
 function isGeckoRateLimitError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -201,12 +276,26 @@ export async function runGeckoTokenWriteForMint(
   try {
     const rawSnapshot = await deps.fetchTokenSnapshot(input.mint);
     const snapshot = parseGeckoSnapshotMetadata(rawSnapshot);
+    const baseResult = buildUnsupportedGeckoTokenWriteResult(input);
+    const enrichPlan = input.existingToken
+      ? buildGeckoTokenWriteEnrichPlan({
+          existingToken: input.existingToken,
+          snapshot,
+          now: deps.now?.() ?? new Date(),
+        })
+      : null;
 
     return {
-      ...buildUnsupportedGeckoTokenWriteResult(input),
+      ...baseResult,
       status: "ok",
       name: snapshot.name,
       symbol: snapshot.symbol,
+      metadataStatus: enrichPlan?.preview.metadataStatus ?? null,
+      enrichPlan,
+      writeSummary: {
+        ...baseResult.writeSummary,
+        wouldEnrich: enrichPlan?.willUpdate ?? false,
+      },
       error: undefined,
     };
   } catch (error) {
