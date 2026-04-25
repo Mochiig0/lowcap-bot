@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED,
+  GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR,
   buildUnsupportedGeckoTokenWriteResult,
   runGeckoTokenWriteForMint,
   type GeckoTokenWriteDeps,
@@ -94,12 +95,9 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     });
   });
 
-  await t.test("accepts dependency injection without invoking dependencies", async () => {
+  await t.test("keeps the unsupported result when no fetch dependency is provided", async () => {
     const deps: GeckoTokenWriteDeps = {
       now: () => new Date("2026-04-25T00:00:00.000Z"),
-      fetchTokenSnapshot: async () => {
-        throw new Error("fetchTokenSnapshot should not be called");
-      },
       fetchMetaplexContext: async () => {
         throw new Error("fetchMetaplexContext should not be called");
       },
@@ -116,5 +114,89 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
 
     assert.equal(result.status, "error");
     assert.equal(result.error, GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED);
+  });
+
+  await t.test("fetches and classifies a valid injected Gecko snapshot", async () => {
+    const calls: string[] = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: "GeckoTokenWriteFetch11111111111111111111111pump",
+        write: false,
+      },
+      {
+        fetchTokenSnapshot: async (mint) => {
+          calls.push(mint);
+          return {
+            data: {
+              attributes: {
+                address: mint,
+                name: "Fetched Name",
+                symbol: "FETCH",
+              },
+            },
+          };
+        },
+      },
+    );
+
+    assert.deepEqual(calls, [
+      "GeckoTokenWriteFetch11111111111111111111111pump",
+    ]);
+    assert.equal(result.status, "ok");
+    assert.equal(result.name, "Fetched Name");
+    assert.equal(result.symbol, "FETCH");
+    assert.equal(result.enrichWritten, false);
+    assert.equal(result.rescoreWritten, false);
+    assert.equal(result.contextWritten, false);
+    assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.rateLimited, false);
+    assert.equal(result.rateLimitScope, null);
+    assert.equal(result.error, undefined);
+  });
+
+  await t.test("classifies injected Gecko 429 errors as rate_limited", async () => {
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: "GeckoTokenWriteRateLimit111111111111111111pump",
+        write: false,
+      },
+      {
+        fetchTokenSnapshot: async () => {
+          throw new Error(
+            "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+          );
+        },
+      },
+    );
+
+    assert.equal(result.status, "rate_limited");
+    assert.equal(result.rateLimited, true);
+    assert.equal(result.rateLimitScope, "geckoterminal");
+    assert.match(result.error ?? "", /429 Too Many Requests/);
+  });
+
+  await t.test("classifies invalid injected Gecko snapshot shapes as errors", async () => {
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: "GeckoTokenWriteShape1111111111111111111111pump",
+        write: false,
+      },
+      {
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              name: "Missing Address",
+              symbol: "MISS",
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "error");
+    assert.equal(result.rateLimited, false);
+    assert.equal(result.rateLimitScope, null);
+    assert.equal(result.error, GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
   });
 });

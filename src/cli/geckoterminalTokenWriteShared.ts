@@ -57,6 +57,52 @@ export type GeckoTokenWriteResult = {
 
 export const GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED =
   "not_implemented";
+export const GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR =
+  "geckoterminal_snapshot_shape_error";
+
+type GeckoSnapshotMetadata = {
+  address: string;
+  name: string | null;
+  symbol: string | null;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readOptionalString(
+  object: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = object[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function parseGeckoSnapshotMetadata(raw: unknown): GeckoSnapshotMetadata {
+  if (!isRecord(raw) || !isRecord(raw.data) || !isRecord(raw.data.attributes)) {
+    throw new Error(GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
+  }
+
+  const attributes = raw.data.attributes;
+  const address = attributes.address;
+  if (typeof address !== "string" || address.trim().length === 0) {
+    throw new Error(GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
+  }
+
+  return {
+    address,
+    name: readOptionalString(attributes, "name"),
+    symbol: readOptionalString(attributes, "symbol"),
+  };
+}
+
+function isGeckoRateLimitError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.includes("429 Too Many Requests");
+}
 
 export function buildUnsupportedGeckoTokenWriteResult(
   input: GeckoTokenWriteInput,
@@ -99,6 +145,35 @@ export async function runGeckoTokenWriteForMint(
   input: GeckoTokenWriteInput,
   deps: GeckoTokenWriteDeps = {},
 ): Promise<GeckoTokenWriteResult> {
-  void deps;
-  return buildUnsupportedGeckoTokenWriteResult(input);
+  if (!deps.fetchTokenSnapshot) {
+    return buildUnsupportedGeckoTokenWriteResult(input);
+  }
+
+  try {
+    const rawSnapshot = await deps.fetchTokenSnapshot(input.mint);
+    const snapshot = parseGeckoSnapshotMetadata(rawSnapshot);
+
+    return {
+      ...buildUnsupportedGeckoTokenWriteResult(input),
+      status: "ok",
+      name: snapshot.name,
+      symbol: snapshot.symbol,
+      error: undefined,
+    };
+  } catch (error) {
+    if (isGeckoRateLimitError(error)) {
+      return {
+        ...buildUnsupportedGeckoTokenWriteResult(input),
+        status: "rate_limited",
+        rateLimited: true,
+        rateLimitScope: "geckoterminal",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    return {
+      ...buildUnsupportedGeckoTokenWriteResult(input),
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
