@@ -1,4 +1,5 @@
 import { buildTokenEnrichPlan } from "./tokenEnrichShared.js";
+import { buildTokenRescorePreview } from "./tokenRescoreShared.js";
 
 export type GeckoTokenWriteStatus = "ok" | "error" | "rate_limited";
 
@@ -215,6 +216,46 @@ function buildGeckoTokenWriteEnrichPlan(params: {
   };
 }
 
+async function buildGeckoTokenWriteRescorePreview(
+  input: GeckoTokenWriteInput,
+  enrichPlan: GeckoTokenWriteEnrichPlan | null,
+  now: Date,
+): Promise<GeckoTokenWriteRescorePreview | null> {
+  if (!enrichPlan) {
+    return null;
+  }
+
+  const preview = await buildTokenRescorePreview(
+    {
+      mint: input.mint,
+      name: enrichPlan.preview.name,
+      symbol: enrichPlan.preview.symbol,
+      description: enrichPlan.preview.description,
+    },
+    now,
+  );
+
+  return {
+    ready: true,
+    normalizedText: preview.normalizedText,
+    scoreTotal: preview.scoreTotal,
+    scoreRank: preview.scoreRank,
+    hardRejected: preview.hardRejected,
+    hardRejectReason: preview.hardRejectReason,
+  };
+}
+
+function isNotifyEligibleFromScore(
+  scoreRank: string | null,
+  hardRejected: boolean | null,
+): boolean | null {
+  if (scoreRank === null || hardRejected === null) {
+    return null;
+  }
+
+  return scoreRank === "S" && !hardRejected;
+}
+
 function isGeckoRateLimitError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -277,12 +318,30 @@ export async function runGeckoTokenWriteForMint(
     const rawSnapshot = await deps.fetchTokenSnapshot(input.mint);
     const snapshot = parseGeckoSnapshotMetadata(rawSnapshot);
     const baseResult = buildUnsupportedGeckoTokenWriteResult(input);
+    const now = deps.now?.() ?? new Date();
     const enrichPlan = input.existingToken
       ? buildGeckoTokenWriteEnrichPlan({
           existingToken: input.existingToken,
           snapshot,
-          now: deps.now?.() ?? new Date(),
+          now,
         })
+      : null;
+    const rescorePreview = await buildGeckoTokenWriteRescorePreview(
+      input,
+      enrichPlan,
+      now,
+    );
+    const notifyEligibleBefore = input.existingToken
+      ? isNotifyEligibleFromScore(
+          input.existingToken.scoreRank,
+          input.existingToken.hardRejected,
+        )
+      : null;
+    const notifyEligibleAfter = rescorePreview
+      ? isNotifyEligibleFromScore(
+          rescorePreview.scoreRank,
+          rescorePreview.hardRejected,
+        )
       : null;
 
     return {
@@ -291,11 +350,22 @@ export async function runGeckoTokenWriteForMint(
       name: snapshot.name,
       symbol: snapshot.symbol,
       metadataStatus: enrichPlan?.preview.metadataStatus ?? null,
+      scoreRank: rescorePreview?.scoreRank ?? null,
+      scoreTotal: rescorePreview?.scoreTotal ?? null,
+      hardRejected: rescorePreview?.hardRejected ?? null,
       enrichPlan,
+      rescorePreview,
       writeSummary: {
         ...baseResult.writeSummary,
         wouldEnrich: enrichPlan?.willUpdate ?? false,
+        wouldRescore: rescorePreview !== null,
       },
+      notifyEligibleBefore,
+      notifyEligibleAfter,
+      notifyWouldSend:
+        notifyEligibleBefore !== null && notifyEligibleAfter !== null
+          ? !notifyEligibleBefore && notifyEligibleAfter
+          : false,
       error: undefined,
     };
   } catch (error) {

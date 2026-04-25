@@ -236,8 +236,18 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       },
     });
     assert.equal(result.writeSummary.wouldEnrich, true);
-    assert.equal(result.writeSummary.wouldRescore, false);
-    assert.equal(result.rescorePreview, null);
+    assert.equal(result.writeSummary.wouldRescore, true);
+    assert.deepEqual(result.rescorePreview, {
+      ready: true,
+      normalizedText: "preview name prev",
+      scoreTotal: 0,
+      scoreRank: "C",
+      hardRejected: false,
+      hardRejectReason: null,
+    });
+    assert.equal(result.scoreRank, "C");
+    assert.equal(result.scoreTotal, 0);
+    assert.equal(result.hardRejected, false);
     assert.equal(result.enrichWritten, false);
   });
 
@@ -288,7 +298,67 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       },
     });
     assert.equal(result.writeSummary.wouldEnrich, false);
-    assert.equal(result.rescorePreview, null);
+    assert.equal(result.writeSummary.wouldRescore, true);
+    assert.deepEqual(result.rescorePreview, {
+      ready: true,
+      normalizedText: "same name same",
+      scoreTotal: 0,
+      scoreRank: "C",
+      hardRejected: false,
+      hardRejectReason: null,
+    });
+  });
+
+  await t.test("reflects hard-rejected rescore preview fields", async () => {
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint: "GeckoTokenWriteHardReject111111111111111111pump",
+      name: null,
+      symbol: null,
+      description: "neutral wording only",
+      source: "geckoterminal.new_pools",
+      metadataStatus: "mint_only",
+      importedAt: "2026-04-25T00:00:00.000Z",
+      enrichedAt: null,
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+    };
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint: existingToken.mint,
+        write: false,
+        existingToken,
+      },
+      {
+        now: () => new Date("2026-04-25T02:00:00.000Z"),
+        fetchTokenSnapshot: async (mint) => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Plain Rug",
+              symbol: "RUG",
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.deepEqual(result.rescorePreview, {
+      ready: true,
+      normalizedText: "plain rug rug neutral wording only",
+      scoreTotal: 0,
+      scoreRank: "C",
+      hardRejected: true,
+      hardRejectReason: "Matched HARD_NG: rug",
+    });
+    assert.equal(result.scoreRank, "C");
+    assert.equal(result.scoreTotal, 0);
+    assert.equal(result.hardRejected, true);
+    assert.equal(result.notifyEligibleBefore, false);
+    assert.equal(result.notifyEligibleAfter, false);
+    assert.equal(result.notifyWouldSend, false);
   });
 
   await t.test("classifies injected Gecko 429 errors as rate_limited", async () => {
