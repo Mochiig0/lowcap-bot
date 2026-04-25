@@ -30,6 +30,7 @@
     "context:compare:source-families": "node --import tsx src/cli/contextCompareSourceFamilies.ts",
     "logs:summary:geckoterminal:metaplex": "node ./scripts/summarize-geckoterminal-enrich-metaplex-log.mjs",
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
+    "ops:catchup:gecko": "node --import tsx src/cli/geckoterminalCatchupSupervisor.ts",
     "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "review:pending-shape:geckoterminal": "node --import tsx src/cli/geckoterminalPendingShape.ts",
     "review:manual-targets:geckoterminal": "node --import tsx src/cli/geckoterminalManualTargets.ts",
