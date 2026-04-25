@@ -83,9 +83,11 @@ type TokenEnrichRescoreGeckoterminalOutput = {
     };
     contextAvailable: boolean;
     contextWouldWrite: boolean;
+    savedContextFields: string[];
     metaplexAttempted: boolean;
     metaplexAvailable: boolean;
     metaplexWouldWrite: boolean;
+    metaplexSavedFields: string[];
     metaplexErrorKind: string | null;
     enrichPlan?: {
       hasPatch: boolean;
@@ -272,6 +274,37 @@ async function seedBatchToken(
         metadataStatus: input.metadataStatus ?? "mint_only",
         createdAt: input.createdAt,
         importedAt: input.createdAt,
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+async function seedTokenWithContext(
+  databaseUrl: string,
+  input: {
+    mint: string;
+    entrySnapshot: Record<string, unknown>;
+    reviewFlagsJson: Record<string, unknown>;
+  },
+): Promise<void> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    await db.token.create({
+      data: {
+        mint: input.mint,
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        entrySnapshot: input.entrySnapshot,
+        reviewFlagsJson: input.reviewFlagsJson,
       },
     });
   } finally {
@@ -584,6 +617,265 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(token?.metadataStatus, "mint_only");
       assert.equal(token?.rescoredAt, null);
       assert.equal(token?.reviewFlagsJson, null);
+    });
+  });
+
+  await t.test("matches context, metaplex, and review flags parity between CLI dry-run and helper adapter", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "context-metaplex-parity.db")}`;
+      const mint = "GeckoContextMetaplexParity111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex.json");
+      const entrySnapshot = {
+        contextCapture: {
+          geckoterminalTokenSnapshot: {
+            source: "geckoterminal.token_snapshot",
+            capturedAt: "2026-04-24T00:00:00.000Z",
+            address: mint,
+            metadataText: {
+              name: "Saved Context Token",
+              symbol: "SAVED",
+              description: null,
+            },
+            links: {
+              website: "https://saved.example/gecko",
+              x: null,
+              telegram: null,
+              websites: ["https://saved.example/gecko"],
+              xCandidates: [],
+              telegramCandidates: [],
+              otherLinks: [],
+            },
+            availableFields: [
+              "metadata.name",
+              "metadata.symbol",
+              "links.website",
+            ],
+            missingFields: [
+              "metadata.description",
+              "links.x",
+              "links.telegram",
+              "links.other",
+            ],
+          },
+          metaplexMetadataUri: {
+            source: "metaplex.metadata_uri",
+            capturedAt: "2026-04-24T00:00:00.000Z",
+            metadataPda: "saved-metaplex-pda",
+            uri: "https://metadata.example/saved.json",
+            metadataText: {
+              description: "saved metaplex description",
+            },
+            links: {
+              website: "https://saved.example/metaplex",
+              x: null,
+              telegram: null,
+              anyLinks: true,
+              websites: ["https://saved.example/metaplex"],
+              xCandidates: [],
+              telegramCandidates: [],
+              otherLinks: [],
+            },
+            availableFields: ["metadata.description", "links.website"],
+            missingFields: ["links.x", "links.telegram", "links.other"],
+          },
+        },
+      };
+      const reviewFlagsJson = {
+        hasWebsite: true,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: true,
+        descriptionPresent: true,
+        linkCount: 2,
+      };
+      const geckoSnapshot = {
+        data: {
+          id: `solana_${mint}`,
+          type: "token",
+          attributes: {
+            address: mint,
+            name: "Current Context Token",
+            symbol: "CCTX",
+            description: "current gecko description",
+            websites: ["https://current.example/gecko"],
+            twitter_username: "current_context",
+            telegram: "currentcontext",
+          },
+        },
+      };
+      const metaplexFixture = {
+        onchain: {
+          mint,
+          uri: "https://metadata.example/current.json",
+          metadataPda: "current-metaplex-pda",
+        },
+        offchain: {
+          description: "current metaplex description",
+          external_url: "https://current.example/metaplex",
+          twitter: "metaplex_context",
+          telegram: "metaplexcontext",
+          discord: "https://discord.gg/metaplex-context",
+        },
+        detail: {
+          metadataPda: "current-metaplex-pda",
+          uri: "https://metadata.example/current.json",
+          hasOffchain: true,
+        },
+      };
+
+      await runDbPush(databaseUrl);
+      await seedTokenWithContext(databaseUrl, {
+        mint,
+        entrySnapshot,
+        reviewFlagsJson,
+      });
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(geckoSnapshot, null, 2),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(metaplexFixture, null, 2),
+        "utf8",
+      );
+
+      const cliResult = await runTokenEnrichRescoreGeckoterminal(
+        ["--mint", mint],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          metaplexFixtureFile,
+        },
+      );
+      assert.equal(cliResult.ok, true);
+
+      const parsed = JSON.parse(
+        cliResult.stdout,
+      ) as TokenEnrichRescoreGeckoterminalOutput;
+      const cliItem = parsed.items[0];
+      assert.ok(cliItem);
+
+      const existingToken: GeckoTokenWriteExistingToken = {
+        mint,
+        name: null,
+        symbol: null,
+        description: null,
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        entrySnapshot,
+        reviewFlagsJson,
+      };
+      const helperResult = await runGeckoTokenWriteForMint(
+        {
+          mint,
+          write: false,
+          existingToken,
+        },
+        {
+          fetchTokenSnapshot: async () => geckoSnapshot,
+          fetchMetaplexContext: async () => metaplexFixture,
+        },
+      );
+      const adapterItem = toGeckoTokenEnrichRescoreCliItem({
+        result: helperResult,
+        selectedReason: "Token.createdAt",
+        writeEnabled: false,
+        token: cliItem.token as unknown as GeckoTokenEnrichRescoreCliToken,
+      });
+
+      assert.equal(cliItem.contextAvailable, true);
+      assert.equal(cliItem.contextWouldWrite, true);
+      assert.equal(cliItem.metaplexAttempted, true);
+      assert.equal(cliItem.metaplexAvailable, true);
+      assert.equal(cliItem.metaplexWouldWrite, true);
+      assert.equal(helperResult.reviewFlagsWouldWrite, true);
+      assert.equal(helperResult.reviewFlagsPreview?.wouldWrite, true);
+      assert.deepEqual(helperResult.reviewFlagsPreview?.flags, {
+        hasWebsite: true,
+        hasX: true,
+        hasTelegram: true,
+        metaplexHit: true,
+        descriptionPresent: true,
+        linkCount: 7,
+      });
+
+      assert.equal(adapterItem.status, cliItem.status);
+      assert.equal(adapterItem.selectedReason, cliItem.selectedReason);
+      assert.equal(
+        adapterItem.fetchedSnapshot?.name,
+        cliItem.fetchedSnapshot?.name,
+      );
+      assert.equal(
+        adapterItem.fetchedSnapshot?.symbol,
+        cliItem.fetchedSnapshot?.symbol,
+      );
+      assert.equal(adapterItem.contextAvailable, cliItem.contextAvailable);
+      assert.equal(adapterItem.contextWouldWrite, cliItem.contextWouldWrite);
+      assert.deepEqual(adapterItem.savedContextFields, cliItem.savedContextFields);
+      assert.equal(adapterItem.metaplexAttempted, cliItem.metaplexAttempted);
+      assert.equal(adapterItem.metaplexAvailable, cliItem.metaplexAvailable);
+      assert.equal(adapterItem.metaplexWouldWrite, cliItem.metaplexWouldWrite);
+      assert.deepEqual(
+        adapterItem.metaplexSavedFields,
+        cliItem.metaplexSavedFields,
+      );
+      assert.equal(adapterItem.metaplexErrorKind, cliItem.metaplexErrorKind);
+      assert.equal(adapterItem.enrichPlan?.hasPatch, cliItem.enrichPlan?.hasPatch);
+      assert.equal(
+        adapterItem.enrichPlan?.willUpdate,
+        cliItem.enrichPlan?.willUpdate,
+      );
+      assert.equal(adapterItem.rescorePreview?.ready, cliItem.rescorePreview?.ready);
+      assert.equal(
+        adapterItem.rescorePreview?.scoreRank,
+        cliItem.rescorePreview?.scoreRank,
+      );
+      assert.equal(
+        adapterItem.rescorePreview?.scoreTotal,
+        cliItem.rescorePreview?.scoreTotal,
+      );
+      assert.equal(
+        adapterItem.rescorePreview?.hardRejected,
+        cliItem.rescorePreview?.hardRejected,
+      );
+      assert.equal(
+        adapterItem.notifyEligibleBefore,
+        cliItem.notifyEligibleBefore,
+      );
+      assert.equal(adapterItem.notifyEligibleAfter, cliItem.notifyEligibleAfter);
+      assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
+      assert.equal(adapterItem.notifySent, cliItem.notifySent);
+      assert.equal(adapterItem.writeSummary.dryRun, cliItem.writeSummary.dryRun);
+      assert.equal(
+        adapterItem.writeSummary.enrichUpdated,
+        cliItem.writeSummary.enrichUpdated,
+      );
+      assert.equal(
+        adapterItem.writeSummary.rescoreUpdated,
+        cliItem.writeSummary.rescoreUpdated,
+      );
+      assert.equal(
+        adapterItem.writeSummary.contextUpdated,
+        cliItem.writeSummary.contextUpdated,
+      );
+      assert.equal(
+        adapterItem.writeSummary.metaplexContextUpdated,
+        cliItem.writeSummary.metaplexContextUpdated,
+      );
+
+      const token = await readToken(databaseUrl, mint);
+      assert.equal(token?.name, null);
+      assert.equal(token?.symbol, null);
+      assert.equal(token?.metadataStatus, "mint_only");
+      assert.equal(token?.rescoredAt, null);
+      assert.deepEqual(token?.reviewFlagsJson, reviewFlagsJson);
     });
   });
 
