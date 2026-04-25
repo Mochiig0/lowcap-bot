@@ -41,6 +41,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rescorePreview, null);
     assert.equal(result.contextPreview, null);
     assert.equal(result.metaplexPreview, null);
+    assert.equal(result.reviewFlagsPreview, null);
+    assert.equal(result.reviewFlagsWouldWrite, false);
     assert.equal(result.contextWouldWrite, false);
     assert.equal(result.metaplexContextWouldWrite, false);
     assert.equal(result.enrichWritten, false);
@@ -88,6 +90,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       rescorePreview: null,
       contextPreview: null,
       metaplexPreview: null,
+      reviewFlagsPreview: null,
+      reviewFlagsWouldWrite: false,
       contextWouldWrite: false,
       metaplexContextWouldWrite: false,
       enrichWritten: false,
@@ -128,6 +132,14 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       scoreRank: "C",
       scoreTotal: 0,
       hardRejected: false,
+      reviewFlagsJson: {
+        hasWebsite: false,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: false,
+        descriptionPresent: false,
+        linkCount: 0,
+      },
     };
     const deps: GeckoTokenWriteDeps = {
       now: () => new Date("2026-04-25T00:00:00.000Z"),
@@ -152,6 +164,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rescorePreview, null);
     assert.equal(result.contextPreview, null);
     assert.equal(result.metaplexPreview, null);
+    assert.equal(result.reviewFlagsPreview, null);
+    assert.equal(result.reviewFlagsWouldWrite, false);
   });
 
   await t.test("fetches and classifies a valid injected Gecko snapshot", async () => {
@@ -279,6 +293,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.scoreRank, "C");
     assert.equal(result.scoreTotal, 0);
     assert.equal(result.hardRejected, false);
+    assert.equal(result.reviewFlagsPreview, null);
+    assert.equal(result.reviewFlagsWouldWrite, false);
     assert.equal(result.enrichWritten, false);
   });
 

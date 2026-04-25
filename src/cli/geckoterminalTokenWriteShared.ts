@@ -37,6 +37,7 @@ export type GeckoTokenWriteExistingToken = {
   scoreTotal: number | null;
   hardRejected: boolean | null;
   entrySnapshot?: unknown;
+  reviewFlagsJson?: unknown;
 };
 
 export type GeckoTokenWriteEnrichPlan = {
@@ -86,6 +87,23 @@ export type GeckoTokenWriteMetaplexPreview = {
   rateLimited: boolean;
 };
 
+export type GeckoTokenWriteReviewFlags = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
+};
+
+export type GeckoTokenWriteReviewFlagsPreview = {
+  flags: GeckoTokenWriteReviewFlags;
+  savedFlags: Record<string, unknown> | null;
+  wouldWrite: boolean;
+  patch: Record<string, unknown> | null;
+  reasons: string[];
+};
+
 export type GeckoTokenWriteSummary = {
   wouldEnrich: boolean;
   wouldRescore: boolean;
@@ -112,6 +130,8 @@ export type GeckoTokenWriteResult = {
   rescorePreview: GeckoTokenWriteRescorePreview | null;
   contextPreview: GeckoTokenWriteContextPreview | null;
   metaplexPreview: GeckoTokenWriteMetaplexPreview | null;
+  reviewFlagsPreview: GeckoTokenWriteReviewFlagsPreview | null;
+  reviewFlagsWouldWrite: boolean;
   contextWouldWrite: boolean;
   metaplexContextWouldWrite: boolean;
   enrichWritten: boolean;
@@ -980,6 +1000,8 @@ export function buildUnsupportedGeckoTokenWriteResult(
     rescorePreview: null,
     contextPreview: null,
     metaplexPreview: null,
+    reviewFlagsPreview: null,
+    reviewFlagsWouldWrite: false,
     contextWouldWrite: false,
     metaplexContextWouldWrite: false,
     enrichWritten: false,
