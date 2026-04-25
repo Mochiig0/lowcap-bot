@@ -485,6 +485,208 @@ async function seedPendingSelectionFixture(databaseUrl: string): Promise<{
   }
 }
 
+async function seedUnsafeCandidateFixture(databaseUrl: string): Promise<{
+  smokeMint: string;
+  metricPresentMint: string;
+  hardRejectedMint: string;
+  completeMint: string;
+  nonGeckoMint: string;
+}> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const now = new Date();
+    const smokeAnchor = new Date(now.getTime() - 5 * 60_000);
+    const metricAnchor = new Date(now.getTime() - 10 * 60_000);
+    const hardRejectedAnchor = new Date(now.getTime() - 15 * 60_000);
+    const completeAnchor = new Date(now.getTime() - 20 * 60_000);
+    const nonGeckoAnchor = new Date(now.getTime() - 25 * 60_000);
+
+    const smokeToken = await db.token.create({
+      data: {
+        mint: "SMOKE_GeckoCatchupUnsafe11111111111111111111pump",
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        createdAt: smokeAnchor,
+        importedAt: smokeAnchor,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: smokeAnchor.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    const metricPresentToken = await db.token.create({
+      data: {
+        mint: "GeckoCatchupUnsafeMetric111111111111111111111pump",
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        createdAt: metricAnchor,
+        importedAt: metricAnchor,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: metricAnchor.toISOString(),
+          },
+        },
+      },
+      select: {
+        id: true,
+        mint: true,
+      },
+    });
+
+    await db.metric.create({
+      data: {
+        tokenId: metricPresentToken.id,
+        source: "geckoterminal.token_snapshot",
+        observedAt: metricAnchor,
+        volume24h: 0,
+      },
+    });
+
+    const hardRejectedToken = await db.token.create({
+      data: {
+        mint: "GeckoCatchupUnsafeRejected1111111111111111111pump",
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: true,
+        createdAt: hardRejectedAnchor,
+        importedAt: hardRejectedAnchor,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: hardRejectedAnchor.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    const completeToken = await db.token.create({
+      data: {
+        mint: "GeckoCatchupUnsafeComplete111111111111111111pump",
+        source: GECKO_SOURCE,
+        name: "Already Complete",
+        symbol: "DONE",
+        metadataStatus: "partial",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        createdAt: completeAnchor,
+        importedAt: completeAnchor,
+        enrichedAt: completeAnchor,
+        rescoredAt: completeAnchor,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: completeAnchor.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    const nonGeckoToken = await db.token.create({
+      data: {
+        mint: "GeckoCatchupUnsafeNonGecko111111111111111111pump",
+        source: "dexscreener.token_profiles",
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        createdAt: nonGeckoAnchor,
+        importedAt: nonGeckoAnchor,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: "dexscreener.token_profiles",
+            detectedAt: nonGeckoAnchor.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    return {
+      smokeMint: smokeToken.mint,
+      metricPresentMint: metricPresentToken.mint,
+      hardRejectedMint: hardRejectedToken.mint,
+      completeMint: completeToken.mint,
+      nonGeckoMint: nonGeckoToken.mint,
+    };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+async function seedHardRejectedOnlyFixture(databaseUrl: string): Promise<{
+  hardRejectedMint: string;
+}> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const detectedAt = new Date();
+    const hardRejectedToken = await db.token.create({
+      data: {
+        mint: "GeckoCatchupRejectedOnly11111111111111111111pump",
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: true,
+        createdAt: detectedAt,
+        importedAt: detectedAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: detectedAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    return {
+      hardRejectedMint: hardRejectedToken.mint,
+    };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("geckoterminal catch-up supervisor dry-run", async (t) => {
   await t.test("reports completed pump backlog without planning writes", async () => {
     await withTempDir(async (dir) => {
@@ -649,6 +851,113 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(safetyStatus(parsed, "selected_incomplete"), "pass");
       assert.equal(safetyStatus(parsed, "metric_append_precheck"), "pass");
       assert.equal(safetyStatus(parsed, "stop_on_rate_limit"), "pass");
+    });
+  });
+
+  await t.test("flags unsafe selected candidates and skips unselectable rows", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "unsafe-candidates.db")}`;
+      await runDbPush(databaseUrl);
+      const seeded = await seedUnsafeCandidateFixture(databaseUrl);
+
+      const result = await runCatchupSupervisor(
+        ["--pumpOnly", "--limit", "3", "--maxCycles", "1", "--sinceMinutes", "10080", "--dry-run"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
+      assert.equal(parsed.readOnly, true);
+      assert.equal(parsed.writeEnabled, false);
+      assert.equal(parsed.currentCounts.pumpTotal, 4);
+      assert.equal(parsed.currentCounts.pumpComplete, 1);
+      assert.equal(parsed.currentCounts.pumpIncomplete, 3);
+      assert.equal(parsed.currentCounts.metricPendingCount, 3);
+      assert.equal(parsed.currentCounts.metricTokenCount, 1);
+      assert.equal(parsed.currentCounts.notifyCandidateCount, 0);
+      assert.equal(parsed.pendingCount, 3);
+      assert.equal(parsed.wouldRunCycles, 1);
+      assert.equal(parsed.selectedCandidates.length, 3);
+      assert.equal(parsed.metricAppendPlan.length, 3);
+      assert.deepEqual(
+        parsed.selectedCandidates.map((candidate) => candidate.mint),
+        [seeded.smokeMint, seeded.metricPresentMint, seeded.hardRejectedMint],
+      );
+      assert.equal(
+        parsed.selectedCandidates.some((candidate) => candidate.mint === seeded.completeMint),
+        false,
+      );
+      assert.equal(
+        parsed.selectedCandidates.some((candidate) => candidate.mint === seeded.nonGeckoMint),
+        false,
+      );
+
+      const smokePlan = parsed.metricAppendPlan.find((item) => item.mint === seeded.smokeMint);
+      assert.equal(smokePlan?.wouldAppendMetric, true);
+      assert.equal(smokePlan?.reason, "selected_incomplete_metric_missing");
+      assert.equal(smokePlan?.metricsCount, 0);
+      assert.equal(smokePlan?.latestMetric, null);
+
+      const metricPresentCandidate = parsed.selectedCandidates.find(
+        (candidate) => candidate.mint === seeded.metricPresentMint,
+      );
+      assert.equal(metricPresentCandidate?.metricsCount, 1);
+      assert.notEqual(metricPresentCandidate?.latestMetric, null);
+
+      const metricPresentPlan = parsed.metricAppendPlan.find(
+        (item) => item.mint === seeded.metricPresentMint,
+      );
+      assert.equal(metricPresentPlan?.wouldAppendMetric, false);
+      assert.equal(metricPresentPlan?.reason, "already_has_metric");
+      assert.equal(metricPresentPlan?.metricsCount, 1);
+      assert.notEqual(metricPresentPlan?.latestMetric, null);
+
+      const hardRejectedCandidate = parsed.selectedCandidates.find(
+        (candidate) => candidate.mint === seeded.hardRejectedMint,
+      );
+      assert.equal(hardRejectedCandidate?.hardRejected, true);
+      assert.equal(hardRejectedCandidate?.metricsCount, 0);
+      assert.equal(hardRejectedCandidate?.latestMetric, null);
+
+      assert.equal(parsed.stopReason, "smoke_candidates");
+      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
+      assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "smoke_candidates"), "fail");
+      assert.equal(safetyStatus(parsed, "source_origin"), "pass");
+      assert.equal(safetyStatus(parsed, "selected_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "hard_rejected_candidates"), "fail");
+      assert.equal(safetyStatus(parsed, "metric_append_precheck"), "fail");
+      assert.equal(safetyStatus(parsed, "stop_on_rate_limit"), "pass");
+    });
+  });
+
+  await t.test("stops on hardRejected selected candidates", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "hard-rejected.db")}`;
+      await runDbPush(databaseUrl);
+      const seeded = await seedHardRejectedOnlyFixture(databaseUrl);
+
+      const result = await runCatchupSupervisor(
+        ["--pumpOnly", "--limit", "1", "--maxCycles", "1", "--sinceMinutes", "10080", "--dry-run"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
+      assert.equal(parsed.currentCounts.pumpTotal, 1);
+      assert.equal(parsed.currentCounts.pumpIncomplete, 1);
+      assert.equal(parsed.currentCounts.metricPendingCount, 1);
+      assert.equal(parsed.pendingCount, 1);
+      assert.equal(parsed.selectedCandidates.length, 1);
+      assert.equal(parsed.selectedCandidates[0]?.mint, seeded.hardRejectedMint);
+      assert.equal(parsed.selectedCandidates[0]?.hardRejected, true);
+      assert.equal(parsed.stopReason, "hard_rejected_candidates");
+      assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
+      assert.equal(safetyStatus(parsed, "source_origin"), "pass");
+      assert.equal(safetyStatus(parsed, "selected_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "hard_rejected_candidates"), "fail");
+      assert.equal(safetyStatus(parsed, "metric_append_precheck"), "pass");
     });
   });
 

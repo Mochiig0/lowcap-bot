@@ -431,6 +431,7 @@ function buildSafetyChecks(
   const completeCandidates = selectedCandidates.filter(
     (candidate) => candidate.name !== null && candidate.symbol !== null,
   );
+  const hardRejectedCandidates = selectedCandidates.filter((candidate) => candidate.hardRejected);
   const alreadyMetricCandidates = selectedCandidates.filter((candidate) => candidate.metricsCount > 0);
 
   checks.push({
@@ -478,6 +479,14 @@ function buildSafetyChecks(
     message: `already-complete selected candidate count=${completeCandidates.length}`,
     ...(completeCandidates.length > 0
       ? { details: completeCandidates.map((candidate) => candidate.mint) }
+      : {}),
+  });
+  checks.push({
+    name: "hard_rejected_candidates",
+    status: hardRejectedCandidates.length > 0 ? "fail" : "pass",
+    message: `hardRejected selected candidate count=${hardRejectedCandidates.length}`,
+    ...(hardRejectedCandidates.length > 0
+      ? { details: hardRejectedCandidates.map((candidate) => candidate.mint) }
       : {}),
   });
   checks.push({
