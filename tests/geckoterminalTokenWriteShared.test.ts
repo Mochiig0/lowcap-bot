@@ -187,7 +187,20 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     });
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
-    assert.equal(result.contextPreview, null);
+    assert.equal(result.contextPreview?.available, true);
+    assert.deepEqual(result.contextPreview?.availableFields, [
+      "metadata.name",
+      "metadata.symbol",
+    ]);
+    assert.deepEqual(result.contextPreview?.savedFields, []);
+    assert.equal(result.contextPreview?.wouldWrite, true);
+    assert.deepEqual(result.contextPreview?.preview?.metadataText, {
+      name: "Fetched Name",
+      symbol: "FETCH",
+      description: null,
+    });
+    assert.equal(result.contextWouldWrite, true);
+    assert.equal(result.writeSummary.wouldWriteContext, true);
     assert.equal(result.enrichWritten, false);
     assert.equal(result.rescoreWritten, false);
     assert.equal(result.contextWritten, false);
@@ -322,6 +335,139 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     });
   });
 
+  await t.test("keeps context preview read-only when saved context already matches", async () => {
+    const mint = "GeckoTokenWriteSavedContext1111111111111111pump";
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint,
+      name: "Saved Name",
+      symbol: "SAVED",
+      description: null,
+      source: "geckoterminal.new_pools",
+      metadataStatus: "partial",
+      importedAt: "2026-04-25T00:00:00.000Z",
+      enrichedAt: "2026-04-25T00:30:00.000Z",
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+      entrySnapshot: {
+        contextCapture: {
+          geckoterminalTokenSnapshot: {
+            source: "geckoterminal.token_snapshot",
+            capturedAt: "2026-04-24T00:00:00.000Z",
+            address: mint,
+            metadataText: {
+              name: "Saved Name",
+              symbol: "SAVED",
+              description: null,
+            },
+            links: {
+              website: null,
+              x: null,
+              telegram: null,
+              websites: [],
+              xCandidates: [],
+              telegramCandidates: [],
+              otherLinks: [],
+            },
+            availableFields: ["metadata.name", "metadata.symbol"],
+            missingFields: [
+              "metadata.description",
+              "links.website",
+              "links.x",
+              "links.telegram",
+              "links.other",
+            ],
+          },
+        },
+      },
+    };
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+        existingToken,
+      },
+      {
+        now: () => new Date("2026-04-25T03:00:00.000Z"),
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Saved Name",
+              symbol: "SAVED",
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.contextPreview?.available, true);
+    assert.deepEqual(result.contextPreview?.savedFields, [
+      "metadata.name",
+      "metadata.symbol",
+    ]);
+    assert.equal(result.contextPreview?.wouldWrite, false);
+    assert.equal(result.contextPreview?.patch, null);
+    assert.equal(result.contextWouldWrite, false);
+    assert.equal(result.writeSummary.wouldWriteContext, false);
+    assert.equal(result.contextWritten, false);
+  });
+
+  await t.test("builds context preview from Gecko metadata text and links", async () => {
+    const mint = "GeckoTokenWriteLinksContext111111111111111pump";
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+      },
+      {
+        now: () => new Date("2026-04-25T04:00:00.000Z"),
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Links Name",
+              symbol: "LINKS",
+              description: "Links description",
+              websites: ["www.example.com", "https://example.com/alt"],
+              twitter_username: "@links_handle",
+              telegram: "links_channel",
+              socials: {
+                discord: "https://discord.gg/links",
+              },
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.deepEqual(result.contextPreview?.availableFields, [
+      "metadata.name",
+      "metadata.symbol",
+      "metadata.description",
+      "links.website",
+      "links.x",
+      "links.telegram",
+      "links.other",
+    ]);
+    assert.deepEqual(result.contextPreview?.preview?.links, {
+      website: "https://www.example.com",
+      x: "https://x.com/links_handle",
+      telegram: "https://t.me/links_channel",
+      websites: ["https://www.example.com", "https://example.com/alt"],
+      xCandidates: ["https://x.com/links_handle"],
+      telegramCandidates: ["https://t.me/links_channel"],
+      otherLinks: ["https://discord.gg/links"],
+    });
+    assert.equal(result.contextPreview?.wouldWrite, true);
+    assert.equal(result.writeSummary.wouldWriteContext, true);
+    assert.equal(result.contextWritten, false);
+  });
+
   await t.test("reflects hard-rejected rescore preview fields", async () => {
     const existingToken: GeckoTokenWriteExistingToken = {
       mint: "GeckoTokenWriteHardReject111111111111111111pump",
@@ -438,8 +584,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.deepEqual(item.fetchedSnapshot, result.fetchedSnapshot ?? undefined);
     assert.deepEqual(item.enrichPlan, result.enrichPlan ?? undefined);
     assert.deepEqual(item.rescorePreview, result.rescorePreview ?? undefined);
-    assert.equal(item.contextAvailable, false);
-    assert.equal(item.contextWouldWrite, false);
+    assert.equal(item.contextAvailable, true);
+    assert.equal(item.contextWouldWrite, true);
     assert.deepEqual(item.savedContextFields, []);
     assert.equal(item.metaplexAttempted, false);
     assert.equal(item.metaplexAvailable, false);
