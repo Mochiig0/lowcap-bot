@@ -116,6 +116,7 @@ type TokenEnrichRescoreGeckoterminalOutput = {
       contextUpdated: boolean;
       metaplexContextUpdated: boolean;
     };
+    error?: string;
   }>;
 };
 
@@ -152,6 +153,7 @@ async function runTokenEnrichRescoreGeckoterminal(
   options?: {
     databaseUrl?: string;
     geckoSnapshotFile?: string;
+    geckoSnapshotErrorOnce?: string;
     metaplexFixtureFile?: string;
   },
 ): Promise<CommandResult> {
@@ -183,6 +185,9 @@ async function runTokenEnrichRescoreGeckoterminal(
           ...(options?.databaseUrl ? { DATABASE_URL: options.databaseUrl } : {}),
           ...(options?.geckoSnapshotFile
             ? { GECKOTERMINAL_TOKEN_SNAPSHOT_FILE: options.geckoSnapshotFile }
+            : {}),
+          ...(options?.geckoSnapshotErrorOnce
+            ? { GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE: options.geckoSnapshotErrorOnce }
             : {}),
           ...(options?.metaplexFixtureFile
             ? { METAPLEX_METADATA_URI_FILE: options.metaplexFixtureFile }
@@ -876,6 +881,123 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(token?.metadataStatus, "mint_only");
       assert.equal(token?.rescoredAt, null);
       assert.deepEqual(token?.reviewFlagsJson, reviewFlagsJson);
+    });
+  });
+
+  await t.test("matches primary Gecko rate limit parity between CLI dry-run and helper adapter", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "primary-gecko-rate-limit-parity.db")}`;
+      const mint = "GeckoPrimaryRateLimitParity111111111111111pump";
+      const rateLimitError =
+        "GeckoTerminal token snapshot request failed: 429 Too Many Requests";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+
+      const cliResult = await runTokenEnrichRescoreGeckoterminal(
+        ["--mint", mint],
+        {
+          databaseUrl,
+          geckoSnapshotErrorOnce: rateLimitError,
+        },
+      );
+      assert.equal(cliResult.ok, true);
+
+      const parsed = JSON.parse(
+        cliResult.stdout,
+      ) as TokenEnrichRescoreGeckoterminalOutput;
+      const cliItem = parsed.items[0];
+      assert.ok(cliItem);
+
+      const existingToken: GeckoTokenWriteExistingToken = {
+        mint,
+        name: null,
+        symbol: null,
+        description: null,
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        importedAt: "2026-04-25T00:00:00.000Z",
+        enrichedAt: null,
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        reviewFlagsJson: null,
+      };
+      const helperResult = await runGeckoTokenWriteForMint(
+        {
+          mint,
+          write: false,
+          existingToken,
+        },
+        {
+          fetchTokenSnapshot: async () => {
+            throw new Error(rateLimitError);
+          },
+          fetchMetaplexContext: async () => {
+            throw new Error("Metaplex preview should not run after primary Gecko 429");
+          },
+        },
+      );
+      const adapterItem = toGeckoTokenEnrichRescoreCliItem({
+        result: helperResult,
+        selectedReason: "Token.createdAt",
+        writeEnabled: false,
+        token: cliItem.token as unknown as GeckoTokenEnrichRescoreCliToken,
+      });
+
+      assert.equal(cliItem.status, "error");
+      assert.match(cliItem.error ?? "", /429 Too Many Requests/);
+      assert.equal(cliItem.fetchedSnapshot, undefined);
+      assert.equal(cliItem.contextAvailable, false);
+      assert.equal(cliItem.contextWouldWrite, false);
+      assert.equal(cliItem.metaplexAttempted, false);
+      assert.equal(cliItem.metaplexAvailable, false);
+      assert.equal(cliItem.metaplexWouldWrite, false);
+      assert.equal(cliItem.metaplexErrorKind, null);
+      assert.equal(cliItem.enrichPlan, undefined);
+      assert.equal(cliItem.rescorePreview, undefined);
+      assert.equal(cliItem.notifyWouldSend, false);
+      assert.equal(cliItem.notifySent, false);
+      assert.deepEqual(cliItem.writeSummary, {
+        dryRun: true,
+        enrichUpdated: false,
+        rescoreUpdated: false,
+        contextUpdated: false,
+        metaplexContextUpdated: false,
+      });
+
+      assert.equal(helperResult.status, "rate_limited");
+      assert.equal(helperResult.rateLimited, true);
+      assert.equal(helperResult.rateLimitScope, "geckoterminal");
+      assert.equal(helperResult.fetchedSnapshot, null);
+      assert.equal(helperResult.enrichPlan, null);
+      assert.equal(helperResult.rescorePreview, null);
+      assert.equal(helperResult.contextPreview, null);
+      assert.equal(helperResult.metaplexPreview, null);
+      assert.equal(helperResult.reviewFlagsPreview, null);
+
+      assert.equal(adapterItem.status, cliItem.status);
+      assert.equal(adapterItem.selectedReason, cliItem.selectedReason);
+      assert.equal(adapterItem.fetchedSnapshot, undefined);
+      assert.equal(adapterItem.contextAvailable, cliItem.contextAvailable);
+      assert.equal(adapterItem.contextWouldWrite, cliItem.contextWouldWrite);
+      assert.equal(adapterItem.metaplexAttempted, cliItem.metaplexAttempted);
+      assert.equal(adapterItem.metaplexAvailable, cliItem.metaplexAvailable);
+      assert.equal(adapterItem.metaplexWouldWrite, cliItem.metaplexWouldWrite);
+      assert.equal(adapterItem.metaplexErrorKind, cliItem.metaplexErrorKind);
+      assert.equal(adapterItem.enrichPlan, undefined);
+      assert.equal(adapterItem.rescorePreview, undefined);
+      assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
+      assert.equal(adapterItem.notifySent, cliItem.notifySent);
+      assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
+      assert.match(adapterItem.error ?? "", /429 Too Many Requests/);
+
+      const token = await readToken(databaseUrl, mint);
+      assert.equal(token?.name, null);
+      assert.equal(token?.symbol, null);
+      assert.equal(token?.metadataStatus, "mint_only");
+      assert.equal(token?.rescoredAt, null);
+      assert.equal(token?.reviewFlagsJson, null);
     });
   });
 
