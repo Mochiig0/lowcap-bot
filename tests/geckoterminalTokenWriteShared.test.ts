@@ -473,6 +473,255 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.contextWritten, false);
   });
 
+  await t.test("builds metaplex preview from an injected metadata lookup", async () => {
+    const mint = "GeckoTokenWriteMetaplexHit1111111111111111pump";
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+      },
+      {
+        now: () => new Date("2026-04-25T05:00:00.000Z"),
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Metaplex Hit",
+              symbol: "META",
+            },
+          },
+        }),
+        fetchMetaplexContext: async () => ({
+          onchain: {
+            mint,
+            uri: "https://metadata.example/meta.json",
+            metadataPda: "metadata-pda-hit",
+          },
+          offchain: {
+            description: "Metaplex description",
+            external_url: "www.example.org",
+            twitter: "@metaplex_hit",
+            telegram: "metaplex_hit",
+            discord: "https://discord.gg/metaplex-hit",
+          },
+          detail: {
+            metadataPda: "metadata-pda-hit",
+            uri: "https://metadata.example/meta.json",
+            hasOffchain: true,
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.metaplexPreview?.attempted, true);
+    assert.equal(result.metaplexPreview?.available, true);
+    assert.deepEqual(result.metaplexPreview?.availableFields, [
+      "metadata.description",
+      "links.website",
+      "links.x",
+      "links.telegram",
+      "links.other",
+    ]);
+    assert.deepEqual(result.metaplexPreview?.savedFields, []);
+    assert.equal(result.metaplexPreview?.wouldWrite, true);
+    assert.equal(result.metaplexPreview?.errorKind, null);
+    assert.equal(result.metaplexPreview?.rateLimited, false);
+    assert.deepEqual(result.metaplexPreview?.preview?.metadataText, {
+      description: "Metaplex description",
+    });
+    assert.deepEqual(result.metaplexPreview?.preview?.links, {
+      website: "https://www.example.org",
+      x: "https://x.com/metaplex_hit",
+      telegram: "https://t.me/metaplex_hit",
+      anyLinks: true,
+      websites: ["https://www.example.org"],
+      xCandidates: ["https://x.com/metaplex_hit"],
+      telegramCandidates: ["https://t.me/metaplex_hit"],
+      otherLinks: ["https://discord.gg/metaplex-hit"],
+    });
+    assert.equal(result.metaplexContextWouldWrite, true);
+    assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.rateLimited, false);
+    assert.equal(result.rateLimitScope, null);
+  });
+
+  await t.test("keeps metaplex preview read-only when saved context already matches", async () => {
+    const mint = "GeckoTokenWriteMetaplexSaved11111111111111pump";
+    const existingToken: GeckoTokenWriteExistingToken = {
+      mint,
+      name: "Saved Metaplex",
+      symbol: "SMETA",
+      description: null,
+      source: "geckoterminal.new_pools",
+      metadataStatus: "partial",
+      importedAt: "2026-04-25T00:00:00.000Z",
+      enrichedAt: null,
+      scoreRank: "C",
+      scoreTotal: 0,
+      hardRejected: false,
+      entrySnapshot: {
+        contextCapture: {
+          metaplexMetadataUri: {
+            source: "metaplex.metadata_uri",
+            capturedAt: "2026-04-24T00:00:00.000Z",
+            metadataPda: "metadata-pda-saved",
+            uri: "https://metadata.example/saved.json",
+            metadataText: {
+              description: "Saved metaplex description",
+            },
+            links: {
+              website: null,
+              x: null,
+              telegram: null,
+              anyLinks: false,
+              websites: [],
+              xCandidates: [],
+              telegramCandidates: [],
+              otherLinks: [],
+            },
+            availableFields: ["metadata.description"],
+            missingFields: [
+              "links.website",
+              "links.x",
+              "links.telegram",
+              "links.other",
+            ],
+          },
+        },
+      },
+    };
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+        existingToken,
+      },
+      {
+        now: () => new Date("2026-04-25T06:00:00.000Z"),
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Saved Metaplex",
+              symbol: "SMETA",
+            },
+          },
+        }),
+        fetchMetaplexContext: async () => ({
+          onchain: {
+            mint,
+            uri: "https://metadata.example/saved.json",
+          },
+          offchain: {
+            description: "Saved metaplex description",
+          },
+          detail: {
+            metadataPda: "metadata-pda-saved",
+            uri: "https://metadata.example/saved.json",
+            hasOffchain: true,
+          },
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.metaplexPreview?.attempted, true);
+    assert.equal(result.metaplexPreview?.available, true);
+    assert.deepEqual(result.metaplexPreview?.savedFields, [
+      "metadata.description",
+    ]);
+    assert.equal(result.metaplexPreview?.wouldWrite, false);
+    assert.equal(result.metaplexPreview?.patch, null);
+    assert.equal(result.metaplexContextWouldWrite, false);
+    assert.equal(result.metaplexContextWritten, false);
+  });
+
+  await t.test("classifies missing metaplex metadata as non-fatal preview state", async () => {
+    const mint = "GeckoTokenWriteMetaplexMissing111111111111pump";
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+      },
+      {
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Missing Metaplex",
+              symbol: "MISS",
+            },
+          },
+        }),
+        fetchMetaplexContext: async () => ({
+          status: "not_found",
+          reason: "metadata_account_missing",
+        }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.error, undefined);
+    assert.equal(result.metaplexPreview?.attempted, true);
+    assert.equal(result.metaplexPreview?.available, false);
+    assert.equal(result.metaplexPreview?.wouldWrite, false);
+    assert.equal(result.metaplexPreview?.errorKind, "metadata_account_missing");
+    assert.equal(result.metaplexPreview?.rateLimited, false);
+    assert.equal(result.metaplexContextWouldWrite, false);
+    assert.equal(result.rateLimited, false);
+    assert.equal(result.rateLimitScope, null);
+  });
+
+  await t.test("classifies metaplex rate limit without running writes", async () => {
+    const mint = "GeckoTokenWriteMetaplexRateLimit111111111pump";
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+      },
+      {
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              address: mint,
+              name: "Rate Limited Metaplex",
+              symbol: "RLIM",
+            },
+          },
+        }),
+        fetchMetaplexContext: async () => {
+          throw Object.assign(
+            new Error(
+              "metaplex.metadata_uri request failed: 429 Too Many Requests",
+            ),
+            {
+              kind: "rpc_http_error",
+              rateLimited: true,
+            },
+          );
+        },
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.metaplexPreview?.attempted, true);
+    assert.equal(result.metaplexPreview?.available, false);
+    assert.equal(result.metaplexPreview?.wouldWrite, false);
+    assert.equal(result.metaplexPreview?.errorKind, "rate_limited");
+    assert.equal(result.metaplexPreview?.rateLimited, true);
+    assert.equal(result.metaplexErrorKind, "rate_limited");
+    assert.equal(result.metaplexContextWouldWrite, false);
+    assert.equal(result.rateLimited, false);
+    assert.equal(result.rateLimitScope, null);
+    assert.equal(result.contextWritten, false);
+    assert.equal(result.metaplexContextWritten, false);
+  });
+
   await t.test("reflects hard-rejected rescore preview fields", async () => {
     const existingToken: GeckoTokenWriteExistingToken = {
       mint: "GeckoTokenWriteHardReject111111111111111111pump",
@@ -746,12 +995,16 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
             "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
           );
         },
+        fetchMetaplexContext: async () => {
+          throw new Error("Metaplex preview should not run after Gecko 429");
+        },
       },
     );
 
     assert.equal(result.status, "rate_limited");
     assert.equal(result.rateLimited, true);
     assert.equal(result.rateLimitScope, "geckoterminal");
+    assert.equal(result.metaplexPreview, null);
     assert.match(result.error ?? "", /429 Too Many Requests/);
 
     const item = toGeckoTokenEnrichRescoreCliItem({
@@ -799,12 +1052,16 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
             },
           },
         }),
+        fetchMetaplexContext: async () => {
+          throw new Error("Metaplex preview should not run after shape error");
+        },
       },
     );
 
     assert.equal(result.status, "error");
     assert.equal(result.rateLimited, false);
     assert.equal(result.rateLimitScope, null);
+    assert.equal(result.metaplexPreview, null);
     assert.equal(result.error, GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
   });
 });

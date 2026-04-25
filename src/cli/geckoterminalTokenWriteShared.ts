@@ -202,11 +202,34 @@ const GECKO_CONTEXT_FIELDS = [
   "links.telegram",
   "links.other",
 ];
+const METAPLEX_CONTEXT_CAPTURE_SOURCE = "metaplex.metadata_uri";
+const METAPLEX_CONTEXT_FIELDS = [
+  "metadata.description",
+  "links.website",
+  "links.x",
+  "links.telegram",
+  "links.other",
+];
 
 type GeckoSnapshotMetadata = {
   address: string;
   name: string | null;
   symbol: string | null;
+};
+
+type MetaplexLookupPreview = {
+  onchain: {
+    mint: string;
+    name: string | null;
+    symbol: string | null;
+    uri: string | null;
+  };
+  offchain: Record<string, unknown> | null;
+  detail: {
+    metadataPda: string;
+    uri: string | null;
+    hasOffchain: boolean;
+  };
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -368,6 +391,73 @@ function extractGeckoLinkCandidates(attributes: Record<string, unknown>): {
   };
 }
 
+function extractMetaplexLinkCandidates(metadata: Record<string, unknown>): {
+  websites: string[];
+  xCandidates: string[];
+  telegramCandidates: string[];
+  otherLinks: string[];
+} {
+  const properties = pickNestedRecord(metadata, "properties");
+  const extensions = pickNestedRecord(metadata, "extensions");
+  const socials = pickNestedRecord(metadata, "socials");
+
+  return {
+    websites: dedupeStrings(
+      [
+        ...collectStringCandidates(metadata.external_url),
+        ...collectStringCandidates(metadata.website),
+        ...collectStringCandidates(metadata.website_url),
+        ...collectStringCandidates(metadata.websites),
+        ...collectStringCandidates(properties?.website),
+        ...collectStringCandidates(properties?.website_url),
+        ...collectStringCandidates(extensions?.website),
+        ...collectStringCandidates(extensions?.website_url),
+        ...collectStringCandidates(socials?.website),
+        ...collectStringCandidates(socials?.websites),
+      ].map((value) => normalizeWebsiteCandidate(value)),
+    ),
+    xCandidates: dedupeStrings(
+      [
+        ...collectStringCandidates(metadata.twitter),
+        ...collectStringCandidates(metadata.twitter_url),
+        ...collectStringCandidates(metadata.twitter_username),
+        ...collectStringCandidates(metadata.twitter_handle),
+        ...collectStringCandidates(metadata.x),
+        ...collectStringCandidates(metadata.x_url),
+        ...collectStringCandidates(metadata.x_username),
+        ...collectStringCandidates(metadata.x_handle),
+        ...collectStringCandidates(extensions?.twitter),
+        ...collectStringCandidates(extensions?.twitter_url),
+        ...collectStringCandidates(extensions?.twitterUsername),
+        ...collectStringCandidates(extensions?.twitter_username),
+        ...collectStringCandidates(extensions?.x),
+        ...collectStringCandidates(socials?.twitter),
+        ...collectStringCandidates(socials?.x),
+      ].map((value) => normalizeXCandidate(value)),
+    ),
+    telegramCandidates: dedupeStrings(
+      [
+        ...collectStringCandidates(metadata.telegram),
+        ...collectStringCandidates(metadata.telegram_url),
+        ...collectStringCandidates(metadata.telegram_handle),
+        ...collectStringCandidates(extensions?.telegram),
+        ...collectStringCandidates(extensions?.telegram_url),
+        ...collectStringCandidates(extensions?.telegram_handle),
+        ...collectStringCandidates(socials?.telegram),
+      ].map((value) => normalizeTelegramCandidate(value)),
+    ),
+    otherLinks: dedupeStrings(
+      [
+        ...collectStringCandidates(metadata.discord),
+        ...collectStringCandidates(metadata.discord_url),
+        ...collectStringCandidates(extensions?.discord),
+        ...collectStringCandidates(extensions?.discord_url),
+        ...collectStringCandidates(socials?.discord),
+      ].map((value) => normalizeGenericLinkCandidate(value)),
+    ),
+  };
+}
+
 function extractSavedGeckoContext(
   entrySnapshot: unknown,
 ): Record<string, unknown> | null {
@@ -379,6 +469,19 @@ function extractSavedGeckoContext(
     return null;
   }
   return pickNestedRecord(contextCapture, "geckoterminalTokenSnapshot");
+}
+
+function extractSavedMetaplexContext(
+  entrySnapshot: unknown,
+): Record<string, unknown> | null {
+  if (!isRecord(entrySnapshot)) {
+    return null;
+  }
+  const contextCapture = pickNestedRecord(entrySnapshot, "contextCapture");
+  if (!contextCapture) {
+    return null;
+  }
+  return pickNestedRecord(contextCapture, "metaplexMetadataUri");
 }
 
 function extractContextFields(context: Record<string, unknown> | null): string[] {
@@ -478,6 +581,220 @@ function buildGeckoTokenWriteContextPreview(params: {
     patch: wouldWrite ? { geckoterminalTokenSnapshot: preview } : null,
     preview,
   };
+}
+
+function parseMetaplexLookupPreview(raw: unknown): MetaplexLookupPreview {
+  if (!isRecord(raw)) {
+    throw new Error("metaplex_shape_error");
+  }
+
+  const status = readOptionalString(raw, "status");
+  if (status === "not_found") {
+    const reason =
+      readOptionalString(raw, "reason") ?? "metadata_account_missing";
+    throw Object.assign(
+      new Error(
+        readOptionalString(raw, "message") ??
+          `Metaplex metadata unavailable: ${reason}`,
+      ),
+      { reason },
+    );
+  }
+  if (status === "error") {
+    throw Object.assign(
+      new Error(
+        readOptionalString(raw, "message") ?? "Metaplex preview error",
+      ),
+      {
+        kind: readOptionalString(raw, "kind") ?? "metaplex_error",
+        rateLimited: raw.rateLimited === true,
+      },
+    );
+  }
+
+  const onchain = pickNestedRecord(raw, "onchain");
+  if (!onchain) {
+    throw new Error("metaplex_shape_error");
+  }
+  const detail = pickNestedRecord(raw, "detail");
+  const offchain = pickNestedRecord(raw, "offchain");
+  const uri =
+    readOptionalString(detail ?? {}, "uri") ??
+    readOptionalString(onchain, "uri");
+
+  return {
+    onchain: {
+      mint: readOptionalString(onchain, "mint") ?? "",
+      name: readOptionalString(onchain, "name"),
+      symbol: readOptionalString(onchain, "symbol"),
+      uri,
+    },
+    offchain,
+    detail: {
+      metadataPda:
+        readOptionalString(detail ?? {}, "metadataPda") ??
+        readOptionalString(onchain, "metadataPda") ??
+        "",
+      uri,
+      hasOffchain:
+        typeof detail?.hasOffchain === "boolean"
+          ? detail.hasOffchain
+          : offchain !== null,
+    },
+  };
+}
+
+function classifyMetaplexPreviewError(error: unknown): {
+  errorKind: string;
+  rateLimited: boolean;
+} {
+  const errorRecord = isRecord(error) ? error : null;
+  const message = error instanceof Error ? error.message : String(error);
+  const reason =
+    errorRecord && typeof errorRecord.reason === "string"
+      ? errorRecord.reason
+      : null;
+  const kind =
+    errorRecord && typeof errorRecord.kind === "string"
+      ? errorRecord.kind
+      : null;
+  const rateLimited =
+    (errorRecord && errorRecord.rateLimited === true) ||
+    message.includes("429 Too Many Requests");
+
+  if (rateLimited) {
+    return { errorKind: "rate_limited", rateLimited };
+  }
+  if (reason) {
+    return { errorKind: reason, rateLimited };
+  }
+  if (kind) {
+    return { errorKind: kind, rateLimited };
+  }
+  if (
+    message.includes("metadata_account_missing") ||
+    message.includes("No Metaplex metadata account found")
+  ) {
+    return { errorKind: "metadata_account_missing", rateLimited };
+  }
+  if (message.includes("metaplex_shape_error")) {
+    return { errorKind: "metaplex_shape_error", rateLimited };
+  }
+
+  return { errorKind: "unknown_error", rateLimited };
+}
+
+function buildMetaplexPreviewFromLookup(params: {
+  lookup: MetaplexLookupPreview;
+  existingToken?: GeckoTokenWriteExistingToken;
+  now: Date;
+}): GeckoTokenWriteMetaplexPreview {
+  const description =
+    params.lookup.offchain
+      ? readOptionalString(params.lookup.offchain, "description") ??
+        readOptionalString(params.lookup.offchain, "bio")
+      : null;
+  const links = params.lookup.offchain
+    ? extractMetaplexLinkCandidates(params.lookup.offchain)
+    : {
+        websites: [],
+        xCandidates: [],
+        telegramCandidates: [],
+        otherLinks: [],
+      };
+  const availableFields: string[] = [];
+
+  if (description !== null) availableFields.push("metadata.description");
+  if (links.websites.length > 0) availableFields.push("links.website");
+  if (links.xCandidates.length > 0) availableFields.push("links.x");
+  if (links.telegramCandidates.length > 0) availableFields.push("links.telegram");
+  if (links.otherLinks.length > 0) availableFields.push("links.other");
+
+  const availableFieldSet = new Set(availableFields);
+  const preview = {
+    source: METAPLEX_CONTEXT_CAPTURE_SOURCE,
+    capturedAt: params.now.toISOString(),
+    metadataPda: params.lookup.detail.metadataPda,
+    uri: params.lookup.detail.uri,
+    metadataText: {
+      description,
+    },
+    links: {
+      website: links.websites[0] ?? null,
+      x: links.xCandidates[0] ?? null,
+      telegram: links.telegramCandidates[0] ?? null,
+      anyLinks:
+        links.websites.length > 0 ||
+        links.xCandidates.length > 0 ||
+        links.telegramCandidates.length > 0 ||
+        links.otherLinks.length > 0,
+      websites: links.websites,
+      xCandidates: links.xCandidates,
+      telegramCandidates: links.telegramCandidates,
+      otherLinks: links.otherLinks,
+    },
+    availableFields,
+    missingFields: METAPLEX_CONTEXT_FIELDS.filter(
+      (field) => !availableFieldSet.has(field),
+    ),
+  };
+  const savedContext = extractSavedMetaplexContext(
+    params.existingToken?.entrySnapshot,
+  );
+  const savedFields = extractContextFields(savedContext);
+  const sameAsSaved =
+    savedContext !== null &&
+    JSON.stringify(withoutCapturedAt(savedContext)) ===
+      JSON.stringify(withoutCapturedAt(preview));
+  const available = availableFields.length > 0;
+  const wouldWrite = available && !sameAsSaved;
+
+  return {
+    attempted: true,
+    available,
+    availableFields,
+    savedFields,
+    wouldWrite,
+    patch: wouldWrite ? { metaplexMetadataUri: preview } : null,
+    preview,
+    errorKind: null,
+    rateLimited: false,
+  };
+}
+
+async function buildGeckoTokenWriteMetaplexPreview(
+  input: GeckoTokenWriteInput,
+  deps: GeckoTokenWriteDeps,
+  now: Date,
+): Promise<GeckoTokenWriteMetaplexPreview | null> {
+  if (!deps.fetchMetaplexContext) {
+    return null;
+  }
+
+  try {
+    const rawMetaplex = await deps.fetchMetaplexContext(input.mint);
+    const lookup = parseMetaplexLookupPreview(rawMetaplex);
+    return buildMetaplexPreviewFromLookup({
+      lookup,
+      existingToken: input.existingToken,
+      now,
+    });
+  } catch (error) {
+    const classified = classifyMetaplexPreviewError(error);
+    return {
+      attempted: true,
+      available: false,
+      availableFields: [],
+      savedFields: extractContextFields(
+        extractSavedMetaplexContext(input.existingToken?.entrySnapshot),
+      ),
+      wouldWrite: false,
+      patch: null,
+      preview: null,
+      errorKind: classified.errorKind,
+      rateLimited: classified.rateLimited,
+    };
+  }
 }
 
 function toDate(value: Date | string): Date {
@@ -708,6 +1025,11 @@ export async function runGeckoTokenWriteForMint(
       existingToken: input.existingToken,
       now,
     });
+    const metaplexPreview = await buildGeckoTokenWriteMetaplexPreview(
+      input,
+      deps,
+      now,
+    );
     const enrichPlan = input.existingToken
       ? buildGeckoTokenWriteEnrichPlan({
           existingToken: input.existingToken,
@@ -746,7 +1068,10 @@ export async function runGeckoTokenWriteForMint(
       enrichPlan,
       rescorePreview,
       contextPreview,
+      metaplexPreview,
       contextWouldWrite: contextPreview?.wouldWrite ?? false,
+      metaplexContextWouldWrite: metaplexPreview?.wouldWrite ?? false,
+      metaplexErrorKind: metaplexPreview?.errorKind ?? null,
       writeSummary: {
         ...baseResult.writeSummary,
         wouldEnrich: enrichPlan?.willUpdate ?? false,
