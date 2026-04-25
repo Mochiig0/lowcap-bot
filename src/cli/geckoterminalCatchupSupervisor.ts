@@ -113,6 +113,20 @@ type CyclePlan = {
   metricAppendPlan: MetricAppendPlanItem[];
 };
 
+type OperatorSummary = {
+  status: "no_pending" | "ready" | "warning" | "blocked";
+  safeToWrite: boolean;
+  plannedTokenWrites: number;
+  plannedMetricAppends: number;
+  blockingSafetyChecks: string[];
+  warningSafetyChecks: string[];
+  nextRecommendedAction:
+    | "no_action"
+    | "run_planned_cycles"
+    | "inspect_warning_safety_checks"
+    | "inspect_blocking_safety_checks";
+};
+
 class CliUsageError extends Error {}
 
 function getUsageText(): string {
@@ -538,6 +552,68 @@ function buildStopReason(
   return "none";
 }
 
+function buildOperatorSummary(
+  pendingCount: number,
+  selectedCandidates: SelectedCandidate[],
+  metricAppendPlan: MetricAppendPlanItem[],
+  safetyChecks: SafetyCheck[],
+): OperatorSummary {
+  const blockingSafetyChecks = safetyChecks
+    .filter((check) => check.status === "fail")
+    .map((check) => check.name);
+  const warningSafetyChecks = safetyChecks
+    .filter((check) => check.status === "warn")
+    .map((check) => check.name);
+  const plannedTokenWrites = selectedCandidates.filter((candidate) => candidate.wouldWriteToken).length;
+  const plannedMetricAppends = metricAppendPlan.filter((item) => item.wouldAppendMetric).length;
+
+  if (blockingSafetyChecks.length > 0) {
+    return {
+      status: "blocked",
+      safeToWrite: false,
+      plannedTokenWrites,
+      plannedMetricAppends,
+      blockingSafetyChecks,
+      warningSafetyChecks,
+      nextRecommendedAction: "inspect_blocking_safety_checks",
+    };
+  }
+
+  if (warningSafetyChecks.length > 0) {
+    return {
+      status: "warning",
+      safeToWrite: false,
+      plannedTokenWrites,
+      plannedMetricAppends,
+      blockingSafetyChecks,
+      warningSafetyChecks,
+      nextRecommendedAction: "inspect_warning_safety_checks",
+    };
+  }
+
+  if (pendingCount === 0) {
+    return {
+      status: "no_pending",
+      safeToWrite: false,
+      plannedTokenWrites,
+      plannedMetricAppends,
+      blockingSafetyChecks,
+      warningSafetyChecks,
+      nextRecommendedAction: "no_action",
+    };
+  }
+
+  return {
+    status: "ready",
+    safeToWrite: plannedTokenWrites > 0,
+    plannedTokenWrites,
+    plannedMetricAppends,
+    blockingSafetyChecks,
+    warningSafetyChecks,
+    nextRecommendedAction: "run_planned_cycles",
+  };
+}
+
 async function run(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const sinceCutoff = new Date(Date.now() - args.sinceMinutes * 60_000);
@@ -620,6 +696,12 @@ async function run(): Promise<void> {
     selectedCandidates.length,
     safetyChecks,
   );
+  const summary = buildOperatorSummary(
+    pendingTokens.length,
+    selectedCandidates,
+    metricAppendPlan,
+    safetyChecks,
+  );
 
   console.log(
     JSON.stringify(
@@ -639,6 +721,7 @@ async function run(): Promise<void> {
           stopOnNotifyCandidate: args.stopOnNotifyCandidate,
           stopOnRateLimit: args.stopOnRateLimit,
         },
+        summary,
         currentCounts,
         pendingCount: pendingTokens.length,
         wouldRunCycles: cycles.length,

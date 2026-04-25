@@ -43,6 +43,19 @@ type CatchupSupervisorOutput = {
     maxCycles: number;
     sinceMinutes: number;
   };
+  summary: {
+    status: "no_pending" | "ready" | "warning" | "blocked";
+    safeToWrite: boolean;
+    plannedTokenWrites: number;
+    plannedMetricAppends: number;
+    blockingSafetyChecks: string[];
+    warningSafetyChecks: string[];
+    nextRecommendedAction:
+      | "no_action"
+      | "run_planned_cycles"
+      | "inspect_warning_safety_checks"
+      | "inspect_blocking_safety_checks";
+  };
   currentCounts: {
     pumpTotal: number;
     pumpComplete: number;
@@ -714,6 +727,15 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.wouldRunCycles, 0);
       assert.deepEqual(parsed.selectedCandidates, []);
       assert.deepEqual(parsed.metricAppendPlan, []);
+      assert.deepEqual(parsed.summary, {
+        status: "no_pending",
+        safeToWrite: false,
+        plannedTokenWrites: 0,
+        plannedMetricAppends: 0,
+        blockingSafetyChecks: [],
+        warningSafetyChecks: [],
+        nextRecommendedAction: "no_action",
+      });
       assert.equal(parsed.stopReason, "no_pending_tokens");
       assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
@@ -742,6 +764,19 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.currentCounts.notifyCandidateCount, 1);
       assert.equal(parsed.pendingCount, 3);
       assert.equal(parsed.wouldRunCycles, 2);
+      assert.equal(parsed.summary.status, "blocked");
+      assert.equal(parsed.summary.safeToWrite, false);
+      assert.equal(parsed.summary.plannedTokenWrites, 3);
+      assert.equal(parsed.summary.plannedMetricAppends, 2);
+      assert.deepEqual(parsed.summary.blockingSafetyChecks, [
+        "notify_candidate_count",
+        "smoke_candidates",
+        "metric_append_precheck",
+      ]);
+      assert.deepEqual(parsed.summary.warningSafetyChecks, [
+        "metric_pending_matches_incomplete",
+      ]);
+      assert.equal(parsed.summary.nextRecommendedAction, "inspect_blocking_safety_checks");
       assert.equal(parsed.stopReason, "notify_candidate_count");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "fail");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "warn");
@@ -797,6 +832,15 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.cycles[1]?.selectedCount, 2);
       assert.equal(parsed.selectedCandidates.length, 4);
       assert.equal(parsed.metricAppendPlan.length, 4);
+      assert.deepEqual(parsed.summary, {
+        status: "ready",
+        safeToWrite: true,
+        plannedTokenWrites: 4,
+        plannedMetricAppends: 4,
+        blockingSafetyChecks: [],
+        warningSafetyChecks: [],
+        nextRecommendedAction: "run_planned_cycles",
+      });
       assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
         seeded.expectedSelectedMints,
@@ -879,6 +923,17 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.wouldRunCycles, 1);
       assert.equal(parsed.selectedCandidates.length, 3);
       assert.equal(parsed.metricAppendPlan.length, 3);
+      assert.equal(parsed.summary.status, "blocked");
+      assert.equal(parsed.summary.safeToWrite, false);
+      assert.equal(parsed.summary.plannedTokenWrites, 3);
+      assert.equal(parsed.summary.plannedMetricAppends, 2);
+      assert.deepEqual(parsed.summary.blockingSafetyChecks, [
+        "smoke_candidates",
+        "hard_rejected_candidates",
+        "metric_append_precheck",
+      ]);
+      assert.deepEqual(parsed.summary.warningSafetyChecks, []);
+      assert.equal(parsed.summary.nextRecommendedAction, "inspect_blocking_safety_checks");
       assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
         [seeded.smokeMint, seeded.metricPresentMint, seeded.hardRejectedMint],
@@ -952,6 +1007,15 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.selectedCandidates.length, 1);
       assert.equal(parsed.selectedCandidates[0]?.mint, seeded.hardRejectedMint);
       assert.equal(parsed.selectedCandidates[0]?.hardRejected, true);
+      assert.deepEqual(parsed.summary, {
+        status: "blocked",
+        safeToWrite: false,
+        plannedTokenWrites: 1,
+        plannedMetricAppends: 1,
+        blockingSafetyChecks: ["hard_rejected_candidates"],
+        warningSafetyChecks: [],
+        nextRecommendedAction: "inspect_blocking_safety_checks",
+      });
       assert.equal(parsed.stopReason, "hard_rejected_candidates");
       assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
       assert.equal(safetyStatus(parsed, "source_origin"), "pass");
