@@ -1903,6 +1903,7 @@ function applyDryRunAdapterMetaplexFields(input: {
   input.item.metaplexAttempted = input.adapterItem.metaplexAttempted;
   input.item.metaplexAvailable = input.adapterItem.metaplexAvailable;
   input.item.metaplexWouldWrite = input.adapterItem.metaplexWouldWrite;
+  input.item.metaplexSavedFields = input.adapterItem.metaplexSavedFields;
   input.item.metaplexErrorKind = input.adapterItem.metaplexErrorKind;
 }
 
@@ -1976,6 +1977,12 @@ function assertDryRunHelperShadowParity(input: {
     "metaplexErrorKind",
     adapterItem.metaplexErrorKind,
     input.item.metaplexErrorKind,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "metaplexSavedFields",
+    JSON.stringify(adapterItem.metaplexSavedFields),
+    JSON.stringify(input.item.metaplexSavedFields),
   );
   assertShadowFieldEqual(
     mismatches,
