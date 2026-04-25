@@ -1686,6 +1686,156 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
     });
   });
 
+  await t.test("matches notifyWouldSend parity between CLI dry-run and helper adapter", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "notify-parity.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex.json");
+      const newerCompleteMint = "GeckoNotifyParityComplete11111111111111111111";
+      const targetMint = "GeckoNotifyParityTarget1111111111111111111111";
+      const olderIncompleteMint = "GeckoNotifyParityOlder1111111111111111111111";
+      const now = Date.now();
+      const targetCreatedAt = new Date(now - 2 * 60_000);
+      const geckoSnapshot = {
+        data: {
+          id: `solana_${targetMint}`,
+          type: "token",
+          attributes: {
+            address: targetMint,
+            name: "pokemon dog newinfo",
+            symbol: "SMGET",
+            description: "gecko enrich context description",
+            websites: ["https://example.com/gecko-enrich"],
+            twitter_username: "gecko_enrich_token",
+            telegram_handle: "geckoenrich",
+          },
+        },
+      };
+      const metaplexFixture = {
+        onchain: {
+          mint: targetMint,
+          uri: "https://example.com/metaplex-fast-follow.json",
+        },
+        offchain: {
+          description: "metaplex secondary description",
+          external_url: "https://example.com/metaplex-secondary",
+          extensions: {
+            twitter: "metaplex_secondary",
+            telegram: "metaplexsecondary",
+          },
+        },
+      };
+
+      await runDbPush(databaseUrl);
+      await seedBatchToken(databaseUrl, {
+        mint: olderIncompleteMint,
+        createdAt: new Date(now - 3 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: targetMint,
+        createdAt: targetCreatedAt,
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newerCompleteMint,
+        createdAt: new Date(now - 60_000),
+        name: "Already Complete",
+        symbol: "ALRDY",
+        metadataStatus: "partial",
+      });
+
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(geckoSnapshot, null, 2),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(metaplexFixture, null, 2),
+        "utf8",
+      );
+
+      const cliResult = await runTokenEnrichRescoreGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          metaplexFixtureFile,
+        },
+      );
+      assert.equal(cliResult.ok, true);
+
+      const parsed = JSON.parse(
+        cliResult.stdout,
+      ) as TokenEnrichRescoreGeckoterminalOutput;
+      const cliItem = parsed.items[0];
+      assert.ok(cliItem);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(cliItem, "helperResult"),
+        false,
+      );
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(cliItem, "adapterItem"),
+        false,
+      );
+
+      const existingToken: GeckoTokenWriteExistingToken = {
+        mint: targetMint,
+        name: null,
+        symbol: null,
+        description: null,
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        importedAt: targetCreatedAt.toISOString(),
+        enrichedAt: null,
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        reviewFlagsJson: null,
+      };
+      const helperResult = await runGeckoTokenWriteForMint(
+        {
+          mint: targetMint,
+          write: false,
+          existingToken,
+        },
+        {
+          fetchTokenSnapshot: async () => geckoSnapshot,
+          fetchMetaplexContext: async () => metaplexFixture,
+        },
+      );
+      const adapterItem = toGeckoTokenEnrichRescoreCliItem({
+        result: helperResult,
+        selectedReason: "Token.createdAt",
+        writeEnabled: false,
+        token: cliItem.token as unknown as GeckoTokenEnrichRescoreCliToken,
+      });
+
+      assert.equal(cliItem.notifyCandidate, true);
+      assert.equal(cliItem.notifyEligibleBefore, false);
+      assert.equal(cliItem.notifyEligibleAfter, true);
+      assert.equal(cliItem.notifyWouldSend, true);
+      assert.equal(cliItem.notifySent, false);
+      assert.equal(helperResult.notifyEligibleBefore, false);
+      assert.equal(helperResult.notifyEligibleAfter, true);
+      assert.equal(helperResult.notifyWouldSend, true);
+      assert.equal(helperResult.notifySent, false);
+      assert.equal(adapterItem.notifyCandidate, cliItem.notifyCandidate);
+      assert.equal(
+        adapterItem.notifyEligibleBefore,
+        cliItem.notifyEligibleBefore,
+      );
+      assert.equal(adapterItem.notifyEligibleAfter, cliItem.notifyEligibleAfter);
+      assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
+      assert.equal(adapterItem.notifySent, cliItem.notifySent);
+
+      const token = await readToken(databaseUrl, targetMint);
+      assert.equal(token?.name, null);
+      assert.equal(token?.symbol, null);
+      assert.equal(token?.metadataStatus, "mint_only");
+      assert.equal(token?.rescoredAt, null);
+    });
+  });
+
   await t.test("exits non-zero when notify is requested without write", async () => {
     const result = await runTokenEnrichRescoreGeckoterminal([
       "--mint",
