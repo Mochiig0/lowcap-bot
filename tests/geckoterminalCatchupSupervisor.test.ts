@@ -60,10 +60,25 @@ type CatchupSupervisorOutput = {
   selectedCandidates: Array<{
     cycle: number;
     orderInCycle: number;
+    id: number;
     mint: string;
+    currentSource: string | null;
+    originSource: string | null;
+    metadataStatus: string;
     name: string | null;
     symbol: string | null;
+    scoreRank: string;
+    scoreTotal: number;
+    hardRejected: boolean;
+    selectionAnchorAt: string;
+    selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
     metricsCount: number;
+    latestMetric: {
+      id: number;
+      source: string | null;
+      observedAt: string;
+      volume24h: number | null;
+    } | null;
     wouldWriteToken: boolean;
   }>;
   metricAppendPlan: Array<{
@@ -72,6 +87,18 @@ type CatchupSupervisorOutput = {
     wouldAppendMetric: boolean;
     reason: string;
     metricsCount: number;
+    latestMetric: {
+      id: number;
+      source: string | null;
+      observedAt: string;
+      volume24h: number | null;
+    } | null;
+  }>;
+  cycles: Array<{
+    cycle: number;
+    selectedCount: number;
+    selectedCandidates: CatchupSupervisorOutput["selectedCandidates"];
+    metricAppendPlan: CatchupSupervisorOutput["metricAppendPlan"];
   }>;
   stopReason: string;
   safetyChecks: SafetyCheck[];
@@ -367,6 +394,97 @@ async function seedSafetyStopFixture(databaseUrl: string): Promise<{
   }
 }
 
+async function seedPendingSelectionFixture(databaseUrl: string): Promise<{
+  expectedSelectedMints: string[];
+  unselectedMint: string;
+  sameAnchorHigherIdMint: string;
+  sameAnchorLowerIdMint: string;
+}> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const now = new Date();
+    const newestAnchor = new Date(now.getTime() - 5 * 60_000);
+    const sameAnchor = new Date(now.getTime() - 10 * 60_000);
+    const olderAnchor = new Date(now.getTime() - 20 * 60_000);
+    const oldestAnchor = new Date(now.getTime() - 30 * 60_000);
+
+    async function createPendingToken(mint: string, detectedAt: Date): Promise<{
+      id: number;
+      mint: string;
+    }> {
+      return db.token.create({
+        data: {
+          mint,
+          source: GECKO_SOURCE,
+          metadataStatus: "mint_only",
+          scoreRank: "C",
+          scoreTotal: 0,
+          hardRejected: false,
+          createdAt: detectedAt,
+          importedAt: detectedAt,
+          entrySnapshot: {
+            firstSeenSourceSnapshot: {
+              source: GECKO_SOURCE,
+              detectedAt: detectedAt.toISOString(),
+            },
+          },
+        },
+        select: {
+          id: true,
+          mint: true,
+        },
+      });
+    }
+
+    const unselected = await createPendingToken(
+      "GeckoCatchupPendingOldest11111111111111111111pump",
+      oldestAnchor,
+    );
+    const older = await createPendingToken(
+      "GeckoCatchupPendingOlder111111111111111111111pump",
+      olderAnchor,
+    );
+    const sameAnchorLowerId = await createPendingToken(
+      "GeckoCatchupPendingSameLow111111111111111111pump",
+      sameAnchor,
+    );
+    const sameAnchorHigherId = await createPendingToken(
+      "GeckoCatchupPendingSameHigh11111111111111111pump",
+      sameAnchor,
+    );
+    const newest = await createPendingToken(
+      "GeckoCatchupPendingNewest11111111111111111111pump",
+      newestAnchor,
+    );
+
+    assert.ok(
+      sameAnchorHigherId.id > sameAnchorLowerId.id,
+      "fixture must create the higher id row after the lower id row",
+    );
+
+    return {
+      expectedSelectedMints: [
+        newest.mint,
+        sameAnchorHigherId.mint,
+        sameAnchorLowerId.mint,
+        older.mint,
+      ],
+      unselectedMint: unselected.mint,
+      sameAnchorHigherIdMint: sameAnchorHigherId.mint,
+      sameAnchorLowerIdMint: sameAnchorLowerId.mint,
+    };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("geckoterminal catch-up supervisor dry-run", async (t) => {
   await t.test("reports completed pump backlog without planning writes", async () => {
     await withTempDir(async (dir) => {
@@ -442,6 +560,95 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       );
       assert.equal(metricPendingPlan?.wouldAppendMetric, false);
       assert.equal(metricPendingPlan?.reason, "already_has_metric");
+    });
+  });
+
+  await t.test("plans pending selection by limit, maxCycles, and selection order", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "pending-selection.db")}`;
+      await runDbPush(databaseUrl);
+      const seeded = await seedPendingSelectionFixture(databaseUrl);
+
+      const result = await runCatchupSupervisor(
+        ["--pumpOnly", "--limit", "2", "--maxCycles", "2", "--sinceMinutes", "10080", "--dry-run"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
+      assert.equal(parsed.readOnly, true);
+      assert.equal(parsed.dryRun, true);
+      assert.equal(parsed.writeEnabled, false);
+      assert.equal(parsed.selection.pumpOnly, true);
+      assert.equal(parsed.selection.limit, 2);
+      assert.equal(parsed.selection.maxCycles, 2);
+      assert.equal(parsed.currentCounts.pumpTotal, 5);
+      assert.equal(parsed.currentCounts.pumpComplete, 0);
+      assert.equal(parsed.currentCounts.pumpIncomplete, 5);
+      assert.equal(parsed.currentCounts.metricPendingCount, 5);
+      assert.equal(parsed.currentCounts.latestMetricMissingCount, 5);
+      assert.equal(parsed.currentCounts.notifyCandidateCount, 0);
+      assert.equal(parsed.pendingCount, 5);
+      assert.equal(parsed.wouldRunCycles, 2);
+      assert.equal(parsed.cycles.length, 2);
+      assert.equal(parsed.cycles[0]?.selectedCount, 2);
+      assert.equal(parsed.cycles[1]?.selectedCount, 2);
+      assert.equal(parsed.selectedCandidates.length, 4);
+      assert.equal(parsed.metricAppendPlan.length, 4);
+      assert.deepEqual(
+        parsed.selectedCandidates.map((candidate) => candidate.mint),
+        seeded.expectedSelectedMints,
+      );
+      assert.equal(
+        parsed.selectedCandidates.some((candidate) => candidate.mint === seeded.unselectedMint),
+        false,
+      );
+      assert.deepEqual(
+        parsed.selectedCandidates.map((candidate) => [candidate.cycle, candidate.orderInCycle]),
+        [
+          [1, 1],
+          [1, 2],
+          [2, 1],
+          [2, 2],
+        ],
+      );
+      assert.equal(parsed.selectedCandidates[1]?.mint, seeded.sameAnchorHigherIdMint);
+      assert.equal(parsed.selectedCandidates[2]?.mint, seeded.sameAnchorLowerIdMint);
+      assert.ok(
+        (parsed.selectedCandidates[1]?.id ?? 0) > (parsed.selectedCandidates[2]?.id ?? 0),
+        "same-anchor candidates must be ordered by id desc",
+      );
+
+      for (const candidate of parsed.selectedCandidates) {
+        assert.equal(candidate.currentSource, GECKO_SOURCE);
+        assert.equal(candidate.originSource, GECKO_SOURCE);
+        assert.equal(candidate.metadataStatus, "mint_only");
+        assert.equal(candidate.name, null);
+        assert.equal(candidate.symbol, null);
+        assert.equal(candidate.scoreRank, "C");
+        assert.equal(candidate.scoreTotal, 0);
+        assert.equal(candidate.hardRejected, false);
+        assert.equal(candidate.metricsCount, 0);
+        assert.equal(candidate.latestMetric, null);
+        assert.equal(candidate.wouldWriteToken, true);
+      }
+
+      for (const plan of parsed.metricAppendPlan) {
+        assert.equal(plan.wouldAppendMetric, true);
+        assert.equal(plan.reason, "selected_incomplete_metric_missing");
+        assert.equal(plan.metricsCount, 0);
+        assert.equal(plan.latestMetric, null);
+      }
+
+      assert.equal(parsed.stopReason, "max_cycles_reached_after_plan");
+      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
+      assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
+      assert.equal(safetyStatus(parsed, "source_origin"), "pass");
+      assert.equal(safetyStatus(parsed, "selected_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "metric_append_precheck"), "pass");
+      assert.equal(safetyStatus(parsed, "stop_on_rate_limit"), "pass");
     });
   });
 
