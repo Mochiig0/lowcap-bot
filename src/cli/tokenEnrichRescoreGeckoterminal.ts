@@ -1907,6 +1907,20 @@ function applyDryRunAdapterMetaplexFields(input: {
   input.item.metaplexErrorKind = input.adapterItem.metaplexErrorKind;
 }
 
+function applyDryRunAdapterNotifyPreviewFields(input: {
+  args: Args;
+  item: ProcessedItem;
+  adapterItem: GeckoTokenEnrichRescoreCliItem | null;
+}): void {
+  if (input.args.write || !input.adapterItem) {
+    return;
+  }
+
+  input.item.notifyEligibleBefore = input.adapterItem.notifyEligibleBefore;
+  input.item.notifyEligibleAfter = input.adapterItem.notifyEligibleAfter;
+  input.item.notifyWouldSend = input.adapterItem.notifyWouldSend;
+}
+
 function assertDryRunHelperShadowParity(input: {
   args: Args;
   item: ProcessedItem;
@@ -2312,6 +2326,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     applyDryRunAdapterFetchedSnapshot({ args, item, adapterItem });
     applyDryRunAdapterContextFields({ args, item, adapterItem });
     applyDryRunAdapterMetaplexFields({ args, item, adapterItem });
+    applyDryRunAdapterNotifyPreviewFields({ args, item, adapterItem });
     assertDryRunHelperShadowParity({ args, item, adapterItem });
 
     return item;
@@ -2360,6 +2375,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
     applyDryRunAdapterFetchedSnapshot({ args, item, adapterItem });
     applyDryRunAdapterContextFields({ args, item, adapterItem });
     applyDryRunAdapterMetaplexFields({ args, item, adapterItem });
+    applyDryRunAdapterNotifyPreviewFields({ args, item, adapterItem });
     assertDryRunHelperShadowParity({ args, item, adapterItem });
 
     return item;
