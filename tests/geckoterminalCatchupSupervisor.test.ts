@@ -84,6 +84,7 @@ type CatchupSupervisorOutput = {
     writeCommandPlan: Array<{
       enabled: false;
       executionSupported: false;
+      executionEligible: false;
       command: "pnpm";
       script: "token:enrich-rescore:geckoterminal";
       args: string[];
@@ -958,6 +959,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         {
           enabled: false,
           executionSupported: false,
+          executionEligible: false,
           command: "pnpm",
           script: "token:enrich-rescore:geckoterminal",
           args: [
@@ -1088,6 +1090,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         {
           enabled: false,
           executionSupported: false,
+          executionEligible: false,
           command: "pnpm",
           script: "token:enrich-rescore:geckoterminal",
           args: [
@@ -1213,6 +1216,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         {
           enabled: false,
           executionSupported: false,
+          executionEligible: false,
           command: "pnpm",
           script: "token:enrich-rescore:geckoterminal",
           args: [

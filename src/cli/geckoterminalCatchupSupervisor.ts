@@ -155,6 +155,7 @@ type WritePlan = {
   writeCommandPlan: Array<{
     enabled: false;
     executionSupported: false;
+    executionEligible: false;
     command: "pnpm";
     script: "token:enrich-rescore:geckoterminal";
     args: string[];
@@ -727,6 +728,7 @@ function buildWritePlan(
           {
             enabled: false,
             executionSupported: false,
+            executionEligible: false,
             command: "pnpm",
             script: "token:enrich-rescore:geckoterminal",
             args: [
