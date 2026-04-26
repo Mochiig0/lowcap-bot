@@ -210,6 +210,7 @@ type WritePlan = {
     reason: "selected_incomplete_token_write";
     blockedBy: string[];
   }>;
+  tokenWriteExecutionResults: [];
   requiresCaptureOnly: true;
   postCheckPlan: {
     enabled: true;
@@ -814,6 +815,7 @@ function buildWritePlan(
           },
         ]
       : [],
+    tokenWriteExecutionResults: [],
     requiresCaptureOnly: true,
     postCheckPlan: {
       enabled: true,

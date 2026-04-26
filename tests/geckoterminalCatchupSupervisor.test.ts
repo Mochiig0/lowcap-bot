@@ -118,6 +118,7 @@ type CatchupSupervisorOutput = {
       reason: "selected_incomplete_token_write";
       blockedBy: string[];
     }>;
+    tokenWriteExecutionResults: [];
     requiresCaptureOnly: true;
     postCheckPlan: {
       enabled: true;
@@ -343,6 +344,7 @@ function assertReadOnlyWritePlan(output: CatchupSupervisorOutput): void {
     notify: false,
     metricAppend: false,
   });
+  assert.deepEqual(output.writePlan.tokenWriteExecutionResults, []);
   assert.equal(output.writePlan.requiresCaptureOnly, true);
   assert.deepEqual(output.writePlan.postCheckPlan, {
     enabled: true,
