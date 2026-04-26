@@ -145,6 +145,21 @@ type WritePlan = {
     cycle: number;
     mint: string;
   }>;
+  writeCommandPlan: Array<{
+    enabled: false;
+    executionSupported: false;
+    command: "pnpm";
+    script: "token:enrich-rescore:geckoterminal";
+    args: string[];
+    mint: string;
+    cycle: number;
+    orderInCycle: number;
+    notify: false;
+    metricAppend: false;
+    postCheck: true;
+    reason: "selected_incomplete_token_write";
+    blockedBy: string[];
+  }>;
   requiresCaptureOnly: true;
   postCheckPlan: {
     enabled: true;
@@ -658,7 +673,13 @@ function buildOperatorSummary(
 function buildWritePlan(
   selectedCandidates: SelectedCandidate[],
   metricAppendPlan: MetricAppendPlanItem[],
+  safetyChecks: SafetyCheck[],
 ): WritePlan {
+  const blockingSafetyChecks = safetyChecks
+    .filter((check) => check.status === "fail" || check.status === "warn")
+    .map((check) => check.name);
+  const initialWriteCandidate = selectedCandidates.find((candidate) => candidate.wouldWriteToken);
+
   return {
     enabled: false,
     writeModeSupported: false,
@@ -681,6 +702,31 @@ function buildWritePlan(
         cycle: item.cycle,
         mint: item.mint,
       })),
+    writeCommandPlan: initialWriteCandidate
+      ? [
+          {
+            enabled: false,
+            executionSupported: false,
+            command: "pnpm",
+            script: "token:enrich-rescore:geckoterminal",
+            args: [
+              "token:enrich-rescore:geckoterminal",
+              "--",
+              "--mint",
+              initialWriteCandidate.mint,
+              "--write",
+            ],
+            mint: initialWriteCandidate.mint,
+            cycle: initialWriteCandidate.cycle,
+            orderInCycle: initialWriteCandidate.orderInCycle,
+            notify: false,
+            metricAppend: false,
+            postCheck: true,
+            reason: "selected_incomplete_token_write",
+            blockedBy: ["write_gate_still_disabled", ...blockingSafetyChecks],
+          },
+        ]
+      : [],
     requiresCaptureOnly: true,
     postCheckPlan: {
       enabled: true,
@@ -797,7 +843,7 @@ async function run(): Promise<void> {
     metricAppendPlan,
     safetyChecks,
   );
-  const writePlan = buildWritePlan(selectedCandidates, metricAppendPlan);
+  const writePlan = buildWritePlan(selectedCandidates, metricAppendPlan, safetyChecks);
   const writeModeReadiness = buildWriteModeReadiness();
 
   console.log(

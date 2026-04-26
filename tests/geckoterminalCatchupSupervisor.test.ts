@@ -74,6 +74,21 @@ type CatchupSupervisorOutput = {
       cycle: number;
       mint: string;
     }>;
+    writeCommandPlan: Array<{
+      enabled: false;
+      executionSupported: false;
+      command: "pnpm";
+      script: "token:enrich-rescore:geckoterminal";
+      args: string[];
+      mint: string;
+      cycle: number;
+      orderInCycle: number;
+      notify: false;
+      metricAppend: false;
+      postCheck: true;
+      reason: "selected_incomplete_token_write";
+      blockedBy: string[];
+    }>;
     requiresCaptureOnly: true;
     postCheckPlan: {
       enabled: true;
@@ -801,6 +816,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       });
       assert.deepEqual(parsed.writePlan.wouldWriteTokens, []);
       assert.deepEqual(parsed.writePlan.wouldAppendMetrics, []);
+      assert.deepEqual(parsed.writePlan.writeCommandPlan, []);
       assert.deepEqual(parsed.writeModeReadiness, {
         readyForImplementation: false,
         blockingReasons: [
@@ -924,6 +940,29 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         parsed.writePlan.wouldAppendMetrics.map((item) => [item.cycle, item.mint]),
         seeded.expectedSelectedMints.map((mint, index) => [index < 2 ? 1 : 2, mint]),
       );
+      assert.deepEqual(parsed.writePlan.writeCommandPlan, [
+        {
+          enabled: false,
+          executionSupported: false,
+          command: "pnpm",
+          script: "token:enrich-rescore:geckoterminal",
+          args: [
+            "token:enrich-rescore:geckoterminal",
+            "--",
+            "--mint",
+            seeded.expectedSelectedMints[0],
+            "--write",
+          ],
+          mint: seeded.expectedSelectedMints[0],
+          cycle: 1,
+          orderInCycle: 1,
+          notify: false,
+          metricAppend: false,
+          postCheck: true,
+          reason: "selected_incomplete_token_write",
+          blockedBy: ["write_gate_still_disabled"],
+        },
+      ]);
       assert.deepEqual(parsed.writePlan.recoveryHints.metricOnlyAppendCandidates, []);
       assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
@@ -1026,6 +1065,34 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         parsed.writePlan.wouldAppendMetrics.map((item) => item.mint),
         [seeded.smokeMint, seeded.hardRejectedMint],
       );
+      assert.deepEqual(parsed.writePlan.writeCommandPlan, [
+        {
+          enabled: false,
+          executionSupported: false,
+          command: "pnpm",
+          script: "token:enrich-rescore:geckoterminal",
+          args: [
+            "token:enrich-rescore:geckoterminal",
+            "--",
+            "--mint",
+            seeded.smokeMint,
+            "--write",
+          ],
+          mint: seeded.smokeMint,
+          cycle: 1,
+          orderInCycle: 1,
+          notify: false,
+          metricAppend: false,
+          postCheck: true,
+          reason: "selected_incomplete_token_write",
+          blockedBy: [
+            "write_gate_still_disabled",
+            "smoke_candidates",
+            "hard_rejected_candidates",
+            "metric_append_precheck",
+          ],
+        },
+      ]);
       assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
         [seeded.smokeMint, seeded.metricPresentMint, seeded.hardRejectedMint],
