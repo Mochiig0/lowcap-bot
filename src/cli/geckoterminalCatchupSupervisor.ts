@@ -26,6 +26,15 @@ export type GeckoCatchupSupervisorDeps = {
   tokenWriteRunner?: GeckoTokenWriteCommandRunner;
 };
 
+type GeckoTokenWriteRunnerDecisionPlan = {
+  executionSupported: boolean;
+  executionEligible: boolean;
+  blockedBy: string[];
+  notify: boolean;
+  metricAppend: boolean;
+  postCheck: boolean;
+};
+
 type JsonObject = Record<string, unknown>;
 
 type FirstSeenSourceSnapshot = {
@@ -831,6 +840,25 @@ function buildWriteModeReadiness(): WriteModeReadiness {
     ],
     nextImplementationStep: "review_supervisor_write_gate",
   };
+}
+
+export function shouldRunGeckoTokenWriteRunner(
+  writeCommandPlan: GeckoTokenWriteRunnerDecisionPlan[],
+  deps: GeckoCatchupSupervisorDeps = {},
+): boolean {
+  if (!deps.tokenWriteRunner || writeCommandPlan.length !== 1) {
+    return false;
+  }
+
+  const [plan] = writeCommandPlan;
+  return (
+    plan.executionSupported &&
+    plan.executionEligible &&
+    plan.blockedBy.length === 0 &&
+    plan.notify === false &&
+    plan.metricAppend === false &&
+    plan.postCheck === true
+  );
 }
 
 export function buildGeckoCatchupSupervisorPlan(

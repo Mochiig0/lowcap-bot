@@ -875,6 +875,31 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(output.readOnly, true);
         assert.equal(output.dryRun, true);
         assert.equal(output.writeEnabled, false);
+        assert.equal(
+          supervisor.shouldRunGeckoTokenWriteRunner(output.writePlan.writeCommandPlan, {
+            tokenWriteRunner,
+          }),
+          false,
+        );
+        assert.equal(supervisor.shouldRunGeckoTokenWriteRunner(output.writePlan.writeCommandPlan), false);
+        assert.equal(
+          supervisor.shouldRunGeckoTokenWriteRunner(
+            [plan, plan],
+            {
+              tokenWriteRunner,
+            },
+          ),
+          false,
+        );
+        assert.equal(
+          supervisor.shouldRunGeckoTokenWriteRunner(
+            [],
+            {
+              tokenWriteRunner,
+            },
+          ),
+          false,
+        );
       } finally {
         await disconnectLoadedCatchupSupervisorDb();
       }
@@ -889,6 +914,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(args.limit, 1);
     assert.equal(args.dryRun, true);
     assert.equal(typeof supervisor.runGeckoCatchupSupervisor, "function");
+    assert.equal(typeof supervisor.shouldRunGeckoTokenWriteRunner, "function");
   });
 
   await t.test("reports completed pump backlog without planning writes", async () => {
