@@ -423,8 +423,13 @@ async function readToken(
   mint: string;
   name: string | null;
   symbol: string | null;
+  description: string | null;
   metadataStatus: string;
+  scoreTotal: number;
+  scoreRank: string;
+  hardRejected: boolean;
   rescoredAt: Date | null;
+  entrySnapshot: unknown;
   reviewFlagsJson: unknown;
 } | null> {
   const db = new PrismaClient({
@@ -442,8 +447,13 @@ async function readToken(
         mint: true,
         name: true,
         symbol: true,
+        description: true,
         metadataStatus: true,
+        scoreTotal: true,
+        scoreRank: true,
+        hardRejected: true,
         rescoredAt: true,
+        entrySnapshot: true,
         reviewFlagsJson: true,
       },
     });
@@ -578,6 +588,130 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(token?.metadataStatus, "mint_only");
       assert.equal(token?.rescoredAt, null);
       assert.equal(token?.reviewFlagsJson, null);
+    });
+  });
+
+  await t.test("writes enrich and rescore through the token write helper while keeping context saves in CLI", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "write-helper.db")}`;
+      const mint = "GeckoWriteHelperRoute111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex.json");
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${mint}`,
+              type: "token",
+              attributes: {
+                address: mint,
+                name: "Helper Write Token",
+                symbol: "HWT",
+                description: "helper write context description",
+                websites: ["https://example.com/helper-write"],
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(
+          {
+            status: "error",
+            kind: "rpc_http_error",
+            rateLimited: false,
+            message: "metaplex fixture error",
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const result = await runTokenEnrichRescoreGeckoterminal(
+        ["--mint", mint, "--write"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          metaplexFixtureFile,
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
+      assert.equal(parsed.dryRun, false);
+      assert.equal(parsed.writeEnabled, true);
+      assert.equal(parsed.notifyEnabled, false);
+      assert.equal(parsed.summary.enrichWriteCount, 1);
+      assert.equal(parsed.summary.rescoreWriteCount, 1);
+      assert.equal(parsed.summary.contextWriteCount, 1);
+      assert.equal(parsed.summary.metaplexWriteCount, 0);
+      assert.equal(parsed.summary.notifySentCount, 0);
+      assert.equal(parsed.summary.rateLimited, false);
+
+      const item = parsed.items[0];
+      assert.equal(item?.status, "ok");
+      assert.equal(item?.writeSummary.dryRun, false);
+      assert.equal(item?.writeSummary.enrichUpdated, true);
+      assert.equal(item?.writeSummary.rescoreUpdated, true);
+      assert.equal(item?.writeSummary.contextUpdated, true);
+      assert.equal(item?.writeSummary.metaplexContextUpdated, false);
+      assert.equal(item?.contextAvailable, true);
+      assert.equal(item?.contextWouldWrite, true);
+      assert.equal(item?.metaplexAttempted, true);
+      assert.equal(item?.metaplexAvailable, false);
+      assert.equal(item?.metaplexWouldWrite, false);
+      assert.equal(item?.notifySent, false);
+
+      const token = await readToken(databaseUrl, mint);
+      assert.equal(token?.name, "Helper Write Token");
+      assert.equal(token?.symbol, "HWT");
+      assert.equal(token?.description, null);
+      assert.equal(token?.metadataStatus, "partial");
+      assert.equal(typeof token?.scoreTotal, "number");
+      assert.equal(typeof token?.scoreRank, "string");
+      assert.equal(typeof token?.hardRejected, "boolean");
+      assert.notEqual(token?.rescoredAt, null);
+      assert.deepEqual(token?.reviewFlagsJson, {
+        hasWebsite: true,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: false,
+        descriptionPresent: true,
+        linkCount: 1,
+      });
+
+      assert.ok(token?.entrySnapshot && typeof token.entrySnapshot === "object");
+      const contextCapture = (token.entrySnapshot as {
+        contextCapture?: {
+          geckoterminalTokenSnapshot?: {
+            availableFields?: unknown;
+            links?: {
+              website?: unknown;
+            };
+          };
+          metaplexMetadataUri?: unknown;
+        };
+      }).contextCapture;
+      assert.deepEqual(
+        contextCapture?.geckoterminalTokenSnapshot?.availableFields,
+        ["metadata.name", "metadata.symbol", "metadata.description", "links.website"],
+      );
+      assert.equal(
+        contextCapture?.geckoterminalTokenSnapshot?.links?.website,
+        "https://example.com/helper-write",
+      );
+      assert.equal(contextCapture?.metaplexMetadataUri, undefined);
     });
   });
 

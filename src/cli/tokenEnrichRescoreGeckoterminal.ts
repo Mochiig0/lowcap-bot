@@ -2267,13 +2267,32 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       JSON.stringify(savedReviewFlags) !== JSON.stringify(reviewFlagsJson);
 
     if (args.write) {
-      if (enrichPlanResult?.hasChange) {
-        await enrichTokenByMint(token.mint, patch);
-        enrichUpdated = true;
+      const helperResult = await runGeckoTokenWriteForMint(
+        {
+          mint: token.mint,
+          write: true,
+          notify: false,
+          existingToken: buildHelperExistingToken(token),
+        },
+        {
+          ...buildGeckoTokenWriteCliDeps(),
+          fetchTokenSnapshot: async () =>
+            replayShadowFetch(geckoSnapshotReplay, "geckoterminal token snapshot"),
+          fetchMetaplexContext: async () =>
+            replayShadowFetch(metaplexReplay, "metaplex metadata uri"),
+        },
+      );
+      enrichUpdated = helperResult.enrichWritten;
+      rescoreUpdated = helperResult.rescoreWritten;
+
+      if (helperResult.status !== "ok") {
+        throw new Error(helperResult.error ?? "Gecko token write helper failed");
       }
 
-      const writtenRescore = await rescoreTokenByMint(token.mint);
-      rescoreUpdated = true;
+      const writtenRescore = helperResult.rescoreWriteResult;
+      if (!writtenRescore) {
+        throw new Error("Gecko token write helper did not return a rescore write result");
+      }
 
       if (
         contextWouldWrite ||
