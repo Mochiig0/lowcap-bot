@@ -12,6 +12,7 @@ import {
   buildGeckoTokenWriteRunnerInput,
   parseGeckoTokenWriteCommandResult,
   runGeckoTokenWriteCommandWithRunner,
+  toGeckoCatchupTokenWriteExecutionResult,
   type GeckoTokenWriteCommandRunner,
 } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
@@ -1374,6 +1375,43 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       const runnerResult = await runGeckoTokenWriteCommandWithRunner(tokenWriteRunner, runnerInput);
       assert.equal(runnerResult, mockResult);
       assert.deepEqual(runnerCalls, [runnerInput]);
+
+      const executionResult = toGeckoCatchupTokenWriteExecutionResult(runnerInput, runnerResult);
+      const syntheticWritePlan = {
+        ...parsed.writePlan,
+        tokenWriteExecutionResults: [executionResult],
+      };
+
+      assert.deepEqual(parsed.writePlan.tokenWriteExecutionResults, []);
+      assert.equal(syntheticWritePlan.tokenWriteExecutionResults.length, 1);
+      assert.deepEqual(syntheticWritePlan.tokenWriteExecutionResults[0], executionResult);
+      assert.deepEqual(syntheticWritePlan.tokenWriteExecutionResults[0], {
+        mint: seeded.expectedSelectedMints[0],
+        cycle: plan.cycle,
+        orderInCycle: plan.orderInCycle,
+        status: "ok",
+        exitCode: 0,
+        rateLimited: false,
+        abortedDueToRateLimit: false,
+        skippedAfterRateLimit: 0,
+        writeSummary: {
+          enrichUpdated: true,
+          rescoreUpdated: true,
+          contextUpdated: true,
+          metaplexContextUpdated: true,
+        },
+        notifySent: false,
+        itemError: null,
+        metaplexErrorKind: null,
+        parseError: null,
+      });
+      assert.equal("stdout" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
+      assert.equal("stderr" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
+      assert.equal("parsedOutput" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
+      assert.equal("env" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
+      assert.equal("cwd" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
+      assert.equal("args" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
+      assert.equal("command" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
 
       assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
