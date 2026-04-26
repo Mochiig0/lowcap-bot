@@ -1788,11 +1788,22 @@ function buildHelperExistingToken(token: SelectedToken): GeckoTokenWriteExisting
 
 function buildGeckoTokenWriteCliDeps(): Pick<
   GeckoTokenWriteDeps,
-  "writeEnrich" | "writeRescore"
+  "writeEnrich" | "writeRescore" | "writeCollectedContexts"
 > {
   return {
     writeEnrich: enrichTokenByMint,
     writeRescore: rescoreTokenByMint,
+    writeCollectedContexts: async ({ writeTarget, patch }) => {
+      await saveCollectedContexts(Number(writeTarget.tokenId), writeTarget.entrySnapshot, {
+        ...(patch.geckoterminalTokenSnapshot
+          ? { geckoterminalTokenSnapshot: patch.geckoterminalTokenSnapshot as CollectedContext }
+          : {}),
+        ...(patch.metaplexMetadataUri
+          ? { metaplexMetadataUri: patch.metaplexMetadataUri as MetaplexCollectedContext }
+          : {}),
+        ...(patch.reviewFlagsJson ? { reviewFlagsJson: patch.reviewFlagsJson } : {}),
+      });
+    },
   };
 }
 
@@ -2273,6 +2284,10 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
           write: true,
           notify: false,
           existingToken: buildHelperExistingToken(token),
+          writeTarget: {
+            tokenId: token.id,
+            entrySnapshot: token.entrySnapshot,
+          },
         },
         {
           ...buildGeckoTokenWriteCliDeps(),
@@ -2284,6 +2299,8 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       );
       enrichUpdated = helperResult.enrichWritten;
       rescoreUpdated = helperResult.rescoreWritten;
+      contextUpdated = helperResult.contextWritten;
+      metaplexContextUpdated = helperResult.metaplexContextWritten;
 
       if (helperResult.status !== "ok") {
         throw new Error(helperResult.error ?? "Gecko token write helper failed");
@@ -2292,22 +2309,6 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       const writtenRescore = helperResult.rescoreWriteResult;
       if (!writtenRescore) {
         throw new Error("Gecko token write helper did not return a rescore write result");
-      }
-
-      if (
-        contextWouldWrite ||
-        (metaplexWouldWrite && metaplexCollectedContext) ||
-        reviewFlagsWouldWrite
-      ) {
-        await saveCollectedContexts(token.id, token.entrySnapshot, {
-          ...(contextWouldWrite ? { geckoterminalTokenSnapshot: collectedContext } : {}),
-          ...(metaplexWouldWrite && metaplexCollectedContext
-            ? { metaplexMetadataUri: metaplexCollectedContext }
-            : {}),
-          ...(reviewFlagsWouldWrite ? { reviewFlagsJson } : {}),
-        });
-        contextUpdated = contextWouldWrite;
-        metaplexContextUpdated = metaplexWouldWrite && metaplexCollectedContext !== null;
       }
 
       if (args.notify && notifyWouldSend) {

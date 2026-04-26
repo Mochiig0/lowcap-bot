@@ -591,7 +591,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
     });
   });
 
-  await t.test("writes enrich and rescore through the token write helper while keeping context saves in CLI", async () => {
+  await t.test("writes enrich, rescore, and collected contexts through the token write helper", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "write-helper.db")}`;
       const mint = "GeckoWriteHelperRoute111111111111111111pump";
@@ -677,6 +677,10 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(item?.writeSummary.rescoreUpdated, true);
       assert.equal(item?.writeSummary.contextUpdated, true);
       assert.equal(item?.writeSummary.metaplexContextUpdated, true);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(item?.writeSummary ?? {}, "reviewFlagsUpdated"),
+        false,
+      );
       assert.equal(item?.contextAvailable, true);
       assert.equal(item?.contextWouldWrite, true);
       assert.equal(item?.metaplexAttempted, true);
