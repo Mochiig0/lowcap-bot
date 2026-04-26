@@ -7,6 +7,7 @@ import {
   runGeckoTokenWriteCommandWithExecFile,
   runGeckoTokenWriteCommandWithNodeExecFile,
   runGeckoTokenWriteCommandWithRunner,
+  toGeckoCatchupTokenWriteExecutionResult,
   type GeckoTokenWriteCommandPlan,
   type GeckoTokenWriteCommandRunner,
   type GeckoTokenWriteExecFile,
@@ -96,6 +97,16 @@ function buildTokenWriteOutput(overrides: {
       },
     ],
   });
+}
+
+function assertNoRawRunnerDiagnostics(output: object): void {
+  assert.equal("stdout" in output, false);
+  assert.equal("stderr" in output, false);
+  assert.equal("parsedOutput" in output, false);
+  assert.equal("args" in output, false);
+  assert.equal("env" in output, false);
+  assert.equal("cwd" in output, false);
+  assert.equal("command" in output, false);
 }
 
 test("parses successful token write command stdout as primary result", () => {
@@ -311,6 +322,138 @@ test("normalizes non-zero execFile-like adapter output through the parser", asyn
   assert.equal(result.stderr, "token write command failed");
   assert.equal(result.parseError, "stdout was empty");
   assert.equal(result.writeSummary, null);
+});
+
+test("maps runner input and result to sanitized token write execution result", () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+  });
+  const result = parseGeckoTokenWriteCommandResult({
+    exitCode: 0,
+    stdout: buildTokenWriteOutput(),
+    stderr:
+      "[token:enrich-rescore:geckoterminal] mode=single selected=1 notifySent=0 rateLimited=false",
+  });
+
+  const executionResult = toGeckoCatchupTokenWriteExecutionResult(input, result);
+
+  assert.deepEqual(executionResult, {
+    mint: "RunnerInput111111111111111111111111111111111pump",
+    cycle: 1,
+    orderInCycle: 1,
+    status: "ok",
+    exitCode: 0,
+    rateLimited: false,
+    abortedDueToRateLimit: false,
+    skippedAfterRateLimit: 0,
+    writeSummary: {
+      enrichUpdated: true,
+      rescoreUpdated: true,
+      contextUpdated: true,
+      metaplexContextUpdated: true,
+    },
+    notifySent: false,
+    itemError: null,
+    metaplexErrorKind: null,
+    parseError: null,
+  });
+  assertNoRawRunnerDiagnostics(executionResult);
+});
+
+test("maps cli error runner result without leaking diagnostics", () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+  });
+  const result = parseGeckoTokenWriteCommandResult({
+    exitCode: 1,
+    stdout: "",
+    stderr: "token write command failed",
+  });
+
+  const executionResult = toGeckoCatchupTokenWriteExecutionResult(input, result);
+
+  assert.deepEqual(executionResult, {
+    mint: "RunnerInput111111111111111111111111111111111pump",
+    cycle: 1,
+    orderInCycle: 1,
+    status: "cli_error",
+    exitCode: 1,
+    rateLimited: false,
+    abortedDueToRateLimit: false,
+    skippedAfterRateLimit: 0,
+    writeSummary: null,
+    notifySent: false,
+    itemError: null,
+    metaplexErrorKind: null,
+    parseError: "stdout was empty",
+  });
+  assertNoRawRunnerDiagnostics(executionResult);
+});
+
+test("maps parse error runner result without leaking diagnostics", () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+  });
+  const result = parseGeckoTokenWriteCommandResult({
+    exitCode: 0,
+    stdout: "{not json",
+    stderr: "malformed stdout diagnostics",
+  });
+
+  const executionResult = toGeckoCatchupTokenWriteExecutionResult(input, result);
+
+  assert.equal(executionResult.status, "parse_error");
+  assert.equal(executionResult.exitCode, 0);
+  assert.match(executionResult.parseError ?? "", /stdout JSON parse failed/);
+  assert.equal(executionResult.writeSummary, null);
+  assert.equal(executionResult.notifySent, false);
+  assert.equal(executionResult.itemError, null);
+  assert.equal(executionResult.metaplexErrorKind, null);
+  assertNoRawRunnerDiagnostics(executionResult);
+});
+
+test("maps rate-limited runner result fields", () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+  });
+  const result = parseGeckoTokenWriteCommandResult({
+    exitCode: 0,
+    stdout: buildTokenWriteOutput({
+      summary: {
+        rateLimited: true,
+        rateLimitedCount: 1,
+        abortedDueToRateLimit: true,
+        skippedAfterRateLimit: 2,
+      },
+      item: {
+        status: "error",
+        error: "GeckoTerminal rate limited",
+      },
+    }),
+    stderr:
+      "[token:enrich-rescore:geckoterminal] rateLimited=true abortedDueToRateLimit=true",
+  });
+
+  const executionResult = toGeckoCatchupTokenWriteExecutionResult(input, result);
+
+  assert.equal(executionResult.status, "ok");
+  assert.equal(executionResult.rateLimited, true);
+  assert.equal(executionResult.abortedDueToRateLimit, true);
+  assert.equal(executionResult.skippedAfterRateLimit, 2);
+  assert.equal(executionResult.itemError, "GeckoTerminal rate limited");
+  assertNoRawRunnerDiagnostics(executionResult);
 });
 
 test("keeps item error details from parsed stdout without stderr parsing", () => {

@@ -60,6 +60,22 @@ export type GeckoTokenWriteCommandResult = {
   metaplexErrorKind: string | null;
 };
 
+export type GeckoCatchupTokenWriteExecutionResult = {
+  mint: string;
+  cycle: number;
+  orderInCycle: number;
+  status: GeckoTokenWriteCommandStatus;
+  exitCode: number | null;
+  rateLimited: boolean;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
+  writeSummary: GeckoTokenWriteCommandWriteSummary | null;
+  notifySent: boolean;
+  itemError: string | null;
+  metaplexErrorKind: string | null;
+  parseError: string | null;
+};
+
 export type GeckoTokenWriteCommandRunner = (
   input: GeckoTokenWriteRunnerInput,
 ) => Promise<GeckoTokenWriteCommandResult>;
@@ -215,6 +231,27 @@ export async function runGeckoTokenWriteCommandWithNodeExecFile(
   input: GeckoTokenWriteRunnerInput,
 ): Promise<GeckoTokenWriteCommandResult> {
   return runGeckoTokenWriteCommandWithExecFile(nodeExecFileAdapter, input);
+}
+
+export function toGeckoCatchupTokenWriteExecutionResult(
+  input: GeckoTokenWriteRunnerInput,
+  result: GeckoTokenWriteCommandResult,
+): GeckoCatchupTokenWriteExecutionResult {
+  return {
+    mint: input.mint,
+    cycle: input.cycle,
+    orderInCycle: input.orderInCycle,
+    status: result.status,
+    exitCode: result.exitCode,
+    rateLimited: result.rateLimited,
+    abortedDueToRateLimit: result.abortedDueToRateLimit,
+    skippedAfterRateLimit: result.skippedAfterRateLimit,
+    writeSummary: result.writeSummary,
+    notifySent: result.notifySent,
+    itemError: result.itemError,
+    metaplexErrorKind: result.metaplexErrorKind,
+    parseError: result.parseError,
+  };
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
