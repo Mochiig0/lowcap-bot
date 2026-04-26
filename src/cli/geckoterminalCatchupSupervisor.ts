@@ -3,6 +3,7 @@ import "dotenv/config";
 import { pathToFileURL } from "node:url";
 
 import { db } from "./db.js";
+import type { GeckoTokenWriteCommandRunner } from "./geckoterminalCatchupTokenWriteRunner.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const DEFAULT_LIMIT = 2;
@@ -19,6 +20,10 @@ export type Args = {
   cooldownSeconds: number | null;
   stopOnNotifyCandidate: boolean;
   stopOnRateLimit: boolean;
+};
+
+export type GeckoCatchupSupervisorDeps = {
+  tokenWriteRunner?: GeckoTokenWriteCommandRunner;
 };
 
 type JsonObject = Record<string, unknown>;
