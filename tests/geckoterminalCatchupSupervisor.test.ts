@@ -22,6 +22,15 @@ type CatchupSupervisorModule = typeof import("../src/cli/geckoterminalCatchupSup
 let catchupSupervisorModule: CatchupSupervisorModule | null = null;
 let previousDatabaseUrlForLoadedSupervisor: string | undefined;
 
+type SyntheticWriteCommandPlan = {
+  executionSupported: boolean;
+  executionEligible: boolean;
+  blockedBy: string[];
+  notify: boolean;
+  metricAppend: boolean;
+  postCheck: boolean;
+};
+
 type CommandSuccess = {
   ok: true;
   stdout: string;
@@ -231,6 +240,11 @@ async function disconnectLoadedCatchupSupervisorDb(): Promise<void> {
   } else {
     process.env.DATABASE_URL = previousDatabaseUrlForLoadedSupervisor;
   }
+}
+
+function getLoadedCatchupSupervisorModule(): CatchupSupervisorModule {
+  assert.ok(catchupSupervisorModule, "catchup supervisor module must be loaded by an earlier fixture");
+  return catchupSupervisorModule;
 }
 
 function shellEscape(value: string): string {
@@ -906,8 +920,65 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     });
   });
 
+  await t.test("evaluates token write runner guard synthetic cases", async () => {
+    const supervisor = getLoadedCatchupSupervisorModule();
+    const runnerCalls: unknown[] = [];
+    const tokenWriteRunner: GeckoTokenWriteCommandRunner = async (input) => {
+      runnerCalls.push(input);
+      throw new Error("synthetic guard test must not call tokenWriteRunner");
+    };
+    const readyPlan: SyntheticWriteCommandPlan = {
+      executionSupported: true,
+      executionEligible: true,
+      blockedBy: [],
+      notify: false,
+      metricAppend: false,
+      postCheck: true,
+    };
+
+    assert.equal(
+      supervisor.shouldRunGeckoTokenWriteRunner([readyPlan], {
+        tokenWriteRunner,
+      }),
+      true,
+    );
+    assert.equal(supervisor.shouldRunGeckoTokenWriteRunner([readyPlan]), false);
+    assert.equal(
+      supervisor.shouldRunGeckoTokenWriteRunner([], {
+        tokenWriteRunner,
+      }),
+      false,
+    );
+    assert.equal(
+      supervisor.shouldRunGeckoTokenWriteRunner([readyPlan, readyPlan], {
+        tokenWriteRunner,
+      }),
+      false,
+    );
+
+    const falseCases: Array<[string, SyntheticWriteCommandPlan]> = [
+      ["executionSupported=false", { ...readyPlan, executionSupported: false }],
+      ["executionEligible=false", { ...readyPlan, executionEligible: false }],
+      ["blockedBy present", { ...readyPlan, blockedBy: ["write_gate_still_disabled"] }],
+      ["notify=true", { ...readyPlan, notify: true }],
+      ["metricAppend=true", { ...readyPlan, metricAppend: true }],
+      ["postCheck=false", { ...readyPlan, postCheck: false }],
+    ];
+
+    for (const [label, plan] of falseCases) {
+      assert.equal(
+        supervisor.shouldRunGeckoTokenWriteRunner([plan], {
+          tokenWriteRunner,
+        }),
+        false,
+        label,
+      );
+    }
+    assert.equal(runnerCalls.length, 0);
+  });
+
   await t.test("imports planner helpers without running the CLI entrypoint", async () => {
-    const supervisor = await loadCatchupSupervisorModule("file:unused-import-safe.db");
+    const supervisor = getLoadedCatchupSupervisorModule();
     const args = supervisor.parseGeckoCatchupSupervisorArgs(["--pumpOnly", "--limit", "1"]);
 
     assert.equal(args.pumpOnly, true);
