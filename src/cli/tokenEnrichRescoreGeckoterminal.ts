@@ -1916,6 +1916,7 @@ function applyDryRunAdapterNotifyPreviewFields(input: {
     return;
   }
 
+  input.item.notifyCandidate = input.adapterItem.notifyCandidate;
   input.item.notifyEligibleBefore = input.adapterItem.notifyEligibleBefore;
   input.item.notifyEligibleAfter = input.adapterItem.notifyEligibleAfter;
   input.item.notifyWouldSend = input.adapterItem.notifyWouldSend;
@@ -2033,6 +2034,12 @@ function assertDryRunHelperShadowParity(input: {
     "rescorePreview.hardRejected",
     adapterItem.rescorePreview?.hardRejected,
     input.item.rescorePreview?.hardRejected,
+  );
+  assertShadowFieldEqual(
+    mismatches,
+    "notifyCandidate",
+    adapterItem.notifyCandidate,
+    input.item.notifyCandidate,
   );
   assertShadowFieldEqual(
     mismatches,

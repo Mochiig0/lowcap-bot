@@ -866,6 +866,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         adapterItem.rescorePreview?.hardRejected,
         cliItem.rescorePreview?.hardRejected,
       );
+      assert.equal(adapterItem.notifyCandidate, cliItem.notifyCandidate);
       assert.equal(
         adapterItem.notifyEligibleBefore,
         cliItem.notifyEligibleBefore,
@@ -1045,6 +1046,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         adapterItem.rescorePreview?.hardRejected,
         cliItem.rescorePreview?.hardRejected,
       );
+      assert.equal(adapterItem.notifyCandidate, cliItem.notifyCandidate);
       assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
       assert.equal(adapterItem.notifySent, cliItem.notifySent);
       assert.equal(adapterItem.writeSummary.dryRun, cliItem.writeSummary.dryRun);
@@ -1220,6 +1222,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         adapterItem.rescorePreview?.hardRejected,
         cliItem.rescorePreview?.hardRejected,
       );
+      assert.equal(adapterItem.notifyCandidate, cliItem.notifyCandidate);
       assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
       assert.equal(adapterItem.notifySent, cliItem.notifySent);
       assert.equal(adapterItem.writeSummary.dryRun, cliItem.writeSummary.dryRun);
@@ -1353,6 +1356,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(adapterItem.metaplexErrorKind, cliItem.metaplexErrorKind);
       assert.equal(adapterItem.enrichPlan, undefined);
       assert.equal(adapterItem.rescorePreview, undefined);
+      assert.equal(adapterItem.notifyCandidate, cliItem.notifyCandidate);
       assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
       assert.equal(adapterItem.notifySent, cliItem.notifySent);
       assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
@@ -1479,6 +1483,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(adapterItem.metaplexErrorKind, cliItem.metaplexErrorKind);
       assert.equal(adapterItem.enrichPlan, undefined);
       assert.equal(adapterItem.rescorePreview, undefined);
+      assert.equal(adapterItem.notifyCandidate, cliItem.notifyCandidate);
       assert.equal(adapterItem.notifyWouldSend, cliItem.notifyWouldSend);
       assert.equal(adapterItem.notifySent, cliItem.notifySent);
       assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
