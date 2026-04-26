@@ -21,6 +21,7 @@ import {
   toGeckoTokenEnrichRescoreCliItem,
   type GeckoTokenEnrichRescoreCliItem,
   type GeckoTokenEnrichRescoreCliToken,
+  type GeckoTokenWriteDeps,
   type GeckoTokenWriteExistingToken,
 } from "./geckoterminalTokenWriteShared.js";
 import { buildScoreNotifyMessage, notifyTelegram } from "../notify/telegram.js";
@@ -1782,6 +1783,16 @@ function buildHelperExistingToken(token: SelectedToken): GeckoTokenWriteExisting
     hardRejected: token.hardRejected,
     entrySnapshot: token.entrySnapshot,
     reviewFlagsJson: token.reviewFlagsJson,
+  };
+}
+
+function buildGeckoTokenWriteCliDeps(): Pick<
+  GeckoTokenWriteDeps,
+  "writeEnrich" | "writeRescore"
+> {
+  return {
+    writeEnrich: enrichTokenByMint,
+    writeRescore: rescoreTokenByMint,
   };
 }
 
