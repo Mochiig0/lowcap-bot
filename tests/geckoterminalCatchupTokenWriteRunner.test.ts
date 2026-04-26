@@ -1,7 +1,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parseGeckoTokenWriteCommandResult } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
+import {
+  buildGeckoTokenWriteRunnerInput,
+  parseGeckoTokenWriteCommandResult,
+  type GeckoTokenWriteCommandPlan,
+} from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
+
+function buildCommandPlan(overrides: Partial<GeckoTokenWriteCommandPlan> = {}): GeckoTokenWriteCommandPlan {
+  return {
+    command: "pnpm",
+    script: "token:enrich-rescore:geckoterminal",
+    args: [
+      "token:enrich-rescore:geckoterminal",
+      "--",
+      "--mint",
+      "RunnerInput111111111111111111111111111111111pump",
+      "--write",
+    ],
+    mint: "RunnerInput111111111111111111111111111111111pump",
+    cycle: 1,
+    orderInCycle: 1,
+    notify: false,
+    metricAppend: false,
+    postCheck: true,
+    ...overrides,
+  };
+}
 
 function buildTokenWriteOutput(overrides: {
   summary?: Record<string, unknown>;
@@ -90,6 +115,85 @@ test("parses successful token write command stdout as primary result", () => {
   assert.equal(parsed.skippedAfterRateLimit, 0);
   assert.equal(parsed.itemError, null);
   assert.equal(parsed.stderr.includes("mode=single"), true);
+});
+
+test("builds token-only runner input from write command plan", () => {
+  const plan = buildCommandPlan();
+  const input = buildGeckoTokenWriteRunnerInput(plan, {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+      EMPTY_VALUE: "",
+      OMITTED_VALUE: undefined,
+    },
+    timeoutMs: 10_000,
+  });
+
+  assert.deepEqual(input, {
+    command: "pnpm",
+    args: [
+      "token:enrich-rescore:geckoterminal",
+      "--",
+      "--mint",
+      "RunnerInput111111111111111111111111111111111pump",
+      "--write",
+    ],
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+      EMPTY_VALUE: "",
+    },
+    timeoutMs: 10_000,
+    mint: "RunnerInput111111111111111111111111111111111pump",
+    cycle: 1,
+    orderInCycle: 1,
+    notify: false,
+    metricAppend: false,
+    postCheck: true,
+  });
+  assert.notEqual(input.args, plan.args);
+});
+
+test("uses a default timeout for token write runner input", () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+  });
+
+  assert.equal(input.timeoutMs, 60_000);
+  assert.deepEqual(input.env, {});
+});
+
+test("rejects notify command plans before runner execution exists", () => {
+  assert.throws(
+    () =>
+      buildGeckoTokenWriteRunnerInput(
+        buildCommandPlan({
+          args: [
+            "token:enrich-rescore:geckoterminal",
+            "--",
+            "--mint",
+            "RunnerInput111111111111111111111111111111111pump",
+            "--write",
+            "--notify",
+          ],
+        }),
+        { cwd: "/repo" },
+      ),
+    /does not support notify/,
+  );
+});
+
+test("rejects metric append command plans before runner execution exists", () => {
+  assert.throws(
+    () =>
+      buildGeckoTokenWriteRunnerInput(
+        buildCommandPlan({
+          args: ["metric:add", "--mint", "RunnerInput111111111111111111111111111111111pump"],
+        }),
+        { cwd: "/repo" },
+      ),
+    /does not support metric append/,
+  );
 });
 
 test("keeps item error details from parsed stdout without stderr parsing", () => {

@@ -1,5 +1,31 @@
 type JsonObject = Record<string, unknown>;
 
+export type GeckoTokenWriteCommandPlan = {
+  command: "pnpm";
+  script: "token:enrich-rescore:geckoterminal";
+  args: string[];
+  mint: string;
+  cycle: number;
+  orderInCycle: number;
+  notify: false;
+  metricAppend: false;
+  postCheck: true;
+};
+
+export type GeckoTokenWriteRunnerInput = {
+  command: "pnpm";
+  args: string[];
+  cwd: string;
+  env: Record<string, string>;
+  timeoutMs: number;
+  mint: string;
+  cycle: number;
+  orderInCycle: number;
+  notify: false;
+  metricAppend: false;
+  postCheck: true;
+};
+
 export type GeckoTokenWriteCommandStatus = "ok" | "cli_error" | "parse_error";
 
 export type GeckoTokenWriteCommandWriteSummary = {
@@ -35,6 +61,66 @@ type TokenWriteCommandRawResult = {
   stdout: string;
   stderr: string;
 };
+
+type BuildGeckoTokenWriteRunnerInputOptions = {
+  cwd: string;
+  env?: Record<string, string | undefined>;
+  timeoutMs?: number;
+};
+
+function normalizeEnv(env: Record<string, string | undefined> | undefined): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  if (!env) {
+    return normalized;
+  }
+
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === "string") {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
+}
+
+function assertTokenOnlyWriteCommandPlan(plan: GeckoTokenWriteCommandPlan): void {
+  if (plan.command !== "pnpm") {
+    throw new Error(`Unsupported token write command: ${plan.command}`);
+  }
+  if (plan.script !== "token:enrich-rescore:geckoterminal") {
+    throw new Error(`Unsupported token write script: ${plan.script}`);
+  }
+  if (plan.notify !== false || plan.args.includes("--notify")) {
+    throw new Error("Token write runner input does not support notify");
+  }
+  if (plan.metricAppend !== false || plan.args.some((arg) => arg.includes("metric"))) {
+    throw new Error("Token write runner input does not support metric append");
+  }
+  if (plan.postCheck !== true) {
+    throw new Error("Token write runner input requires postCheck=true");
+  }
+}
+
+export function buildGeckoTokenWriteRunnerInput(
+  plan: GeckoTokenWriteCommandPlan,
+  options: BuildGeckoTokenWriteRunnerInputOptions,
+): GeckoTokenWriteRunnerInput {
+  assertTokenOnlyWriteCommandPlan(plan);
+
+  return {
+    command: plan.command,
+    args: [...plan.args],
+    cwd: options.cwd,
+    env: normalizeEnv(options.env),
+    timeoutMs: options.timeoutMs ?? 60_000,
+    mint: plan.mint,
+    cycle: plan.cycle,
+    orderInCycle: plan.orderInCycle,
+    notify: false,
+    metricAppend: false,
+    postCheck: true,
+  };
+}
 
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
