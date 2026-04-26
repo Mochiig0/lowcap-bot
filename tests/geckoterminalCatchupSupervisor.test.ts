@@ -983,6 +983,95 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(runnerCalls.length, 0);
   });
 
+  await t.test("validates initial write mode synthetic cases before parser reject is relaxed", async () => {
+    const supervisor = getLoadedCatchupSupervisorModule();
+    const baseInput = {
+      writeRequested: true,
+      limit: 1,
+      maxCycles: 1,
+      selectedCandidates: [{}],
+      safetyChecks: [
+        {
+          name: "dry_run_only",
+          status: "pass" as const,
+        },
+      ],
+      writeCommandPlan: [
+        {
+          notify: false,
+          metricAppend: false,
+          postCheck: true,
+        },
+      ],
+    };
+
+    assert.deepEqual(
+      supervisor.validateGeckoCatchupInitialWriteMode(baseInput),
+      {
+        valid: true,
+        blockedBy: [],
+      },
+    );
+    assert.deepEqual(
+      supervisor.validateGeckoCatchupInitialWriteMode({
+        ...baseInput,
+        writeRequested: false,
+        limit: 2,
+        maxCycles: 2,
+        selectedCandidates: [{}, {}],
+        safetyChecks: [
+          {
+            name: "stop_on_rate_limit",
+            status: "warn",
+          },
+          {
+            name: "hard_rejected_candidates",
+            status: "fail",
+          },
+        ],
+        writeCommandPlan: [
+          {
+            notify: true,
+            metricAppend: true,
+            postCheck: false,
+          },
+        ],
+      }),
+      {
+        valid: false,
+        blockedBy: [
+          "write_not_requested",
+          "limit_not_one",
+          "max_cycles_not_one",
+          "selected_count_not_one",
+          "stop_on_rate_limit",
+          "hard_rejected_candidates",
+          "notify_not_supported",
+          "metric_append_not_supported",
+          "post_check_required",
+        ],
+      },
+    );
+
+    const writeCommandPlanCountCases = [
+      [],
+      [baseInput.writeCommandPlan[0], baseInput.writeCommandPlan[0]],
+    ];
+
+    for (const writeCommandPlan of writeCommandPlanCountCases) {
+      assert.deepEqual(
+        supervisor.validateGeckoCatchupInitialWriteMode({
+          ...baseInput,
+          writeCommandPlan,
+        }),
+        {
+          valid: false,
+          blockedBy: ["write_command_plan_count_not_one"],
+        },
+      );
+    }
+  });
+
   await t.test("imports planner helpers without running the CLI entrypoint", async () => {
     const supervisor = getLoadedCatchupSupervisorModule();
     const args = supervisor.parseGeckoCatchupSupervisorArgs(["--pumpOnly", "--limit", "1"]);

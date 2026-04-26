@@ -234,6 +234,31 @@ type WriteModeReadiness = {
   nextImplementationStep: "review_supervisor_write_gate";
 };
 
+export type GeckoCatchupInitialWriteModeValidationSafetyCheck = {
+  name: string;
+  status: "pass" | "warn" | "fail";
+};
+
+export type GeckoCatchupInitialWriteModeValidationCommandPlan = {
+  notify: boolean;
+  metricAppend: boolean;
+  postCheck: boolean;
+};
+
+export type GeckoCatchupInitialWriteModeValidationInput = {
+  writeRequested: boolean;
+  limit: number;
+  maxCycles: number;
+  selectedCandidates: readonly unknown[];
+  safetyChecks: readonly GeckoCatchupInitialWriteModeValidationSafetyCheck[];
+  writeCommandPlan: readonly GeckoCatchupInitialWriteModeValidationCommandPlan[];
+};
+
+export type GeckoCatchupInitialWriteModeValidationResult = {
+  valid: boolean;
+  blockedBy: string[];
+};
+
 export type GeckoCatchupSupervisorOutput = {
   readOnly: true;
   dryRun: true;
@@ -745,6 +770,35 @@ function buildWriteCommandPlanBlockedBy(
     ...initialWriteConditionBlocks,
     ...blockingSafetyChecks,
   ];
+}
+
+export function validateGeckoCatchupInitialWriteMode(
+  input: GeckoCatchupInitialWriteModeValidationInput,
+): GeckoCatchupInitialWriteModeValidationResult {
+  const blockedBy = [
+    ...(input.writeRequested ? [] : ["write_not_requested"]),
+    ...(input.limit === 1 ? [] : ["limit_not_one"]),
+    ...(input.maxCycles === 1 ? [] : ["max_cycles_not_one"]),
+    ...(input.selectedCandidates.length === 1 ? [] : ["selected_count_not_one"]),
+    ...(input.writeCommandPlan.length === 1 ? [] : ["write_command_plan_count_not_one"]),
+    ...input.safetyChecks
+      .filter((check) => check.status === "fail" || check.status === "warn")
+      .map((check) => check.name),
+  ];
+
+  if (input.writeCommandPlan.length === 1) {
+    const [plan] = input.writeCommandPlan;
+    blockedBy.push(
+      ...(plan.notify === false ? [] : ["notify_not_supported"]),
+      ...(plan.metricAppend === false ? [] : ["metric_append_not_supported"]),
+      ...(plan.postCheck === true ? [] : ["post_check_required"]),
+    );
+  }
+
+  return {
+    valid: blockedBy.length === 0,
+    blockedBy,
+  };
 }
 
 function buildWritePlan(
