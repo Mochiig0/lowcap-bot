@@ -251,6 +251,32 @@ function safetyStatus(output: CatchupSupervisorOutput, name: string): SafetyChec
   return check.status;
 }
 
+function assertReadOnlyWritePlan(output: CatchupSupervisorOutput): void {
+  assert.equal(output.readOnly, true);
+  assert.equal(output.dryRun, true);
+  assert.equal(output.writeEnabled, false);
+  assert.equal(output.writePlan.enabled, false);
+  assert.equal(output.writePlan.writeModeSupported, false);
+  assert.deepEqual(output.writePlan.recommendedInitialWriteArgs, {
+    limit: 1,
+    maxCycles: 1,
+    postCheck: true,
+    requireMetricAppend: true,
+  });
+  assert.equal(output.writePlan.requiresCaptureOnly, true);
+  assert.deepEqual(output.writePlan.postCheckPlan, {
+    enabled: true,
+    requireMetricPendingMatchesIncomplete: true,
+    requireSelectedLatestMetricPresent: true,
+  });
+  assert.deepEqual(output.writePlan.recoveryHints, {
+    metricOnlyAppendCandidates: [],
+    cooldownRecommended: true,
+    resumeWithLimit: 1,
+    resumeWithMaxCycles: 1,
+  });
+}
+
 async function seedCompletedBacklog(databaseUrl: string): Promise<void> {
   const db = new PrismaClient({
     datasources: {
@@ -753,9 +779,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assert.equal(parsed.readOnly, true);
-      assert.equal(parsed.dryRun, true);
-      assert.equal(parsed.writeEnabled, false);
+      assertReadOnlyWritePlan(parsed);
       assert.equal(parsed.currentCounts.pumpTotal, 1);
       assert.equal(parsed.currentCounts.pumpComplete, 1);
       assert.equal(parsed.currentCounts.pumpIncomplete, 0);
@@ -775,28 +799,9 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         warningSafetyChecks: [],
         nextRecommendedAction: "no_action",
       });
-      assert.equal(parsed.writePlan.enabled, false);
-      assert.equal(parsed.writePlan.writeModeSupported, false);
-      assert.deepEqual(parsed.writePlan.recommendedInitialWriteArgs, {
-        limit: 1,
-        maxCycles: 1,
-        postCheck: true,
-        requireMetricAppend: true,
-      });
       assert.deepEqual(parsed.writePlan.wouldWriteTokens, []);
       assert.deepEqual(parsed.writePlan.wouldAppendMetrics, []);
-      assert.equal(parsed.writePlan.requiresCaptureOnly, true);
-      assert.deepEqual(parsed.writePlan.postCheckPlan, {
-        enabled: true,
-        requireMetricPendingMatchesIncomplete: true,
-        requireSelectedLatestMetricPresent: true,
-      });
-      assert.deepEqual(parsed.writePlan.recoveryHints, {
-        metricOnlyAppendCandidates: [],
-        cooldownRecommended: true,
-        resumeWithLimit: 1,
-        resumeWithMaxCycles: 1,
-      });
+      // Current production readiness text is intentionally fixed until the next write-gate phase.
       assert.deepEqual(parsed.writeModeReadiness, {
         readyForImplementation: false,
         blockingReasons: [
@@ -882,9 +887,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assert.equal(parsed.readOnly, true);
-      assert.equal(parsed.dryRun, true);
-      assert.equal(parsed.writeEnabled, false);
+      assertReadOnlyWritePlan(parsed);
       assert.equal(parsed.selection.pumpOnly, true);
       assert.equal(parsed.selection.limit, 2);
       assert.equal(parsed.selection.maxCycles, 2);
@@ -922,8 +925,6 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         parsed.writePlan.wouldAppendMetrics.map((item) => [item.cycle, item.mint]),
         seeded.expectedSelectedMints.map((mint, index) => [index < 2 ? 1 : 2, mint]),
       );
-      assert.equal(parsed.writePlan.enabled, false);
-      assert.equal(parsed.writePlan.writeModeSupported, false);
       assert.deepEqual(parsed.writePlan.recoveryHints.metricOnlyAppendCandidates, []);
       assert.deepEqual(
         parsed.selectedCandidates.map((candidate) => candidate.mint),
@@ -1131,10 +1132,22 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
   });
 
   await t.test("rejects write mode explicitly", async () => {
-    const result = await runCatchupSupervisor(["--write"]);
+    const writeArgCases = [
+      ["--write"],
+      ["--write", "--limit", "1"],
+      ["--write", "--maxCycles", "1"],
+      ["--write", "--limit", "1", "--maxCycles", "1"],
+      ["--write", "--pumpOnly", "--limit", "1", "--maxCycles", "1"],
+      ["--limit", "1", "--maxCycles", "1", "--write"],
+    ];
 
-    assert.equal(result.ok, false);
-    assert.equal(result.code, 1);
-    assert.match(result.stderr, /--write is not supported for ops:catchup:gecko yet/);
+    for (const args of writeArgCases) {
+      const result = await runCatchupSupervisor(args);
+
+      assert.equal(result.ok, false, `expected failure for args: ${args.join(" ")}`);
+      assert.equal(result.code, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /--write is not supported for ops:catchup:gecko yet/);
+    }
   });
 });
