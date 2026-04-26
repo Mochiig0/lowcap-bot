@@ -90,10 +90,10 @@ type CatchupSupervisorOutput = {
   writeModeReadiness: {
     readyForImplementation: false;
     blockingReasons: [
-      "token_write_helper_not_extracted",
       "metric_append_helper_not_extracted",
+      "write_gate_still_disabled",
     ];
-    nextImplementationStep: "extract_token_write_helper";
+    nextImplementationStep: "review_supervisor_write_gate";
   };
   currentCounts: {
     pumpTotal: number;
@@ -801,14 +801,13 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       });
       assert.deepEqual(parsed.writePlan.wouldWriteTokens, []);
       assert.deepEqual(parsed.writePlan.wouldAppendMetrics, []);
-      // Current production readiness text is intentionally fixed until the next write-gate phase.
       assert.deepEqual(parsed.writeModeReadiness, {
         readyForImplementation: false,
         blockingReasons: [
-          "token_write_helper_not_extracted",
           "metric_append_helper_not_extracted",
+          "write_gate_still_disabled",
         ],
-        nextImplementationStep: "extract_token_write_helper",
+        nextImplementationStep: "review_supervisor_write_gate",
       });
       assert.equal(parsed.stopReason, "no_pending_tokens");
       assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");

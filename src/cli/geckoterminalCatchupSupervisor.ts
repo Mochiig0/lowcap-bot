@@ -162,10 +162,10 @@ type WritePlan = {
 type WriteModeReadiness = {
   readyForImplementation: false;
   blockingReasons: [
-    "token_write_helper_not_extracted",
     "metric_append_helper_not_extracted",
+    "write_gate_still_disabled",
   ];
-  nextImplementationStep: "extract_token_write_helper";
+  nextImplementationStep: "review_supervisor_write_gate";
 };
 
 class CliUsageError extends Error {}
@@ -702,10 +702,10 @@ function buildWriteModeReadiness(): WriteModeReadiness {
   return {
     readyForImplementation: false,
     blockingReasons: [
-      "token_write_helper_not_extracted",
       "metric_append_helper_not_extracted",
+      "write_gate_still_disabled",
     ],
-    nextImplementationStep: "extract_token_write_helper",
+    nextImplementationStep: "review_supervisor_write_gate",
   };
 }
 
