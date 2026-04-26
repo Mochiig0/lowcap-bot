@@ -626,10 +626,20 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         metaplexFixtureFile,
         JSON.stringify(
           {
-            status: "error",
-            kind: "rpc_http_error",
-            rateLimited: false,
-            message: "metaplex fixture error",
+            onchain: {
+              mint,
+              uri: "https://metadata.example/helper-write.json",
+              metadataPda: "helper-write-metaplex-pda",
+            },
+            offchain: {
+              description: "helper write metaplex description",
+              external_url: "https://example.com/helper-write-metaplex",
+            },
+            detail: {
+              metadataPda: "helper-write-metaplex-pda",
+              uri: "https://metadata.example/helper-write.json",
+              hasOffchain: true,
+            },
           },
           null,
           2,
@@ -655,7 +665,8 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.enrichWriteCount, 1);
       assert.equal(parsed.summary.rescoreWriteCount, 1);
       assert.equal(parsed.summary.contextWriteCount, 1);
-      assert.equal(parsed.summary.metaplexWriteCount, 0);
+      assert.equal(parsed.summary.metaplexWriteCount, 1);
+      assert.equal(parsed.summary.metaplexSavedCount, 1);
       assert.equal(parsed.summary.notifySentCount, 0);
       assert.equal(parsed.summary.rateLimited, false);
 
@@ -665,12 +676,12 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(item?.writeSummary.enrichUpdated, true);
       assert.equal(item?.writeSummary.rescoreUpdated, true);
       assert.equal(item?.writeSummary.contextUpdated, true);
-      assert.equal(item?.writeSummary.metaplexContextUpdated, false);
+      assert.equal(item?.writeSummary.metaplexContextUpdated, true);
       assert.equal(item?.contextAvailable, true);
       assert.equal(item?.contextWouldWrite, true);
       assert.equal(item?.metaplexAttempted, true);
-      assert.equal(item?.metaplexAvailable, false);
-      assert.equal(item?.metaplexWouldWrite, false);
+      assert.equal(item?.metaplexAvailable, true);
+      assert.equal(item?.metaplexWouldWrite, true);
       assert.equal(item?.notifySent, false);
 
       const token = await readToken(databaseUrl, mint);
@@ -686,9 +697,9 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         hasWebsite: true,
         hasX: false,
         hasTelegram: false,
-        metaplexHit: false,
+        metaplexHit: true,
         descriptionPresent: true,
-        linkCount: 1,
+        linkCount: 2,
       });
 
       assert.ok(token?.entrySnapshot && typeof token.entrySnapshot === "object");
@@ -711,7 +722,28 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         contextCapture?.geckoterminalTokenSnapshot?.links?.website,
         "https://example.com/helper-write",
       );
-      assert.equal(contextCapture?.metaplexMetadataUri, undefined);
+      assert.deepEqual(
+        (contextCapture?.metaplexMetadataUri as {
+          availableFields?: unknown;
+        } | undefined)?.availableFields,
+        ["metadata.description", "links.website"],
+      );
+      assert.equal(
+        (contextCapture?.metaplexMetadataUri as {
+          metadataText?: {
+            description?: unknown;
+          };
+        } | undefined)?.metadataText?.description,
+        "helper write metaplex description",
+      );
+      assert.equal(
+        (contextCapture?.metaplexMetadataUri as {
+          links?: {
+            website?: unknown;
+          };
+        } | undefined)?.links?.website,
+        "https://example.com/helper-write-metaplex",
+      );
     });
   });
 
