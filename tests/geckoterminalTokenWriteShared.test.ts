@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  GECKO_TOKEN_WRITE_DEPS_MISSING_ERROR,
+  GECKO_TOKEN_WRITE_ENRICH_WRITE_ERROR,
   GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED,
+  GECKO_TOKEN_WRITE_RESCORE_WRITE_ERROR,
   GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR,
   buildUnsupportedGeckoTokenWriteResult,
   runGeckoTokenWriteForMint,
@@ -15,6 +18,39 @@ import {
   type GeckoTokenWriteResult,
   type GeckoTokenWriteStatus,
 } from "../src/cli/geckoterminalTokenWriteShared.ts";
+
+function buildExistingToken(
+  mint: string,
+  overrides: Partial<GeckoTokenWriteExistingToken> = {},
+): GeckoTokenWriteExistingToken {
+  return {
+    mint,
+    name: null,
+    symbol: null,
+    description: null,
+    source: "geckoterminal.new_pools",
+    metadataStatus: "mint_only",
+    importedAt: "2026-04-25T00:00:00.000Z",
+    enrichedAt: null,
+    scoreRank: "C",
+    scoreTotal: 0,
+    hardRejected: false,
+    ...overrides,
+  };
+}
+
+function buildGeckoSnapshot(mint: string): unknown {
+  return {
+    data: {
+      attributes: {
+        address: mint,
+        name: "Write Name",
+        symbol: "WRITE",
+        description: "write helper description",
+      },
+    },
+  };
+}
 
 test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
   await t.test("exposes the token write result shape without performing writes", () => {
@@ -332,6 +368,233 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     ]);
     assert.equal(result.reviewFlagsWouldWrite, true);
     assert.equal(result.enrichWritten, false);
+  });
+
+  await t.test("does not call write deps during dry-run", async () => {
+    const mint = "GeckoTokenWriteDryRunNoWriteDeps111111111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: string[] = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: false,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        writeEnrich: async () => {
+          calls.push("writeEnrich");
+        },
+        writeRescore: async () => {
+          calls.push("writeRescore");
+        },
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.deepEqual(calls, []);
+    assert.equal(result.enrichWritten, false);
+    assert.equal(result.rescoreWritten, false);
+    assert.equal(result.writeSummary.enrichWritten, false);
+    assert.equal(result.writeSummary.rescoreWritten, false);
+  });
+
+  await t.test("runs injected enrich and rescore writes when write is enabled", async () => {
+    const mint = "GeckoTokenWriteInjectedWrites111111111111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: Array<{ name: string; mint: string; patch?: unknown }> = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        writeEnrich: async (writeMint, patch) => {
+          calls.push({ name: "writeEnrich", mint: writeMint, patch });
+        },
+        writeRescore: async (writeMint) => {
+          calls.push({ name: "writeRescore", mint: writeMint });
+        },
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.deepEqual(calls, [
+      {
+        name: "writeEnrich",
+        mint,
+        patch: {
+          name: "Write Name",
+          symbol: "WRITE",
+        },
+      },
+      {
+        name: "writeRescore",
+        mint,
+      },
+    ]);
+    assert.equal(result.enrichWritten, true);
+    assert.equal(result.rescoreWritten, true);
+    assert.equal(result.contextWritten, false);
+    assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.writeSummary.enrichWritten, true);
+    assert.equal(result.writeSummary.rescoreWritten, true);
+    assert.equal(result.writeSummary.contextWritten, false);
+    assert.equal(result.writeSummary.metaplexContextWritten, false);
+    assert.equal(result.notifySent, false);
+    assert.equal(result.writeSummary.notifySent, false);
+  });
+
+  await t.test("returns a structured error when write deps are missing", async () => {
+    const mint = "GeckoTokenWriteMissingWriteDeps11111111111pump";
+    const existingToken = buildExistingToken(mint);
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+      },
+    );
+
+    assert.equal(result.status, "error");
+    assert.equal(result.error, GECKO_TOKEN_WRITE_DEPS_MISSING_ERROR);
+    assert.equal(result.enrichWritten, false);
+    assert.equal(result.rescoreWritten, false);
+    assert.equal(result.writeSummary.enrichWritten, false);
+    assert.equal(result.writeSummary.rescoreWritten, false);
+  });
+
+  await t.test("does not write after primary Gecko rate limits or invalid shapes", async () => {
+    const rateLimitedMint = "GeckoTokenWriteNoWriteRateLimit111111111pump";
+    const invalidShapeMint = "GeckoTokenWriteNoWriteShape1111111111pump";
+    const calls: string[] = [];
+    const deps: GeckoTokenWriteDeps = {
+      writeEnrich: async () => {
+        calls.push("writeEnrich");
+      },
+      writeRescore: async () => {
+        calls.push("writeRescore");
+      },
+    };
+
+    const rateLimitedResult = await runGeckoTokenWriteForMint(
+      {
+        mint: rateLimitedMint,
+        write: true,
+        existingToken: buildExistingToken(rateLimitedMint),
+      },
+      {
+        ...deps,
+        fetchTokenSnapshot: async () => {
+          throw new Error(
+            "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+          );
+        },
+      },
+    );
+    const invalidShapeResult = await runGeckoTokenWriteForMint(
+      {
+        mint: invalidShapeMint,
+        write: true,
+        existingToken: buildExistingToken(invalidShapeMint),
+      },
+      {
+        ...deps,
+        fetchTokenSnapshot: async () => ({
+          data: {
+            attributes: {
+              name: "Missing Address",
+              symbol: "MISS",
+            },
+          },
+        }),
+      },
+    );
+
+    assert.equal(rateLimitedResult.status, "rate_limited");
+    assert.equal(rateLimitedResult.rateLimited, true);
+    assert.equal(rateLimitedResult.rateLimitScope, "geckoterminal");
+    assert.equal(invalidShapeResult.status, "error");
+    assert.equal(invalidShapeResult.error, GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
+    assert.deepEqual(calls, []);
+  });
+
+  await t.test("does not rescore when injected enrich write fails", async () => {
+    const mint = "GeckoTokenWriteEnrichWriteFails111111111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: string[] = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        writeEnrich: async () => {
+          calls.push("writeEnrich");
+          throw new Error("injected enrich failure");
+        },
+        writeRescore: async () => {
+          calls.push("writeRescore");
+        },
+      },
+    );
+
+    assert.equal(result.status, "error");
+    assert.match(
+      result.error ?? "",
+      new RegExp(`${GECKO_TOKEN_WRITE_ENRICH_WRITE_ERROR}: injected enrich failure`),
+    );
+    assert.deepEqual(calls, ["writeEnrich"]);
+    assert.equal(result.enrichWritten, false);
+    assert.equal(result.rescoreWritten, false);
+    assert.equal(result.writeSummary.enrichWritten, false);
+    assert.equal(result.writeSummary.rescoreWritten, false);
+  });
+
+  await t.test("preserves enrich write state when injected rescore write fails", async () => {
+    const mint = "GeckoTokenWriteRescoreWriteFails11111111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: string[] = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        writeEnrich: async () => {
+          calls.push("writeEnrich");
+        },
+        writeRescore: async () => {
+          calls.push("writeRescore");
+          throw new Error("injected rescore failure");
+        },
+      },
+    );
+
+    assert.equal(result.status, "error");
+    assert.match(
+      result.error ?? "",
+      new RegExp(`${GECKO_TOKEN_WRITE_RESCORE_WRITE_ERROR}: injected rescore failure`),
+    );
+    assert.deepEqual(calls, ["writeEnrich", "writeRescore"]);
+    assert.equal(result.enrichWritten, true);
+    assert.equal(result.rescoreWritten, false);
+    assert.equal(result.writeSummary.enrichWritten, true);
+    assert.equal(result.writeSummary.rescoreWritten, false);
   });
 
   await t.test("returns a no-patch enrich preview without planning writes", async () => {

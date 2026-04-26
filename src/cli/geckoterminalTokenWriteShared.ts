@@ -8,11 +8,21 @@ export type GeckoTokenWriteRateLimitScope =
   | "metaplex"
   | null;
 
+export type GeckoTokenWriteEnrichPatch = {
+  name?: string;
+  symbol?: string;
+};
+
 export type GeckoTokenWriteDeps = {
   db?: unknown;
   now?: () => Date;
   fetchTokenSnapshot?: (mint: string) => Promise<unknown>;
   fetchMetaplexContext?: (mint: string) => Promise<unknown>;
+  writeEnrich?: (
+    mint: string,
+    patch: GeckoTokenWriteEnrichPatch,
+  ) => Promise<unknown>;
+  writeRescore?: (mint: string) => Promise<unknown>;
   logger?: Pick<Console, "error">;
 };
 
@@ -43,10 +53,7 @@ export type GeckoTokenWriteExistingToken = {
 export type GeckoTokenWriteEnrichPlan = {
   hasPatch: boolean;
   willUpdate: boolean;
-  patch: {
-    name?: string;
-    symbol?: string;
-  };
+  patch: GeckoTokenWriteEnrichPatch;
   preview: {
     metadataStatus: string;
     name: string | null;
@@ -209,6 +216,12 @@ export type GeckoTokenCliItemAdapterInput = {
 
 export const GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED =
   "not_implemented";
+export const GECKO_TOKEN_WRITE_DEPS_MISSING_ERROR =
+  "geckoterminal_token_write_deps_missing";
+export const GECKO_TOKEN_WRITE_ENRICH_WRITE_ERROR =
+  "geckoterminal_token_write_enrich_write_error";
+export const GECKO_TOKEN_WRITE_RESCORE_WRITE_ERROR =
+  "geckoterminal_token_write_rescore_write_error";
 export const GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR =
   "geckoterminal_snapshot_shape_error";
 
@@ -1218,6 +1231,11 @@ export function buildUnsupportedGeckoTokenWriteResult(
   };
 }
 
+function formatWriteError(prefix: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return `${prefix}: ${message}`;
+}
+
 export async function runGeckoTokenWriteForMint(
   input: GeckoTokenWriteInput,
   deps: GeckoTokenWriteDeps = {},
@@ -1271,7 +1289,7 @@ export async function runGeckoTokenWriteForMint(
         )
       : null;
 
-    return {
+    const result: GeckoTokenWriteResult = {
       ...baseResult,
       status: "ok",
       name: snapshot.name,
@@ -1303,6 +1321,71 @@ export async function runGeckoTokenWriteForMint(
           ? !notifyEligibleBefore && notifyEligibleAfter
           : false,
       error: undefined,
+    };
+
+    if (!input.write) {
+      return result;
+    }
+
+    if (!deps.writeEnrich || !deps.writeRescore) {
+      return {
+        ...result,
+        status: "error",
+        error: GECKO_TOKEN_WRITE_DEPS_MISSING_ERROR,
+      };
+    }
+
+    let enrichWritten = false;
+    if (enrichPlan?.willUpdate) {
+      try {
+        await deps.writeEnrich(input.mint, enrichPlan.patch);
+        enrichWritten = true;
+      } catch (error) {
+        return {
+          ...result,
+          status: "error",
+          enrichWritten: false,
+          rescoreWritten: false,
+          writeSummary: {
+            ...result.writeSummary,
+            enrichWritten: false,
+            rescoreWritten: false,
+          },
+          error: formatWriteError(GECKO_TOKEN_WRITE_ENRICH_WRITE_ERROR, error),
+        };
+      }
+    }
+
+    let rescoreWritten = false;
+    if (rescorePreview) {
+      try {
+        await deps.writeRescore(input.mint);
+        rescoreWritten = true;
+      } catch (error) {
+        return {
+          ...result,
+          status: "error",
+          enrichWritten,
+          rescoreWritten: false,
+          writeSummary: {
+            ...result.writeSummary,
+            enrichWritten,
+            rescoreWritten: false,
+          },
+          error: formatWriteError(GECKO_TOKEN_WRITE_RESCORE_WRITE_ERROR, error),
+        };
+      }
+    }
+
+    return {
+      ...result,
+      enrichWritten,
+      rescoreWritten,
+      writeSummary: {
+        ...result.writeSummary,
+        enrichWritten,
+        rescoreWritten,
+      },
     };
   } catch (error) {
     if (isGeckoRateLimitError(error)) {
