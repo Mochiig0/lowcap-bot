@@ -987,8 +987,13 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     const supervisor = getLoadedCatchupSupervisorModule();
     const baseInput = {
       writeRequested: true,
+      pumpOnly: true,
       limit: 1,
       maxCycles: 1,
+      stopOnNotifyCandidate: true,
+      stopOnRateLimit: true,
+      captureFile: null,
+      cooldownSeconds: null,
       selectedCandidates: [{}],
       safetyChecks: [
         {
@@ -1063,6 +1068,14 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         ["write_not_requested"],
       ],
       [
+        "pumpOnly=false",
+        {
+          ...baseInput,
+          pumpOnly: false,
+        },
+        ["pump_only_required"],
+      ],
+      [
         "limit > 1",
         {
           ...baseInput,
@@ -1077,6 +1090,38 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           maxCycles: 2,
         },
         ["max_cycles_not_one"],
+      ],
+      [
+        "stopOnNotifyCandidate=false",
+        {
+          ...baseInput,
+          stopOnNotifyCandidate: false,
+        },
+        ["stop_on_notify_candidate_required"],
+      ],
+      [
+        "stopOnRateLimit=false",
+        {
+          ...baseInput,
+          stopOnRateLimit: false,
+        },
+        ["stop_on_rate_limit_required"],
+      ],
+      [
+        "captureFile specified",
+        {
+          ...baseInput,
+          captureFile: "tmp/gecko-catchup.json",
+        },
+        ["capture_file_not_supported"],
+      ],
+      [
+        "cooldownSeconds specified",
+        {
+          ...baseInput,
+          cooldownSeconds: 5,
+        },
+        ["cooldown_seconds_not_supported"],
       ],
       [
         "selectedCandidates.length=0",

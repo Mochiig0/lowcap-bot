@@ -247,8 +247,13 @@ export type GeckoCatchupInitialWriteModeValidationCommandPlan = {
 
 export type GeckoCatchupInitialWriteModeValidationInput = {
   writeRequested: boolean;
+  pumpOnly: boolean;
   limit: number;
   maxCycles: number;
+  stopOnNotifyCandidate: boolean;
+  stopOnRateLimit: boolean;
+  captureFile: string | null;
+  cooldownSeconds: number | null;
   selectedCandidates: readonly unknown[];
   safetyChecks: readonly GeckoCatchupInitialWriteModeValidationSafetyCheck[];
   writeCommandPlan: readonly GeckoCatchupInitialWriteModeValidationCommandPlan[];
@@ -777,8 +782,13 @@ export function validateGeckoCatchupInitialWriteMode(
 ): GeckoCatchupInitialWriteModeValidationResult {
   const blockedBy = [
     ...(input.writeRequested ? [] : ["write_not_requested"]),
+    ...(input.pumpOnly ? [] : ["pump_only_required"]),
     ...(input.limit === 1 ? [] : ["limit_not_one"]),
     ...(input.maxCycles === 1 ? [] : ["max_cycles_not_one"]),
+    ...(input.stopOnNotifyCandidate ? [] : ["stop_on_notify_candidate_required"]),
+    ...(input.stopOnRateLimit ? [] : ["stop_on_rate_limit_required"]),
+    ...(input.captureFile === null ? [] : ["capture_file_not_supported"]),
+    ...(input.cooldownSeconds === null ? [] : ["cooldown_seconds_not_supported"]),
     ...(input.selectedCandidates.length === 1 ? [] : ["selected_count_not_one"]),
     ...(input.writeCommandPlan.length === 1 ? [] : ["write_command_plan_count_not_one"]),
     ...input.safetyChecks
