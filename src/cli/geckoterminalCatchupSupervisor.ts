@@ -136,6 +136,13 @@ type WritePlan = {
     postCheck: true;
     requireMetricAppend: true;
   };
+  recommendedInitialTokenWriteArgs: {
+    limit: 1;
+    maxCycles: 1;
+    postCheck: true;
+    notify: false;
+    metricAppend: false;
+  };
   wouldWriteTokens: Array<{
     cycle: number;
     orderInCycle: number;
@@ -694,6 +701,13 @@ function buildWritePlan(
       maxCycles: 1,
       postCheck: true,
       requireMetricAppend: true,
+    },
+    recommendedInitialTokenWriteArgs: {
+      limit: 1,
+      maxCycles: 1,
+      postCheck: true,
+      notify: false,
+      metricAppend: false,
     },
     wouldWriteTokens: selectedCandidates
       .filter((candidate) => candidate.wouldWriteToken)

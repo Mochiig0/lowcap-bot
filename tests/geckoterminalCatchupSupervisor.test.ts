@@ -65,6 +65,13 @@ type CatchupSupervisorOutput = {
       postCheck: true;
       requireMetricAppend: true;
     };
+    recommendedInitialTokenWriteArgs: {
+      limit: 1;
+      maxCycles: 1;
+      postCheck: true;
+      notify: false;
+      metricAppend: false;
+    };
     wouldWriteTokens: Array<{
       cycle: number;
       orderInCycle: number;
@@ -277,6 +284,13 @@ function assertReadOnlyWritePlan(output: CatchupSupervisorOutput): void {
     maxCycles: 1,
     postCheck: true,
     requireMetricAppend: true,
+  });
+  assert.deepEqual(output.writePlan.recommendedInitialTokenWriteArgs, {
+    limit: 1,
+    maxCycles: 1,
+    postCheck: true,
+    notify: false,
+    metricAppend: false,
   });
   assert.equal(output.writePlan.requiresCaptureOnly, true);
   assert.deepEqual(output.writePlan.postCheckPlan, {
