@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import {
   buildGeckoTokenWriteRunnerInput,
   parseGeckoTokenWriteCommandResult,
+  runGeckoTokenWriteCommandWithRunner,
   type GeckoTokenWriteCommandPlan,
+  type GeckoTokenWriteCommandRunner,
+  type GeckoTokenWriteRunnerInput,
 } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
 function buildCommandPlan(overrides: Partial<GeckoTokenWriteCommandPlan> = {}): GeckoTokenWriteCommandPlan {
@@ -194,6 +197,31 @@ test("rejects metric append command plans before runner execution exists", () =>
       ),
     /does not support metric append/,
   );
+});
+
+test("runs an injected mock token write runner with structured input", async () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+  });
+  const calls: GeckoTokenWriteRunnerInput[] = [];
+  const expectedResult = parseGeckoTokenWriteCommandResult({
+    exitCode: 0,
+    stdout: buildTokenWriteOutput(),
+    stderr:
+      "[token:enrich-rescore:geckoterminal] mode=single selected=1 notifySent=0 rateLimited=false",
+  });
+  const runner: GeckoTokenWriteCommandRunner = async (runnerInput) => {
+    calls.push(runnerInput);
+    return expectedResult;
+  };
+
+  const result = await runGeckoTokenWriteCommandWithRunner(runner, input);
+
+  assert.equal(result, expectedResult);
+  assert.deepEqual(calls, [input]);
 });
 
 test("keeps item error details from parsed stdout without stderr parsing", () => {

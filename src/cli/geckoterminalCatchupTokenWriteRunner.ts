@@ -56,6 +56,10 @@ export type GeckoTokenWriteCommandResult = {
   metaplexErrorKind: string | null;
 };
 
+export type GeckoTokenWriteCommandRunner = (
+  input: GeckoTokenWriteRunnerInput,
+) => Promise<GeckoTokenWriteCommandResult>;
+
 type TokenWriteCommandRawResult = {
   exitCode: number | null;
   stdout: string;
@@ -120,6 +124,13 @@ export function buildGeckoTokenWriteRunnerInput(
     metricAppend: false,
     postCheck: true,
   };
+}
+
+export async function runGeckoTokenWriteCommandWithRunner(
+  runner: GeckoTokenWriteCommandRunner,
+  input: GeckoTokenWriteRunnerInput,
+): Promise<GeckoTokenWriteCommandResult> {
+  return runner(input);
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
