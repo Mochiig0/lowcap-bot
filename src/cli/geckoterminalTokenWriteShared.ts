@@ -23,7 +23,15 @@ export type GeckoTokenWriteDeps = {
     patch: GeckoTokenWriteEnrichPatch,
   ) => Promise<unknown>;
   writeRescore?: (mint: string) => Promise<GeckoTokenWriteRescoreWriteResult>;
+  writeCollectedContexts?: (
+    input: GeckoTokenWriteCollectedContextsWriteInput,
+  ) => Promise<unknown>;
   logger?: Pick<Console, "error">;
+};
+
+export type GeckoTokenWriteTarget = {
+  tokenId: number | string;
+  entrySnapshot?: unknown;
 };
 
 export type GeckoTokenWriteInput = {
@@ -32,6 +40,7 @@ export type GeckoTokenWriteInput = {
   notify?: false;
   captureFile?: string | null;
   existingToken?: GeckoTokenWriteExistingToken;
+  writeTarget?: GeckoTokenWriteTarget;
 };
 
 export type GeckoTokenWriteExistingToken = {
@@ -118,6 +127,24 @@ export type GeckoTokenWriteReviewFlagsPreview = {
   reasons: string[];
 };
 
+export type GeckoTokenWriteCollectedContextsPatch = {
+  geckoterminalTokenSnapshot?: Record<string, unknown>;
+  metaplexMetadataUri?: Record<string, unknown>;
+  reviewFlagsJson?: GeckoTokenWriteReviewFlags;
+};
+
+export type GeckoTokenWriteCollectedContextsWriteInput = {
+  mint: string;
+  writeTarget: GeckoTokenWriteTarget;
+  patch: GeckoTokenWriteCollectedContextsPatch;
+};
+
+export type GeckoTokenWriteCollectedContextsWriteResult = {
+  contextWritten: boolean;
+  metaplexContextWritten: boolean;
+  reviewFlagsWritten: boolean;
+};
+
 export type GeckoTokenWriteSummary = {
   wouldEnrich: boolean;
   wouldRescore: boolean;
@@ -153,6 +180,8 @@ export type GeckoTokenWriteResult = {
   rescoreWritten: boolean;
   contextWritten: boolean;
   metaplexContextWritten: boolean;
+  reviewFlagsWritten: boolean;
+  collectedContextsWriteResult: GeckoTokenWriteCollectedContextsWriteResult | null;
   writeSummary: GeckoTokenWriteSummary;
   notifyEligibleBefore: boolean | null;
   notifyEligibleAfter: boolean | null;
@@ -230,6 +259,10 @@ export const GECKO_TOKEN_WRITE_ENRICH_WRITE_ERROR =
   "geckoterminal_token_write_enrich_write_error";
 export const GECKO_TOKEN_WRITE_RESCORE_WRITE_ERROR =
   "geckoterminal_token_write_rescore_write_error";
+export const GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_WRITE_ERROR =
+  "geckoterminal_token_write_collected_contexts_write_error";
+export const GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_TARGET_MISSING_ERROR =
+  "geckoterminal_token_write_collected_contexts_target_missing";
 export const GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR =
   "geckoterminal_snapshot_shape_error";
 
@@ -1219,6 +1252,8 @@ export function buildUnsupportedGeckoTokenWriteResult(
     rescoreWritten: false,
     contextWritten: false,
     metaplexContextWritten: false,
+    reviewFlagsWritten: false,
+    collectedContextsWriteResult: null,
     writeSummary: {
       wouldEnrich: false,
       wouldRescore: false,
@@ -1243,6 +1278,34 @@ export function buildUnsupportedGeckoTokenWriteResult(
 function formatWriteError(prefix: string, error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return `${prefix}: ${message}`;
+}
+
+function buildCollectedContextsPatch(params: {
+  contextPreview: GeckoTokenWriteContextPreview | null;
+  metaplexPreview: GeckoTokenWriteMetaplexPreview | null;
+  reviewFlagsPreview: GeckoTokenWriteReviewFlagsPreview;
+}): GeckoTokenWriteCollectedContextsPatch {
+  return {
+    ...(params.contextPreview?.wouldWrite && isRecord(params.contextPreview.preview)
+      ? { geckoterminalTokenSnapshot: params.contextPreview.preview }
+      : {}),
+    ...(params.metaplexPreview?.wouldWrite && isRecord(params.metaplexPreview.preview)
+      ? { metaplexMetadataUri: params.metaplexPreview.preview }
+      : {}),
+    ...(params.reviewFlagsPreview.wouldWrite
+      ? { reviewFlagsJson: params.reviewFlagsPreview.flags }
+      : {}),
+  };
+}
+
+function hasCollectedContextsPatch(
+  patch: GeckoTokenWriteCollectedContextsPatch,
+): boolean {
+  return (
+    patch.geckoterminalTokenSnapshot !== undefined ||
+    patch.metaplexMetadataUri !== undefined ||
+    patch.reviewFlagsJson !== undefined
+  );
 }
 
 export async function runGeckoTokenWriteForMint(
@@ -1388,15 +1451,84 @@ export async function runGeckoTokenWriteForMint(
       }
     }
 
+    let contextWritten = false;
+    let metaplexContextWritten = false;
+    let reviewFlagsWritten = false;
+    let collectedContextsWriteResult: GeckoTokenWriteCollectedContextsWriteResult | null = null;
+    const collectedContextsPatch = buildCollectedContextsPatch({
+      contextPreview,
+      metaplexPreview,
+      reviewFlagsPreview,
+    });
+    if (hasCollectedContextsPatch(collectedContextsPatch) && deps.writeCollectedContexts) {
+      if (!input.writeTarget) {
+        return {
+          ...result,
+          status: "error",
+          enrichWritten,
+          rescoreWritten,
+          rescoreWriteResult,
+          error: GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_TARGET_MISSING_ERROR,
+          writeSummary: {
+            ...result.writeSummary,
+            enrichWritten,
+            rescoreWritten,
+          },
+        };
+      }
+
+      try {
+        await deps.writeCollectedContexts({
+          mint: input.mint,
+          writeTarget: input.writeTarget,
+          patch: collectedContextsPatch,
+        });
+        contextWritten = collectedContextsPatch.geckoterminalTokenSnapshot !== undefined;
+        metaplexContextWritten = collectedContextsPatch.metaplexMetadataUri !== undefined;
+        reviewFlagsWritten = collectedContextsPatch.reviewFlagsJson !== undefined;
+        collectedContextsWriteResult = {
+          contextWritten,
+          metaplexContextWritten,
+          reviewFlagsWritten,
+        };
+      } catch (error) {
+        return {
+          ...result,
+          status: "error",
+          enrichWritten,
+          rescoreWritten,
+          rescoreWriteResult,
+          contextWritten: false,
+          metaplexContextWritten: false,
+          reviewFlagsWritten: false,
+          collectedContextsWriteResult: null,
+          writeSummary: {
+            ...result.writeSummary,
+            enrichWritten,
+            rescoreWritten,
+            contextWritten: false,
+            metaplexContextWritten: false,
+          },
+          error: formatWriteError(GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_WRITE_ERROR, error),
+        };
+      }
+    }
+
     return {
       ...result,
       enrichWritten,
       rescoreWritten,
       rescoreWriteResult,
+      contextWritten,
+      metaplexContextWritten,
+      reviewFlagsWritten,
+      collectedContextsWriteResult,
       writeSummary: {
         ...result.writeSummary,
         enrichWritten,
         rescoreWritten,
+        contextWritten,
+        metaplexContextWritten,
       },
     };
   } catch (error) {

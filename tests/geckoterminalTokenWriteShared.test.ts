@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_TARGET_MISSING_ERROR,
+  GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_WRITE_ERROR,
   GECKO_TOKEN_WRITE_DEPS_MISSING_ERROR,
   GECKO_TOKEN_WRITE_ENRICH_WRITE_ERROR,
   GECKO_TOKEN_WRITE_HELPER_NOT_IMPLEMENTED,
@@ -99,6 +101,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.rescoreWritten, false);
     assert.equal(result.contextWritten, false);
     assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.reviewFlagsWritten, false);
+    assert.equal(result.collectedContextsWriteResult, null);
     assert.deepEqual(result.writeSummary, {
       wouldEnrich: false,
       wouldRescore: false,
@@ -149,6 +153,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       rescoreWritten: false,
       contextWritten: false,
       metaplexContextWritten: false,
+      reviewFlagsWritten: false,
+      collectedContextsWriteResult: null,
       writeSummary: {
         wouldEnrich: false,
         wouldRescore: false,
@@ -405,6 +411,9 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
           calls.push("writeRescore");
           return buildRescoreWriteResult();
         },
+        writeCollectedContexts: async () => {
+          calls.push("writeCollectedContexts");
+        },
       },
     );
 
@@ -478,6 +487,177 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.writeSummary.metaplexContextWritten, false);
     assert.equal(result.notifySent, false);
     assert.equal(result.writeSummary.notifySent, false);
+  });
+
+  await t.test("runs injected collected context write once after enrich and rescore writes", async () => {
+    const mint = "GeckoTokenWriteCollectedContexts111111111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: Array<{
+      name: "writeEnrich" | "writeRescore" | "writeCollectedContexts";
+      mint?: string;
+      input?: unknown;
+    }> = [];
+    const rescoreWriteResult = buildRescoreWriteResult();
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+        writeTarget: {
+          tokenId: 123,
+          entrySnapshot: existingToken.entrySnapshot,
+        },
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        fetchMetaplexContext: async () => ({
+          onchain: {
+            mint,
+            uri: "https://metadata.example/collected.json",
+            metadataPda: "metadata-pda-collected",
+          },
+          offchain: {
+            description: "Collected Metaplex description",
+            external_url: "https://example.org/collected",
+          },
+          detail: {
+            metadataPda: "metadata-pda-collected",
+            uri: "https://metadata.example/collected.json",
+            hasOffchain: true,
+          },
+        }),
+        writeEnrich: async (writeMint) => {
+          calls.push({ name: "writeEnrich", mint: writeMint });
+        },
+        writeRescore: async (writeMint) => {
+          calls.push({ name: "writeRescore", mint: writeMint });
+          return rescoreWriteResult;
+        },
+        writeCollectedContexts: async (input) => {
+          calls.push({ name: "writeCollectedContexts", input });
+        },
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    assert.deepEqual(
+      calls.map((call) => call.name),
+      ["writeEnrich", "writeRescore", "writeCollectedContexts"],
+    );
+    assert.equal(result.enrichWritten, true);
+    assert.equal(result.rescoreWritten, true);
+    assert.equal(result.contextWritten, true);
+    assert.equal(result.metaplexContextWritten, true);
+    assert.equal(result.reviewFlagsWritten, true);
+    assert.deepEqual(result.collectedContextsWriteResult, {
+      contextWritten: true,
+      metaplexContextWritten: true,
+      reviewFlagsWritten: true,
+    });
+    assert.equal(result.writeSummary.contextWritten, true);
+    assert.equal(result.writeSummary.metaplexContextWritten, true);
+
+    const collectedCall = calls.find((call) => call.name === "writeCollectedContexts");
+    assert.deepEqual(collectedCall?.input, {
+      mint,
+      writeTarget: {
+        tokenId: 123,
+        entrySnapshot: existingToken.entrySnapshot,
+      },
+      patch: {
+        geckoterminalTokenSnapshot: result.contextPreview?.preview,
+        metaplexMetadataUri: result.metaplexPreview?.preview,
+        reviewFlagsJson: result.reviewFlagsPreview?.flags,
+      },
+    });
+  });
+
+  await t.test("requires a write target when collected context deps are provided", async () => {
+    const mint = "GeckoTokenWriteCollectedTargetMissing111111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: string[] = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        writeEnrich: async () => {
+          calls.push("writeEnrich");
+        },
+        writeRescore: async () => {
+          calls.push("writeRescore");
+          return buildRescoreWriteResult();
+        },
+        writeCollectedContexts: async () => {
+          calls.push("writeCollectedContexts");
+        },
+      },
+    );
+
+    assert.equal(result.status, "error");
+    assert.equal(result.error, GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_TARGET_MISSING_ERROR);
+    assert.deepEqual(calls, ["writeEnrich", "writeRescore"]);
+    assert.equal(result.enrichWritten, true);
+    assert.equal(result.rescoreWritten, true);
+    assert.equal(result.contextWritten, false);
+    assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.reviewFlagsWritten, false);
+    assert.equal(result.collectedContextsWriteResult, null);
+  });
+
+  await t.test("preserves enrich and rescore state when collected context write fails", async () => {
+    const mint = "GeckoTokenWriteCollectedContextsFails11111pump";
+    const existingToken = buildExistingToken(mint);
+    const calls: string[] = [];
+
+    const result = await runGeckoTokenWriteForMint(
+      {
+        mint,
+        write: true,
+        existingToken,
+        writeTarget: {
+          tokenId: 456,
+        },
+      },
+      {
+        fetchTokenSnapshot: async () => buildGeckoSnapshot(mint),
+        writeEnrich: async () => {
+          calls.push("writeEnrich");
+        },
+        writeRescore: async () => {
+          calls.push("writeRescore");
+          return buildRescoreWriteResult();
+        },
+        writeCollectedContexts: async () => {
+          calls.push("writeCollectedContexts");
+          throw new Error("injected collected context failure");
+        },
+      },
+    );
+
+    assert.equal(result.status, "error");
+    assert.match(
+      result.error ?? "",
+      new RegExp(
+        `${GECKO_TOKEN_WRITE_COLLECTED_CONTEXTS_WRITE_ERROR}: injected collected context failure`,
+      ),
+    );
+    assert.deepEqual(calls, ["writeEnrich", "writeRescore", "writeCollectedContexts"]);
+    assert.equal(result.enrichWritten, true);
+    assert.equal(result.rescoreWritten, true);
+    assert.equal(result.contextWritten, false);
+    assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.reviewFlagsWritten, false);
+    assert.equal(result.collectedContextsWriteResult, null);
+    assert.equal(result.writeSummary.enrichWritten, true);
+    assert.equal(result.writeSummary.rescoreWritten, true);
+    assert.equal(result.writeSummary.contextWritten, false);
+    assert.equal(result.writeSummary.metaplexContextWritten, false);
   });
 
   await t.test("returns a structured error when write deps are missing", async () => {
