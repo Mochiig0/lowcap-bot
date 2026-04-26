@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 import {
   buildGeckoTokenWriteRunnerInput,
   parseGeckoTokenWriteCommandResult,
+  runGeckoTokenWriteCommandWithExecFile,
   runGeckoTokenWriteCommandWithRunner,
   type GeckoTokenWriteCommandPlan,
   type GeckoTokenWriteCommandRunner,
+  type GeckoTokenWriteExecFile,
   type GeckoTokenWriteRunnerInput,
 } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
@@ -222,6 +224,65 @@ test("runs an injected mock token write runner with structured input", async () 
 
   assert.equal(result, expectedResult);
   assert.deepEqual(calls, [input]);
+});
+
+test("runs an injected execFile-like adapter with structured command input", async () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+    timeoutMs: 15_000,
+  });
+  const calls: Array<{
+    command: string;
+    args: string[];
+    options: {
+      cwd?: string;
+      env?: Record<string, string>;
+      timeoutMs?: number;
+    };
+  }> = [];
+  const execFile: GeckoTokenWriteExecFile = async (command, args, options) => {
+    calls.push({ command, args, options });
+    return {
+      exitCode: 0,
+      stdout: buildTokenWriteOutput(),
+      stderr:
+        "[token:enrich-rescore:geckoterminal] mode=single selected=1 notifySent=0 rateLimited=false",
+    };
+  };
+
+  const result = await runGeckoTokenWriteCommandWithExecFile(execFile, input);
+
+  assert.deepEqual(calls, [
+    {
+      command: "pnpm",
+      args: [
+        "token:enrich-rescore:geckoterminal",
+        "--",
+        "--mint",
+        "RunnerInput111111111111111111111111111111111pump",
+        "--write",
+      ],
+      options: {
+        cwd: "/repo",
+        env: {
+          DATABASE_URL: "file:/tmp/lowcap-test.db",
+        },
+        timeoutMs: 15_000,
+      },
+    },
+  ]);
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.writeSummary, {
+    enrichUpdated: true,
+    rescoreUpdated: true,
+    contextUpdated: true,
+    metaplexContextUpdated: true,
+  });
+  assert.equal(result.notifySent, false);
+  assert.equal(result.rateLimited, false);
 });
 
 test("keeps item error details from parsed stdout without stderr parsing", () => {

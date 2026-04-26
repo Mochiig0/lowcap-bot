@@ -60,6 +60,20 @@ export type GeckoTokenWriteCommandRunner = (
   input: GeckoTokenWriteRunnerInput,
 ) => Promise<GeckoTokenWriteCommandResult>;
 
+export type GeckoTokenWriteExecFile = (
+  command: string,
+  args: string[],
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeoutMs?: number;
+  },
+) => Promise<{
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+}>;
+
 type TokenWriteCommandRawResult = {
   exitCode: number | null;
   stdout: string;
@@ -131,6 +145,19 @@ export async function runGeckoTokenWriteCommandWithRunner(
   input: GeckoTokenWriteRunnerInput,
 ): Promise<GeckoTokenWriteCommandResult> {
   return runner(input);
+}
+
+export async function runGeckoTokenWriteCommandWithExecFile(
+  execFile: GeckoTokenWriteExecFile,
+  input: GeckoTokenWriteRunnerInput,
+): Promise<GeckoTokenWriteCommandResult> {
+  const rawResult = await execFile(input.command, input.args, {
+    cwd: input.cwd,
+    env: input.env,
+    timeoutMs: input.timeoutMs,
+  });
+
+  return parseGeckoTokenWriteCommandResult(rawResult);
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
