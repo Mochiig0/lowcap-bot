@@ -400,10 +400,10 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.writeSummary.rescoreWritten, false);
   });
 
-  await t.test("runs injected enrich and rescore writes when write is enabled", async () => {
+  await t.test("runs injected CLI-equivalent enrich and rescore writes when write is enabled", async () => {
     const mint = "GeckoTokenWriteInjectedWrites111111111111pump";
     const existingToken = buildExistingToken(mint);
-    const calls: Array<{ name: string; mint: string; patch?: unknown }> = [];
+    const calls: Array<{ name: "writeEnrich" | "writeRescore"; mint: string; patch?: unknown }> = [];
 
     const result = await runGeckoTokenWriteForMint(
       {
@@ -423,6 +423,10 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     );
 
     assert.equal(result.status, "ok");
+    assert.deepEqual(
+      calls.map((call) => call.name),
+      ["writeEnrich", "writeRescore"],
+    );
     assert.deepEqual(calls, [
       {
         name: "writeEnrich",
@@ -437,10 +441,12 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
         mint,
       },
     ]);
+    assert.deepEqual(calls[0]?.patch, result.enrichPlan?.patch);
     assert.equal(result.enrichWritten, true);
     assert.equal(result.rescoreWritten, true);
     assert.equal(result.contextWritten, false);
     assert.equal(result.metaplexContextWritten, false);
+    assert.equal(result.reviewFlagsWouldWrite, true);
     assert.equal(result.writeSummary.enrichWritten, true);
     assert.equal(result.writeSummary.rescoreWritten, true);
     assert.equal(result.writeSummary.contextWritten, false);
