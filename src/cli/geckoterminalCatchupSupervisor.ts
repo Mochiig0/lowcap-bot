@@ -16,6 +16,7 @@ export type Args = {
   maxCycles: number;
   sinceMinutes: number;
   dryRun: true;
+  writeRequested: boolean;
   captureFile: string | null;
   cooldownSeconds: number | null;
   stopOnNotifyCandidate: boolean;
@@ -172,6 +173,7 @@ type OperatorSummary = {
 type WritePlan = {
   enabled: false;
   writeModeSupported: false;
+  writeRequested: boolean;
   recommendedInitialWriteArgs: {
     limit: 1;
     maxCycles: 1;
@@ -302,7 +304,7 @@ function getUsageText(): string {
     "",
     "Defaults:",
     `- dry-run only; DB writes, fast wrapper execution, Metric append, Telegram notify, capture file creation, and watch mode are not supported`,
-    `- --write is intentionally rejected in this first supervised runner implementation`,
+    `- --write is accepted only as a gated request; execution remains disabled`,
     `- selects GeckoTerminal-origin incomplete rows by selectionAnchorAt desc + id desc`,
     `- default --limit ${DEFAULT_LIMIT}, --maxCycles ${DEFAULT_MAX_CYCLES}, --sinceMinutes ${DEFAULT_SINCE_MINUTES}`,
   ].join("\n");
@@ -344,6 +346,7 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
     maxCycles: DEFAULT_MAX_CYCLES,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     dryRun: true,
+    writeRequested: false,
     captureFile: null,
     cooldownSeconds: null,
     stopOnNotifyCandidate: true,
@@ -365,7 +368,8 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
     }
 
     if (key === "--write") {
-      throw new CliUsageError("--write is not supported for ops:catchup:gecko yet");
+      out.writeRequested = true;
+      continue;
     }
 
     if (key === "--pumpOnly") {
@@ -414,6 +418,34 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
 
   if (sinceMinutesSet && sinceHoursSet) {
     throw new CliUsageError("Use only one of --sinceMinutes or --sinceHours");
+  }
+
+  if (out.writeRequested) {
+    const validation = validateGeckoCatchupInitialWriteMode({
+      writeRequested: true,
+      pumpOnly: out.pumpOnly,
+      limit: out.limit,
+      maxCycles: out.maxCycles,
+      stopOnNotifyCandidate: out.stopOnNotifyCandidate,
+      stopOnRateLimit: out.stopOnRateLimit,
+      captureFile: out.captureFile,
+      cooldownSeconds: out.cooldownSeconds,
+      selectedCandidates: [{}],
+      safetyChecks: [],
+      writeCommandPlan: [
+        {
+          notify: false,
+          metricAppend: false,
+          postCheck: true,
+        },
+      ],
+    });
+
+    if (!validation.valid) {
+      throw new CliUsageError(
+        `--write is only supported for initial gated token write requests: ${validation.blockedBy.join(", ")}`,
+      );
+    }
   }
 
   return out;
@@ -827,6 +859,7 @@ function buildWritePlan(
   return {
     enabled: false,
     writeModeSupported: false,
+    writeRequested: args.writeRequested,
     recommendedInitialWriteArgs: {
       limit: 1,
       maxCycles: 1,

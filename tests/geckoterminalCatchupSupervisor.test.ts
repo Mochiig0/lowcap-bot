@@ -81,6 +81,7 @@ type CatchupSupervisorOutput = {
   writePlan: {
     enabled: false;
     writeModeSupported: false;
+    writeRequested: boolean;
     recommendedInitialWriteArgs: {
       limit: 1;
       maxCycles: 1;
@@ -326,12 +327,16 @@ function safetyStatus(output: CatchupSupervisorOutput, name: string): SafetyChec
   return check.status;
 }
 
-function assertReadOnlyWritePlan(output: CatchupSupervisorOutput): void {
+function assertReadOnlyWritePlan(
+  output: CatchupSupervisorOutput,
+  options: { writeRequested?: boolean } = {},
+): void {
   assert.equal(output.readOnly, true);
   assert.equal(output.dryRun, true);
   assert.equal(output.writeEnabled, false);
   assert.equal(output.writePlan.enabled, false);
   assert.equal(output.writePlan.writeModeSupported, false);
+  assert.equal(output.writePlan.writeRequested, options.writeRequested ?? false);
   assert.deepEqual(output.writePlan.recommendedInitialWriteArgs, {
     limit: 1,
     maxCycles: 1,
@@ -863,6 +868,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
 
       try {
         const args = supervisor.parseGeckoCatchupSupervisorArgs([
+          "--write",
           "--pumpOnly",
           "--limit",
           "1",
@@ -877,7 +883,8 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         });
 
         assert.equal(runnerCalls.length, 0);
-        assertReadOnlyWritePlan(output);
+        assert.equal(args.writeRequested, true);
+        assertReadOnlyWritePlan(output, { writeRequested: true });
         assert.equal(output.selectedCandidates.length, 1);
         assert.equal(output.selectedCandidates[0]?.mint, seeded.expectedSelectedMints[0]);
 
@@ -891,6 +898,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(plan.postCheck, true);
         assert.equal(output.writePlan.enabled, false);
         assert.equal(output.writePlan.writeModeSupported, false);
+        assert.equal(output.writePlan.writeRequested, true);
         assert.equal(output.readOnly, true);
         assert.equal(output.dryRun, true);
         assert.equal(output.writeEnabled, false);
@@ -1243,6 +1251,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(args.pumpOnly, true);
     assert.equal(args.limit, 1);
     assert.equal(args.dryRun, true);
+    assert.equal(args.writeRequested, false);
     assert.equal(typeof supervisor.runGeckoCatchupSupervisor, "function");
     assert.equal(typeof supervisor.shouldRunGeckoTokenWriteRunner, "function");
   });
@@ -1944,23 +1953,93 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     });
   });
 
-  await t.test("rejects write mode explicitly", async () => {
-    const writeArgCases = [
+  await t.test("parses only gated write requests before execution is enabled", async () => {
+    const supervisor = getLoadedCatchupSupervisorModule();
+    const rejectedWriteArgCases = [
       ["--write"],
       ["--write", "--limit", "1"],
       ["--write", "--maxCycles", "1"],
       ["--write", "--limit", "1", "--maxCycles", "1"],
-      ["--write", "--pumpOnly", "--limit", "1", "--maxCycles", "1"],
-      ["--limit", "1", "--maxCycles", "1", "--write"],
+      ["--write", "--pumpOnly", "--limit", "2", "--maxCycles", "1"],
+      ["--write", "--pumpOnly", "--limit", "1", "--maxCycles", "2"],
+      [
+        "--write",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxCycles",
+        "1",
+        "--stopOnRateLimit",
+        "false",
+      ],
+      [
+        "--write",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxCycles",
+        "1",
+        "--stopOnNotifyCandidate",
+        "false",
+      ],
+      [
+        "--write",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxCycles",
+        "1",
+        "--captureFile",
+        "tmp/gecko-catchup.json",
+      ],
+      [
+        "--write",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxCycles",
+        "1",
+        "--cooldownSeconds",
+        "5",
+      ],
     ];
 
-    for (const args of writeArgCases) {
-      const result = await runCatchupSupervisor(args);
+    for (const args of rejectedWriteArgCases) {
+      assert.throws(
+        () => supervisor.parseGeckoCatchupSupervisorArgs(args),
+        /--write is only supported for initial gated token write requests/,
+        `expected parser failure for args: ${args.join(" ")}`,
+      );
+    }
 
-      assert.equal(result.ok, false, `expected failure for args: ${args.join(" ")}`);
-      assert.equal(result.code, 1);
-      assert.equal(result.stdout, "");
-      assert.match(result.stderr, /--write is not supported for ops:catchup:gecko yet/);
+    const acceptedWriteArgCases = [
+      ["--write", "--pumpOnly", "--limit", "1", "--maxCycles", "1"],
+      ["--pumpOnly", "--limit", "1", "--maxCycles", "1", "--write"],
+      [
+        "--write",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxCycles",
+        "1",
+        "--stopOnRateLimit",
+        "true",
+        "--stopOnNotifyCandidate",
+        "true",
+      ],
+    ];
+
+    for (const args of acceptedWriteArgCases) {
+      const parsed = supervisor.parseGeckoCatchupSupervisorArgs(args);
+
+      assert.equal(parsed.writeRequested, true, `expected writeRequested for args: ${args.join(" ")}`);
+      assert.equal(parsed.pumpOnly, true);
+      assert.equal(parsed.limit, 1);
+      assert.equal(parsed.maxCycles, 1);
+      assert.equal(parsed.stopOnRateLimit, true);
+      assert.equal(parsed.stopOnNotifyCandidate, true);
+      assert.equal(parsed.captureFile, null);
+      assert.equal(parsed.cooldownSeconds, null);
     }
   });
 });
