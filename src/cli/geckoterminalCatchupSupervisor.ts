@@ -678,12 +678,11 @@ function buildOperatorSummary(
   };
 }
 
-function buildWritePlan(
+function buildWriteCommandPlanBlockedBy(
   args: Args,
   selectedCandidates: SelectedCandidate[],
-  metricAppendPlan: MetricAppendPlanItem[],
   safetyChecks: SafetyCheck[],
-): WritePlan {
+): string[] {
   const initialWriteConditionBlocks = [
     ...(args.limit === 1 ? [] : ["limit_not_one"]),
     ...(args.maxCycles === 1 ? [] : ["max_cycles_not_one"]),
@@ -692,6 +691,25 @@ function buildWritePlan(
   const blockingSafetyChecks = safetyChecks
     .filter((check) => check.status === "fail" || check.status === "warn")
     .map((check) => check.name);
+
+  return [
+    "write_gate_still_disabled",
+    ...initialWriteConditionBlocks,
+    ...blockingSafetyChecks,
+  ];
+}
+
+function buildWritePlan(
+  args: Args,
+  selectedCandidates: SelectedCandidate[],
+  metricAppendPlan: MetricAppendPlanItem[],
+  safetyChecks: SafetyCheck[],
+): WritePlan {
+  const writeCommandPlanBlockedBy = buildWriteCommandPlanBlockedBy(
+    args,
+    selectedCandidates,
+    safetyChecks,
+  );
   const initialWriteCandidate = selectedCandidates.find((candidate) => candidate.wouldWriteToken);
 
   return {
@@ -745,11 +763,7 @@ function buildWritePlan(
             metricAppend: false,
             postCheck: true,
             reason: "selected_incomplete_token_write",
-            blockedBy: [
-              "write_gate_still_disabled",
-              ...initialWriteConditionBlocks,
-              ...blockingSafetyChecks,
-            ],
+            blockedBy: writeCommandPlanBlockedBy,
           },
         ]
       : [],
