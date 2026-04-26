@@ -1053,6 +1053,125 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       },
     );
 
+    const invalidCases = [
+      [
+        "writeRequested=false",
+        {
+          ...baseInput,
+          writeRequested: false,
+        },
+        ["write_not_requested"],
+      ],
+      [
+        "limit > 1",
+        {
+          ...baseInput,
+          limit: 2,
+        },
+        ["limit_not_one"],
+      ],
+      [
+        "maxCycles > 1",
+        {
+          ...baseInput,
+          maxCycles: 2,
+        },
+        ["max_cycles_not_one"],
+      ],
+      [
+        "selectedCandidates.length=0",
+        {
+          ...baseInput,
+          selectedCandidates: [],
+        },
+        ["selected_count_not_one"],
+      ],
+      [
+        "selectedCandidates.length > 1",
+        {
+          ...baseInput,
+          selectedCandidates: [{}, {}],
+        },
+        ["selected_count_not_one"],
+      ],
+      [
+        "safety fail",
+        {
+          ...baseInput,
+          safetyChecks: [
+            {
+              name: "hard_rejected_candidates",
+              status: "fail" as const,
+            },
+          ],
+        },
+        ["hard_rejected_candidates"],
+      ],
+      [
+        "safety warn",
+        {
+          ...baseInput,
+          safetyChecks: [
+            {
+              name: "stop_on_rate_limit",
+              status: "warn" as const,
+            },
+          ],
+        },
+        ["stop_on_rate_limit"],
+      ],
+      [
+        "notify=true",
+        {
+          ...baseInput,
+          writeCommandPlan: [
+            {
+              ...baseInput.writeCommandPlan[0],
+              notify: true,
+            },
+          ],
+        },
+        ["notify_not_supported"],
+      ],
+      [
+        "metricAppend=true",
+        {
+          ...baseInput,
+          writeCommandPlan: [
+            {
+              ...baseInput.writeCommandPlan[0],
+              metricAppend: true,
+            },
+          ],
+        },
+        ["metric_append_not_supported"],
+      ],
+      [
+        "postCheck=false",
+        {
+          ...baseInput,
+          writeCommandPlan: [
+            {
+              ...baseInput.writeCommandPlan[0],
+              postCheck: false,
+            },
+          ],
+        },
+        ["post_check_required"],
+      ],
+    ] as const;
+
+    for (const [label, input, blockedBy] of invalidCases) {
+      assert.deepEqual(
+        supervisor.validateGeckoCatchupInitialWriteMode(input),
+        {
+          valid: false,
+          blockedBy,
+        },
+        label,
+      );
+    }
+
     const writeCommandPlanCountCases = [
       [],
       [baseInput.writeCommandPlan[0], baseInput.writeCommandPlan[0]],
