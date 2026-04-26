@@ -5,6 +5,7 @@ import {
   buildGeckoTokenWriteRunnerInput,
   parseGeckoTokenWriteCommandResult,
   runGeckoTokenWriteCommandWithExecFile,
+  runGeckoTokenWriteCommandWithNodeExecFile,
   runGeckoTokenWriteCommandWithRunner,
   type GeckoTokenWriteCommandPlan,
   type GeckoTokenWriteCommandRunner,
@@ -283,6 +284,33 @@ test("runs an injected execFile-like adapter with structured command input", asy
   });
   assert.equal(result.notifySent, false);
   assert.equal(result.rateLimited, false);
+});
+
+test("exposes node execFile production runner without executing it in tests", () => {
+  assert.equal(typeof runGeckoTokenWriteCommandWithNodeExecFile, "function");
+});
+
+test("normalizes non-zero execFile-like adapter output through the parser", async () => {
+  const input = buildGeckoTokenWriteRunnerInput(buildCommandPlan(), {
+    cwd: "/repo",
+    env: {
+      DATABASE_URL: "file:/tmp/lowcap-test.db",
+    },
+  });
+  const execFile: GeckoTokenWriteExecFile = async () => ({
+    exitCode: 1,
+    stdout: "",
+    stderr: "token write command failed",
+  });
+
+  const result = await runGeckoTokenWriteCommandWithExecFile(execFile, input);
+
+  assert.equal(result.status, "cli_error");
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "token write command failed");
+  assert.equal(result.parseError, "stdout was empty");
+  assert.equal(result.writeSummary, null);
 });
 
 test("keeps item error details from parsed stdout without stderr parsing", () => {

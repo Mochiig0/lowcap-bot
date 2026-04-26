@@ -1,4 +1,8 @@
+import { execFile as nodeExecFile } from "node:child_process";
+
 type JsonObject = Record<string, unknown>;
+
+const TOKEN_WRITE_EXEC_FILE_MAX_BUFFER = 10 * 1024 * 1024;
 
 export type GeckoTokenWriteCommandPlan = {
   command: "pnpm";
@@ -158,6 +162,59 @@ export async function runGeckoTokenWriteCommandWithExecFile(
   });
 
   return parseGeckoTokenWriteCommandResult(rawResult);
+}
+
+function readExecFileExitCode(error: Error | null): number | null {
+  if (!error) {
+    return 0;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "number" ? code : null;
+}
+
+function readExecFileOutput(output: string | Buffer | undefined): string {
+  if (typeof output === "string") {
+    return output;
+  }
+  return output?.toString("utf8") ?? "";
+}
+
+function readExecFileStderr(error: Error | null, stderr: string | Buffer | undefined): string {
+  const stderrText = readExecFileOutput(stderr);
+  if (stderrText.length > 0 || !error) {
+    return stderrText;
+  }
+
+  return error.message;
+}
+
+const nodeExecFileAdapter: GeckoTokenWriteExecFile = (command, args, options) =>
+  new Promise((resolve) => {
+    nodeExecFile(
+      command,
+      args,
+      {
+        cwd: options.cwd,
+        env: options.env,
+        encoding: "utf8",
+        maxBuffer: TOKEN_WRITE_EXEC_FILE_MAX_BUFFER,
+        timeout: options.timeoutMs,
+      },
+      (error, stdout, stderr) => {
+        resolve({
+          exitCode: readExecFileExitCode(error),
+          stdout: readExecFileOutput(stdout),
+          stderr: readExecFileStderr(error, stderr),
+        });
+      },
+    );
+  });
+
+export async function runGeckoTokenWriteCommandWithNodeExecFile(
+  input: GeckoTokenWriteRunnerInput,
+): Promise<GeckoTokenWriteCommandResult> {
+  return runGeckoTokenWriteCommandWithExecFile(nodeExecFileAdapter, input);
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
