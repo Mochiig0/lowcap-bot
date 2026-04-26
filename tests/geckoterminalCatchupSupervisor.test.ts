@@ -8,7 +8,10 @@ import { promisify } from "node:util";
 
 import { PrismaClient } from "@prisma/client";
 
-import { parseGeckoCatchupSupervisorArgs } from "../src/cli/geckoterminalCatchupSupervisor.ts";
+import {
+  parseGeckoCatchupSupervisorArgs,
+  runGeckoCatchupSupervisor,
+} from "../src/cli/geckoterminalCatchupSupervisor.ts";
 import { buildGeckoTokenWriteRunnerInput } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
 const execFileAsync = promisify(execFile);
@@ -805,6 +808,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(args.pumpOnly, true);
     assert.equal(args.limit, 1);
     assert.equal(args.dryRun, true);
+    assert.equal(typeof runGeckoCatchupSupervisor, "function");
   });
 
   await t.test("reports completed pump backlog without planning writes", async () => {

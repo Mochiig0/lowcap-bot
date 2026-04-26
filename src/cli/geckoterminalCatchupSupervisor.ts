@@ -963,11 +963,19 @@ export async function buildGeckoCatchupSupervisorOutput(
   return buildGeckoCatchupSupervisorPlan(args, rawTokens, sinceCutoff);
 }
 
+export async function runGeckoCatchupSupervisor(
+  args: Args,
+  deps: GeckoCatchupSupervisorDeps = {},
+): Promise<GeckoCatchupSupervisorOutput> {
+  void deps;
+  return buildGeckoCatchupSupervisorOutput(args);
+}
+
 export async function runGeckoCatchupSupervisorCli(
   argv = process.argv.slice(2),
 ): Promise<void> {
   const args = parseGeckoCatchupSupervisorArgs(argv);
-  const output = await buildGeckoCatchupSupervisorOutput(args);
+  const output = await runGeckoCatchupSupervisor(args);
 
   console.log(
     JSON.stringify(
