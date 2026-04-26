@@ -10,6 +10,8 @@ import { PrismaClient } from "@prisma/client";
 
 import {
   buildGeckoTokenWriteRunnerInput,
+  parseGeckoTokenWriteCommandResult,
+  runGeckoTokenWriteCommandWithRunner,
   type GeckoTokenWriteCommandRunner,
 } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
@@ -1297,7 +1299,51 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(plan.blockedBy.includes("max_cycles_not_one"), false);
       assert.equal(plan.blockedBy.includes("selected_count_not_one"), false);
 
-      const runnerInput = buildGeckoTokenWriteRunnerInput(plan, {
+      const executablePlan = {
+        ...plan,
+        executionSupported: true,
+        executionEligible: true,
+        blockedBy: [],
+      };
+      const supervisor = getLoadedCatchupSupervisorModule();
+      const mockResult = parseGeckoTokenWriteCommandResult({
+        exitCode: 0,
+        stdout: JSON.stringify({
+          items: [
+            {
+              mint: executablePlan.mint,
+              notifySent: false,
+              writeSummary: {
+                enrichUpdated: true,
+                rescoreUpdated: true,
+                contextUpdated: true,
+                metaplexContextUpdated: true,
+              },
+            },
+          ],
+          summary: {
+            notifySentCount: 0,
+            rateLimited: false,
+            abortedDueToRateLimit: false,
+            skippedAfterRateLimit: 0,
+          },
+        }),
+        stderr: "[token:enrich-rescore:geckoterminal] synthetic mock runner",
+      });
+      const runnerCalls: unknown[] = [];
+      const tokenWriteRunner: GeckoTokenWriteCommandRunner = async (input) => {
+        runnerCalls.push(input);
+        return mockResult;
+      };
+
+      assert.equal(
+        supervisor.shouldRunGeckoTokenWriteRunner([executablePlan], {
+          tokenWriteRunner,
+        }),
+        true,
+      );
+
+      const runnerInput = buildGeckoTokenWriteRunnerInput(executablePlan, {
         cwd: process.cwd(),
         env: {
           DATABASE_URL: databaseUrl,
@@ -1322,6 +1368,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(runnerInput.notify, false);
       assert.equal(runnerInput.metricAppend, false);
       assert.equal(runnerInput.postCheck, true);
+
+      const runnerResult = await runGeckoTokenWriteCommandWithRunner(tokenWriteRunner, runnerInput);
+      assert.equal(runnerResult, mockResult);
+      assert.deepEqual(runnerCalls, [runnerInput]);
 
       assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
