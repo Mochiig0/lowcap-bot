@@ -55,6 +55,27 @@ type SafetyCheck = {
   message: string;
 };
 
+type TokenWriteExecutionResult = {
+  mint: string;
+  cycle: number;
+  orderInCycle: number;
+  status: "ok" | "cli_error" | "parse_error";
+  exitCode: number | null;
+  rateLimited: boolean;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
+  writeSummary: {
+    enrichUpdated: boolean;
+    rescoreUpdated: boolean;
+    contextUpdated: boolean;
+    metaplexContextUpdated: boolean;
+  } | null;
+  notifySent: boolean;
+  itemError: string | null;
+  metaplexErrorKind: string | null;
+  parseError: string | null;
+};
+
 type CatchupSupervisorOutput = {
   readOnly: boolean;
   dryRun: boolean;
@@ -79,8 +100,8 @@ type CatchupSupervisorOutput = {
       | "inspect_blocking_safety_checks";
   };
   writePlan: {
-    enabled: false;
-    writeModeSupported: false;
+    enabled: boolean;
+    writeModeSupported: boolean;
     writeRequested: boolean;
     recommendedInitialWriteArgs: {
       limit: 1;
@@ -105,9 +126,9 @@ type CatchupSupervisorOutput = {
       mint: string;
     }>;
     writeCommandPlan: Array<{
-      enabled: false;
-      executionSupported: false;
-      executionEligible: false;
+      enabled: boolean;
+      executionSupported: boolean;
+      executionEligible: boolean;
       command: "pnpm";
       script: "token:enrich-rescore:geckoterminal";
       args: string[];
@@ -120,7 +141,7 @@ type CatchupSupervisorOutput = {
       reason: "selected_incomplete_token_write";
       blockedBy: string[];
     }>;
-    tokenWriteExecutionResults: [];
+    tokenWriteExecutionResults: TokenWriteExecutionResult[];
     requiresCaptureOnly: true;
     postCheckPlan: {
       enabled: true;
@@ -854,20 +875,14 @@ async function seedHardRejectedOnlyFixture(databaseUrl: string): Promise<{
 }
 
 test("geckoterminal catch-up supervisor dry-run", async (t) => {
-  await t.test("locks write gate state before parser reject is relaxed", async () => {
+  await t.test("handles gated write requests through injected runner boundary", async () => {
     await withTempDir(async (dir) => {
-      const databaseUrl = `file:${join(dir, "mock-runner-unused.db")}`;
+      const databaseUrl = `file:${join(dir, "mock-runner-boundary.db")}`;
       await runDbPush(databaseUrl);
       const seeded = await seedPendingSelectionFixture(databaseUrl);
       const supervisor = await loadCatchupSupervisorModule(databaseUrl);
-      const runnerCalls: unknown[] = [];
-      const tokenWriteRunner: GeckoTokenWriteCommandRunner = async (input) => {
-        runnerCalls.push(input);
-        throw new Error("tokenWriteRunner should not be called while catchup write is disabled");
-      };
-
-      try {
-        const args = supervisor.parseGeckoCatchupSupervisorArgs([
+      const buildGatedWriteArgs = () =>
+        supervisor.parseGeckoCatchupSupervisorArgs([
           "--write",
           "--pumpOnly",
           "--limit",
@@ -878,11 +893,11 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           "10080",
           "--dry-run",
         ]);
-        const output = await supervisor.runGeckoCatchupSupervisor(args, {
-          tokenWriteRunner,
-        });
 
-        assert.equal(runnerCalls.length, 0);
+      try {
+        const args = buildGatedWriteArgs();
+        const output = await supervisor.runGeckoCatchupSupervisor(args);
+
         assert.equal(args.writeRequested, true);
         assertReadOnlyWritePlan(output, { writeRequested: true });
         assert.equal(output.selectedCandidates.length, 1);
@@ -903,30 +918,186 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(output.dryRun, true);
         assert.equal(output.writeEnabled, false);
         assert.deepEqual(output.writePlan.tokenWriteExecutionResults, []);
-        assert.equal(
-          supervisor.shouldRunGeckoTokenWriteRunner(output.writePlan.writeCommandPlan, {
-            tokenWriteRunner,
-          }),
-          false,
-        );
         assert.equal(supervisor.shouldRunGeckoTokenWriteRunner(output.writePlan.writeCommandPlan), false);
+        const mockResult = parseGeckoTokenWriteCommandResult({
+          exitCode: 0,
+          stdout: JSON.stringify({
+            items: [
+              {
+                mint: seeded.expectedSelectedMints[0],
+                notifySent: false,
+                writeSummary: {
+                  enrichUpdated: true,
+                  rescoreUpdated: true,
+                  contextUpdated: true,
+                  metaplexContextUpdated: true,
+                },
+              },
+            ],
+            summary: {
+              notifySentCount: 0,
+              rateLimited: false,
+              abortedDueToRateLimit: false,
+              skippedAfterRateLimit: 0,
+            },
+          }),
+          stderr: "[token:enrich-rescore:geckoterminal] raw runner diagnostic",
+        });
+        const runnerCalls: Parameters<GeckoTokenWriteCommandRunner>[0][] = [];
+        const tokenWriteRunner: GeckoTokenWriteCommandRunner = async (input) => {
+          runnerCalls.push(input);
+          return mockResult;
+        };
+        const runnerOutput = await supervisor.runGeckoCatchupSupervisor(buildGatedWriteArgs(), {
+          tokenWriteRunner,
+        });
+
+        assert.equal(runnerCalls.length, 1);
+        assert.equal(runnerOutput.writePlan.enabled, true);
+        assert.equal(runnerOutput.writePlan.writeModeSupported, true);
+        assert.equal(runnerOutput.writePlan.writeRequested, true);
+        assert.equal(runnerOutput.readOnly, true);
+        assert.equal(runnerOutput.dryRun, true);
+        assert.equal(runnerOutput.writeEnabled, false);
+        assert.equal(runnerOutput.selectedCandidates.length, 1);
+        assert.equal(runnerOutput.selectedCandidates[0]?.mint, seeded.expectedSelectedMints[0]);
+
+        const [runnerPlan] = runnerOutput.writePlan.writeCommandPlan;
+        assert.ok(runnerPlan);
+        assert.equal(runnerPlan.enabled, true);
+        assert.equal(runnerPlan.executionSupported, true);
+        assert.equal(runnerPlan.executionEligible, true);
+        assert.deepEqual(runnerPlan.blockedBy, []);
+        assert.equal(runnerPlan.notify, false);
+        assert.equal(runnerPlan.metricAppend, false);
+        assert.equal(runnerPlan.postCheck, true);
+        assert.equal(runnerCalls[0]?.command, runnerPlan.command);
+        assert.deepEqual(runnerCalls[0]?.args, runnerPlan.args);
+        assert.equal(runnerCalls[0]?.mint, runnerPlan.mint);
+        assert.equal(runnerCalls[0]?.cycle, runnerPlan.cycle);
+        assert.equal(runnerCalls[0]?.orderInCycle, runnerPlan.orderInCycle);
+        assert.equal(runnerCalls[0]?.notify, false);
+        assert.equal(runnerCalls[0]?.metricAppend, false);
+        assert.equal(runnerCalls[0]?.postCheck, true);
+
+        assert.equal(runnerOutput.writePlan.tokenWriteExecutionResults.length, 1);
+        assert.deepEqual(runnerOutput.writePlan.tokenWriteExecutionResults[0], {
+          mint: seeded.expectedSelectedMints[0],
+          cycle: runnerPlan.cycle,
+          orderInCycle: runnerPlan.orderInCycle,
+          status: "ok",
+          exitCode: 0,
+          rateLimited: false,
+          abortedDueToRateLimit: false,
+          skippedAfterRateLimit: 0,
+          writeSummary: {
+            enrichUpdated: true,
+            rescoreUpdated: true,
+            contextUpdated: true,
+            metaplexContextUpdated: true,
+          },
+          notifySent: false,
+          itemError: null,
+          metaplexErrorKind: null,
+          parseError: null,
+        });
+        assert.equal("stdout" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("stderr" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("parsedOutput" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("env" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("cwd" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("args" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("command" in runnerOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.deepEqual(runnerOutput.writePlan.postCheckPlan, {
+          enabled: true,
+          requireMetricPendingMatchesIncomplete: true,
+          requireSelectedLatestMetricPresent: true,
+        });
+        assert.deepEqual(runnerOutput.writePlan.recoveryHints, {
+          metricOnlyAppendCandidates: [],
+          cooldownRecommended: true,
+          resumeWithLimit: 1,
+          resumeWithMaxCycles: 1,
+        });
         assert.equal(
           supervisor.shouldRunGeckoTokenWriteRunner(
-            [plan, plan],
+            runnerOutput.writePlan.writeCommandPlan,
             {
               tokenWriteRunner,
             },
           ),
-          false,
+          true,
         );
+
+        const parseErrorRunner: GeckoTokenWriteCommandRunner = async () =>
+          parseGeckoTokenWriteCommandResult({
+            exitCode: 0,
+            stdout: "{not-json",
+            stderr: "raw parse diagnostic",
+          });
+        const parseErrorOutput = await supervisor.runGeckoCatchupSupervisor(buildGatedWriteArgs(), {
+          tokenWriteRunner: parseErrorRunner,
+        });
+
+        const [parseErrorResult] = parseErrorOutput.writePlan.tokenWriteExecutionResults;
+        assert.ok(parseErrorResult);
+        assert.equal(parseErrorResult.mint, seeded.expectedSelectedMints[0]);
+        assert.equal(parseErrorResult.status, "parse_error");
+        assert.equal(parseErrorResult.exitCode, 0);
+        assert.match(parseErrorResult.parseError ?? "", /Expected property name|Unexpected token|JSON/);
+        assert.equal(parseErrorResult.writeSummary, null);
+        assert.equal(parseErrorResult.notifySent, false);
+        assert.equal("stdout" in parseErrorResult, false);
+        assert.equal("stderr" in parseErrorResult, false);
+        assert.equal("parsedOutput" in parseErrorResult, false);
+
+        const rateLimitRunner: GeckoTokenWriteCommandRunner = async () =>
+          parseGeckoTokenWriteCommandResult({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              items: [],
+              summary: {
+                notifySentCount: 0,
+                rateLimited: true,
+                abortedDueToRateLimit: true,
+                skippedAfterRateLimit: 2,
+              },
+            }),
+            stderr: "raw rate limit diagnostic",
+          });
+        const rateLimitOutput = await supervisor.runGeckoCatchupSupervisor(buildGatedWriteArgs(), {
+          tokenWriteRunner: rateLimitRunner,
+        });
+
+        const [rateLimitResult] = rateLimitOutput.writePlan.tokenWriteExecutionResults;
+        assert.ok(rateLimitResult);
+        assert.equal(rateLimitResult.rateLimited, true);
+        assert.equal(rateLimitResult.abortedDueToRateLimit, true);
+        assert.equal(rateLimitResult.skippedAfterRateLimit, 2);
+        assert.deepEqual(rateLimitOutput.writePlan.recoveryHints, {
+          metricOnlyAppendCandidates: [],
+          cooldownRecommended: true,
+          resumeWithLimit: 1,
+          resumeWithMaxCycles: 1,
+        });
+
+        await seedUnsafeCandidateFixture(databaseUrl);
+        const guardFalseRunnerCalls: unknown[] = [];
+        const guardFalseRunner: GeckoTokenWriteCommandRunner = async (input) => {
+          guardFalseRunnerCalls.push(input);
+          throw new Error("tokenWriteRunner should not be called for invalid write requests");
+        };
+        const guardFalseOutput = await supervisor.runGeckoCatchupSupervisor(buildGatedWriteArgs(), {
+          tokenWriteRunner: guardFalseRunner,
+        });
+
+        assert.equal(guardFalseRunnerCalls.length, 0);
+        assert.equal(guardFalseOutput.writePlan.enabled, false);
+        assert.equal(guardFalseOutput.writePlan.writeModeSupported, false);
+        assert.deepEqual(guardFalseOutput.writePlan.tokenWriteExecutionResults, []);
         assert.equal(
-          supervisor.shouldRunGeckoTokenWriteRunner(
-            [],
-            {
-              tokenWriteRunner,
-            },
-          ),
-          false,
+          guardFalseOutput.writePlan.writeCommandPlan[0]?.blockedBy.includes("smoke_candidates"),
+          true,
         );
       } finally {
         await disconnectLoadedCatchupSupervisorDb();

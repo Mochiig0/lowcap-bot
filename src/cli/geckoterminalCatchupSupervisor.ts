@@ -3,7 +3,12 @@ import "dotenv/config";
 import { pathToFileURL } from "node:url";
 
 import { db } from "./db.js";
-import type { GeckoTokenWriteCommandRunner } from "./geckoterminalCatchupTokenWriteRunner.js";
+import {
+  buildGeckoTokenWriteRunnerInput,
+  toGeckoCatchupTokenWriteExecutionResult,
+  type GeckoCatchupTokenWriteExecutionResult,
+  type GeckoTokenWriteCommandRunner,
+} from "./geckoterminalCatchupTokenWriteRunner.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const DEFAULT_LIMIT = 2;
@@ -171,8 +176,8 @@ type OperatorSummary = {
 };
 
 type WritePlan = {
-  enabled: false;
-  writeModeSupported: false;
+  enabled: boolean;
+  writeModeSupported: boolean;
   writeRequested: boolean;
   recommendedInitialWriteArgs: {
     limit: 1;
@@ -197,9 +202,9 @@ type WritePlan = {
     mint: string;
   }>;
   writeCommandPlan: Array<{
-    enabled: false;
-    executionSupported: false;
-    executionEligible: false;
+    enabled: boolean;
+    executionSupported: boolean;
+    executionEligible: boolean;
     command: "pnpm";
     script: "token:enrich-rescore:geckoterminal";
     args: string[];
@@ -212,7 +217,7 @@ type WritePlan = {
     reason: "selected_incomplete_token_write";
     blockedBy: string[];
   }>;
-  tokenWriteExecutionResults: [];
+  tokenWriteExecutionResults: GeckoCatchupTokenWriteExecutionResult[];
   requiresCaptureOnly: true;
   postCheckPlan: {
     enabled: true;
@@ -960,6 +965,72 @@ export function shouldRunGeckoTokenWriteRunner(
   );
 }
 
+async function runInjectedGeckoTokenWriteRunner(
+  args: Args,
+  output: GeckoCatchupSupervisorOutput,
+  deps: GeckoCatchupSupervisorDeps,
+): Promise<GeckoCatchupSupervisorOutput> {
+  if (!args.writeRequested || !deps.tokenWriteRunner) {
+    return output;
+  }
+
+  const validation = validateGeckoCatchupInitialWriteMode({
+    writeRequested: args.writeRequested,
+    pumpOnly: args.pumpOnly,
+    limit: args.limit,
+    maxCycles: args.maxCycles,
+    stopOnNotifyCandidate: args.stopOnNotifyCandidate,
+    stopOnRateLimit: args.stopOnRateLimit,
+    captureFile: args.captureFile,
+    cooldownSeconds: args.cooldownSeconds,
+    selectedCandidates: output.selectedCandidates,
+    safetyChecks: output.safetyChecks,
+    writeCommandPlan: output.writePlan.writeCommandPlan,
+  });
+
+  if (!validation.valid || output.writePlan.writeCommandPlan.length !== 1) {
+    return output;
+  }
+
+  const [plan] = output.writePlan.writeCommandPlan;
+  const executablePlan = {
+    ...plan,
+    enabled: true,
+    executionSupported: true,
+    executionEligible: true,
+    blockedBy: [],
+  };
+  const executableOutput: GeckoCatchupSupervisorOutput = {
+    ...output,
+    writePlan: {
+      ...output.writePlan,
+      enabled: true,
+      writeModeSupported: true,
+      writeCommandPlan: [executablePlan],
+      tokenWriteExecutionResults: [],
+    },
+  };
+
+  if (!shouldRunGeckoTokenWriteRunner(executableOutput.writePlan.writeCommandPlan, deps)) {
+    return output;
+  }
+
+  const runnerInput = buildGeckoTokenWriteRunnerInput(executablePlan, {
+    cwd: process.cwd(),
+    env: process.env,
+  });
+  const runnerResult = await deps.tokenWriteRunner(runnerInput);
+  const executionResult = toGeckoCatchupTokenWriteExecutionResult(runnerInput, runnerResult);
+
+  return {
+    ...executableOutput,
+    writePlan: {
+      ...executableOutput.writePlan,
+      tokenWriteExecutionResults: [executionResult],
+    },
+  };
+}
+
 export function buildGeckoCatchupSupervisorPlan(
   args: Args,
   rawTokens: RawSupervisorToken[],
@@ -1095,12 +1166,7 @@ export async function runGeckoCatchupSupervisor(
   deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
   const output = await buildGeckoCatchupSupervisorOutput(args);
-  const shouldRunTokenWriteRunner = shouldRunGeckoTokenWriteRunner(
-    output.writePlan.writeCommandPlan,
-    deps,
-  );
-  void shouldRunTokenWriteRunner;
-  return output;
+  return runInjectedGeckoTokenWriteRunner(args, output, deps);
 }
 
 export async function runGeckoCatchupSupervisorCli(
