@@ -849,7 +849,7 @@ async function seedHardRejectedOnlyFixture(databaseUrl: string): Promise<{
 }
 
 test("geckoterminal catch-up supervisor dry-run", async (t) => {
-  await t.test("keeps mock token write runner deps unused in read-only planner", async () => {
+  await t.test("locks write gate state before parser reject is relaxed", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "mock-runner-unused.db")}`;
       await runDbPush(databaseUrl);
@@ -894,6 +894,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(output.readOnly, true);
         assert.equal(output.dryRun, true);
         assert.equal(output.writeEnabled, false);
+        assert.deepEqual(output.writePlan.tokenWriteExecutionResults, []);
         assert.equal(
           supervisor.shouldRunGeckoTokenWriteRunner(output.writePlan.writeCommandPlan, {
             tokenWriteRunner,
