@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { db } from "./db.js";
 import {
   buildGeckoTokenWriteRunnerInput,
+  runGeckoTokenWriteCommandWithNodeExecFile,
   toGeckoCatchupTokenWriteExecutionResult,
   type GeckoCatchupTokenWriteExecutionResult,
   type GeckoTokenWriteCommandRunner,
@@ -1169,11 +1170,18 @@ export async function runGeckoCatchupSupervisor(
   return runInjectedGeckoTokenWriteRunner(args, output, deps);
 }
 
+export function buildGeckoCatchupSupervisorCliDeps(): GeckoCatchupSupervisorDeps {
+  return {
+    tokenWriteRunner: runGeckoTokenWriteCommandWithNodeExecFile,
+  };
+}
+
 export async function runGeckoCatchupSupervisorCli(
   argv = process.argv.slice(2),
+  deps = buildGeckoCatchupSupervisorCliDeps(),
 ): Promise<void> {
   const args = parseGeckoCatchupSupervisorArgs(argv);
-  const output = await runGeckoCatchupSupervisor(args);
+  const output = await runGeckoCatchupSupervisor(args, deps);
 
   console.log(
     JSON.stringify(

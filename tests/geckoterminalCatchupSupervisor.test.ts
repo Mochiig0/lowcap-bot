@@ -1029,6 +1029,50 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           true,
         );
 
+        const cliRunnerCalls: Parameters<GeckoTokenWriteCommandRunner>[0][] = [];
+        const cliTokenWriteRunner: GeckoTokenWriteCommandRunner = async (input) => {
+          cliRunnerCalls.push(input);
+          return mockResult;
+        };
+        const cliOutputLines: string[] = [];
+        const originalConsoleLog = console.log;
+        console.log = (...values: unknown[]) => {
+          cliOutputLines.push(values.map(String).join(" "));
+        };
+        try {
+          await supervisor.runGeckoCatchupSupervisorCli(
+            [
+              "--write",
+              "--pumpOnly",
+              "--limit",
+              "1",
+              "--maxCycles",
+              "1",
+              "--sinceMinutes",
+              "10080",
+              "--dry-run",
+            ],
+            {
+              tokenWriteRunner: cliTokenWriteRunner,
+            },
+          );
+        } finally {
+          console.log = originalConsoleLog;
+        }
+
+        assert.equal(cliRunnerCalls.length, 1);
+        assert.equal(cliOutputLines.length, 1);
+        const cliOutput = JSON.parse(cliOutputLines[0] ?? "") as CatchupSupervisorOutput;
+        assert.equal(cliOutput.writePlan.enabled, true);
+        assert.equal(cliOutput.writePlan.writeModeSupported, true);
+        assert.equal(cliOutput.writePlan.writeCommandPlan[0]?.executionSupported, true);
+        assert.equal(cliOutput.writePlan.writeCommandPlan[0]?.executionEligible, true);
+        assert.deepEqual(cliOutput.writePlan.writeCommandPlan[0]?.blockedBy, []);
+        assert.equal(cliOutput.writePlan.tokenWriteExecutionResults.length, 1);
+        assert.equal(cliOutput.writePlan.tokenWriteExecutionResults[0]?.status, "ok");
+        assert.equal("stdout" in cliOutput.writePlan.tokenWriteExecutionResults[0], false);
+        assert.equal("stderr" in cliOutput.writePlan.tokenWriteExecutionResults[0], false);
+
         const parseErrorRunner: GeckoTokenWriteCommandRunner = async () =>
           parseGeckoTokenWriteCommandResult({
             exitCode: 0,
@@ -1424,7 +1468,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(args.dryRun, true);
     assert.equal(args.writeRequested, false);
     assert.equal(typeof supervisor.runGeckoCatchupSupervisor, "function");
+    assert.equal(typeof supervisor.runGeckoCatchupSupervisorCli, "function");
+    assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps, "function");
     assert.equal(typeof supervisor.shouldRunGeckoTokenWriteRunner, "function");
+    assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps().tokenWriteRunner, "function");
   });
 
   await t.test("reports completed pump backlog without planning writes", async () => {
