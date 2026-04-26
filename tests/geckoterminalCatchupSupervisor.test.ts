@@ -8,6 +8,8 @@ import { promisify } from "node:util";
 
 import { PrismaClient } from "@prisma/client";
 
+import { buildGeckoTokenWriteRunnerInput } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
+
 const execFileAsync = promisify(execFile);
 
 const GECKO_SOURCE = "geckoterminal.new_pools";
@@ -1104,6 +1106,33 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(plan.blockedBy.includes("limit_not_one"), false);
       assert.equal(plan.blockedBy.includes("max_cycles_not_one"), false);
       assert.equal(plan.blockedBy.includes("selected_count_not_one"), false);
+
+      const runnerInput = buildGeckoTokenWriteRunnerInput(plan, {
+        cwd: process.cwd(),
+        env: {
+          DATABASE_URL: databaseUrl,
+        },
+      });
+      assert.equal(runnerInput.command, "pnpm");
+      assert.deepEqual(runnerInput.args, [
+        "token:enrich-rescore:geckoterminal",
+        "--",
+        "--mint",
+        seeded.expectedSelectedMints[0],
+        "--write",
+      ]);
+      assert.equal(runnerInput.args.includes("--mint"), true);
+      assert.equal(runnerInput.args.includes(seeded.expectedSelectedMints[0]), true);
+      assert.equal(runnerInput.args.includes("--write"), true);
+      assert.equal(runnerInput.args.includes("--notify"), false);
+      assert.equal(runnerInput.args.some((arg) => arg.includes("metric")), false);
+      assert.equal(runnerInput.mint, parsed.selectedCandidates[0]?.mint);
+      assert.equal(runnerInput.cycle, plan.cycle);
+      assert.equal(runnerInput.orderInCycle, plan.orderInCycle);
+      assert.equal(runnerInput.notify, false);
+      assert.equal(runnerInput.metricAppend, false);
+      assert.equal(runnerInput.postCheck, true);
+
       assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
