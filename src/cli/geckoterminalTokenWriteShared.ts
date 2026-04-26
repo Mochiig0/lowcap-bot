@@ -22,7 +22,7 @@ export type GeckoTokenWriteDeps = {
     mint: string,
     patch: GeckoTokenWriteEnrichPatch,
   ) => Promise<unknown>;
-  writeRescore?: (mint: string) => Promise<unknown>;
+  writeRescore?: (mint: string) => Promise<GeckoTokenWriteRescoreWriteResult>;
   logger?: Pick<Console, "error">;
 };
 
@@ -69,6 +69,13 @@ export type GeckoTokenWriteRescorePreview = {
   scoreRank: string;
   hardRejected: boolean;
   hardRejectReason: string | null;
+};
+
+export type GeckoTokenWriteRescoreWriteResult = {
+  scoreTotal: number;
+  scoreRank: string;
+  hardRejected: boolean;
+  rescoredAt: string;
 };
 
 export type GeckoTokenWriteFetchedSnapshot = Record<string, unknown>;
@@ -135,6 +142,7 @@ export type GeckoTokenWriteResult = {
   fetchedSnapshot: GeckoTokenWriteFetchedSnapshot | null;
   enrichPlan: GeckoTokenWriteEnrichPlan | null;
   rescorePreview: GeckoTokenWriteRescorePreview | null;
+  rescoreWriteResult: GeckoTokenWriteRescoreWriteResult | null;
   contextPreview: GeckoTokenWriteContextPreview | null;
   metaplexPreview: GeckoTokenWriteMetaplexPreview | null;
   reviewFlagsPreview: GeckoTokenWriteReviewFlagsPreview | null;
@@ -1200,6 +1208,7 @@ export function buildUnsupportedGeckoTokenWriteResult(
     fetchedSnapshot: null,
     enrichPlan: null,
     rescorePreview: null,
+    rescoreWriteResult: null,
     contextPreview: null,
     metaplexPreview: null,
     reviewFlagsPreview: null,
@@ -1357,9 +1366,10 @@ export async function runGeckoTokenWriteForMint(
     }
 
     let rescoreWritten = false;
+    let rescoreWriteResult: GeckoTokenWriteRescoreWriteResult | null = null;
     if (rescorePreview) {
       try {
-        await deps.writeRescore(input.mint);
+        rescoreWriteResult = await deps.writeRescore(input.mint);
         rescoreWritten = true;
       } catch (error) {
         return {
@@ -1367,6 +1377,7 @@ export async function runGeckoTokenWriteForMint(
           status: "error",
           enrichWritten,
           rescoreWritten: false,
+          rescoreWriteResult: null,
           writeSummary: {
             ...result.writeSummary,
             enrichWritten,
@@ -1381,6 +1392,7 @@ export async function runGeckoTokenWriteForMint(
       ...result,
       enrichWritten,
       rescoreWritten,
+      rescoreWriteResult,
       writeSummary: {
         ...result.writeSummary,
         enrichWritten,

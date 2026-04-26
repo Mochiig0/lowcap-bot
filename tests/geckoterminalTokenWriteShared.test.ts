@@ -15,6 +15,7 @@ import {
   type GeckoTokenWriteExistingToken,
   type GeckoTokenWriteMetaplexPreview,
   type GeckoTokenWriteInput,
+  type GeckoTokenWriteRescoreWriteResult,
   type GeckoTokenWriteResult,
   type GeckoTokenWriteStatus,
 } from "../src/cli/geckoterminalTokenWriteShared.ts";
@@ -52,6 +53,18 @@ function buildGeckoSnapshot(mint: string): unknown {
   };
 }
 
+function buildRescoreWriteResult(
+  overrides: Partial<GeckoTokenWriteRescoreWriteResult> = {},
+): GeckoTokenWriteRescoreWriteResult {
+  return {
+    scoreTotal: 10,
+    scoreRank: "A",
+    hardRejected: false,
+    rescoredAt: "2026-04-25T01:30:00.000Z",
+    ...overrides,
+  };
+}
+
 test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
   await t.test("exposes the token write result shape without performing writes", () => {
     const input: GeckoTokenWriteInput = {
@@ -75,6 +88,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.fetchedSnapshot, null);
     assert.equal(result.enrichPlan, null);
     assert.equal(result.rescorePreview, null);
+    assert.equal(result.rescoreWriteResult, null);
     assert.equal(result.contextPreview, null);
     assert.equal(result.metaplexPreview, null);
     assert.equal(result.reviewFlagsPreview, null);
@@ -124,6 +138,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       fetchedSnapshot: null,
       enrichPlan: null,
       rescorePreview: null,
+      rescoreWriteResult: null,
       contextPreview: null,
       metaplexPreview: null,
       reviewFlagsPreview: null,
@@ -388,6 +403,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
         },
         writeRescore: async () => {
           calls.push("writeRescore");
+          return buildRescoreWriteResult();
         },
       },
     );
@@ -396,6 +412,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.deepEqual(calls, []);
     assert.equal(result.enrichWritten, false);
     assert.equal(result.rescoreWritten, false);
+    assert.equal(result.rescoreWriteResult, null);
     assert.equal(result.writeSummary.enrichWritten, false);
     assert.equal(result.writeSummary.rescoreWritten, false);
   });
@@ -404,6 +421,12 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     const mint = "GeckoTokenWriteInjectedWrites111111111111pump";
     const existingToken = buildExistingToken(mint);
     const calls: Array<{ name: "writeEnrich" | "writeRescore"; mint: string; patch?: unknown }> = [];
+    const rescoreWriteResult = buildRescoreWriteResult({
+      scoreTotal: 42,
+      scoreRank: "S",
+      hardRejected: false,
+      rescoredAt: "2026-04-25T02:00:00.000Z",
+    });
 
     const result = await runGeckoTokenWriteForMint(
       {
@@ -418,6 +441,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
         },
         writeRescore: async (writeMint) => {
           calls.push({ name: "writeRescore", mint: writeMint });
+          return rescoreWriteResult;
         },
       },
     );
@@ -444,6 +468,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.deepEqual(calls[0]?.patch, result.enrichPlan?.patch);
     assert.equal(result.enrichWritten, true);
     assert.equal(result.rescoreWritten, true);
+    assert.deepEqual(result.rescoreWriteResult, rescoreWriteResult);
     assert.equal(result.contextWritten, false);
     assert.equal(result.metaplexContextWritten, false);
     assert.equal(result.reviewFlagsWouldWrite, true);
@@ -474,6 +499,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(result.error, GECKO_TOKEN_WRITE_DEPS_MISSING_ERROR);
     assert.equal(result.enrichWritten, false);
     assert.equal(result.rescoreWritten, false);
+    assert.equal(result.rescoreWriteResult, null);
     assert.equal(result.writeSummary.enrichWritten, false);
     assert.equal(result.writeSummary.rescoreWritten, false);
   });
@@ -488,6 +514,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
       },
       writeRescore: async () => {
         calls.push("writeRescore");
+        return buildRescoreWriteResult();
       },
     };
 
@@ -530,6 +557,8 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.equal(rateLimitedResult.rateLimitScope, "geckoterminal");
     assert.equal(invalidShapeResult.status, "error");
     assert.equal(invalidShapeResult.error, GECKO_TOKEN_WRITE_SNAPSHOT_SHAPE_ERROR);
+    assert.equal(rateLimitedResult.rescoreWriteResult, null);
+    assert.equal(invalidShapeResult.rescoreWriteResult, null);
     assert.deepEqual(calls, []);
   });
 
@@ -552,6 +581,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
         },
         writeRescore: async () => {
           calls.push("writeRescore");
+          return buildRescoreWriteResult();
         },
       },
     );
@@ -564,6 +594,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.deepEqual(calls, ["writeEnrich"]);
     assert.equal(result.enrichWritten, false);
     assert.equal(result.rescoreWritten, false);
+    assert.equal(result.rescoreWriteResult, null);
     assert.equal(result.writeSummary.enrichWritten, false);
     assert.equal(result.writeSummary.rescoreWritten, false);
   });
@@ -599,6 +630,7 @@ test("geckoterminalTokenWriteShared skeleton contract", async (t) => {
     assert.deepEqual(calls, ["writeEnrich", "writeRescore"]);
     assert.equal(result.enrichWritten, true);
     assert.equal(result.rescoreWritten, false);
+    assert.equal(result.rescoreWriteResult, null);
     assert.equal(result.writeSummary.enrichWritten, true);
     assert.equal(result.writeSummary.rescoreWritten, false);
   });
