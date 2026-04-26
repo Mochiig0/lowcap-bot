@@ -960,7 +960,12 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           metricAppend: false,
           postCheck: true,
           reason: "selected_incomplete_token_write",
-          blockedBy: ["write_gate_still_disabled"],
+          blockedBy: [
+            "write_gate_still_disabled",
+            "limit_not_one",
+            "max_cycles_not_one",
+            "selected_count_not_one",
+          ],
         },
       ]);
       assert.deepEqual(parsed.writePlan.recoveryHints.metricOnlyAppendCandidates, []);
@@ -1087,6 +1092,8 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           reason: "selected_incomplete_token_write",
           blockedBy: [
             "write_gate_still_disabled",
+            "limit_not_one",
+            "selected_count_not_one",
             "smoke_candidates",
             "hard_rejected_candidates",
             "metric_append_precheck",
@@ -1186,6 +1193,29 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         {
           cycle: 1,
           mint: seeded.hardRejectedMint,
+        },
+      ]);
+      assert.deepEqual(parsed.writePlan.writeCommandPlan, [
+        {
+          enabled: false,
+          executionSupported: false,
+          command: "pnpm",
+          script: "token:enrich-rescore:geckoterminal",
+          args: [
+            "token:enrich-rescore:geckoterminal",
+            "--",
+            "--mint",
+            seeded.hardRejectedMint,
+            "--write",
+          ],
+          mint: seeded.hardRejectedMint,
+          cycle: 1,
+          orderInCycle: 1,
+          notify: false,
+          metricAppend: false,
+          postCheck: true,
+          reason: "selected_incomplete_token_write",
+          blockedBy: ["write_gate_still_disabled", "hard_rejected_candidates"],
         },
       ]);
       assert.equal(parsed.stopReason, "hard_rejected_candidates");

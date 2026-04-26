@@ -671,10 +671,16 @@ function buildOperatorSummary(
 }
 
 function buildWritePlan(
+  args: Args,
   selectedCandidates: SelectedCandidate[],
   metricAppendPlan: MetricAppendPlanItem[],
   safetyChecks: SafetyCheck[],
 ): WritePlan {
+  const initialWriteConditionBlocks = [
+    ...(args.limit === 1 ? [] : ["limit_not_one"]),
+    ...(args.maxCycles === 1 ? [] : ["max_cycles_not_one"]),
+    ...(selectedCandidates.length === 1 ? [] : ["selected_count_not_one"]),
+  ];
   const blockingSafetyChecks = safetyChecks
     .filter((check) => check.status === "fail" || check.status === "warn")
     .map((check) => check.name);
@@ -723,7 +729,11 @@ function buildWritePlan(
             metricAppend: false,
             postCheck: true,
             reason: "selected_incomplete_token_write",
-            blockedBy: ["write_gate_still_disabled", ...blockingSafetyChecks],
+            blockedBy: [
+              "write_gate_still_disabled",
+              ...initialWriteConditionBlocks,
+              ...blockingSafetyChecks,
+            ],
           },
         ]
       : [],
@@ -843,7 +853,7 @@ async function run(): Promise<void> {
     metricAppendPlan,
     safetyChecks,
   );
-  const writePlan = buildWritePlan(selectedCandidates, metricAppendPlan, safetyChecks);
+  const writePlan = buildWritePlan(args, selectedCandidates, metricAppendPlan, safetyChecks);
   const writeModeReadiness = buildWriteModeReadiness();
 
   console.log(
