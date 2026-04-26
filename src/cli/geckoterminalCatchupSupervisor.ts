@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { pathToFileURL } from "node:url";
+
 import { db } from "./db.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
@@ -7,7 +9,7 @@ const DEFAULT_LIMIT = 2;
 const DEFAULT_MAX_CYCLES = 1;
 const DEFAULT_SINCE_MINUTES = 10_080;
 
-type Args = {
+export type Args = {
   pumpOnly: boolean;
   limit: number;
   maxCycles: number;
@@ -24,6 +26,32 @@ type JsonObject = Record<string, unknown>;
 type FirstSeenSourceSnapshot = {
   source?: unknown;
   detectedAt?: unknown;
+};
+
+type RawSupervisorToken = {
+  id: number;
+  mint: string;
+  source: string | null;
+  name: string | null;
+  symbol: string | null;
+  metadataStatus: string;
+  scoreRank: string;
+  scoreTotal: number;
+  hardRejected: boolean;
+  createdAt: Date;
+  importedAt: Date;
+  enrichedAt: Date | null;
+  rescoredAt: Date | null;
+  entrySnapshot: unknown;
+  metrics: Array<{
+    id: number;
+    source: string | null;
+    observedAt: Date;
+    volume24h: number | null;
+  }>;
+  _count: {
+    metrics: number;
+  };
 };
 
 type LatestMetric = {
@@ -191,6 +219,35 @@ type WriteModeReadiness = {
   nextImplementationStep: "review_supervisor_write_gate";
 };
 
+export type GeckoCatchupSupervisorOutput = {
+  readOnly: true;
+  dryRun: true;
+  writeEnabled: false;
+  source: typeof GECKOTERMINAL_NEW_POOLS_SOURCE;
+  selection: {
+    pumpOnly: boolean;
+    limit: number;
+    maxCycles: number;
+    sinceMinutes: number;
+    sinceCutoff: string;
+    captureFile: string | null;
+    cooldownSeconds: number | null;
+    stopOnNotifyCandidate: boolean;
+    stopOnRateLimit: boolean;
+  };
+  summary: OperatorSummary;
+  writePlan: WritePlan;
+  writeModeReadiness: WriteModeReadiness;
+  currentCounts: CurrentCounts;
+  pendingCount: number;
+  wouldRunCycles: number;
+  selectedCandidates: SelectedCandidate[];
+  metricAppendPlan: MetricAppendPlanItem[];
+  cycles: CyclePlan[];
+  stopReason: string;
+  safetyChecks: SafetyCheck[];
+};
+
 class CliUsageError extends Error {}
 
 function getUsageText(): string {
@@ -234,7 +291,7 @@ function parseOptionalStringArg(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
   const normalizedArgv = argv.filter((value) => value !== "--");
   const out: Args = {
     pumpOnly: false,
@@ -347,31 +404,7 @@ function extractFirstSeenSourceSnapshot(entrySnapshot: unknown): FirstSeenSource
   return firstSeenSourceSnapshot as FirstSeenSourceSnapshot;
 }
 
-function buildSupervisorToken(token: {
-  id: number;
-  mint: string;
-  source: string | null;
-  name: string | null;
-  symbol: string | null;
-  metadataStatus: string;
-  scoreRank: string;
-  scoreTotal: number;
-  hardRejected: boolean;
-  createdAt: Date;
-  importedAt: Date;
-  enrichedAt: Date | null;
-  rescoredAt: Date | null;
-  entrySnapshot: unknown;
-  metrics: Array<{
-    id: number;
-    source: string | null;
-    observedAt: Date;
-    volume24h: number | null;
-  }>;
-  _count: {
-    metrics: number;
-  };
-}): SupervisorToken {
+function buildSupervisorToken(token: RawSupervisorToken): SupervisorToken {
   const firstSeen = extractFirstSeenSourceSnapshot(token.entrySnapshot);
   const originSource =
     typeof firstSeen?.source === "string" && firstSeen.source.trim().length > 0
@@ -795,49 +828,11 @@ function buildWriteModeReadiness(): WriteModeReadiness {
   };
 }
 
-async function run(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
-  const sinceCutoff = new Date(Date.now() - args.sinceMinutes * 60_000);
-
-  const rawTokens = await db.token.findMany({
-    where: {
-      createdAt: {
-        gte: sinceCutoff,
-      },
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: {
-      id: true,
-      mint: true,
-      source: true,
-      name: true,
-      symbol: true,
-      metadataStatus: true,
-      scoreRank: true,
-      scoreTotal: true,
-      hardRejected: true,
-      createdAt: true,
-      importedAt: true,
-      enrichedAt: true,
-      rescoredAt: true,
-      entrySnapshot: true,
-      metrics: {
-        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
-        select: {
-          id: true,
-          source: true,
-          observedAt: true,
-          volume24h: true,
-        },
-      },
-      _count: {
-        select: {
-          metrics: true,
-        },
-      },
-    },
-  });
-
+export function buildGeckoCatchupSupervisorPlan(
+  args: Args,
+  rawTokens: RawSupervisorToken[],
+  sinceCutoff: Date,
+): GeckoCatchupSupervisorOutput {
   const geckoTokens = rawTokens
     .map(buildSupervisorToken)
     .filter(
@@ -886,54 +881,116 @@ async function run(): Promise<void> {
   const writePlan = buildWritePlan(args, selectedCandidates, metricAppendPlan, safetyChecks);
   const writeModeReadiness = buildWriteModeReadiness();
 
+  return {
+    readOnly: true,
+    dryRun: args.dryRun,
+    writeEnabled: false,
+    source: GECKOTERMINAL_NEW_POOLS_SOURCE,
+    selection: {
+      pumpOnly: args.pumpOnly,
+      limit: args.limit,
+      maxCycles: args.maxCycles,
+      sinceMinutes: args.sinceMinutes,
+      sinceCutoff: sinceCutoff.toISOString(),
+      captureFile: args.captureFile,
+      cooldownSeconds: args.cooldownSeconds,
+      stopOnNotifyCandidate: args.stopOnNotifyCandidate,
+      stopOnRateLimit: args.stopOnRateLimit,
+    },
+    summary,
+    writePlan,
+    writeModeReadiness,
+    currentCounts,
+    pendingCount: pendingTokens.length,
+    wouldRunCycles: cycles.length,
+    selectedCandidates,
+    metricAppendPlan,
+    cycles,
+    stopReason,
+    safetyChecks,
+  };
+}
+
+export async function buildGeckoCatchupSupervisorOutput(
+  args: Args,
+): Promise<GeckoCatchupSupervisorOutput> {
+  const sinceCutoff = new Date(Date.now() - args.sinceMinutes * 60_000);
+
+  const rawTokens = await db.token.findMany({
+    where: {
+      createdAt: {
+        gte: sinceCutoff,
+      },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      mint: true,
+      source: true,
+      name: true,
+      symbol: true,
+      metadataStatus: true,
+      scoreRank: true,
+      scoreTotal: true,
+      hardRejected: true,
+      createdAt: true,
+      importedAt: true,
+      enrichedAt: true,
+      rescoredAt: true,
+      entrySnapshot: true,
+      metrics: {
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          source: true,
+          observedAt: true,
+          volume24h: true,
+        },
+      },
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
+    },
+  });
+
+  return buildGeckoCatchupSupervisorPlan(args, rawTokens, sinceCutoff);
+}
+
+export async function runGeckoCatchupSupervisorCli(
+  argv = process.argv.slice(2),
+): Promise<void> {
+  const args = parseGeckoCatchupSupervisorArgs(argv);
+  const output = await buildGeckoCatchupSupervisorOutput(args);
+
   console.log(
     JSON.stringify(
-      {
-        readOnly: true,
-        dryRun: args.dryRun,
-        writeEnabled: false,
-        source: GECKOTERMINAL_NEW_POOLS_SOURCE,
-        selection: {
-          pumpOnly: args.pumpOnly,
-          limit: args.limit,
-          maxCycles: args.maxCycles,
-          sinceMinutes: args.sinceMinutes,
-          sinceCutoff: sinceCutoff.toISOString(),
-          captureFile: args.captureFile,
-          cooldownSeconds: args.cooldownSeconds,
-          stopOnNotifyCandidate: args.stopOnNotifyCandidate,
-          stopOnRateLimit: args.stopOnRateLimit,
-        },
-        summary,
-        writePlan,
-        writeModeReadiness,
-        currentCounts,
-        pendingCount: pendingTokens.length,
-        wouldRunCycles: cycles.length,
-        selectedCandidates,
-        metricAppendPlan,
-        cycles,
-        stopReason,
-        safetyChecks,
-      },
+      output,
       null,
       2,
     ),
   );
 }
 
-run()
-  .catch((error: unknown) => {
-    if (error instanceof CliUsageError) {
-      if (error.message.length > 0) {
-        console.error(error.message);
+const isMainModule =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule) {
+  runGeckoCatchupSupervisorCli()
+    .catch((error: unknown) => {
+      if (error instanceof CliUsageError) {
+        if (error.message.length > 0) {
+          console.error(error.message);
+        }
+        console.error(getUsageText());
+      } else {
+        console.error(error);
       }
-      console.error(getUsageText());
-    } else {
-      console.error(error);
-    }
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await db.$disconnect();
-  });
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await db.$disconnect();
+    });
+}

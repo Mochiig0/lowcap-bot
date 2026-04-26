@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 import { PrismaClient } from "@prisma/client";
 
+import { parseGeckoCatchupSupervisorArgs } from "../src/cli/geckoterminalCatchupSupervisor.ts";
 import { buildGeckoTokenWriteRunnerInput } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
 const execFileAsync = promisify(execFile);
@@ -798,6 +799,14 @@ async function seedHardRejectedOnlyFixture(databaseUrl: string): Promise<{
 }
 
 test("geckoterminal catch-up supervisor dry-run", async (t) => {
+  await t.test("imports planner helpers without running the CLI entrypoint", () => {
+    const args = parseGeckoCatchupSupervisorArgs(["--pumpOnly", "--limit", "1"]);
+
+    assert.equal(args.pumpOnly, true);
+    assert.equal(args.limit, 1);
+    assert.equal(args.dryRun, true);
+  });
+
   await t.test("reports completed pump backlog without planning writes", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "completed.db")}`;
