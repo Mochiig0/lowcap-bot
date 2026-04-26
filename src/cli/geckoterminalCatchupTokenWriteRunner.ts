@@ -1,0 +1,150 @@
+type JsonObject = Record<string, unknown>;
+
+export type GeckoTokenWriteCommandStatus = "ok" | "cli_error" | "parse_error";
+
+export type GeckoTokenWriteCommandWriteSummary = {
+  enrichUpdated: boolean;
+  rescoreUpdated: boolean;
+  contextUpdated: boolean;
+  metaplexContextUpdated: boolean;
+};
+
+export type GeckoTokenWriteCommandParsedOutput = JsonObject & {
+  summary?: JsonObject;
+  items?: unknown[];
+};
+
+export type GeckoTokenWriteCommandResult = {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  parsedOutput: GeckoTokenWriteCommandParsedOutput | null;
+  parseError: string | null;
+  status: GeckoTokenWriteCommandStatus;
+  rateLimited: boolean;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
+  writeSummary: GeckoTokenWriteCommandWriteSummary | null;
+  notifySent: boolean;
+  itemError: string | null;
+  metaplexErrorKind: string | null;
+};
+
+type TokenWriteCommandRawResult = {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+};
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readBoolean(value: unknown): boolean {
+  return value === true;
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function parseStdoutJson(stdout: string): {
+  parsedOutput: GeckoTokenWriteCommandParsedOutput | null;
+  parseError: string | null;
+} {
+  const trimmed = stdout.trim();
+  if (trimmed.length === 0) {
+    return {
+      parsedOutput: null,
+      parseError: "stdout was empty",
+    };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (!isJsonObject(parsed)) {
+      return {
+        parsedOutput: null,
+        parseError: "stdout JSON must be an object",
+      };
+    }
+
+    return {
+      parsedOutput: parsed as GeckoTokenWriteCommandParsedOutput,
+      parseError: null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      parsedOutput: null,
+      parseError: `stdout JSON parse failed: ${message}`,
+    };
+  }
+}
+
+function getFirstItem(parsedOutput: GeckoTokenWriteCommandParsedOutput | null): JsonObject | null {
+  const items = parsedOutput?.items;
+  if (!Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+
+  return isJsonObject(items[0]) ? items[0] : null;
+}
+
+function readWriteSummary(item: JsonObject | null): GeckoTokenWriteCommandWriteSummary | null {
+  const writeSummary = item?.writeSummary;
+  if (!isJsonObject(writeSummary)) {
+    return null;
+  }
+
+  return {
+    enrichUpdated: readBoolean(writeSummary.enrichUpdated),
+    rescoreUpdated: readBoolean(writeSummary.rescoreUpdated),
+    contextUpdated: readBoolean(writeSummary.contextUpdated),
+    metaplexContextUpdated: readBoolean(writeSummary.metaplexContextUpdated),
+  };
+}
+
+function buildCommandStatus(
+  exitCode: number | null,
+  parsedOutput: GeckoTokenWriteCommandParsedOutput | null,
+): GeckoTokenWriteCommandStatus {
+  if (exitCode === 0 && parsedOutput !== null) {
+    return "ok";
+  }
+  if (exitCode === 0) {
+    return "parse_error";
+  }
+  return "cli_error";
+}
+
+export function parseGeckoTokenWriteCommandResult(
+  input: TokenWriteCommandRawResult,
+): GeckoTokenWriteCommandResult {
+  const { parsedOutput, parseError } = parseStdoutJson(input.stdout);
+  const summary = isJsonObject(parsedOutput?.summary) ? parsedOutput.summary : null;
+  const firstItem = getFirstItem(parsedOutput);
+  const writeSummary = readWriteSummary(firstItem);
+  const notifySent =
+    readBoolean(firstItem?.notifySent) || readNumber(summary?.notifySentCount) > 0;
+
+  return {
+    exitCode: input.exitCode,
+    stdout: input.stdout,
+    stderr: input.stderr,
+    parsedOutput,
+    parseError,
+    status: buildCommandStatus(input.exitCode, parsedOutput),
+    rateLimited: readBoolean(summary?.rateLimited),
+    abortedDueToRateLimit: readBoolean(summary?.abortedDueToRateLimit),
+    skippedAfterRateLimit: readNumber(summary?.skippedAfterRateLimit),
+    writeSummary,
+    notifySent,
+    itemError: readString(firstItem?.error),
+    metaplexErrorKind: readString(firstItem?.metaplexErrorKind),
+  };
+}
