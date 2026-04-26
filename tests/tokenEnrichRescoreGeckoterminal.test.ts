@@ -52,10 +52,13 @@ type TokenEnrichRescoreGeckoterminalOutput = {
     selectedCount: number;
     selectedIncompleteCount: number;
     skippedCompleteCount: number;
+    skippedNonPumpCount: number;
     okCount: number;
     errorCount: number;
     enrichWriteCount: number;
     rescoreWriteCount: number;
+    contextAvailableCount: number;
+    contextWriteCount: number;
     metaplexAttemptedCount: number;
     metaplexAvailableCount: number;
     metaplexWriteCount: number;
@@ -227,6 +230,99 @@ async function runTokenEnrichRescoreGeckoterminal(
   } finally {
     await rm(stdoutPath, { force: true });
     await rm(stderrPath, { force: true });
+  }
+}
+
+function countByNullableString(values: Array<string | null>): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const value of values) {
+    if (value === null) {
+      continue;
+    }
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function assertSummaryMatchesItems(
+  parsed: TokenEnrichRescoreGeckoterminalOutput,
+): void {
+  const items = parsed.items;
+  assert.equal(parsed.summary.selectedCount, parsed.selection.selectedCount);
+  assert.equal(
+    parsed.summary.selectedIncompleteCount,
+    parsed.selection.selectedIncompleteCount,
+  );
+  assert.equal(
+    parsed.summary.skippedCompleteCount,
+    parsed.selection.skippedCompleteCount,
+  );
+  assert.equal(
+    parsed.summary.skippedNonPumpCount,
+    parsed.selection.skippedNonPumpCount,
+  );
+  assert.equal(
+    parsed.summary.okCount,
+    items.filter((item) => item.status === "ok").length,
+  );
+  assert.equal(
+    parsed.summary.errorCount,
+    items.filter((item) => item.status === "error").length,
+  );
+  assert.equal(
+    parsed.summary.enrichWriteCount,
+    items.filter((item) => item.writeSummary.enrichUpdated).length,
+  );
+  assert.equal(
+    parsed.summary.rescoreWriteCount,
+    items.filter((item) => item.writeSummary.rescoreUpdated).length,
+  );
+  assert.equal(
+    parsed.summary.contextAvailableCount,
+    items.filter((item) => item.contextAvailable).length,
+  );
+  assert.equal(
+    parsed.summary.contextWriteCount,
+    items.filter((item) => item.writeSummary.contextUpdated).length,
+  );
+  assert.equal(
+    parsed.summary.metaplexAttemptedCount,
+    items.filter((item) => item.metaplexAttempted).length,
+  );
+  assert.equal(
+    parsed.summary.metaplexAvailableCount,
+    items.filter((item) => item.metaplexAvailable).length,
+  );
+  assert.equal(
+    parsed.summary.metaplexWriteCount,
+    items.filter((item) => item.writeSummary.metaplexContextUpdated).length,
+  );
+  assert.equal(
+    parsed.summary.metaplexSavedCount,
+    parsed.summary.metaplexWriteCount,
+  );
+  assert.deepEqual(
+    parsed.summary.metaplexErrorKindCounts,
+    countByNullableString(items.map((item) => item.metaplexErrorKind)),
+  );
+  assert.equal(
+    parsed.summary.notifyCandidateCount,
+    items.filter((item) => item.notifyCandidate).length,
+  );
+  assert.equal(
+    parsed.summary.notifyWouldSendCount,
+    items.filter((item) => item.notifyWouldSend).length,
+  );
+  assert.equal(
+    parsed.summary.notifySentCount,
+    items.filter((item) => item.notifySent).length,
+  );
+  assert.equal(parsed.summary.rateLimited, parsed.summary.rateLimitedCount > 0);
+  if (parsed.summary.abortedDueToRateLimit) {
+    assert.equal(parsed.summary.rateLimited, true);
+    assert.ok(parsed.summary.skippedAfterRateLimit >= 0);
+  } else {
+    assert.equal(parsed.summary.skippedAfterRateLimit, 0);
   }
 }
 
@@ -414,6 +510,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       assert.equal(parsed.mode, "single");
       assert.equal(parsed.dryRun, true);
       assert.equal(parsed.writeEnabled, false);
@@ -537,6 +634,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
       assert.equal(
@@ -775,6 +873,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
 
@@ -891,6 +990,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         adapterItem.writeSummary.metaplexContextUpdated,
         cliItem.writeSummary.metaplexContextUpdated,
       );
+      assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
 
       const token = await readToken(databaseUrl, mint);
       assert.equal(token?.name, null);
@@ -954,6 +1054,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
 
@@ -1066,6 +1167,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         adapterItem.writeSummary.metaplexContextUpdated,
         cliItem.writeSummary.metaplexContextUpdated,
       );
+      assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
 
       const token = await readToken(databaseUrl, mint);
       assert.equal(token?.name, null);
@@ -1130,6 +1232,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
 
@@ -1242,6 +1345,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
         adapterItem.writeSummary.metaplexContextUpdated,
         cliItem.writeSummary.metaplexContextUpdated,
       );
+      assert.deepEqual(adapterItem.writeSummary, cliItem.writeSummary);
 
       const token = await readToken(databaseUrl, mint);
       assert.equal(token?.name, null);
@@ -1249,6 +1353,107 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(token?.metadataStatus, "mint_only");
       assert.equal(token?.rescoredAt, null);
       assert.equal(token?.reviewFlagsJson, null);
+    });
+  });
+
+  await t.test("keeps processing a recent batch after a Metaplex-only rate limit", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "metaplex-rate-limit-batch.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex-rate-limit.json");
+      const newestMint = "GeckoMetaplexBatchNewest11111111111111111pump";
+      const olderMint = "GeckoMetaplexBatchOlder111111111111111111pump";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedBatchToken(databaseUrl, {
+        mint: olderMint,
+        createdAt: new Date(now - 2 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newestMint,
+        createdAt: new Date(now - 60_000),
+      });
+      await writeFile(
+        geckoSnapshotFile,
+        JSON.stringify(
+          {
+            data: {
+              id: `solana_${newestMint}`,
+              type: "token",
+              attributes: {
+                address: newestMint,
+                name: "Metaplex Batch Rate Limit Token",
+                symbol: "MBRL",
+                description: "gecko context survives batch metaplex rate limits",
+                websites: ["https://example.com/metaplex-batch-rate-limit"],
+                twitter_username: "metaplex_batch_rate_limit",
+                telegram_handle: "metaplexbatchratelimit",
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify(
+          {
+            status: "error",
+            kind: "rate_limited",
+            rateLimited: true,
+            message: "metaplex.metadata_uri request failed: 429 Too Many Requests",
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      const result = await runTokenEnrichRescoreGeckoterminal(
+        ["--limit", "2", "--sinceMinutes", "10"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          metaplexFixtureFile,
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 2);
+      assert.equal(parsed.summary.selectedCount, 2);
+      assert.equal(parsed.summary.okCount, 2);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.summary.metaplexAttemptedCount, 2);
+      assert.equal(parsed.summary.metaplexAvailableCount, 0);
+      assert.deepEqual(parsed.summary.metaplexErrorKindCounts, {
+        rate_limited: 2,
+      });
+      assert.equal(parsed.summary.rateLimited, false);
+      assert.equal(parsed.summary.rateLimitedCount, 0);
+      assert.equal(parsed.summary.abortedDueToRateLimit, false);
+      assert.equal(parsed.summary.skippedAfterRateLimit, 0);
+      assert.equal(parsed.items.length, 2);
+      assert.deepEqual(
+        parsed.items.map((item) => item.token.mint),
+        [newestMint, olderMint],
+      );
+      assert.deepEqual(
+        parsed.items.map((item) => item.status),
+        ["ok", "ok"],
+      );
+      assert.deepEqual(
+        parsed.items.map((item) => item.metaplexErrorKind),
+        ["rate_limited", "rate_limited"],
+      );
+      assert.match(result.stderr, /rateLimited=false/);
+      assert.match(result.stderr, /abortedDueToRateLimit=false/);
+      assert.match(result.stderr, /skippedAfterRateLimit=0/);
     });
   });
 
@@ -1275,6 +1480,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
 
@@ -1371,6 +1577,61 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
     });
   });
 
+  await t.test("aborts a recent batch after a primary Gecko rate limit", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "primary-gecko-rate-limit-batch.db")}`;
+      const newestMint = "GeckoPrimaryBatchNewest111111111111111111pump";
+      const middleMint = "GeckoPrimaryBatchMiddle111111111111111111pump";
+      const oldestMint = "GeckoPrimaryBatchOldest111111111111111111pump";
+      const rateLimitError =
+        "GeckoTerminal token snapshot request failed: 429 Too Many Requests";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedBatchToken(databaseUrl, {
+        mint: oldestMint,
+        createdAt: new Date(now - 3 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: middleMint,
+        createdAt: new Date(now - 2 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newestMint,
+        createdAt: new Date(now - 60_000),
+      });
+
+      const result = await runTokenEnrichRescoreGeckoterminal(
+        ["--limit", "3", "--sinceMinutes", "10"],
+        {
+          databaseUrl,
+          geckoSnapshotErrorOnce: rateLimitError,
+          helperShadow: true,
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 3);
+      assert.equal(parsed.summary.selectedCount, 3);
+      assert.equal(parsed.summary.okCount, 0);
+      assert.equal(parsed.summary.errorCount, 1);
+      assert.equal(parsed.summary.rateLimited, true);
+      assert.equal(parsed.summary.rateLimitedCount, 1);
+      assert.equal(parsed.summary.abortedDueToRateLimit, true);
+      assert.equal(parsed.summary.skippedAfterRateLimit, 2);
+      assert.equal(parsed.items.length, 1);
+      assert.equal(parsed.items[0]?.token.mint, newestMint);
+      assert.equal(parsed.items[0]?.status, "error");
+      assert.match(parsed.items[0]?.error ?? "", /429 Too Many Requests/);
+      assert.match(result.stderr, /rateLimited=true/);
+      assert.match(result.stderr, /abortedDueToRateLimit=true/);
+      assert.match(result.stderr, /skippedAfterRateLimit=2/);
+    });
+  });
+
   await t.test("matches primary Gecko invalid shape parity between CLI dry-run and helper adapter", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "primary-gecko-invalid-shape-parity.db")}`;
@@ -1403,6 +1664,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
 
@@ -1571,6 +1833,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       assert.equal(parsed.mode, "recent_batch");
       assert.equal(parsed.selection.mint, null);
       assert.equal(parsed.selection.selectedCount, 1);
@@ -1670,6 +1933,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       assert.equal(parsed.mode, "recent_batch");
       assert.equal(parsed.selection.selectedCount, 1);
       assert.equal(parsed.summary.selectedCount, 1);
@@ -1772,6 +2036,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       const parsed = JSON.parse(
         cliResult.stdout,
       ) as TokenEnrichRescoreGeckoterminalOutput;
+      assertSummaryMatchesItems(parsed);
       const cliItem = parsed.items[0];
       assert.ok(cliItem);
       assert.equal(
