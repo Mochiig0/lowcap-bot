@@ -995,8 +995,13 @@ export async function runGeckoCatchupSupervisor(
   args: Args,
   deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
-  void deps;
-  return buildGeckoCatchupSupervisorOutput(args);
+  const output = await buildGeckoCatchupSupervisorOutput(args);
+  const shouldRunTokenWriteRunner = shouldRunGeckoTokenWriteRunner(
+    output.writePlan.writeCommandPlan,
+    deps,
+  );
+  void shouldRunTokenWriteRunner;
+  return output;
 }
 
 export async function runGeckoCatchupSupervisorCli(
