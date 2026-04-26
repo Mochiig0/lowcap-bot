@@ -1042,6 +1042,79 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     });
   });
 
+  await t.test("keeps initial token-only write plan ineligible until write gate unlocks", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "initial-token-write-plan.db")}`;
+      await runDbPush(databaseUrl);
+      const seeded = await seedPendingSelectionFixture(databaseUrl);
+
+      const result = await runCatchupSupervisor(
+        ["--pumpOnly", "--limit", "1", "--maxCycles", "1", "--sinceMinutes", "10080", "--dry-run"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
+      assertReadOnlyWritePlan(parsed);
+      assert.equal(parsed.selection.limit, 1);
+      assert.equal(parsed.selection.maxCycles, 1);
+      assert.equal(parsed.selectedCandidates.length, 1);
+      assert.equal(parsed.selectedCandidates[0]?.mint, seeded.expectedSelectedMints[0]);
+      assert.deepEqual(parsed.summary, {
+        status: "ready",
+        safeToWrite: true,
+        plannedTokenWrites: 1,
+        plannedMetricAppends: 1,
+        blockingSafetyChecks: [],
+        warningSafetyChecks: [],
+        nextRecommendedAction: "run_planned_cycles",
+      });
+      assert.deepEqual(parsed.writePlan.wouldWriteTokens, [
+        {
+          cycle: 1,
+          orderInCycle: 1,
+          mint: seeded.expectedSelectedMints[0],
+        },
+      ]);
+      assert.deepEqual(parsed.writePlan.wouldAppendMetrics, [
+        {
+          cycle: 1,
+          mint: seeded.expectedSelectedMints[0],
+        },
+      ]);
+
+      const [plan] = parsed.writePlan.writeCommandPlan;
+      assert.ok(plan);
+      assert.equal(plan.executionSupported, false);
+      assert.equal(plan.executionEligible, false);
+      assert.equal(plan.notify, false);
+      assert.equal(plan.metricAppend, false);
+      assert.equal(plan.postCheck, true);
+      assert.equal(plan.mint, seeded.expectedSelectedMints[0]);
+      assert.deepEqual(plan.args, [
+        "token:enrich-rescore:geckoterminal",
+        "--",
+        "--mint",
+        seeded.expectedSelectedMints[0],
+        "--write",
+      ]);
+      assert.equal(plan.args.includes("--notify"), false);
+      assert.equal(plan.args.some((arg) => arg.includes("metric")), false);
+      assert.deepEqual(plan.blockedBy, ["write_gate_still_disabled"]);
+      assert.equal(plan.blockedBy.includes("limit_not_one"), false);
+      assert.equal(plan.blockedBy.includes("max_cycles_not_one"), false);
+      assert.equal(plan.blockedBy.includes("selected_count_not_one"), false);
+      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
+      assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
+      assert.equal(safetyStatus(parsed, "source_origin"), "pass");
+      assert.equal(safetyStatus(parsed, "selected_incomplete"), "pass");
+      assert.equal(safetyStatus(parsed, "metric_append_precheck"), "pass");
+      assert.equal(safetyStatus(parsed, "stop_on_rate_limit"), "pass");
+    });
+  });
+
   await t.test("flags unsafe selected candidates and skips unselectable rows", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "unsafe-candidates.db")}`;
