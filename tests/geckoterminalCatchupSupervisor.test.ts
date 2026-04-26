@@ -9,14 +9,18 @@ import { promisify } from "node:util";
 import { PrismaClient } from "@prisma/client";
 
 import {
-  parseGeckoCatchupSupervisorArgs,
-  runGeckoCatchupSupervisor,
-} from "../src/cli/geckoterminalCatchupSupervisor.ts";
-import { buildGeckoTokenWriteRunnerInput } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
+  buildGeckoTokenWriteRunnerInput,
+  type GeckoTokenWriteCommandRunner,
+} from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
 const execFileAsync = promisify(execFile);
 
 const GECKO_SOURCE = "geckoterminal.new_pools";
+
+type CatchupSupervisorModule = typeof import("../src/cli/geckoterminalCatchupSupervisor.ts");
+
+let catchupSupervisorModule: CatchupSupervisorModule | null = null;
+let previousDatabaseUrlForLoadedSupervisor: string | undefined;
 
 type CommandSuccess = {
   ok: true;
@@ -203,6 +207,30 @@ async function runDbPush(databaseUrl: string): Promise<void> {
       DATABASE_URL: databaseUrl,
     },
   });
+}
+
+async function loadCatchupSupervisorModule(databaseUrl: string): Promise<CatchupSupervisorModule> {
+  if (!catchupSupervisorModule) {
+    previousDatabaseUrlForLoadedSupervisor = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = databaseUrl;
+    catchupSupervisorModule = await import("../src/cli/geckoterminalCatchupSupervisor.ts");
+  }
+
+  return catchupSupervisorModule;
+}
+
+async function disconnectLoadedCatchupSupervisorDb(): Promise<void> {
+  if (!catchupSupervisorModule) {
+    return;
+  }
+
+  const { db } = await import("../src/cli/db.ts");
+  await db.$disconnect();
+  if (previousDatabaseUrlForLoadedSupervisor === undefined) {
+    delete process.env.DATABASE_URL;
+  } else {
+    process.env.DATABASE_URL = previousDatabaseUrlForLoadedSupervisor;
+  }
 }
 
 function shellEscape(value: string): string {
@@ -802,13 +830,65 @@ async function seedHardRejectedOnlyFixture(databaseUrl: string): Promise<{
 }
 
 test("geckoterminal catch-up supervisor dry-run", async (t) => {
-  await t.test("imports planner helpers without running the CLI entrypoint", () => {
-    const args = parseGeckoCatchupSupervisorArgs(["--pumpOnly", "--limit", "1"]);
+  await t.test("keeps mock token write runner deps unused in read-only planner", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "mock-runner-unused.db")}`;
+      await runDbPush(databaseUrl);
+      const seeded = await seedPendingSelectionFixture(databaseUrl);
+      const supervisor = await loadCatchupSupervisorModule(databaseUrl);
+      const runnerCalls: unknown[] = [];
+      const tokenWriteRunner: GeckoTokenWriteCommandRunner = async (input) => {
+        runnerCalls.push(input);
+        throw new Error("tokenWriteRunner should not be called while catchup write is disabled");
+      };
+
+      try {
+        const args = supervisor.parseGeckoCatchupSupervisorArgs([
+          "--pumpOnly",
+          "--limit",
+          "1",
+          "--maxCycles",
+          "1",
+          "--sinceMinutes",
+          "10080",
+          "--dry-run",
+        ]);
+        const output = await supervisor.runGeckoCatchupSupervisor(args, {
+          tokenWriteRunner,
+        });
+
+        assert.equal(runnerCalls.length, 0);
+        assertReadOnlyWritePlan(output);
+        assert.equal(output.selectedCandidates.length, 1);
+        assert.equal(output.selectedCandidates[0]?.mint, seeded.expectedSelectedMints[0]);
+
+        const [plan] = output.writePlan.writeCommandPlan;
+        assert.ok(plan);
+        assert.equal(plan.executionSupported, false);
+        assert.equal(plan.executionEligible, false);
+        assert.deepEqual(plan.blockedBy, ["write_gate_still_disabled"]);
+        assert.equal(plan.notify, false);
+        assert.equal(plan.metricAppend, false);
+        assert.equal(plan.postCheck, true);
+        assert.equal(output.writePlan.enabled, false);
+        assert.equal(output.writePlan.writeModeSupported, false);
+        assert.equal(output.readOnly, true);
+        assert.equal(output.dryRun, true);
+        assert.equal(output.writeEnabled, false);
+      } finally {
+        await disconnectLoadedCatchupSupervisorDb();
+      }
+    });
+  });
+
+  await t.test("imports planner helpers without running the CLI entrypoint", async () => {
+    const supervisor = await loadCatchupSupervisorModule("file:unused-import-safe.db");
+    const args = supervisor.parseGeckoCatchupSupervisorArgs(["--pumpOnly", "--limit", "1"]);
 
     assert.equal(args.pumpOnly, true);
     assert.equal(args.limit, 1);
     assert.equal(args.dryRun, true);
-    assert.equal(typeof runGeckoCatchupSupervisor, "function");
+    assert.equal(typeof supervisor.runGeckoCatchupSupervisor, "function");
   });
 
   await t.test("reports completed pump backlog without planning writes", async () => {
