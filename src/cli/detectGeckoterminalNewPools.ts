@@ -35,6 +35,8 @@ type DetectGeckoterminalNewPoolsArgs = {
   file?: string;
   write: boolean;
   watch: boolean;
+  pumpOnly: boolean;
+  limit?: number;
   intervalSeconds: number;
   maxIterations?: number;
   checkpointFile?: string;
@@ -99,6 +101,8 @@ type DetectCycleResult = LoadedInput & {
   failureCooldownApplied: boolean;
   failureCooldownSeconds: number;
   processedCount: number;
+  selectedCount: number;
+  skippedNonPumpCount: number;
   acceptedCount: number;
   rejectedCount: number;
   importedCount: number;
@@ -127,6 +131,38 @@ type OneShotOutput = {
   detectorResult: AcceptResult | RejectResult;
 };
 
+type OneShotScanOutput = {
+  mode: "fetch" | "file";
+  file?: string;
+  apiUrl?: string;
+  dryRun: boolean;
+  writeEnabled: boolean;
+  watchEnabled: false;
+  source: string;
+  eventType: string;
+  selection: {
+    pumpOnly: boolean;
+    limit: number | null;
+    inputCount: number;
+    selectedCount: number;
+    skippedNonPumpCount: number;
+  };
+  inputCount: number;
+  processedCount: number;
+  selectedCount: number;
+  skippedNonPumpCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  importedCount: number;
+  existingCount: number;
+  items: DetectItemResult[];
+};
+
+type CandidateSelection = {
+  entries: CandidateEntry[];
+  skippedNonPumpCount: number;
+};
+
 class CliUsageError extends Error {
   constructor(message: string) {
     super(message);
@@ -137,12 +173,15 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm detect:geckoterminal:new-pools [--file <PATH>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
+    "pnpm detect:geckoterminal:new-pools [--file <PATH>] [--pumpOnly] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]",
     "",
     "Defaults:",
     `- fetches ${API_URL}`,
     "- reads one local raw response instead when --file is set",
     "- one-shot mode reads the first Solana new_pools item only",
+    "- one-shot mode scans the current page when --pumpOnly or --limit is set",
+    "- --pumpOnly keeps only mint addresses ending in pump",
+    "- --limit caps the candidates processed after filtering",
     "- watch mode evaluates the current page item set each cycle",
     "- stays dry-run by default",
     "- writes accepted items into import:mint only when --write is set",
@@ -176,6 +215,7 @@ function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
   const out: Partial<DetectGeckoterminalNewPoolsArgs> = {
     write: false,
     watch: false,
+    pumpOnly: false,
     intervalSeconds: 1,
   };
 
@@ -186,11 +226,13 @@ function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
       throw new CliUsageError("");
     }
 
-    if (key === "--write" || key === "--watch") {
+    if (key === "--write" || key === "--watch" || key === "--pumpOnly") {
       if (key === "--write") {
         out.write = true;
-      } else {
+      } else if (key === "--watch") {
         out.watch = true;
+      } else {
+        out.pumpOnly = true;
       }
       continue;
     }
@@ -203,6 +245,9 @@ function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
     switch (key) {
       case "--file":
         out.file = value;
+        break;
+      case "--limit":
+        out.limit = parsePositiveIntegerArg(value, key);
         break;
       case "--intervalSeconds":
         out.intervalSeconds = parsePositiveIntegerArg(value, key);
@@ -226,6 +271,14 @@ function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
 
   if (out.checkpointFile && (!out.watch || !out.write)) {
     printUsageAndExit("--checkpointFile requires both --watch and --write");
+  }
+
+  if (out.write && out.pumpOnly && out.limit !== 1) {
+    printUsageAndExit("--write --pumpOnly requires --limit 1");
+  }
+
+  if (out.write && out.pumpOnly && out.watch) {
+    printUsageAndExit("--write --pumpOnly is supported only in one-shot mode");
   }
 
   return out as DetectGeckoterminalNewPoolsArgs;
@@ -374,6 +427,30 @@ function getFailureCooldownMs(): number {
 
 function isCheckpointEnabled(args: DetectGeckoterminalNewPoolsArgs): boolean {
   return args.watch && args.write;
+}
+
+function shouldScanOneShot(args: DetectGeckoterminalNewPoolsArgs): boolean {
+  return args.pumpOnly || args.limit !== undefined;
+}
+
+function isPumpMint(mint: unknown): boolean {
+  return typeof mint === "string" && mint.endsWith("pump");
+}
+
+function selectCandidateEntries(
+  entries: CandidateEntry[],
+  args: DetectGeckoterminalNewPoolsArgs,
+): CandidateSelection {
+  const pumpFilteredEntries = args.pumpOnly
+    ? entries.filter((entry) => isPumpMint(entry.candidate.payload.mintAddress))
+    : entries;
+  const selectedEntries =
+    args.limit === undefined ? pumpFilteredEntries : pumpFilteredEntries.slice(0, args.limit);
+
+  return {
+    entries: selectedEntries,
+    skippedNonPumpCount: args.pumpOnly ? entries.length - pumpFilteredEntries.length : 0,
+  };
 }
 
 function resolveCheckpointFilePath(args: DetectGeckoterminalNewPoolsArgs): string {
@@ -622,11 +699,100 @@ function buildOneShotOutput(
   };
 }
 
-async function runOneShot(args: DetectGeckoterminalNewPoolsArgs): Promise<OneShotOutput> {
+async function buildDetectItemResults(
+  entries: CandidateEntry[],
+  writeEnabled: boolean,
+): Promise<{
+  items: DetectItemResult[];
+  importedCount: number;
+  existingCount: number;
+}> {
+  const items: DetectItemResult[] = [];
+  let importedCount = 0;
+  let existingCount = 0;
+
+  for (const [index, entry] of entries.entries()) {
+    const item = await buildDetectItemResult(entry, index, writeEnabled);
+
+    if (item.importResult) {
+      if (item.importResult.created) {
+        importedCount += 1;
+      } else {
+        existingCount += 1;
+      }
+    }
+
+    items.push(item);
+  }
+
+  return {
+    items,
+    importedCount,
+    existingCount,
+  };
+}
+
+function buildOneShotScanOutput(
+  args: DetectGeckoterminalNewPoolsArgs,
+  input: LoadedInput,
+  selection: CandidateSelection,
+  items: DetectItemResult[],
+  importedCount: number,
+  existingCount: number,
+): OneShotScanOutput {
+  const acceptedCount = items.filter((item) => item.detectorResult.ok).length;
+
+  return {
+    mode: input.mode,
+    file: input.file,
+    apiUrl: input.apiUrl,
+    dryRun: !args.write,
+    writeEnabled: args.write,
+    watchEnabled: false,
+    source: GECKOTERMINAL_NEW_POOLS_SOURCE,
+    eventType: GECKOTERMINAL_NEW_POOLS_EVENT_TYPE,
+    selection: {
+      pumpOnly: args.pumpOnly,
+      limit: args.limit ?? null,
+      inputCount: input.inputCount,
+      selectedCount: selection.entries.length,
+      skippedNonPumpCount: selection.skippedNonPumpCount,
+    },
+    inputCount: input.inputCount,
+    processedCount: items.length,
+    selectedCount: selection.entries.length,
+    skippedNonPumpCount: selection.skippedNonPumpCount,
+    acceptedCount,
+    rejectedCount: items.length - acceptedCount,
+    importedCount,
+    existingCount,
+    items,
+  };
+}
+
+async function runOneShot(
+  args: DetectGeckoterminalNewPoolsArgs,
+): Promise<OneShotOutput | OneShotScanOutput> {
   const input = await loadInput(args, 1);
 
   if (input.entries.length === 0) {
     throw new Error("GeckoTerminal new_pools returned no items");
+  }
+
+  if (shouldScanOneShot(args)) {
+    const selection = selectCandidateEntries(input.entries, args);
+    const { items, importedCount, existingCount } = await buildDetectItemResults(
+      selection.entries,
+      args.write,
+    );
+    return buildOneShotScanOutput(
+      args,
+      input,
+      selection,
+      items,
+      importedCount,
+      existingCount,
+    );
   }
 
   const item = await buildDetectItemResult(input.entries[0], 0, args.write);
@@ -647,23 +813,11 @@ async function runCycle(
   const orderedEntries = checkpointEnabled
     ? [...eligibleEntries].sort((left, right) => compareCursor(left.cursor, right.cursor))
     : eligibleEntries;
-  const items: DetectItemResult[] = [];
-  let importedCount = 0;
-  let existingCount = 0;
-
-  for (const [index, entry] of orderedEntries.entries()) {
-    const item = await buildDetectItemResult(entry, index, args.write);
-
-    if (item.importResult) {
-      if (item.importResult.created) {
-        importedCount += 1;
-      } else {
-        existingCount += 1;
-      }
-    }
-
-    items.push(item);
-  }
+  const selection = selectCandidateEntries(orderedEntries, args);
+  const { items, importedCount, existingCount } = await buildDetectItemResults(
+    selection.entries,
+    args.write,
+  );
 
   const acceptedCount = items.filter((item) => item.detectorResult.ok).length;
 
@@ -676,6 +830,8 @@ async function runCycle(
     failureCooldownApplied: false,
     failureCooldownSeconds: 0,
     processedCount: items.length,
+    selectedCount: selection.entries.length,
+    skippedNonPumpCount: selection.skippedNonPumpCount,
     acceptedCount,
     rejectedCount: items.length - acceptedCount,
     importedCount,
@@ -712,6 +868,8 @@ function createFailedCycleResult(
     failureCooldownApplied: false,
     failureCooldownSeconds: 0,
     processedCount: 0,
+    selectedCount: 0,
+    skippedNonPumpCount: 0,
     acceptedCount: 0,
     rejectedCount: 0,
     importedCount: 0,
@@ -733,6 +891,8 @@ function logCycleSummary(result: DetectCycleResult): void {
       `rateLimitRetrySucceeded=${result.rateLimitRetrySucceeded}`,
       `failureCooldownApplied=${result.failureCooldownApplied}`,
       `failureCooldownSeconds=${result.failureCooldownSeconds}`,
+      `selected=${result.selectedCount}`,
+      `skippedNonPump=${result.skippedNonPumpCount}`,
       `accepted=${result.acceptedCount}`,
       `rejected=${result.rejectedCount}`,
       `imported=${result.importedCount}`,
@@ -781,10 +941,17 @@ function buildWatchOutput(
     eventType: GECKOTERMINAL_NEW_POOLS_EVENT_TYPE,
     ...(args.watch ? { intervalSeconds: args.intervalSeconds } : {}),
     ...(args.watch && args.maxIterations ? { maxIterations: args.maxIterations } : {}),
+    selection: {
+      pumpOnly: args.pumpOnly,
+      limit: args.limit ?? null,
+      skippedNonPumpCount: cycles.reduce((sum, cycle) => sum + cycle.skippedNonPumpCount, 0),
+    },
     cycleCount: cycles.length,
     failedCount: cycles.filter((cycle) => cycle.failed).length,
     inputCount: cycles.reduce((sum, cycle) => sum + cycle.inputCount, 0),
     processedCount: cycles.reduce((sum, cycle) => sum + cycle.processedCount, 0),
+    selectedCount: cycles.reduce((sum, cycle) => sum + cycle.selectedCount, 0),
+    skippedNonPumpCount: cycles.reduce((sum, cycle) => sum + cycle.skippedNonPumpCount, 0),
     acceptedCount: cycles.reduce((sum, cycle) => sum + cycle.acceptedCount, 0),
     rejectedCount: cycles.reduce((sum, cycle) => sum + cycle.rejectedCount, 0),
     importedCount: cycles.reduce((sum, cycle) => sum + cycle.importedCount, 0),
@@ -800,6 +967,8 @@ function buildWatchOutput(
       failureCooldownSeconds: cycle.failureCooldownSeconds,
       inputCount: cycle.inputCount,
       processedCount: cycle.processedCount,
+      selectedCount: cycle.selectedCount,
+      skippedNonPumpCount: cycle.skippedNonPumpCount,
       acceptedCount: cycle.acceptedCount,
       rejectedCount: cycle.rejectedCount,
       importedCount: cycle.importedCount,
