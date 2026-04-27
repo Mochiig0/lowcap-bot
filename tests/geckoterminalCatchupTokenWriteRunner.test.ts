@@ -134,6 +134,33 @@ test("parses successful token write command stdout as primary result", () => {
   assert.equal(parsed.stderr.includes("mode=single"), true);
 });
 
+test("parses token write stdout when pnpm banner precedes JSON", () => {
+  const parsed = parseGeckoTokenWriteCommandResult({
+    exitCode: 0,
+    stdout: [
+      "",
+      "> lowcap-bot@0.1.0 token:enrich-rescore:geckoterminal /repo",
+      "> tsx src/cli/tokenEnrichRescoreGeckoterminal.ts",
+      "",
+      buildTokenWriteOutput(),
+      "",
+    ].join("\n"),
+    stderr:
+      "[token:enrich-rescore:geckoterminal] mode=single selected=1 notifySent=0 rateLimited=false",
+  });
+
+  assert.equal(parsed.status, "ok");
+  assert.equal(parsed.parseError, null);
+  assert.equal(parsed.parsedOutput?.mode, "single");
+  assert.deepEqual(parsed.writeSummary, {
+    enrichUpdated: true,
+    rescoreUpdated: true,
+    contextUpdated: true,
+    metaplexContextUpdated: true,
+  });
+  assert.equal(parsed.notifySent, false);
+});
+
 test("builds token-only runner input from write command plan", () => {
   const plan = buildCommandPlan();
   const input = buildGeckoTokenWriteRunnerInput(plan, {

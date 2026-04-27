@@ -270,6 +270,51 @@ function readString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function extractFirstJsonObjectText(stdout: string): string | null {
+  const start = stdout.indexOf("{");
+  if (start < 0) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < stdout.length; index += 1) {
+    const char = stdout[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return stdout.slice(start, index + 1);
+      }
+    }
+  }
+
+  return stdout.slice(start);
+}
+
 function parseStdoutJson(stdout: string): {
   parsedOutput: GeckoTokenWriteCommandParsedOutput | null;
   parseError: string | null;
@@ -282,8 +327,16 @@ function parseStdoutJson(stdout: string): {
     };
   }
 
+  const jsonText = extractFirstJsonObjectText(trimmed);
+  if (jsonText === null) {
+    return {
+      parsedOutput: null,
+      parseError: "stdout JSON object not found",
+    };
+  }
+
   try {
-    const parsed: unknown = JSON.parse(trimmed);
+    const parsed: unknown = JSON.parse(jsonText);
     if (!isJsonObject(parsed)) {
       return {
         parsedOutput: null,
