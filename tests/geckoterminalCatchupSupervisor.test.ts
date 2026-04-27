@@ -107,7 +107,7 @@ type CatchupSupervisorOutput = {
       limit: 1;
       maxCycles: 1;
       postCheck: true;
-      requireMetricAppend: true;
+      requireMetricAppend: false;
     };
     recommendedInitialTokenWriteArgs: {
       limit: 1;
@@ -131,7 +131,6 @@ type CatchupSupervisorOutput = {
       executionEligible: boolean;
       command: "pnpm";
       script: "token:enrich-rescore:geckoterminal";
-      args: string[];
       mint: string;
       cycle: number;
       orderInCycle: number;
@@ -156,12 +155,18 @@ type CatchupSupervisorOutput = {
     };
   };
   writeModeReadiness: {
-    readyForImplementation: false;
-    blockingReasons: [
-      "metric_append_helper_not_extracted",
-      "write_gate_still_disabled",
+    readyForImplementation: true;
+    supportedWriteMode: "limited_token_only_initial_check";
+    blockingReasons: [];
+    remainingUnsupportedWriteBehaviors: [
+      "metric_append",
+      "telegram_notify",
+      "multi_token_write",
+      "multi_cycle_write",
+      "capture_file",
+      "cooldown",
     ];
-    nextImplementationStep: "review_supervisor_write_gate";
+    nextImplementationStep: "run_first_token_only_operational_check";
   };
   currentCounts: {
     pumpTotal: number;
@@ -277,6 +282,16 @@ function shellEscape(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+function expectedTokenWriteArgs(mint: string): string[] {
+  return [
+    "token:enrich-rescore:geckoterminal",
+    "--",
+    "--mint",
+    mint,
+    "--write",
+  ];
+}
+
 async function runCatchupSupervisor(
   args: string[],
   databaseUrl?: string,
@@ -356,13 +371,13 @@ function assertReadOnlyWritePlan(
   assert.equal(output.dryRun, true);
   assert.equal(output.writeEnabled, false);
   assert.equal(output.writePlan.enabled, false);
-  assert.equal(output.writePlan.writeModeSupported, false);
+  assert.equal(output.writePlan.writeModeSupported, true);
   assert.equal(output.writePlan.writeRequested, options.writeRequested ?? false);
   assert.deepEqual(output.writePlan.recommendedInitialWriteArgs, {
     limit: 1,
     maxCycles: 1,
     postCheck: true,
-    requireMetricAppend: true,
+    requireMetricAppend: false,
   });
   assert.deepEqual(output.writePlan.recommendedInitialTokenWriteArgs, {
     limit: 1,
@@ -905,14 +920,15 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
 
         const [plan] = output.writePlan.writeCommandPlan;
         assert.ok(plan);
-        assert.equal(plan.executionSupported, false);
-        assert.equal(plan.executionEligible, false);
-        assert.deepEqual(plan.blockedBy, ["write_gate_still_disabled"]);
+        assert.equal(plan.executionSupported, true);
+        assert.equal(plan.executionEligible, true);
+        assert.deepEqual(plan.blockedBy, []);
+        assert.equal("args" in plan, false);
         assert.equal(plan.notify, false);
         assert.equal(plan.metricAppend, false);
         assert.equal(plan.postCheck, true);
         assert.equal(output.writePlan.enabled, false);
-        assert.equal(output.writePlan.writeModeSupported, false);
+        assert.equal(output.writePlan.writeModeSupported, true);
         assert.equal(output.writePlan.writeRequested, true);
         assert.equal(output.readOnly, true);
         assert.equal(output.dryRun, true);
@@ -956,9 +972,9 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(runnerOutput.writePlan.enabled, true);
         assert.equal(runnerOutput.writePlan.writeModeSupported, true);
         assert.equal(runnerOutput.writePlan.writeRequested, true);
-        assert.equal(runnerOutput.readOnly, true);
-        assert.equal(runnerOutput.dryRun, true);
-        assert.equal(runnerOutput.writeEnabled, false);
+        assert.equal(runnerOutput.readOnly, false);
+        assert.equal(runnerOutput.dryRun, false);
+        assert.equal(runnerOutput.writeEnabled, true);
         assert.equal(runnerOutput.selectedCandidates.length, 1);
         assert.equal(runnerOutput.selectedCandidates[0]?.mint, seeded.expectedSelectedMints[0]);
 
@@ -972,7 +988,8 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(runnerPlan.metricAppend, false);
         assert.equal(runnerPlan.postCheck, true);
         assert.equal(runnerCalls[0]?.command, runnerPlan.command);
-        assert.deepEqual(runnerCalls[0]?.args, runnerPlan.args);
+        assert.deepEqual(runnerCalls[0]?.args, expectedTokenWriteArgs(runnerPlan.mint));
+        assert.equal("args" in runnerPlan, false);
         assert.equal(runnerCalls[0]?.mint, runnerPlan.mint);
         assert.equal(runnerCalls[0]?.cycle, runnerPlan.cycle);
         assert.equal(runnerCalls[0]?.orderInCycle, runnerPlan.orderInCycle);
@@ -1068,6 +1085,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(cliOutput.writePlan.writeCommandPlan[0]?.executionSupported, true);
         assert.equal(cliOutput.writePlan.writeCommandPlan[0]?.executionEligible, true);
         assert.deepEqual(cliOutput.writePlan.writeCommandPlan[0]?.blockedBy, []);
+        assert.equal("args" in (cliOutput.writePlan.writeCommandPlan[0] ?? {}), false);
         assert.equal(cliOutput.writePlan.tokenWriteExecutionResults.length, 1);
         assert.equal(cliOutput.writePlan.tokenWriteExecutionResults[0]?.status, "ok");
         assert.equal("stdout" in cliOutput.writePlan.tokenWriteExecutionResults[0], false);
@@ -1137,7 +1155,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
 
         assert.equal(guardFalseRunnerCalls.length, 0);
         assert.equal(guardFalseOutput.writePlan.enabled, false);
-        assert.equal(guardFalseOutput.writePlan.writeModeSupported, false);
+        assert.equal(guardFalseOutput.writePlan.writeModeSupported, true);
         assert.deepEqual(guardFalseOutput.writePlan.tokenWriteExecutionResults, []);
         assert.equal(
           guardFalseOutput.writePlan.writeCommandPlan[0]?.blockedBy.includes("smoke_candidates"),
@@ -1188,7 +1206,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     const falseCases: Array<[string, SyntheticWriteCommandPlan]> = [
       ["executionSupported=false", { ...readyPlan, executionSupported: false }],
       ["executionEligible=false", { ...readyPlan, executionEligible: false }],
-      ["blockedBy present", { ...readyPlan, blockedBy: ["write_gate_still_disabled"] }],
+      ["blockedBy present", { ...readyPlan, blockedBy: ["write_not_requested"] }],
       ["notify=true", { ...readyPlan, notify: true }],
       ["metricAppend=true", { ...readyPlan, metricAppend: true }],
       ["postCheck=false", { ...readyPlan, postCheck: false }],
@@ -1220,7 +1238,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       selectedCandidates: [{}],
       safetyChecks: [
         {
-          name: "dry_run_only",
+          name: "bounded_token_only_write",
           status: "pass" as const,
         },
       ],
@@ -1511,15 +1529,21 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.deepEqual(parsed.writePlan.wouldAppendMetrics, []);
       assert.deepEqual(parsed.writePlan.writeCommandPlan, []);
       assert.deepEqual(parsed.writeModeReadiness, {
-        readyForImplementation: false,
-        blockingReasons: [
-          "metric_append_helper_not_extracted",
-          "write_gate_still_disabled",
+        readyForImplementation: true,
+        supportedWriteMode: "limited_token_only_initial_check",
+        blockingReasons: [],
+        remainingUnsupportedWriteBehaviors: [
+          "metric_append",
+          "telegram_notify",
+          "multi_token_write",
+          "multi_cycle_write",
+          "capture_file",
+          "cooldown",
         ],
-        nextImplementationStep: "review_supervisor_write_gate",
+        nextImplementationStep: "run_first_token_only_operational_check",
       });
       assert.equal(parsed.stopReason, "no_pending_tokens");
-      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "bounded_token_only_write"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
     });
@@ -1636,17 +1660,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.deepEqual(parsed.writePlan.writeCommandPlan, [
         {
           enabled: false,
-          executionSupported: false,
+          executionSupported: true,
           executionEligible: false,
           command: "pnpm",
           script: "token:enrich-rescore:geckoterminal",
-          args: [
-            "token:enrich-rescore:geckoterminal",
-            "--",
-            "--mint",
-            seeded.expectedSelectedMints[0],
-            "--write",
-          ],
           mint: seeded.expectedSelectedMints[0],
           cycle: 1,
           orderInCycle: 1,
@@ -1655,7 +1672,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           postCheck: true,
           reason: "selected_incomplete_token_write",
           blockedBy: [
-            "write_gate_still_disabled",
+            "write_not_requested",
             "limit_not_one",
             "max_cycles_not_one",
             "selected_count_not_one",
@@ -1709,7 +1726,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       }
 
       assert.equal(parsed.stopReason, "max_cycles_reached_after_plan");
-      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "bounded_token_only_write"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
       assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
@@ -1720,7 +1737,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     });
   });
 
-  await t.test("keeps initial token-only write plan ineligible until write gate unlocks", async () => {
+  await t.test("keeps initial token-only write plan ineligible until --write is requested", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "initial-token-write-plan.db")}`;
       await runDbPush(databaseUrl);
@@ -1763,22 +1780,14 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
 
       const [plan] = parsed.writePlan.writeCommandPlan;
       assert.ok(plan);
-      assert.equal(plan.executionSupported, false);
+      assert.equal(plan.executionSupported, true);
       assert.equal(plan.executionEligible, false);
       assert.equal(plan.notify, false);
       assert.equal(plan.metricAppend, false);
       assert.equal(plan.postCheck, true);
       assert.equal(plan.mint, seeded.expectedSelectedMints[0]);
-      assert.deepEqual(plan.args, [
-        "token:enrich-rescore:geckoterminal",
-        "--",
-        "--mint",
-        seeded.expectedSelectedMints[0],
-        "--write",
-      ]);
-      assert.equal(plan.args.includes("--notify"), false);
-      assert.equal(plan.args.some((arg) => arg.includes("metric")), false);
-      assert.deepEqual(plan.blockedBy, ["write_gate_still_disabled"]);
+      assert.equal("args" in plan, false);
+      assert.deepEqual(plan.blockedBy, ["write_not_requested"]);
       assert.equal(plan.blockedBy.includes("limit_not_one"), false);
       assert.equal(plan.blockedBy.includes("max_cycles_not_one"), false);
       assert.equal(plan.blockedBy.includes("selected_count_not_one"), false);
@@ -1827,20 +1836,20 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         true,
       );
 
-      const runnerInput = buildGeckoTokenWriteRunnerInput(executablePlan, {
-        cwd: process.cwd(),
-        env: {
-          DATABASE_URL: databaseUrl,
+      const runnerInput = buildGeckoTokenWriteRunnerInput(
+        {
+          ...executablePlan,
+          args: expectedTokenWriteArgs(executablePlan.mint),
         },
-      });
+        {
+          cwd: process.cwd(),
+          env: {
+            DATABASE_URL: databaseUrl,
+          },
+        },
+      );
       assert.equal(runnerInput.command, "pnpm");
-      assert.deepEqual(runnerInput.args, [
-        "token:enrich-rescore:geckoterminal",
-        "--",
-        "--mint",
-        seeded.expectedSelectedMints[0],
-        "--write",
-      ]);
+      assert.deepEqual(runnerInput.args, expectedTokenWriteArgs(seeded.expectedSelectedMints[0]));
       assert.equal(runnerInput.args.includes("--mint"), true);
       assert.equal(runnerInput.args.includes(seeded.expectedSelectedMints[0]), true);
       assert.equal(runnerInput.args.includes("--write"), true);
@@ -1894,7 +1903,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal("args" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
       assert.equal("command" in syntheticWritePlan.tokenWriteExecutionResults[0], false);
 
-      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "bounded_token_only_write"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
       assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
@@ -1946,18 +1955,18 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
 
       const [plan] = parsed.writePlan.writeCommandPlan;
       assert.ok(plan);
-      assert.equal(plan.executionSupported, false);
+      assert.equal(plan.executionSupported, true);
       assert.equal(plan.executionEligible, false);
       assert.equal(plan.notify, false);
       assert.equal(plan.metricAppend, false);
       assert.equal(plan.postCheck, true);
       assert.equal(plan.mint, seeded.expectedSelectedMints[0]);
-      assert.deepEqual(plan.blockedBy, ["write_gate_still_disabled", "stop_on_rate_limit"]);
+      assert.deepEqual(plan.blockedBy, ["write_not_requested", "stop_on_rate_limit"]);
       assert.equal(plan.blockedBy.includes("limit_not_one"), false);
       assert.equal(plan.blockedBy.includes("max_cycles_not_one"), false);
       assert.equal(plan.blockedBy.includes("selected_count_not_one"), false);
       assert.equal(safetyStatus(parsed, "stop_on_rate_limit"), "warn");
-      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "bounded_token_only_write"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
       assert.equal(safetyStatus(parsed, "smoke_candidates"), "pass");
@@ -2014,17 +2023,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.deepEqual(parsed.writePlan.writeCommandPlan, [
         {
           enabled: false,
-          executionSupported: false,
+          executionSupported: true,
           executionEligible: false,
           command: "pnpm",
           script: "token:enrich-rescore:geckoterminal",
-          args: [
-            "token:enrich-rescore:geckoterminal",
-            "--",
-            "--mint",
-            seeded.smokeMint,
-            "--write",
-          ],
           mint: seeded.smokeMint,
           cycle: 1,
           orderInCycle: 1,
@@ -2033,7 +2035,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           postCheck: true,
           reason: "selected_incomplete_token_write",
           blockedBy: [
-            "write_gate_still_disabled",
+            "write_not_requested",
             "limit_not_one",
             "selected_count_not_one",
             "smoke_candidates",
@@ -2083,7 +2085,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(hardRejectedCandidate?.latestMetric, null);
 
       assert.equal(parsed.stopReason, "smoke_candidates");
-      assert.equal(safetyStatus(parsed, "dry_run_only"), "pass");
+      assert.equal(safetyStatus(parsed, "bounded_token_only_write"), "pass");
       assert.equal(safetyStatus(parsed, "notify_candidate_count"), "pass");
       assert.equal(safetyStatus(parsed, "metric_pending_matches_incomplete"), "pass");
       assert.equal(safetyStatus(parsed, "smoke_candidates"), "fail");
@@ -2141,17 +2143,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.deepEqual(parsed.writePlan.writeCommandPlan, [
         {
           enabled: false,
-          executionSupported: false,
+          executionSupported: true,
           executionEligible: false,
           command: "pnpm",
           script: "token:enrich-rescore:geckoterminal",
-          args: [
-            "token:enrich-rescore:geckoterminal",
-            "--",
-            "--mint",
-            seeded.hardRejectedMint,
-            "--write",
-          ],
           mint: seeded.hardRejectedMint,
           cycle: 1,
           orderInCycle: 1,
@@ -2159,7 +2154,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           metricAppend: false,
           postCheck: true,
           reason: "selected_incomplete_token_write",
-          blockedBy: ["write_gate_still_disabled", "hard_rejected_candidates"],
+          blockedBy: ["write_not_requested", "hard_rejected_candidates"],
         },
       ]);
       assert.equal(parsed.stopReason, "hard_rejected_candidates");

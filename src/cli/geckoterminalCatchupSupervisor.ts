@@ -184,7 +184,7 @@ type WritePlan = {
     limit: 1;
     maxCycles: 1;
     postCheck: true;
-    requireMetricAppend: true;
+    requireMetricAppend: false;
   };
   recommendedInitialTokenWriteArgs: {
     limit: 1;
@@ -208,7 +208,6 @@ type WritePlan = {
     executionEligible: boolean;
     command: "pnpm";
     script: "token:enrich-rescore:geckoterminal";
-    args: string[];
     mint: string;
     cycle: number;
     orderInCycle: number;
@@ -234,12 +233,18 @@ type WritePlan = {
 };
 
 type WriteModeReadiness = {
-  readyForImplementation: false;
-  blockingReasons: [
-    "metric_append_helper_not_extracted",
-    "write_gate_still_disabled",
+  readyForImplementation: true;
+  supportedWriteMode: "limited_token_only_initial_check";
+  blockingReasons: [];
+  remainingUnsupportedWriteBehaviors: [
+    "metric_append",
+    "telegram_notify",
+    "multi_token_write",
+    "multi_cycle_write",
+    "capture_file",
+    "cooldown",
   ];
-  nextImplementationStep: "review_supervisor_write_gate";
+  nextImplementationStep: "run_first_token_only_operational_check";
 };
 
 export type GeckoCatchupInitialWriteModeValidationSafetyCheck = {
@@ -273,9 +278,9 @@ export type GeckoCatchupInitialWriteModeValidationResult = {
 };
 
 export type GeckoCatchupSupervisorOutput = {
-  readOnly: true;
-  dryRun: true;
-  writeEnabled: false;
+  readOnly: boolean;
+  dryRun: boolean;
+  writeEnabled: boolean;
   source: typeof GECKOTERMINAL_NEW_POOLS_SOURCE;
   selection: {
     pumpOnly: boolean;
@@ -306,11 +311,11 @@ class CliUsageError extends Error {}
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm ops:catchup:gecko -- [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N> | --sinceHours <N>] [--dry-run] [--captureFile <PATH>] [--cooldownSeconds <N>] [--stopOnNotifyCandidate <true|false>] [--stopOnRateLimit <true|false>]",
+    "pnpm ops:catchup:gecko -- [--write] [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N> | --sinceHours <N>] [--dry-run] [--captureFile <PATH>] [--cooldownSeconds <N>] [--stopOnNotifyCandidate <true|false>] [--stopOnRateLimit <true|false>]",
     "",
     "Defaults:",
-    `- dry-run only; DB writes, fast wrapper execution, Metric append, Telegram notify, capture file creation, and watch mode are not supported`,
-    `- --write is accepted only as a gated request; execution remains disabled`,
+    `- read-only planning by default; fast wrapper execution, Metric append, Telegram notify, capture file creation, cooldown, and watch mode are not supported`,
+    `- --write is supported only for a gated token-only first operational check: --pumpOnly --limit 1 --maxCycles 1, exactly one selected candidate, no failing or warning safety checks, notify=false, metricAppend=false, postCheck=true`,
     `- selects GeckoTerminal-origin incomplete rows by selectionAnchorAt desc + id desc`,
     `- default --limit ${DEFAULT_LIMIT}, --maxCycles ${DEFAULT_MAX_CYCLES}, --sinceMinutes ${DEFAULT_SINCE_MINUTES}`,
   ].join("\n");
@@ -629,9 +634,10 @@ function buildSafetyChecks(
   const alreadyMetricCandidates = selectedCandidates.filter((candidate) => candidate.metricsCount > 0);
 
   checks.push({
-    name: "dry_run_only",
+    name: "bounded_token_only_write",
     status: "pass",
-    message: "DB write, fast wrapper execution, Metric append, Telegram notify, and capture file creation are disabled.",
+    message:
+      "Only a gated one-token write is supported; fast wrapper execution, Metric append, Telegram notify, capture file creation, cooldown, and watch mode are disabled.",
   });
   checks.push({
     name: "notify_candidate_count",
@@ -809,9 +815,19 @@ function buildWriteCommandPlanBlockedBy(
     .map((check) => check.name);
 
   return [
-    "write_gate_still_disabled",
+    ...(args.writeRequested ? [] : ["write_not_requested"]),
     ...initialWriteConditionBlocks,
     ...blockingSafetyChecks,
+  ];
+}
+
+function buildTokenWriteCommandArgs(mint: string): string[] {
+  return [
+    "token:enrich-rescore:geckoterminal",
+    "--",
+    "--mint",
+    mint,
+    "--write",
   ];
 }
 
@@ -864,13 +880,13 @@ function buildWritePlan(
 
   return {
     enabled: false,
-    writeModeSupported: false,
+    writeModeSupported: true,
     writeRequested: args.writeRequested,
     recommendedInitialWriteArgs: {
       limit: 1,
       maxCycles: 1,
       postCheck: true,
-      requireMetricAppend: true,
+      requireMetricAppend: false,
     },
     recommendedInitialTokenWriteArgs: {
       limit: 1,
@@ -896,17 +912,10 @@ function buildWritePlan(
       ? [
           {
             enabled: false,
-            executionSupported: false,
-            executionEligible: false,
+            executionSupported: true,
+            executionEligible: writeCommandPlanBlockedBy.length === 0,
             command: "pnpm",
             script: "token:enrich-rescore:geckoterminal",
-            args: [
-              "token:enrich-rescore:geckoterminal",
-              "--",
-              "--mint",
-              initialWriteCandidate.mint,
-              "--write",
-            ],
             mint: initialWriteCandidate.mint,
             cycle: initialWriteCandidate.cycle,
             orderInCycle: initialWriteCandidate.orderInCycle,
@@ -938,12 +947,18 @@ function buildWritePlan(
 
 function buildWriteModeReadiness(): WriteModeReadiness {
   return {
-    readyForImplementation: false,
-    blockingReasons: [
-      "metric_append_helper_not_extracted",
-      "write_gate_still_disabled",
+    readyForImplementation: true,
+    supportedWriteMode: "limited_token_only_initial_check",
+    blockingReasons: [],
+    remainingUnsupportedWriteBehaviors: [
+      "metric_append",
+      "telegram_notify",
+      "multi_token_write",
+      "multi_cycle_write",
+      "capture_file",
+      "cooldown",
     ],
-    nextImplementationStep: "review_supervisor_write_gate",
+    nextImplementationStep: "run_first_token_only_operational_check",
   };
 }
 
@@ -1003,6 +1018,9 @@ async function runInjectedGeckoTokenWriteRunner(
   };
   const executableOutput: GeckoCatchupSupervisorOutput = {
     ...output,
+    readOnly: false,
+    dryRun: false,
+    writeEnabled: true,
     writePlan: {
       ...output.writePlan,
       enabled: true,
@@ -1016,10 +1034,16 @@ async function runInjectedGeckoTokenWriteRunner(
     return output;
   }
 
-  const runnerInput = buildGeckoTokenWriteRunnerInput(executablePlan, {
-    cwd: process.cwd(),
-    env: process.env,
-  });
+  const runnerInput = buildGeckoTokenWriteRunnerInput(
+    {
+      ...executablePlan,
+      args: buildTokenWriteCommandArgs(executablePlan.mint),
+    },
+    {
+      cwd: process.cwd(),
+      env: process.env,
+    },
+  );
   const runnerResult = await deps.tokenWriteRunner(runnerInput);
   const executionResult = toGeckoCatchupTokenWriteExecutionResult(runnerInput, runnerResult);
 
