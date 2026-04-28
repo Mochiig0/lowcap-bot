@@ -9,6 +9,10 @@ import { promisify } from "node:util";
 import { PrismaClient } from "@prisma/client";
 
 import {
+  parseGeckoMetricAppendCommandResult,
+  type GeckoMetricAppendCommandRunner,
+} from "../src/cli/geckoterminalCatchupMetricAppendRunner.ts";
+import {
   buildGeckoTokenWriteRunnerInput,
   parseGeckoTokenWriteCommandResult,
   runGeckoTokenWriteCommandWithRunner,
@@ -90,6 +94,54 @@ type TokenWritePostCheckResult = {
   warnings: string[];
 };
 
+type MetricAppendExecutionResult = {
+  mint: string;
+  cycle: number;
+  orderInCycle: number;
+  status:
+    | "ok"
+    | "cli_error"
+    | "parse_error"
+    | "item_error"
+    | "skipped_recent_metric"
+    | "unexpected_output";
+  exitCode: number | null;
+  metricSource: string | null;
+  selectedCount: number;
+  okCount: number;
+  skippedCount: number;
+  errorCount: number;
+  writtenCount: number;
+  writeSummary: {
+    dryRun: boolean;
+    wouldCreateMetric: boolean;
+    metricId: number | null;
+  } | null;
+  itemStatus: string | null;
+  itemError: string | null;
+  rateLimited: boolean;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
+  parseError: string | null;
+};
+
+type MetricAppendPostCheckResult = {
+  checked: boolean;
+  mint: string;
+  runnerStatus: MetricAppendExecutionResult["status"];
+  tokenFound: boolean;
+  metricsCount: number;
+  metricId: number | null;
+  latestMetric: {
+    id: number;
+    source: string | null;
+    observedAt: string;
+    volume24h: number | null;
+  } | null;
+  metricIdMatchesLatest: boolean;
+  warnings: string[];
+};
+
 type CatchupSupervisorOutput = {
   readOnly: boolean;
   dryRun: boolean;
@@ -157,9 +209,9 @@ type CatchupSupervisorOutput = {
       blockedBy: string[];
     }>;
     metricAppendCommandPlan: Array<{
-      enabled: false;
-      executionSupported: false;
-      executionEligible: false;
+      enabled: boolean;
+      executionSupported: boolean;
+      executionEligible: boolean;
       command: "pnpm";
       script: "metric:snapshot:geckoterminal";
       mint: string;
@@ -167,17 +219,18 @@ type CatchupSupervisorOutput = {
       source: "geckoterminal.token_snapshot";
       metricAppend: true;
       postCheck: true;
-      reason: "selected_incomplete_metric_missing";
+      reason: "selected_incomplete_metric_missing" | "selected_metric_missing";
       blockedBy: string[];
     }>;
     tokenWriteExecutionResults: TokenWriteExecutionResult[];
+    metricAppendExecutionResults: MetricAppendExecutionResult[];
     requiresCaptureOnly: true;
     postCheckPlan: {
       enabled: true;
       requireMetricPendingMatchesIncomplete: true;
       requireSelectedLatestMetricPresent: true;
     };
-    postCheckResult: TokenWritePostCheckResult | null;
+    postCheckResult: TokenWritePostCheckResult | MetricAppendPostCheckResult | null;
     recoveryHints: {
       metricOnlyAppendCandidates: string[];
       tokenWriteRetryCandidates: string[];
@@ -408,11 +461,17 @@ function assertReadOnlyWritePlan(
     ...(metricAppendRequested && !writeRequested
       ? ["metric_append_write_not_requested"]
       : []),
+    ...(output.selection.limit === 1 ? [] : ["limit_not_one"]),
+    ...(output.selection.maxCycles === 1 ? [] : ["max_cycles_not_one"]),
+    ...(output.selectedCandidates.length === 1 ? [] : ["selected_count_not_one"]),
     ...(metricAppendRequested &&
     writeRequested &&
     output.writePlan.wouldWriteTokens.length > 0
       ? ["mixed_token_and_metric_write_not_supported"]
       : []),
+    ...output.safetyChecks
+      .filter((check) => check.status === "fail" || check.status === "warn")
+      .map((check) => check.name),
     "metric_append_runner_not_connected",
   ];
 
@@ -438,9 +497,15 @@ function assertReadOnlyWritePlan(
     metricAppend: false,
   });
   assert.deepEqual(output.writePlan.tokenWriteExecutionResults, []);
+  assert.deepEqual(output.writePlan.metricAppendExecutionResults, []);
   assert.deepEqual(
     output.writePlan.metricAppendCommandPlan,
-    output.writePlan.wouldAppendMetrics.map((item) => ({
+    output.writePlan.wouldAppendMetrics.map((item) => {
+      const metricPlanItem = output.metricAppendPlan.find(
+        (planItem) => planItem.cycle === item.cycle && planItem.mint === item.mint,
+      );
+      assert.ok(metricPlanItem);
+      return {
       enabled: false,
       executionSupported: false,
       executionEligible: false,
@@ -451,9 +516,10 @@ function assertReadOnlyWritePlan(
       source: "geckoterminal.token_snapshot",
       metricAppend: true,
       postCheck: true,
-      reason: "selected_incomplete_metric_missing",
+      reason: metricPlanItem.reason,
       blockedBy: metricAppendBlockedBy,
-    })),
+      };
+    }),
   );
   assert.equal(output.writePlan.requiresCaptureOnly, true);
   assert.deepEqual(output.writePlan.postCheckPlan, {
@@ -800,6 +866,87 @@ async function markTokenWritePostCheckComplete(
         },
       });
     }
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+async function seedMetricAppendReadyToken(databaseUrl: string, mint: string): Promise<{
+  id: number;
+  mint: string;
+}> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const now = new Date();
+    return await db.token.create({
+      data: {
+        mint,
+        source: GECKO_SOURCE,
+        name: "Metric Append Ready",
+        symbol: "MAPP",
+        metadataStatus: "partial",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        createdAt: now,
+        importedAt: now,
+        enrichedAt: now,
+        rescoredAt: now,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: now.toISOString(),
+          },
+        },
+      },
+      select: {
+        id: true,
+        mint: true,
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+async function appendSyntheticMetric(databaseUrl: string, mint: string): Promise<number> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const token = await db.token.findUniqueOrThrow({
+      where: {
+        mint,
+      },
+      select: {
+        id: true,
+      },
+    });
+    const metric = await db.metric.create({
+      data: {
+        tokenId: token.id,
+        source: "geckoterminal.token_snapshot",
+        observedAt: new Date(),
+        volume24h: 4321,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return metric.id;
   } finally {
     await db.$disconnect();
   }
@@ -1334,6 +1481,191 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           guardFalseOutput.writePlan.writeCommandPlan[0]?.blockedBy.includes("smoke_candidates"),
           true,
         );
+
+        const metricReady = await seedMetricAppendReadyToken(
+          databaseUrl,
+          "GeckoCatchupMetricAppendReady111111111111111pump",
+        );
+        const metricRunnerCalls: Parameters<GeckoMetricAppendCommandRunner>[0][] = [];
+        const tokenRunnerCallsDuringMetricAppend: unknown[] = [];
+        const metricAppendRunner: GeckoMetricAppendCommandRunner = async (input) => {
+          metricRunnerCalls.push(input);
+          const metricId = await appendSyntheticMetric(databaseUrl, input.mint);
+          return parseGeckoMetricAppendCommandResult({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              mode: "single",
+              dryRun: false,
+              writeEnabled: true,
+              metricSource: "geckoterminal.token_snapshot",
+              originSource: GECKO_SOURCE,
+              summary: {
+                selectedCount: 1,
+                okCount: 1,
+                skippedCount: 0,
+                errorCount: 0,
+                writtenCount: 1,
+              },
+              items: [
+                {
+                  token: {
+                    mint: input.mint,
+                    isGeckoterminalOrigin: true,
+                  },
+                  metricSource: "geckoterminal.token_snapshot",
+                  status: "ok",
+                  writeSummary: {
+                    dryRun: false,
+                    wouldCreateMetric: true,
+                    metricId,
+                  },
+                },
+              ],
+            }),
+            stderr: "[metric:snapshot:geckoterminal] raw mock diagnostic",
+          });
+        };
+        const tokenWriteRunnerDuringMetricAppend: GeckoTokenWriteCommandRunner = async (input) => {
+          tokenRunnerCallsDuringMetricAppend.push(input);
+          throw new Error("tokenWriteRunner should not be called for metric append requests");
+        };
+        const metricAppendOutput = await supervisor.runGeckoCatchupSupervisor(
+          supervisor.parseGeckoCatchupSupervisorArgs([
+            "--write",
+            "--metricAppend",
+            "--pumpOnly",
+            "--limit",
+            "1",
+            "--maxCycles",
+            "1",
+            "--sinceMinutes",
+            "10080",
+            "--dry-run",
+          ]),
+          {
+            tokenWriteRunner: tokenWriteRunnerDuringMetricAppend,
+            metricAppendRunner,
+          },
+        );
+
+        assert.equal(tokenRunnerCallsDuringMetricAppend.length, 0);
+        assert.equal(metricRunnerCalls.length, 1);
+        assert.equal(metricRunnerCalls[0]?.command, "pnpm");
+        assert.deepEqual(metricRunnerCalls[0]?.args, [
+          "metric:snapshot:geckoterminal",
+          "--",
+          "--mint",
+          metricReady.mint,
+          "--write",
+        ]);
+        assert.equal(metricRunnerCalls[0]?.mint, metricReady.mint);
+        assert.equal(metricRunnerCalls[0]?.metricAppend, true);
+        assert.equal(metricRunnerCalls[0]?.postCheck, true);
+        assert.equal(metricAppendOutput.readOnly, false);
+        assert.equal(metricAppendOutput.dryRun, false);
+        assert.equal(metricAppendOutput.writeEnabled, true);
+        assert.deepEqual(metricAppendOutput.writePlan.tokenWriteExecutionResults, []);
+        assert.equal(metricAppendOutput.writePlan.metricAppendExecutionResults.length, 1);
+        assert.equal(metricAppendOutput.writePlan.metricAppendExecutionResults[0]?.status, "ok");
+        assert.equal(metricAppendOutput.writePlan.metricAppendExecutionResults[0]?.writtenCount, 1);
+        assert.equal("stdout" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+        assert.equal("stderr" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+        assert.equal("parsedOutput" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+        assert.equal("env" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+        assert.equal("cwd" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+        assert.equal("args" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+        assert.equal("command" in metricAppendOutput.writePlan.metricAppendExecutionResults[0], false);
+
+        const metricPostCheck =
+          metricAppendOutput.writePlan.postCheckResult as MetricAppendPostCheckResult;
+        assert.equal(metricPostCheck.checked, true);
+        assert.equal(metricPostCheck.mint, metricReady.mint);
+        assert.equal(metricPostCheck.runnerStatus, "ok");
+        assert.equal(metricPostCheck.tokenFound, true);
+        assert.equal(metricPostCheck.metricsCount, 1);
+        assert.equal(metricPostCheck.metricId, metricPostCheck.latestMetric?.id ?? null);
+        assert.equal(metricPostCheck.metricIdMatchesLatest, true);
+        assert.deepEqual(metricPostCheck.warnings, []);
+        assert.deepEqual(metricAppendOutput.writePlan.recoveryHints, {
+          metricOnlyAppendCandidates: [],
+          tokenWriteRetryCandidates: [],
+          inspectTokenCandidates: [],
+          runnerDbMismatchCandidates: [],
+          cooldownRecommended: true,
+          resumeWithLimit: 1,
+          resumeWithMaxCycles: 1,
+        });
+
+        const metricFailureReady = await seedMetricAppendReadyToken(
+          databaseUrl,
+          "GeckoCatchupMetricAppendFail11111111111111111pump",
+        );
+        const rateLimitedMetricRunner: GeckoMetricAppendCommandRunner = async (input) =>
+          parseGeckoMetricAppendCommandResult({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              mode: "single",
+              dryRun: false,
+              writeEnabled: true,
+              metricSource: "geckoterminal.token_snapshot",
+              originSource: GECKO_SOURCE,
+              summary: {
+                selectedCount: 1,
+                okCount: 0,
+                skippedCount: 0,
+                errorCount: 1,
+                writtenCount: 0,
+              },
+              items: [
+                {
+                  token: {
+                    mint: input.mint,
+                    isGeckoterminalOrigin: true,
+                  },
+                  metricSource: "geckoterminal.token_snapshot",
+                  status: "error",
+                  error: "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+                  writeSummary: {
+                    dryRun: false,
+                    wouldCreateMetric: false,
+                    metricId: null,
+                  },
+                },
+              ],
+            }),
+            stderr: "raw rate-limit diagnostic",
+          });
+        const metricFailureOutput = await supervisor.runGeckoCatchupSupervisor(
+          supervisor.parseGeckoCatchupSupervisorArgs([
+            "--write",
+            "--metricAppend",
+            "--pumpOnly",
+            "--limit",
+            "1",
+            "--maxCycles",
+            "1",
+            "--sinceMinutes",
+            "10080",
+            "--dry-run",
+          ]),
+          {
+            metricAppendRunner: rateLimitedMetricRunner,
+          },
+        );
+
+        assert.equal(metricFailureOutput.writePlan.metricAppendExecutionResults.length, 1);
+        assert.equal(metricFailureOutput.writePlan.metricAppendExecutionResults[0]?.mint, metricFailureReady.mint);
+        assert.equal(metricFailureOutput.writePlan.metricAppendExecutionResults[0]?.status, "item_error");
+        assert.equal(metricFailureOutput.writePlan.metricAppendExecutionResults[0]?.rateLimited, true);
+        assert.deepEqual(metricFailureOutput.writePlan.recoveryHints, {
+          metricOnlyAppendCandidates: [metricFailureReady.mint],
+          tokenWriteRetryCandidates: [],
+          inspectTokenCandidates: [metricFailureReady.mint],
+          runnerDbMismatchCandidates: [],
+          cooldownRecommended: true,
+          resumeWithLimit: 1,
+          resumeWithMaxCycles: 1,
+        });
       } finally {
         await disconnectLoadedCatchupSupervisorDb();
       }
@@ -1669,7 +2001,9 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(typeof supervisor.runGeckoCatchupSupervisorCli, "function");
     assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps, "function");
     assert.equal(typeof supervisor.shouldRunGeckoTokenWriteRunner, "function");
+    assert.equal(typeof supervisor.shouldRunGeckoMetricAppendRunner, "function");
     assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps().tokenWriteRunner, "function");
+    assert.equal("metricAppendRunner" in supervisor.buildGeckoCatchupSupervisorCliDeps(), false);
   });
 
   await t.test("plans --write --metricAppend as blocked without connecting runners", async () => {
@@ -1691,9 +2025,9 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         id: 1,
         mint: "7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump",
         source: GECKO_SOURCE,
-        name: null,
-        symbol: null,
-        metadataStatus: "mint_only",
+        name: "Metric Ready",
+        symbol: "MREADY",
+        metadataStatus: "partial",
         scoreRank: "C",
         scoreTotal: 0,
         hardRejected: false,
@@ -1726,10 +2060,11 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     });
     assert.equal(output.writePlan.metricAppendCommandPlan.length, 1);
     assert.deepEqual(output.writePlan.metricAppendCommandPlan[0]?.blockedBy, [
-      "mixed_token_and_metric_write_not_supported",
       "metric_append_runner_not_connected",
     ]);
     assert.equal(output.writePlan.metricAppendCommandPlan[0]?.executionEligible, false);
+    assert.deepEqual(output.writePlan.writeCommandPlan, []);
+    assert.deepEqual(output.writePlan.wouldWriteTokens, []);
   });
 
   await t.test("reports completed pump backlog without planning writes", async () => {
@@ -2158,7 +2493,11 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "metric-append-requested-plan.db")}`;
       await runDbPush(databaseUrl);
-      const seeded = await seedPendingSelectionFixture(databaseUrl);
+      await seedPendingSelectionFixture(databaseUrl);
+      const metricReady = await seedMetricAppendReadyToken(
+        databaseUrl,
+        "GeckoCatchupMetricAppendPlan11111111111111111pump",
+      );
 
       const result = await runCatchupSupervisor(
         [
@@ -2181,7 +2520,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.selection.metricAppendRequested, true);
       assert.equal(parsed.writePlan.metricAppendRequested, true);
       assert.equal(parsed.writePlan.metricAppendCommandPlan.length, 1);
-      assert.equal(parsed.writePlan.metricAppendCommandPlan[0]?.mint, seeded.expectedSelectedMints[0]);
+      assert.equal(parsed.writePlan.metricAppendCommandPlan[0]?.mint, metricReady.mint);
       assert.deepEqual(parsed.writePlan.metricAppendCommandPlan[0]?.blockedBy, [
         "metric_append_write_not_requested",
         "metric_append_runner_not_connected",

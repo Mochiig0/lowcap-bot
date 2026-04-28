@@ -4,6 +4,13 @@ import { pathToFileURL } from "node:url";
 
 import { db } from "./db.js";
 import {
+  buildGeckoMetricAppendRunnerInput,
+  buildMetricAppendCommandArgs,
+  toGeckoCatchupMetricAppendExecutionResult,
+  type GeckoCatchupMetricAppendExecutionResult,
+  type GeckoMetricAppendCommandRunner,
+} from "./geckoterminalCatchupMetricAppendRunner.js";
+import {
   buildGeckoTokenWriteRunnerInput,
   runGeckoTokenWriteCommandWithNodeExecFile,
   toGeckoCatchupTokenWriteExecutionResult,
@@ -33,6 +40,7 @@ export type Args = {
 
 export type GeckoCatchupSupervisorDeps = {
   tokenWriteRunner?: GeckoTokenWriteCommandRunner;
+  metricAppendRunner?: GeckoMetricAppendCommandRunner;
 };
 
 type GeckoTokenWriteRunnerDecisionPlan = {
@@ -40,6 +48,14 @@ type GeckoTokenWriteRunnerDecisionPlan = {
   executionEligible: boolean;
   blockedBy: string[];
   notify: boolean;
+  metricAppend: boolean;
+  postCheck: boolean;
+};
+
+type GeckoMetricAppendRunnerDecisionPlan = {
+  executionSupported: boolean;
+  executionEligible: boolean;
+  blockedBy: string[];
   metricAppend: boolean;
   postCheck: boolean;
 };
@@ -150,9 +166,10 @@ type SelectedCandidate = {
 
 type MetricAppendPlanItem = {
   cycle: number;
+  orderInCycle: number;
   mint: string;
   wouldAppendMetric: boolean;
-  reason: "selected_incomplete_metric_missing" | "already_has_metric";
+  reason: "selected_incomplete_metric_missing" | "selected_metric_missing" | "already_has_metric";
   metricsCount: number;
   latestMetric: LatestMetric;
 };
@@ -221,9 +238,9 @@ type WritePlan = {
     blockedBy: string[];
   }>;
   metricAppendCommandPlan: Array<{
-    enabled: false;
-    executionSupported: false;
-    executionEligible: false;
+    enabled: boolean;
+    executionSupported: boolean;
+    executionEligible: boolean;
     command: "pnpm";
     script: "metric:snapshot:geckoterminal";
     mint: string;
@@ -231,17 +248,18 @@ type WritePlan = {
     source: typeof GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE;
     metricAppend: true;
     postCheck: true;
-    reason: "selected_incomplete_metric_missing";
+    reason: "selected_incomplete_metric_missing" | "selected_metric_missing";
     blockedBy: string[];
   }>;
   tokenWriteExecutionResults: GeckoCatchupTokenWriteExecutionResult[];
+  metricAppendExecutionResults: GeckoCatchupMetricAppendExecutionResult[];
   requiresCaptureOnly: true;
   postCheckPlan: {
     enabled: true;
     requireMetricPendingMatchesIncomplete: true;
     requireSelectedLatestMetricPresent: true;
   };
-  postCheckResult: TokenWritePostCheckResult | null;
+  postCheckResult: TokenWritePostCheckResult | MetricAppendPostCheckResult | null;
   recoveryHints: {
     metricOnlyAppendCandidates: string[];
     tokenWriteRetryCandidates: string[];
@@ -264,6 +282,18 @@ type TokenWritePostCheckResult = {
   isStillPending: boolean;
   metricsCount: number;
   hasLatestMetric: boolean;
+  warnings: string[];
+};
+
+type MetricAppendPostCheckResult = {
+  checked: boolean;
+  mint: string;
+  runnerStatus: GeckoCatchupMetricAppendExecutionResult["status"];
+  tokenFound: boolean;
+  metricsCount: number;
+  metricId: number | null;
+  latestMetric: LatestMetric;
+  metricIdMatchesLatest: boolean;
   warnings: string[];
 };
 
@@ -625,6 +655,7 @@ function buildSelectedCandidate(
   token: SupervisorToken,
   cycle: number,
   orderInCycle: number,
+  wouldWriteToken = true,
 ): SelectedCandidate {
   return {
     cycle,
@@ -643,18 +674,23 @@ function buildSelectedCandidate(
     selectionAnchorKind: token.selectionAnchorKind,
     metricsCount: token.metricsCount,
     latestMetric: token.latestMetric,
-    wouldWriteToken: true,
+    wouldWriteToken,
   };
 }
 
 function buildMetricAppendPlanItem(candidate: SelectedCandidate): MetricAppendPlanItem {
+  const tokenComplete = hasText(candidate.name) && hasText(candidate.symbol);
+
   return {
     cycle: candidate.cycle,
+    orderInCycle: candidate.orderInCycle,
     mint: candidate.mint,
     wouldAppendMetric: candidate.metricsCount === 0,
     reason:
       candidate.metricsCount === 0
-        ? "selected_incomplete_metric_missing"
+        ? tokenComplete
+          ? "selected_metric_missing"
+          : "selected_incomplete_metric_missing"
         : "already_has_metric",
     metricsCount: candidate.metricsCount,
     latestMetric: candidate.latestMetric,
@@ -676,6 +712,9 @@ function buildSafetyChecks(
   const completeCandidates = selectedCandidates.filter(
     (candidate) => candidate.name !== null && candidate.symbol !== null,
   );
+  const incompleteMetricAppendCandidates = selectedCandidates.filter(
+    (candidate) => candidate.name === null || candidate.symbol === null,
+  );
   const hardRejectedCandidates = selectedCandidates.filter((candidate) => candidate.hardRejected);
   const alreadyMetricCandidates = selectedCandidates.filter((candidate) => candidate.metricsCount > 0);
 
@@ -693,8 +732,13 @@ function buildSafetyChecks(
   });
   checks.push({
     name: "metric_pending_matches_incomplete",
-    status:
-      currentCounts.metricPendingCount === currentCounts.pumpIncomplete ? "pass" : "warn",
+    status: args.metricAppendRequested
+      ? selectedCandidates.every((candidate) => candidate.metricsCount === 0)
+        ? "pass"
+        : "warn"
+      : currentCounts.metricPendingCount === currentCounts.pumpIncomplete
+        ? "pass"
+        : "warn",
     message: `metricPendingCount=${currentCounts.metricPendingCount}, pumpIncomplete=${currentCounts.pumpIncomplete}`,
   });
   checks.push({
@@ -721,10 +765,21 @@ function buildSafetyChecks(
   });
   checks.push({
     name: "selected_incomplete",
-    status: completeCandidates.length > 0 ? "fail" : "pass",
+    status: !args.metricAppendRequested && completeCandidates.length > 0 ? "fail" : "pass",
     message: `already-complete selected candidate count=${completeCandidates.length}`,
-    ...(completeCandidates.length > 0
+    ...(!args.metricAppendRequested && completeCandidates.length > 0
       ? { details: completeCandidates.map((candidate) => candidate.mint) }
+      : {}),
+  });
+  checks.push({
+    name: "selected_metric_append_complete",
+    status:
+      args.metricAppendRequested && incompleteMetricAppendCandidates.length > 0
+        ? "fail"
+        : "pass",
+    message: `metric append incomplete selected candidate count=${incompleteMetricAppendCandidates.length}`,
+    ...(args.metricAppendRequested && incompleteMetricAppendCandidates.length > 0
+      ? { details: incompleteMetricAppendCandidates.map((candidate) => candidate.mint) }
       : {}),
   });
   checks.push({
@@ -763,6 +818,7 @@ function firstFailingStopReason(checks: SafetyCheck[]): string | null {
 }
 
 function buildStopReason(
+  args: Args,
   currentCounts: CurrentCounts,
   pendingCount: number,
   plannedCount: number,
@@ -778,7 +834,7 @@ function buildStopReason(
   if (plannedCount < pendingCount) {
     return "max_cycles_reached_after_plan";
   }
-  if (currentCounts.metricPendingCount !== currentCounts.pumpIncomplete) {
+  if (!args.metricAppendRequested && currentCounts.metricPendingCount !== currentCounts.pumpIncomplete) {
     return "pending_count_mismatch";
   }
   return "none";
@@ -870,17 +926,29 @@ function buildWriteCommandPlanBlockedBy(
 function buildMetricAppendCommandPlanBlockedBy(
   args: Args,
   selectedCandidates: SelectedCandidate[],
+  safetyChecks: SafetyCheck[],
 ): string[] {
+  const metricAppendConditionBlocks = [
+    ...(args.limit === 1 ? [] : ["limit_not_one"]),
+    ...(args.maxCycles === 1 ? [] : ["max_cycles_not_one"]),
+    ...(selectedCandidates.length === 1 ? [] : ["selected_count_not_one"]),
+  ];
+  const blockingSafetyChecks = safetyChecks
+    .filter((check) => check.status === "fail" || check.status === "warn")
+    .map((check) => check.name);
+
   return [
     ...(args.metricAppendRequested ? [] : ["metric_append_not_requested"]),
     ...(args.metricAppendRequested && !args.writeRequested
       ? ["metric_append_write_not_requested"]
       : []),
+    ...metricAppendConditionBlocks,
     ...(args.metricAppendRequested &&
     args.writeRequested &&
     selectedCandidates.some((candidate) => candidate.wouldWriteToken)
       ? ["mixed_token_and_metric_write_not_supported"]
       : []),
+    ...blockingSafetyChecks,
     "metric_append_runner_not_connected",
   ];
 }
@@ -1017,6 +1085,121 @@ function buildRecoveryHints(
   };
 }
 
+function buildMetricAppendPostCheckWarnings(
+  postCheck: Omit<MetricAppendPostCheckResult, "warnings">,
+): string[] {
+  const warnings: string[] = [];
+
+  if (!postCheck.tokenFound) {
+    warnings.push("token_not_found_after_metric_append");
+  }
+  if (postCheck.tokenFound && postCheck.metricsCount === 0) {
+    warnings.push("metric_missing_after_metric_append");
+  }
+  if (postCheck.runnerStatus === "ok" && postCheck.metricId === null) {
+    warnings.push("metric_id_missing_from_runner");
+  }
+  if (
+    postCheck.runnerStatus === "ok" &&
+    postCheck.metricId !== null &&
+    !postCheck.metricIdMatchesLatest
+  ) {
+    warnings.push("runner_ok_but_metric_id_not_latest");
+  }
+  if (postCheck.runnerStatus !== "ok" && postCheck.metricsCount > 0) {
+    warnings.push("runner_result_not_ok_but_db_metric_appended");
+  }
+  if (postCheck.runnerStatus === "ok" && postCheck.metricsCount === 0) {
+    warnings.push("runner_ok_but_db_metric_missing");
+  }
+
+  return warnings;
+}
+
+async function buildMetricAppendPostCheckResult(
+  executionResult: GeckoCatchupMetricAppendExecutionResult,
+): Promise<MetricAppendPostCheckResult> {
+  const token = await db.token.findUnique({
+    where: {
+      mint: executionResult.mint,
+    },
+    select: {
+      metrics: {
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: {
+          id: true,
+          source: true,
+          observedAt: true,
+          volume24h: true,
+        },
+      },
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
+    },
+  });
+  const latestMetric = token?.metrics[0] ?? null;
+  const metricId = executionResult.writeSummary?.metricId ?? null;
+  const base = {
+    checked: true,
+    mint: executionResult.mint,
+    runnerStatus: executionResult.status,
+    tokenFound: token !== null,
+    metricsCount: token?._count.metrics ?? 0,
+    metricId,
+    latestMetric: latestMetric
+      ? {
+          id: latestMetric.id,
+          source: latestMetric.source,
+          observedAt: latestMetric.observedAt.toISOString(),
+          volume24h: latestMetric.volume24h,
+        }
+      : null,
+    metricIdMatchesLatest: latestMetric !== null && metricId !== null && latestMetric.id === metricId,
+  };
+
+  return {
+    ...base,
+    warnings: buildMetricAppendPostCheckWarnings(base),
+  };
+}
+
+function buildMetricAppendRecoveryHints(
+  postCheckResult: MetricAppendPostCheckResult | null,
+): WritePlan["recoveryHints"] {
+  const metricOnlyAppendCandidates =
+    postCheckResult?.tokenFound === true &&
+    (postCheckResult.metricsCount === 0 || postCheckResult.runnerStatus !== "ok")
+      ? [postCheckResult.mint]
+      : [];
+  const inspectTokenCandidates =
+    postCheckResult && postCheckResult.warnings.length > 0
+      ? [postCheckResult.mint]
+      : [];
+  const runnerDbMismatchCandidates =
+    postCheckResult &&
+    postCheckResult.warnings.some((warning) =>
+      warning === "runner_result_not_ok_but_db_metric_appended" ||
+      warning === "runner_ok_but_db_metric_missing" ||
+      warning === "runner_ok_but_metric_id_not_latest"
+    )
+      ? [postCheckResult.mint]
+      : [];
+
+  return {
+    metricOnlyAppendCandidates,
+    tokenWriteRetryCandidates: [],
+    inspectTokenCandidates,
+    runnerDbMismatchCandidates,
+    cooldownRecommended: true,
+    resumeWithLimit: 1,
+    resumeWithMaxCycles: 1,
+  };
+}
+
 export function validateGeckoCatchupInitialWriteMode(
   input: GeckoCatchupInitialWriteModeValidationInput,
 ): GeckoCatchupInitialWriteModeValidationResult {
@@ -1065,6 +1248,7 @@ function buildWritePlan(
   const metricAppendCommandPlanBlockedBy = buildMetricAppendCommandPlanBlockedBy(
     args,
     selectedCandidates,
+    safetyChecks,
   );
   const initialWriteCandidate = selectedCandidates.find((candidate) => candidate.wouldWriteToken);
 
@@ -1131,10 +1315,11 @@ function buildWritePlan(
         source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
         metricAppend: true,
         postCheck: true,
-        reason: "selected_incomplete_metric_missing",
+        reason: item.reason === "already_has_metric" ? "selected_incomplete_metric_missing" : item.reason,
         blockedBy: metricAppendCommandPlanBlockedBy,
       })),
     tokenWriteExecutionResults: [],
+    metricAppendExecutionResults: [],
     requiresCaptureOnly: true,
     postCheckPlan: {
       enabled: true,
@@ -1178,6 +1363,24 @@ export function shouldRunGeckoTokenWriteRunner(
     plan.blockedBy.length === 0 &&
     plan.notify === false &&
     plan.metricAppend === false &&
+    plan.postCheck === true
+  );
+}
+
+export function shouldRunGeckoMetricAppendRunner(
+  metricAppendCommandPlan: GeckoMetricAppendRunnerDecisionPlan[],
+  deps: GeckoCatchupSupervisorDeps = {},
+): boolean {
+  if (!deps.metricAppendRunner || metricAppendCommandPlan.length !== 1) {
+    return false;
+  }
+
+  const [plan] = metricAppendCommandPlan;
+  return (
+    plan.executionSupported &&
+    plan.executionEligible &&
+    plan.blockedBy.length === 0 &&
+    plan.metricAppend === true &&
     plan.postCheck === true
   );
 }
@@ -1260,6 +1463,89 @@ async function runInjectedGeckoTokenWriteRunner(
   };
 }
 
+async function runInjectedGeckoMetricAppendRunner(
+  args: Args,
+  output: GeckoCatchupSupervisorOutput,
+  deps: GeckoCatchupSupervisorDeps,
+): Promise<GeckoCatchupSupervisorOutput> {
+  if (!args.writeRequested || !args.metricAppendRequested || !deps.metricAppendRunner) {
+    return output;
+  }
+  if (
+    args.limit !== 1 ||
+    args.maxCycles !== 1 ||
+    !args.pumpOnly ||
+    !args.stopOnRateLimit ||
+    args.captureFile !== null ||
+    args.cooldownSeconds !== null ||
+    output.writePlan.wouldWriteTokens.length > 0 ||
+    output.writePlan.metricAppendCommandPlan.length !== 1
+  ) {
+    return output;
+  }
+  if (output.safetyChecks.some((check) => check.status === "fail" || check.status === "warn")) {
+    return output;
+  }
+
+  const [plan] = output.writePlan.metricAppendCommandPlan;
+  const blockedByWithoutRunner = plan.blockedBy.filter(
+    (reason) => reason !== "metric_append_runner_not_connected",
+  );
+  if (blockedByWithoutRunner.length > 0) {
+    return output;
+  }
+
+  const executablePlan = {
+    ...plan,
+    enabled: true,
+    executionSupported: true,
+    executionEligible: true,
+    blockedBy: [],
+  };
+  const executableOutput: GeckoCatchupSupervisorOutput = {
+    ...output,
+    readOnly: false,
+    dryRun: false,
+    writeEnabled: true,
+    writePlan: {
+      ...output.writePlan,
+      enabled: true,
+      writeModeSupported: true,
+      metricAppendCommandPlan: [executablePlan],
+      metricAppendExecutionResults: [],
+    },
+  };
+
+  if (!shouldRunGeckoMetricAppendRunner(executableOutput.writePlan.metricAppendCommandPlan, deps)) {
+    return output;
+  }
+
+  const runnerInput = buildGeckoMetricAppendRunnerInput(
+    {
+      ...executablePlan,
+      args: buildMetricAppendCommandArgs(executablePlan.mint),
+      orderInCycle: 1,
+    },
+    {
+      cwd: process.cwd(),
+      env: process.env,
+    },
+  );
+  const runnerResult = await deps.metricAppendRunner(runnerInput);
+  const executionResult = toGeckoCatchupMetricAppendExecutionResult(runnerInput, runnerResult);
+  const postCheckResult = await buildMetricAppendPostCheckResult(executionResult);
+
+  return {
+    ...executableOutput,
+    writePlan: {
+      ...executableOutput.writePlan,
+      metricAppendExecutionResults: [executionResult],
+      postCheckResult,
+      recoveryHints: buildMetricAppendRecoveryHints(postCheckResult),
+    },
+  };
+}
+
 export function buildGeckoCatchupSupervisorPlan(
   args: Args,
   rawTokens: RawSupervisorToken[],
@@ -1277,7 +1563,11 @@ export function buildGeckoCatchupSupervisorPlan(
     ? geckoTokens.filter((token) => isPumpMint(token.mint))
     : geckoTokens;
   const currentCounts = buildCurrentCounts(geckoTokens, filteredTokens);
-  const pendingTokens = filteredTokens.filter(isIncomplete).sort(sortBySelectionAnchorDesc);
+  const tokenPendingTokens = filteredTokens.filter(isIncomplete).sort(sortBySelectionAnchorDesc);
+  const metricPendingTokens = filteredTokens
+    .filter((token) => !isIncomplete(token) && token.metricsCount === 0)
+    .sort(sortBySelectionAnchorDesc);
+  const pendingTokens = args.metricAppendRequested ? metricPendingTokens : tokenPendingTokens;
   const maxPlanned = args.limit * args.maxCycles;
   const plannedTokens = pendingTokens.slice(0, maxPlanned);
   const cycles: CyclePlan[] = [];
@@ -1286,7 +1576,9 @@ export function buildGeckoCatchupSupervisorPlan(
     const cycle = Math.floor(offset / args.limit) + 1;
     const selectedCandidates = plannedTokens
       .slice(offset, offset + args.limit)
-      .map((token, index) => buildSelectedCandidate(token, cycle, index + 1));
+      .map((token, index) =>
+        buildSelectedCandidate(token, cycle, index + 1, !args.metricAppendRequested),
+      );
     cycles.push({
       cycle,
       selectedCount: selectedCandidates.length,
@@ -1299,6 +1591,7 @@ export function buildGeckoCatchupSupervisorPlan(
   const metricAppendPlan = cycles.flatMap((cycle) => cycle.metricAppendPlan);
   const safetyChecks = buildSafetyChecks(args, currentCounts, selectedCandidates);
   const stopReason = buildStopReason(
+    args,
     currentCounts,
     pendingTokens.length,
     selectedCandidates.length,
@@ -1396,7 +1689,8 @@ export async function runGeckoCatchupSupervisor(
   deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
   const output = await buildGeckoCatchupSupervisorOutput(args);
-  return runInjectedGeckoTokenWriteRunner(args, output, deps);
+  const tokenWriteOutput = await runInjectedGeckoTokenWriteRunner(args, output, deps);
+  return runInjectedGeckoMetricAppendRunner(args, tokenWriteOutput, deps);
 }
 
 export function buildGeckoCatchupSupervisorCliDeps(): GeckoCatchupSupervisorDeps {
