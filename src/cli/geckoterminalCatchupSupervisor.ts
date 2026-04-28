@@ -15,6 +15,7 @@ import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNew
 const DEFAULT_LIMIT = 2;
 const DEFAULT_MAX_CYCLES = 1;
 const DEFAULT_SINCE_MINUTES = 10_080;
+const GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE = "geckoterminal.token_snapshot";
 
 export type Args = {
   pumpOnly: boolean;
@@ -216,6 +217,23 @@ type WritePlan = {
     postCheck: true;
     reason: "selected_incomplete_token_write";
     blockedBy: string[];
+  }>;
+  metricAppendCommandPlan: Array<{
+    enabled: false;
+    executionSupported: false;
+    executionEligible: false;
+    command: "pnpm";
+    script: "metric:snapshot:geckoterminal";
+    mint: string;
+    cycle: number;
+    source: typeof GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE;
+    metricAppend: true;
+    postCheck: true;
+    reason: "selected_incomplete_metric_missing";
+    blockedBy: [
+      "metric_append_gate_not_implemented",
+      "metric_append_runner_not_connected",
+    ];
   }>;
   tokenWriteExecutionResults: GeckoCatchupTokenWriteExecutionResult[];
   requiresCaptureOnly: true;
@@ -1071,6 +1089,25 @@ function buildWritePlan(
           },
         ]
       : [],
+    metricAppendCommandPlan: metricAppendPlan
+      .filter((item) => item.wouldAppendMetric)
+      .map((item) => ({
+        enabled: false,
+        executionSupported: false,
+        executionEligible: false,
+        command: "pnpm",
+        script: "metric:snapshot:geckoterminal",
+        mint: item.mint,
+        cycle: item.cycle,
+        source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
+        metricAppend: true,
+        postCheck: true,
+        reason: "selected_incomplete_metric_missing",
+        blockedBy: [
+          "metric_append_gate_not_implemented",
+          "metric_append_runner_not_connected",
+        ],
+      })),
     tokenWriteExecutionResults: [],
     requiresCaptureOnly: true,
     postCheckPlan: {

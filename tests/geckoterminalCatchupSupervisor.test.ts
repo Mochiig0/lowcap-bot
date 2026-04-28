@@ -154,6 +154,23 @@ type CatchupSupervisorOutput = {
       reason: "selected_incomplete_token_write";
       blockedBy: string[];
     }>;
+    metricAppendCommandPlan: Array<{
+      enabled: false;
+      executionSupported: false;
+      executionEligible: false;
+      command: "pnpm";
+      script: "metric:snapshot:geckoterminal";
+      mint: string;
+      cycle: number;
+      source: "geckoterminal.token_snapshot";
+      metricAppend: true;
+      postCheck: true;
+      reason: "selected_incomplete_metric_missing";
+      blockedBy: [
+        "metric_append_gate_not_implemented",
+        "metric_append_runner_not_connected",
+      ];
+    }>;
     tokenWriteExecutionResults: TokenWriteExecutionResult[];
     requiresCaptureOnly: true;
     postCheckPlan: {
@@ -405,6 +422,26 @@ function assertReadOnlyWritePlan(
     metricAppend: false,
   });
   assert.deepEqual(output.writePlan.tokenWriteExecutionResults, []);
+  assert.deepEqual(
+    output.writePlan.metricAppendCommandPlan,
+    output.writePlan.wouldAppendMetrics.map((item) => ({
+      enabled: false,
+      executionSupported: false,
+      executionEligible: false,
+      command: "pnpm",
+      script: "metric:snapshot:geckoterminal",
+      mint: item.mint,
+      cycle: item.cycle,
+      source: "geckoterminal.token_snapshot",
+      metricAppend: true,
+      postCheck: true,
+      reason: "selected_incomplete_metric_missing",
+      blockedBy: [
+        "metric_append_gate_not_implemented",
+        "metric_append_runner_not_connected",
+      ],
+    })),
+  );
   assert.equal(output.writePlan.requiresCaptureOnly, true);
   assert.deepEqual(output.writePlan.postCheckPlan, {
     enabled: true,
