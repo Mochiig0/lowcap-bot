@@ -24,6 +24,7 @@ export type Args = {
   sinceMinutes: number;
   dryRun: true;
   writeRequested: boolean;
+  metricAppendRequested: boolean;
   captureFile: string | null;
   cooldownSeconds: number | null;
   stopOnNotifyCandidate: boolean;
@@ -181,6 +182,7 @@ type WritePlan = {
   enabled: boolean;
   writeModeSupported: boolean;
   writeRequested: boolean;
+  metricAppendRequested: boolean;
   recommendedInitialWriteArgs: {
     limit: 1;
     maxCycles: 1;
@@ -230,10 +232,7 @@ type WritePlan = {
     metricAppend: true;
     postCheck: true;
     reason: "selected_incomplete_metric_missing";
-    blockedBy: [
-      "metric_append_gate_not_implemented",
-      "metric_append_runner_not_connected",
-    ];
+    blockedBy: string[];
   }>;
   tokenWriteExecutionResults: GeckoCatchupTokenWriteExecutionResult[];
   requiresCaptureOnly: true;
@@ -328,6 +327,7 @@ export type GeckoCatchupSupervisorOutput = {
     cooldownSeconds: number | null;
     stopOnNotifyCandidate: boolean;
     stopOnRateLimit: boolean;
+    metricAppendRequested: boolean;
   };
   summary: OperatorSummary;
   writePlan: WritePlan;
@@ -347,7 +347,7 @@ class CliUsageError extends Error {}
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm ops:catchup:gecko -- [--write] [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N> | --sinceHours <N>] [--dry-run] [--captureFile <PATH>] [--cooldownSeconds <N>] [--stopOnNotifyCandidate <true|false>] [--stopOnRateLimit <true|false>]",
+    "pnpm ops:catchup:gecko -- [--write] [--metricAppend] [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N> | --sinceHours <N>] [--dry-run] [--captureFile <PATH>] [--cooldownSeconds <N>] [--stopOnNotifyCandidate <true|false>] [--stopOnRateLimit <true|false>]",
     "",
     "Defaults:",
     `- read-only planning by default; fast wrapper execution, Metric append, Telegram notify, capture file creation, cooldown, and watch mode are not supported`,
@@ -394,6 +394,7 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     dryRun: true,
     writeRequested: false,
+    metricAppendRequested: false,
     captureFile: null,
     cooldownSeconds: null,
     stopOnNotifyCandidate: true,
@@ -416,6 +417,11 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
 
     if (key === "--write") {
       out.writeRequested = true;
+      continue;
+    }
+
+    if (key === "--metricAppend") {
+      out.metricAppendRequested = true;
       continue;
     }
 
@@ -467,7 +473,7 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
     throw new CliUsageError("Use only one of --sinceMinutes or --sinceHours");
   }
 
-  if (out.writeRequested) {
+  if (out.writeRequested && !out.metricAppendRequested) {
     const validation = validateGeckoCatchupInitialWriteMode({
       writeRequested: true,
       pumpOnly: out.pumpOnly,
@@ -861,6 +867,24 @@ function buildWriteCommandPlanBlockedBy(
   ];
 }
 
+function buildMetricAppendCommandPlanBlockedBy(
+  args: Args,
+  selectedCandidates: SelectedCandidate[],
+): string[] {
+  return [
+    ...(args.metricAppendRequested ? [] : ["metric_append_not_requested"]),
+    ...(args.metricAppendRequested && !args.writeRequested
+      ? ["metric_append_write_not_requested"]
+      : []),
+    ...(args.metricAppendRequested &&
+    args.writeRequested &&
+    selectedCandidates.some((candidate) => candidate.wouldWriteToken)
+      ? ["mixed_token_and_metric_write_not_supported"]
+      : []),
+    "metric_append_runner_not_connected",
+  ];
+}
+
 function buildTokenWriteCommandArgs(mint: string): string[] {
   return [
     "token:enrich-rescore:geckoterminal",
@@ -1038,12 +1062,17 @@ function buildWritePlan(
     selectedCandidates,
     safetyChecks,
   );
+  const metricAppendCommandPlanBlockedBy = buildMetricAppendCommandPlanBlockedBy(
+    args,
+    selectedCandidates,
+  );
   const initialWriteCandidate = selectedCandidates.find((candidate) => candidate.wouldWriteToken);
 
   return {
     enabled: false,
     writeModeSupported: true,
     writeRequested: args.writeRequested,
+    metricAppendRequested: args.metricAppendRequested,
     recommendedInitialWriteArgs: {
       limit: 1,
       maxCycles: 1,
@@ -1103,10 +1132,7 @@ function buildWritePlan(
         metricAppend: true,
         postCheck: true,
         reason: "selected_incomplete_metric_missing",
-        blockedBy: [
-          "metric_append_gate_not_implemented",
-          "metric_append_runner_not_connected",
-        ],
+        blockedBy: metricAppendCommandPlanBlockedBy,
       })),
     tokenWriteExecutionResults: [],
     requiresCaptureOnly: true,
@@ -1161,7 +1187,7 @@ async function runInjectedGeckoTokenWriteRunner(
   output: GeckoCatchupSupervisorOutput,
   deps: GeckoCatchupSupervisorDeps,
 ): Promise<GeckoCatchupSupervisorOutput> {
-  if (!args.writeRequested || !deps.tokenWriteRunner) {
+  if (!args.writeRequested || args.metricAppendRequested || !deps.tokenWriteRunner) {
     return output;
   }
 
@@ -1302,6 +1328,7 @@ export function buildGeckoCatchupSupervisorPlan(
       cooldownSeconds: args.cooldownSeconds,
       stopOnNotifyCandidate: args.stopOnNotifyCandidate,
       stopOnRateLimit: args.stopOnRateLimit,
+      metricAppendRequested: args.metricAppendRequested,
     },
     summary,
     writePlan,

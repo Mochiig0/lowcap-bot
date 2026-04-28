@@ -99,6 +99,7 @@ type CatchupSupervisorOutput = {
     limit: number;
     maxCycles: number;
     sinceMinutes: number;
+    metricAppendRequested: boolean;
   };
   summary: {
     status: "no_pending" | "ready" | "warning" | "blocked";
@@ -117,6 +118,7 @@ type CatchupSupervisorOutput = {
     enabled: boolean;
     writeModeSupported: boolean;
     writeRequested: boolean;
+    metricAppendRequested: boolean;
     recommendedInitialWriteArgs: {
       limit: 1;
       maxCycles: 1;
@@ -166,10 +168,7 @@ type CatchupSupervisorOutput = {
       metricAppend: true;
       postCheck: true;
       reason: "selected_incomplete_metric_missing";
-      blockedBy: [
-        "metric_append_gate_not_implemented",
-        "metric_append_runner_not_connected",
-      ];
+      blockedBy: string[];
     }>;
     tokenWriteExecutionResults: TokenWriteExecutionResult[];
     requiresCaptureOnly: true;
@@ -400,14 +399,31 @@ function safetyStatus(output: CatchupSupervisorOutput, name: string): SafetyChec
 
 function assertReadOnlyWritePlan(
   output: CatchupSupervisorOutput,
-  options: { writeRequested?: boolean } = {},
+  options: { writeRequested?: boolean; metricAppendRequested?: boolean } = {},
 ): void {
+  const writeRequested = options.writeRequested ?? false;
+  const metricAppendRequested = options.metricAppendRequested ?? false;
+  const metricAppendBlockedBy = [
+    ...(metricAppendRequested ? [] : ["metric_append_not_requested"]),
+    ...(metricAppendRequested && !writeRequested
+      ? ["metric_append_write_not_requested"]
+      : []),
+    ...(metricAppendRequested &&
+    writeRequested &&
+    output.writePlan.wouldWriteTokens.length > 0
+      ? ["mixed_token_and_metric_write_not_supported"]
+      : []),
+    "metric_append_runner_not_connected",
+  ];
+
   assert.equal(output.readOnly, true);
   assert.equal(output.dryRun, true);
   assert.equal(output.writeEnabled, false);
   assert.equal(output.writePlan.enabled, false);
   assert.equal(output.writePlan.writeModeSupported, true);
-  assert.equal(output.writePlan.writeRequested, options.writeRequested ?? false);
+  assert.equal(output.writePlan.writeRequested, writeRequested);
+  assert.equal(output.writePlan.metricAppendRequested, metricAppendRequested);
+  assert.equal(output.selection.metricAppendRequested, metricAppendRequested);
   assert.deepEqual(output.writePlan.recommendedInitialWriteArgs, {
     limit: 1,
     maxCycles: 1,
@@ -436,10 +452,7 @@ function assertReadOnlyWritePlan(
       metricAppend: true,
       postCheck: true,
       reason: "selected_incomplete_metric_missing",
-      blockedBy: [
-        "metric_append_gate_not_implemented",
-        "metric_append_runner_not_connected",
-      ],
+      blockedBy: metricAppendBlockedBy,
     })),
   );
   assert.equal(output.writePlan.requiresCaptureOnly, true);
@@ -1640,16 +1653,83 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
   await t.test("imports planner helpers without running the CLI entrypoint", async () => {
     const supervisor = getLoadedCatchupSupervisorModule();
     const args = supervisor.parseGeckoCatchupSupervisorArgs(["--pumpOnly", "--limit", "1"]);
+    const metricAppendArgs = supervisor.parseGeckoCatchupSupervisorArgs([
+      "--write",
+      "--metricAppend",
+    ]);
 
     assert.equal(args.pumpOnly, true);
     assert.equal(args.limit, 1);
     assert.equal(args.dryRun, true);
     assert.equal(args.writeRequested, false);
+    assert.equal(args.metricAppendRequested, false);
+    assert.equal(metricAppendArgs.writeRequested, true);
+    assert.equal(metricAppendArgs.metricAppendRequested, true);
     assert.equal(typeof supervisor.runGeckoCatchupSupervisor, "function");
     assert.equal(typeof supervisor.runGeckoCatchupSupervisorCli, "function");
     assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps, "function");
     assert.equal(typeof supervisor.shouldRunGeckoTokenWriteRunner, "function");
     assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps().tokenWriteRunner, "function");
+  });
+
+  await t.test("plans --write --metricAppend as blocked without connecting runners", async () => {
+    const supervisor = getLoadedCatchupSupervisorModule();
+    const now = new Date("2026-04-29T00:00:00.000Z");
+    const args = supervisor.parseGeckoCatchupSupervisorArgs([
+      "--write",
+      "--metricAppend",
+      "--pumpOnly",
+      "--limit",
+      "1",
+      "--maxCycles",
+      "1",
+      "--sinceMinutes",
+      "10080",
+    ]);
+    const rawTokens: Parameters<typeof supervisor.buildGeckoCatchupSupervisorPlan>[1] = [
+      {
+        id: 1,
+        mint: "7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump",
+        source: GECKO_SOURCE,
+        name: null,
+        symbol: null,
+        metadataStatus: "mint_only",
+        scoreRank: "C",
+        scoreTotal: 0,
+        hardRejected: false,
+        createdAt: now,
+        importedAt: now,
+        enrichedAt: null,
+        rescoredAt: null,
+        entrySnapshot: {
+          firstSeen: {
+            source: GECKO_SOURCE,
+            detectedAt: now.toISOString(),
+          },
+        },
+        metrics: [],
+        _count: {
+          metrics: 0,
+        },
+      },
+    ];
+
+    const output = supervisor.buildGeckoCatchupSupervisorPlan(
+      args,
+      rawTokens,
+      new Date(now.getTime() - 60_000),
+    ) as CatchupSupervisorOutput;
+
+    assertReadOnlyWritePlan(output, {
+      writeRequested: true,
+      metricAppendRequested: true,
+    });
+    assert.equal(output.writePlan.metricAppendCommandPlan.length, 1);
+    assert.deepEqual(output.writePlan.metricAppendCommandPlan[0]?.blockedBy, [
+      "mixed_token_and_metric_write_not_supported",
+      "metric_append_runner_not_connected",
+    ]);
+    assert.equal(output.writePlan.metricAppendCommandPlan[0]?.executionEligible, false);
   });
 
   await t.test("reports completed pump backlog without planning writes", async () => {
@@ -2071,6 +2151,43 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(safetyStatus(parsed, "selected_incomplete"), "pass");
       assert.equal(safetyStatus(parsed, "metric_append_precheck"), "pass");
       assert.equal(safetyStatus(parsed, "stop_on_rate_limit"), "pass");
+    });
+  });
+
+  await t.test("marks metric append requested dry-run as blocked until write and runner connection", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "metric-append-requested-plan.db")}`;
+      await runDbPush(databaseUrl);
+      const seeded = await seedPendingSelectionFixture(databaseUrl);
+
+      const result = await runCatchupSupervisor(
+        [
+          "--metricAppend",
+          "--pumpOnly",
+          "--limit",
+          "1",
+          "--maxCycles",
+          "1",
+          "--sinceMinutes",
+          "10080",
+          "--dry-run",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
+      assertReadOnlyWritePlan(parsed, { metricAppendRequested: true });
+      assert.equal(parsed.selection.metricAppendRequested, true);
+      assert.equal(parsed.writePlan.metricAppendRequested, true);
+      assert.equal(parsed.writePlan.metricAppendCommandPlan.length, 1);
+      assert.equal(parsed.writePlan.metricAppendCommandPlan[0]?.mint, seeded.expectedSelectedMints[0]);
+      assert.deepEqual(parsed.writePlan.metricAppendCommandPlan[0]?.blockedBy, [
+        "metric_append_write_not_requested",
+        "metric_append_runner_not_connected",
+      ]);
+      assert.equal(parsed.writePlan.metricAppendCommandPlan[0]?.executionEligible, false);
+      assert.deepEqual(parsed.writePlan.tokenWriteExecutionResults, []);
     });
   });
 
