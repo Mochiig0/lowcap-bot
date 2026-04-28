@@ -6,6 +6,7 @@ import { db } from "./db.js";
 import {
   buildGeckoMetricAppendRunnerInput,
   buildMetricAppendCommandArgs,
+  runGeckoMetricAppendCommandWithNodeExecFile,
   toGeckoCatchupMetricAppendExecutionResult,
   type GeckoCatchupMetricAppendExecutionResult,
   type GeckoMetricAppendCommandRunner,
@@ -1696,6 +1697,7 @@ export async function runGeckoCatchupSupervisor(
 export function buildGeckoCatchupSupervisorCliDeps(): GeckoCatchupSupervisorDeps {
   return {
     tokenWriteRunner: runGeckoTokenWriteCommandWithNodeExecFile,
+    metricAppendRunner: runGeckoMetricAppendCommandWithNodeExecFile,
   };
 }
 
