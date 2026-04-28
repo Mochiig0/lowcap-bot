@@ -224,12 +224,30 @@ type WritePlan = {
     requireMetricPendingMatchesIncomplete: true;
     requireSelectedLatestMetricPresent: true;
   };
+  postCheckResult: TokenWritePostCheckResult | null;
   recoveryHints: {
     metricOnlyAppendCandidates: string[];
+    tokenWriteRetryCandidates: string[];
+    inspectTokenCandidates: string[];
+    runnerDbMismatchCandidates: string[];
     cooldownRecommended: true;
     resumeWithLimit: 1;
     resumeWithMaxCycles: 1;
   };
+};
+
+type TokenWritePostCheckResult = {
+  checked: boolean;
+  mint: string;
+  runnerStatus: GeckoCatchupTokenWriteExecutionResult["status"];
+  tokenFound: boolean;
+  metadataStatus: string | null;
+  hasName: boolean;
+  hasSymbol: boolean;
+  isStillPending: boolean;
+  metricsCount: number;
+  hasLatestMetric: boolean;
+  warnings: string[];
 };
 
 type WriteModeReadiness = {
@@ -542,8 +560,12 @@ function isSmokeMint(mint: string): boolean {
   return mint.startsWith("SMOKE_");
 }
 
+function hasText(value: string | null): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function isIncomplete(token: SupervisorToken): boolean {
-  return token.name === null || token.symbol === null;
+  return !hasText(token.name) || !hasText(token.symbol);
 }
 
 function sortBySelectionAnchorDesc(left: SupervisorToken, right: SupervisorToken): number {
@@ -831,6 +853,128 @@ function buildTokenWriteCommandArgs(mint: string): string[] {
   ];
 }
 
+function buildPostCheckWarnings(
+  postCheck: Omit<TokenWritePostCheckResult, "warnings">,
+): string[] {
+  const warnings: string[] = [];
+
+  if (!postCheck.tokenFound) {
+    warnings.push("token_not_found_after_runner");
+  }
+  if (postCheck.metadataStatus === "mint_only") {
+    warnings.push("metadata_status_still_mint_only");
+  }
+  if (postCheck.tokenFound && postCheck.isStillPending) {
+    warnings.push("token_still_pending_after_runner");
+  }
+  if (postCheck.tokenFound && !postCheck.hasName) {
+    warnings.push("name_missing_after_runner");
+  }
+  if (postCheck.tokenFound && !postCheck.hasSymbol) {
+    warnings.push("symbol_missing_after_runner");
+  }
+  if (postCheck.tokenFound && postCheck.metricsCount === 0) {
+    warnings.push("metric_missing_after_token_only_write");
+  }
+  if (
+    (postCheck.runnerStatus === "parse_error" || postCheck.runnerStatus === "cli_error") &&
+    postCheck.tokenFound &&
+    !postCheck.isStillPending
+  ) {
+    warnings.push("runner_result_not_ok_but_db_token_updated");
+  }
+  if (postCheck.runnerStatus === "ok" && (!postCheck.tokenFound || postCheck.isStillPending)) {
+    warnings.push("runner_ok_but_db_token_not_complete");
+  }
+
+  return warnings;
+}
+
+async function buildTokenWritePostCheckResult(
+  executionResult: GeckoCatchupTokenWriteExecutionResult,
+): Promise<TokenWritePostCheckResult> {
+  const token = await db.token.findUnique({
+    where: {
+      mint: executionResult.mint,
+    },
+    select: {
+      metadataStatus: true,
+      name: true,
+      symbol: true,
+      metrics: {
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: {
+          id: true,
+        },
+      },
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
+    },
+  });
+
+  const hasName = token ? hasText(token.name) : false;
+  const hasSymbol = token ? hasText(token.symbol) : false;
+  const base = {
+    checked: true,
+    mint: executionResult.mint,
+    runnerStatus: executionResult.status,
+    tokenFound: token !== null,
+    metadataStatus: token?.metadataStatus ?? null,
+    hasName,
+    hasSymbol,
+    isStillPending: token !== null && (!hasName || !hasSymbol),
+    metricsCount: token?._count.metrics ?? 0,
+    hasLatestMetric: (token?.metrics.length ?? 0) > 0,
+  };
+
+  return {
+    ...base,
+    warnings: buildPostCheckWarnings(base),
+  };
+}
+
+function buildRecoveryHints(
+  postCheckResult: TokenWritePostCheckResult | null,
+): WritePlan["recoveryHints"] {
+  const metricOnlyAppendCandidates =
+    postCheckResult?.tokenFound === true &&
+    !postCheckResult.isStillPending &&
+    postCheckResult.metricsCount === 0
+      ? [postCheckResult.mint]
+      : [];
+  const tokenWriteRetryCandidates =
+    postCheckResult &&
+    (!postCheckResult.tokenFound || postCheckResult.isStillPending)
+      ? [postCheckResult.mint]
+      : [];
+  const inspectTokenCandidates =
+    postCheckResult && postCheckResult.warnings.length > 0
+      ? [postCheckResult.mint]
+      : [];
+  const runnerDbMismatchCandidates =
+    postCheckResult &&
+    postCheckResult.warnings.some((warning) =>
+      warning === "runner_result_not_ok_but_db_token_updated" ||
+      warning === "runner_ok_but_db_token_not_complete"
+    )
+      ? [postCheckResult.mint]
+      : [];
+
+  return {
+    metricOnlyAppendCandidates,
+    tokenWriteRetryCandidates,
+    inspectTokenCandidates,
+    runnerDbMismatchCandidates,
+    cooldownRecommended: true,
+    resumeWithLimit: 1,
+    resumeWithMaxCycles: 1,
+  };
+}
+
 export function validateGeckoCatchupInitialWriteMode(
   input: GeckoCatchupInitialWriteModeValidationInput,
 ): GeckoCatchupInitialWriteModeValidationResult {
@@ -934,14 +1078,8 @@ function buildWritePlan(
       requireMetricPendingMatchesIncomplete: true,
       requireSelectedLatestMetricPresent: true,
     },
-    recoveryHints: {
-      metricOnlyAppendCandidates: metricAppendPlan
-        .filter((item) => !item.wouldAppendMetric && item.metricsCount === 0)
-        .map((item) => item.mint),
-      cooldownRecommended: true,
-      resumeWithLimit: 1,
-      resumeWithMaxCycles: 1,
-    },
+    postCheckResult: null,
+    recoveryHints: buildRecoveryHints(null),
   };
 }
 
@@ -1046,12 +1184,15 @@ async function runInjectedGeckoTokenWriteRunner(
   );
   const runnerResult = await deps.tokenWriteRunner(runnerInput);
   const executionResult = toGeckoCatchupTokenWriteExecutionResult(runnerInput, runnerResult);
+  const postCheckResult = await buildTokenWritePostCheckResult(executionResult);
 
   return {
     ...executableOutput,
     writePlan: {
       ...executableOutput.writePlan,
       tokenWriteExecutionResults: [executionResult],
+      postCheckResult,
+      recoveryHints: buildRecoveryHints(postCheckResult),
     },
   };
 }

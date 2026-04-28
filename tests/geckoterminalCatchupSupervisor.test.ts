@@ -76,6 +76,20 @@ type TokenWriteExecutionResult = {
   parseError: string | null;
 };
 
+type TokenWritePostCheckResult = {
+  checked: boolean;
+  mint: string;
+  runnerStatus: "ok" | "cli_error" | "parse_error";
+  tokenFound: boolean;
+  metadataStatus: string | null;
+  hasName: boolean;
+  hasSymbol: boolean;
+  isStillPending: boolean;
+  metricsCount: number;
+  hasLatestMetric: boolean;
+  warnings: string[];
+};
+
 type CatchupSupervisorOutput = {
   readOnly: boolean;
   dryRun: boolean;
@@ -147,8 +161,12 @@ type CatchupSupervisorOutput = {
       requireMetricPendingMatchesIncomplete: true;
       requireSelectedLatestMetricPresent: true;
     };
+    postCheckResult: TokenWritePostCheckResult | null;
     recoveryHints: {
       metricOnlyAppendCandidates: string[];
+      tokenWriteRetryCandidates: string[];
+      inspectTokenCandidates: string[];
+      runnerDbMismatchCandidates: string[];
       cooldownRecommended: true;
       resumeWithLimit: 1;
       resumeWithMaxCycles: 1;
@@ -393,8 +411,12 @@ function assertReadOnlyWritePlan(
     requireMetricPendingMatchesIncomplete: true,
     requireSelectedLatestMetricPresent: true,
   });
+  assert.equal(output.writePlan.postCheckResult, null);
   assert.deepEqual(output.writePlan.recoveryHints, {
     metricOnlyAppendCandidates: [],
+    tokenWriteRetryCandidates: [],
+    inspectTokenCandidates: [],
+    runnerDbMismatchCandidates: [],
     cooldownRecommended: true,
     resumeWithLimit: 1,
     resumeWithMaxCycles: 1,
@@ -682,6 +704,52 @@ async function seedPendingSelectionFixture(databaseUrl: string): Promise<{
       sameAnchorHigherIdMint: sameAnchorHigherId.mint,
       sameAnchorLowerIdMint: sameAnchorLowerId.mint,
     };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+async function markTokenWritePostCheckComplete(
+  databaseUrl: string,
+  mint: string,
+  options: { includeMetric?: boolean } = {},
+): Promise<void> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const now = new Date();
+    const token = await db.token.update({
+      where: {
+        mint,
+      },
+      data: {
+        name: "Post Check Token",
+        symbol: "POST",
+        metadataStatus: "partial",
+        enrichedAt: now,
+        rescoredAt: now,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (options.includeMetric) {
+      await db.metric.create({
+        data: {
+          tokenId: token.id,
+          source: "geckoterminal.token_snapshot",
+          observedAt: now,
+          volume24h: 0,
+        },
+      });
+    }
   } finally {
     await db.$disconnect();
   }
@@ -1030,8 +1098,31 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           requireMetricPendingMatchesIncomplete: true,
           requireSelectedLatestMetricPresent: true,
         });
+        assert.deepEqual(runnerOutput.writePlan.postCheckResult, {
+          checked: true,
+          mint: seeded.expectedSelectedMints[0],
+          runnerStatus: "ok",
+          tokenFound: true,
+          metadataStatus: "mint_only",
+          hasName: false,
+          hasSymbol: false,
+          isStillPending: true,
+          metricsCount: 0,
+          hasLatestMetric: false,
+          warnings: [
+            "metadata_status_still_mint_only",
+            "token_still_pending_after_runner",
+            "name_missing_after_runner",
+            "symbol_missing_after_runner",
+            "metric_missing_after_token_only_write",
+            "runner_ok_but_db_token_not_complete",
+          ],
+        });
         assert.deepEqual(runnerOutput.writePlan.recoveryHints, {
           metricOnlyAppendCandidates: [],
+          tokenWriteRetryCandidates: [seeded.expectedSelectedMints[0]],
+          inspectTokenCandidates: [seeded.expectedSelectedMints[0]],
+          runnerDbMismatchCandidates: [seeded.expectedSelectedMints[0]],
           cooldownRecommended: true,
           resumeWithLimit: 1,
           resumeWithMaxCycles: 1,
@@ -1088,30 +1179,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal("args" in (cliOutput.writePlan.writeCommandPlan[0] ?? {}), false);
         assert.equal(cliOutput.writePlan.tokenWriteExecutionResults.length, 1);
         assert.equal(cliOutput.writePlan.tokenWriteExecutionResults[0]?.status, "ok");
+        assert.equal(cliOutput.writePlan.postCheckResult?.runnerStatus, "ok");
+        assert.equal(cliOutput.writePlan.postCheckResult?.isStillPending, true);
         assert.equal("stdout" in cliOutput.writePlan.tokenWriteExecutionResults[0], false);
         assert.equal("stderr" in cliOutput.writePlan.tokenWriteExecutionResults[0], false);
-
-        const parseErrorRunner: GeckoTokenWriteCommandRunner = async () =>
-          parseGeckoTokenWriteCommandResult({
-            exitCode: 0,
-            stdout: "{not-json",
-            stderr: "raw parse diagnostic",
-          });
-        const parseErrorOutput = await supervisor.runGeckoCatchupSupervisor(buildGatedWriteArgs(), {
-          tokenWriteRunner: parseErrorRunner,
-        });
-
-        const [parseErrorResult] = parseErrorOutput.writePlan.tokenWriteExecutionResults;
-        assert.ok(parseErrorResult);
-        assert.equal(parseErrorResult.mint, seeded.expectedSelectedMints[0]);
-        assert.equal(parseErrorResult.status, "parse_error");
-        assert.equal(parseErrorResult.exitCode, 0);
-        assert.match(parseErrorResult.parseError ?? "", /Expected property name|Unexpected token|JSON/);
-        assert.equal(parseErrorResult.writeSummary, null);
-        assert.equal(parseErrorResult.notifySent, false);
-        assert.equal("stdout" in parseErrorResult, false);
-        assert.equal("stderr" in parseErrorResult, false);
-        assert.equal("parsedOutput" in parseErrorResult, false);
 
         const rateLimitRunner: GeckoTokenWriteCommandRunner = async () =>
           parseGeckoTokenWriteCommandResult({
@@ -1138,6 +1209,58 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(rateLimitResult.skippedAfterRateLimit, 2);
         assert.deepEqual(rateLimitOutput.writePlan.recoveryHints, {
           metricOnlyAppendCandidates: [],
+          tokenWriteRetryCandidates: [seeded.expectedSelectedMints[0]],
+          inspectTokenCandidates: [seeded.expectedSelectedMints[0]],
+          runnerDbMismatchCandidates: [seeded.expectedSelectedMints[0]],
+          cooldownRecommended: true,
+          resumeWithLimit: 1,
+          resumeWithMaxCycles: 1,
+        });
+
+        const parseErrorRunner: GeckoTokenWriteCommandRunner = async () => {
+          await markTokenWritePostCheckComplete(databaseUrl, seeded.expectedSelectedMints[0]);
+          return parseGeckoTokenWriteCommandResult({
+            exitCode: 0,
+            stdout: "{not-json",
+            stderr: "raw parse diagnostic",
+          });
+        };
+        const parseErrorOutput = await supervisor.runGeckoCatchupSupervisor(buildGatedWriteArgs(), {
+          tokenWriteRunner: parseErrorRunner,
+        });
+
+        const [parseErrorResult] = parseErrorOutput.writePlan.tokenWriteExecutionResults;
+        assert.ok(parseErrorResult);
+        assert.equal(parseErrorResult.mint, seeded.expectedSelectedMints[0]);
+        assert.equal(parseErrorResult.status, "parse_error");
+        assert.equal(parseErrorResult.exitCode, 0);
+        assert.match(parseErrorResult.parseError ?? "", /Expected property name|Unexpected token|JSON/);
+        assert.equal(parseErrorResult.writeSummary, null);
+        assert.equal(parseErrorResult.notifySent, false);
+        assert.equal("stdout" in parseErrorResult, false);
+        assert.equal("stderr" in parseErrorResult, false);
+        assert.equal("parsedOutput" in parseErrorResult, false);
+        assert.deepEqual(parseErrorOutput.writePlan.postCheckResult, {
+          checked: true,
+          mint: seeded.expectedSelectedMints[0],
+          runnerStatus: "parse_error",
+          tokenFound: true,
+          metadataStatus: "partial",
+          hasName: true,
+          hasSymbol: true,
+          isStillPending: false,
+          metricsCount: 0,
+          hasLatestMetric: false,
+          warnings: [
+            "metric_missing_after_token_only_write",
+            "runner_result_not_ok_but_db_token_updated",
+          ],
+        });
+        assert.deepEqual(parseErrorOutput.writePlan.recoveryHints, {
+          metricOnlyAppendCandidates: [seeded.expectedSelectedMints[0]],
+          tokenWriteRetryCandidates: [],
+          inspectTokenCandidates: [seeded.expectedSelectedMints[0]],
+          runnerDbMismatchCandidates: [seeded.expectedSelectedMints[0]],
           cooldownRecommended: true,
           resumeWithLimit: 1,
           resumeWithMaxCycles: 1,
