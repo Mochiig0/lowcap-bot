@@ -100,6 +100,13 @@ and one production Telegram ops live send for `metric_appended`:
   and latestMetric safe summary columns. This confirms the watch-detected path
   through detection, enrichment, observation, time-series append, and
   rawJson-free report visibility.
+- a second pump-only detect watch write with the same bounded `/tmp` checkpoint
+  later created mint-only Token
+  `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` and advanced the checkpoint to
+  `2026-04-29T15:23:33.000Z |
+  3HpavdNkUh1WqK3XSrdUP1EAaHWkGkABkzc84fxNACp8`. That mint is currently
+  confirmed only at `mint_only`; enrich/rescore, Metric append, and report
+  confirmation for it remain unrun.
 - the same mint then confirmed a second single-mint Metric append through the
   same `metric:snapshot:geckoterminal -- --mint ... --write` command:
   `metricsCount` moved from 1 to 2, latestMetric became `metricId=1118` with

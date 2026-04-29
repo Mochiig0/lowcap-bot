@@ -35,6 +35,17 @@ preflight has passed and the exact command is explicitly approved.
   checkpoint to `2026-04-29T14:36:09.000Z |
   ANPbYLCgNLGtfC5Qt4iSUERnwUREa8Qpsm7iGkY3uVvx`; the default checkpoint stayed
   unused. Telegram, Metric append, enrich, and rescore were not invoked.
+- Confirmed second pump-only watch write gate with the same bounded command and
+  `/tmp` checkpoint: it ran one cycle with `inputCount=20`, `selectedCount=1`,
+  `acceptedCount=1`, `importedCount=1`, `existingCount=0`, and `failedCount=0`,
+  and created mint-only Token
+  `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump`. The checkpoint advanced from
+  `2026-04-29T14:36:09.000Z |
+  ANPbYLCgNLGtfC5Qt4iSUERnwUREa8Qpsm7iGkY3uVvx` to
+  `2026-04-29T15:23:33.000Z |
+  3HpavdNkUh1WqK3XSrdUP1EAaHWkGkABkzc84fxNACp8`. The default checkpoint stayed
+  uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
+  catchup were not invoked.
 - Confirmed watch-detected downstream observation loop: the same watch-origin
   mint then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -130,11 +141,13 @@ Start with file-backed or live one-shot dry-run inspection, then use the
 confirmed one-shot write gate above when the goal is to validate the pump.fun
 lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
-history and cohort-level visibility. The initial detect watch proof is limited
-to one pump-only live cycle with an isolated `/tmp` checkpoint, but its minted
-token has now also passed enrich/rescore, two Metric appends with distinct
-`observedAt` values, and rawJson-free report confirmation for the two-row
-Metric history.
+history and cohort-level visibility. The detect watch proof is still limited to
+bounded pump-only live cycles with an isolated `/tmp` checkpoint, but it has now
+passed twice. The first watch-detected mint has also passed enrich/rescore, two
+Metric appends with distinct `observedAt` values, and rawJson-free report
+confirmation for the two-row Metric history. The second watch-detected mint is
+currently confirmed only through mint-only creation, making its enrich/rescore
+preflight the natural next downstream check.
 For any next
 detect watch write, do not touch the default checkpoint; keep a bounded command
 shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
@@ -146,7 +159,8 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- detect watch write second and later runs
+- second watch-detected mint downstream enrich/rescore / Metric append / report confirmation
+- detect watch write third and later runs
 - detect foreground or tmux operation
 - detect systemd operation
 - default-checkpoint detect watch operation
