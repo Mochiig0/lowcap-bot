@@ -48,6 +48,11 @@ preflight has passed and the exact command is explicitly approved.
   `maxIterations=2`, appended Metric `id=1121` in cycle 1, skipped cycle 2 as
   `skipped_recent_metric`, and moved the target mint's `metricsCount` from 4 to
   5 without token field updates, Telegram send, or systemd operations.
+- Confirmed tmux bounded no-candidate rerun: the same command started with no
+  existing session, naturally exited after `maxIterations=2`, selected 0 tokens,
+  wrote 0 Metrics, had `failedCount=0` and `rateLimited=false`, and left
+  `metricsCount=5` plus latestMetric `id=1121` unchanged. This confirms both an
+  append case and a candidate-0 / no-write case can terminate safely.
 - Confirmed read-only visibility: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` can show the two-row Metric history before any
   watch or systemd work.

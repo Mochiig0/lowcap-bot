@@ -90,6 +90,11 @@ and one production Telegram ops live send for `metric_appended`:
   `skipped_recent_metric`. This confirmed that tmux can run the bounded gate and
   that `minGapMinutes` still suppresses immediate repeat appends; `metricsCount`
   moved from 4 to 5. This was not always-on operation and did not touch systemd.
+- a later rerun of that same tmux bounded command confirmed the no-candidate /
+  no-write case: it naturally exited after two cycles with `selectedCount=0`,
+  `writtenCount=0`, `failedCount=0`, and `rateLimited=false`, leaving
+  `metricsCount=5` and latestMetric `metricId=1121` unchanged. This was an
+  operation-boundary check, not an additional observation.
 - the post-tmux read-only report check confirmed the same mint at
   `metricsCount=5` with latestMetric `metricId=1121`; `metrics:report -- --mint ... --limit 5`
   showed the Metric id order `1121 -> 1120 -> 1119 -> 1118 -> 1117`, and both

@@ -108,6 +108,14 @@ The confirmed tmux run started successfully, naturally exited, ran
 `skipped_recent_metric`, did not update Token fields, did not send Telegram, and
 did not touch systemd.
 
+A later rerun of the same bounded tmux command also started with no existing
+session and naturally exited after `maxIterations=2` when there were no selected
+candidates. It reported `cycleCount=2`, `selectedCount=0`, `writtenCount=0`,
+`failedCount=0`, `rateLimited=false`, and `abortedDueToRateLimit=false`. No
+Metric was appended, `metricsCount` stayed 5, latestMetric stayed `id=1121`, and
+the stop command was not needed. This was a bounded-operation reproducibility
+check, not a Metric append confirmation.
+
 ## Post-Run Read-Only Checks
 
 After the bounded tmux run finishes, use read-only CLIs to confirm the latest
