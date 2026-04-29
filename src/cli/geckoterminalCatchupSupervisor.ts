@@ -22,6 +22,10 @@ import {
   buildOpsNotificationPreview,
   type OpsNotificationPreview,
 } from "../notify/opsNotificationPreview.js";
+import {
+  captureOpsNotificationPreviews,
+  type OpsNotificationCaptureResult,
+} from "../notify/opsNotificationCapture.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const DEFAULT_LIMIT = 2;
@@ -38,6 +42,7 @@ export type Args = {
   writeRequested: boolean;
   metricAppendRequested: boolean;
   captureFile: string | null;
+  opsNotifyCaptureFile: string | null;
   cooldownSeconds: number | null;
   stopOnNotifyCandidate: boolean;
   stopOnRateLimit: boolean;
@@ -279,8 +284,13 @@ type WritePlan = {
 type OpsNotifyPlan = {
   enabled: false;
   channel: "telegram";
-  delivery: "preview_only";
+  delivery: "preview_only" | "capture_only";
   sendSupported: false;
+  captureSupported: true;
+  captureRequested: boolean;
+  captureFile: string | null;
+  capturedCount: number;
+  captureResults: OpsNotificationCaptureResult[];
   previewCount: number;
   wouldNotifyCount: number;
   notificationPreviews: OpsNotificationPreview[];
@@ -369,6 +379,7 @@ export type GeckoCatchupSupervisorOutput = {
     sinceMinutes: number;
     sinceCutoff: string;
     captureFile: string | null;
+    opsNotifyCaptureFile: string | null;
     cooldownSeconds: number | null;
     stopOnNotifyCandidate: boolean;
     stopOnRateLimit: boolean;
@@ -393,7 +404,7 @@ class CliUsageError extends Error {}
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm ops:catchup:gecko -- [--write] [--metricAppend] [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N> | --sinceHours <N>] [--dry-run] [--captureFile <PATH>] [--cooldownSeconds <N>] [--stopOnNotifyCandidate <true|false>] [--stopOnRateLimit <true|false>]",
+    "pnpm ops:catchup:gecko -- [--write] [--metricAppend] [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N> | --sinceHours <N>] [--dry-run] [--captureFile <PATH>] [--opsNotifyCaptureFile <PATH>] [--cooldownSeconds <N>] [--stopOnNotifyCandidate <true|false>] [--stopOnRateLimit <true|false>]",
     "",
     "Defaults:",
     `- read-only planning by default; fast wrapper execution, Metric append, Telegram notify, capture file creation, cooldown, and watch mode are not supported`,
@@ -442,6 +453,7 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
     writeRequested: false,
     metricAppendRequested: false,
     captureFile: null,
+    opsNotifyCaptureFile: null,
     cooldownSeconds: null,
     stopOnNotifyCandidate: true,
     stopOnRateLimit: true,
@@ -498,6 +510,9 @@ export function parseGeckoCatchupSupervisorArgs(argv: string[]): Args {
         break;
       case "--captureFile":
         out.captureFile = parseOptionalStringArg(value);
+        break;
+      case "--opsNotifyCaptureFile":
+        out.opsNotifyCaptureFile = parseOptionalStringArg(value);
         break;
       case "--cooldownSeconds":
         out.cooldownSeconds = parsePositiveIntegerArg(value, key);
@@ -1456,8 +1471,13 @@ function buildOpsNotifyPlan(output: Omit<GeckoCatchupSupervisorOutput, "opsNotif
   return {
     enabled: false,
     channel: "telegram",
-    delivery: "preview_only",
+    delivery: output.selection.opsNotifyCaptureFile === null ? "preview_only" : "capture_only",
     sendSupported: false,
+    captureSupported: true,
+    captureRequested: output.selection.opsNotifyCaptureFile !== null,
+    captureFile: output.selection.opsNotifyCaptureFile,
+    capturedCount: 0,
+    captureResults: [],
     previewCount: previews.length,
     wouldNotifyCount: previews.filter((preview) => preview.wouldNotify).length,
     notificationPreviews: previews,
@@ -1470,6 +1490,29 @@ function attachOpsNotifyPlan(
   return {
     ...output,
     opsNotifyPlan: buildOpsNotifyPlan(output),
+  };
+}
+
+async function captureOpsNotifyPlan(
+  output: GeckoCatchupSupervisorOutput,
+): Promise<GeckoCatchupSupervisorOutput> {
+  const captureFile = output.opsNotifyPlan.captureFile;
+  if (captureFile === null) {
+    return output;
+  }
+
+  const captureResult = await captureOpsNotificationPreviews({
+    captureFile,
+    previews: output.opsNotifyPlan.notificationPreviews,
+  });
+
+  return {
+    ...output,
+    opsNotifyPlan: {
+      ...output.opsNotifyPlan,
+      capturedCount: captureResult.capturedCount,
+      captureResults: captureResult.results,
+    },
   };
 }
 
@@ -1761,6 +1804,7 @@ export function buildGeckoCatchupSupervisorPlan(
       sinceMinutes: args.sinceMinutes,
       sinceCutoff: sinceCutoff.toISOString(),
       captureFile: args.captureFile,
+      opsNotifyCaptureFile: args.opsNotifyCaptureFile,
       cooldownSeconds: args.cooldownSeconds,
       stopOnNotifyCandidate: args.stopOnNotifyCandidate,
       stopOnRateLimit: args.stopOnRateLimit,
@@ -1834,7 +1878,8 @@ export async function runGeckoCatchupSupervisor(
 ): Promise<GeckoCatchupSupervisorOutput> {
   const output = await buildGeckoCatchupSupervisorOutput(args, deps);
   const tokenWriteOutput = await runInjectedGeckoTokenWriteRunner(args, output, deps);
-  return runInjectedGeckoMetricAppendRunner(args, tokenWriteOutput, deps);
+  const metricAppendOutput = await runInjectedGeckoMetricAppendRunner(args, tokenWriteOutput, deps);
+  return captureOpsNotifyPlan(metricAppendOutput);
 }
 
 export function buildGeckoCatchupSupervisorCliDeps(): GeckoCatchupSupervisorDeps {

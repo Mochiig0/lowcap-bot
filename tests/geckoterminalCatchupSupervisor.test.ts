@@ -1535,6 +1535,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           tokenRunnerCallsDuringMetricAppend.push(input);
           throw new Error("tokenWriteRunner should not be called for metric append requests");
         };
+        const opsNotifyCaptureFile = join(dir, "ops-notify-capture.jsonl");
         const metricAppendOutput = await supervisor.runGeckoCatchupSupervisor(
           supervisor.parseGeckoCatchupSupervisorArgs([
             "--write",
@@ -1546,6 +1547,8 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
             "1",
             "--sinceMinutes",
             "10080",
+            "--opsNotifyCaptureFile",
+            opsNotifyCaptureFile,
             "--dry-run",
           ]),
           {
@@ -1586,6 +1589,33 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(metricPostCheck.metricId, metricPostCheck.latestMetric?.id ?? null);
         assert.equal(metricPostCheck.metricIdMatchesLatest, true);
         assert.deepEqual(metricPostCheck.warnings, []);
+        assert.equal(metricAppendOutput.opsNotifyPlan.delivery, "capture_only");
+        assert.equal(metricAppendOutput.opsNotifyPlan.sendSupported, false);
+        assert.equal(metricAppendOutput.opsNotifyPlan.captureRequested, true);
+        assert.equal(metricAppendOutput.opsNotifyPlan.captureFile, opsNotifyCaptureFile);
+        assert.equal(metricAppendOutput.opsNotifyPlan.capturedCount, 1);
+        assert.deepEqual(
+          metricAppendOutput.opsNotifyPlan.captureResults.map((result) => result.status),
+          ["captured", "skipped"],
+        );
+        const opsNotifyCaptureLines = (await readFile(opsNotifyCaptureFile, "utf-8"))
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line) as Record<string, unknown>);
+        assert.deepEqual(
+          opsNotifyCaptureLines.map((line) => line["delivery"]),
+          ["capture_only"],
+        );
+        assert.deepEqual(
+          opsNotifyCaptureLines.map((line) => line["trigger"]),
+          ["metric_appended"],
+        );
+        assert.deepEqual(
+          opsNotifyCaptureLines.map((line) => line["mint"]),
+          [metricReady.mint],
+        );
+        assert.equal(opsNotifyCaptureLines[0]?.["metricId"], metricPostCheck.metricId);
+        assert.match(String(opsNotifyCaptureLines[0]?.["message"] ?? ""), /Gecko metric appended/);
         assert.deepEqual(metricAppendOutput.writePlan.recoveryHints, {
           metricOnlyAppendCandidates: [],
           tokenWriteRetryCandidates: [],
@@ -2858,6 +2888,16 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         "--stopOnNotifyCandidate",
         "true",
       ],
+      [
+        "--write",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxCycles",
+        "1",
+        "--opsNotifyCaptureFile",
+        "tmp/ops-notify.jsonl",
+      ],
     ];
 
     for (const args of acceptedWriteArgCases) {
@@ -2870,6 +2910,10 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(parsed.stopOnRateLimit, true);
       assert.equal(parsed.stopOnNotifyCandidate, true);
       assert.equal(parsed.captureFile, null);
+      assert.equal(
+        parsed.opsNotifyCaptureFile,
+        args.includes("--opsNotifyCaptureFile") ? "tmp/ops-notify.jsonl" : null,
+      );
       assert.equal(parsed.cooldownSeconds, null);
     }
   });

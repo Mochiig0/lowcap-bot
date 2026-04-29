@@ -52,6 +52,11 @@ test("gecko catchup dry-run includes send-disabled ops notification preview", ()
 
   assert.equal(output.opsNotifyPlan.enabled, false);
   assert.equal(output.opsNotifyPlan.sendSupported, false);
+  assert.equal(output.opsNotifyPlan.captureSupported, true);
+  assert.equal(output.opsNotifyPlan.captureRequested, false);
+  assert.equal(output.opsNotifyPlan.captureFile, null);
+  assert.equal(output.opsNotifyPlan.capturedCount, 0);
+  assert.deepEqual(output.opsNotifyPlan.captureResults, []);
   assert.equal(output.opsNotifyPlan.previewCount, 2);
   assert.equal(output.opsNotifyPlan.wouldNotifyCount, 0);
   assert.equal(output.opsNotifyPlan.notificationPreviews[0]?.trigger, "token_completed");
@@ -67,4 +72,30 @@ test("gecko catchup dry-run includes send-disabled ops notification preview", ()
     "metric_append_not_executed",
     "message_preview_unavailable",
   ]);
+});
+
+test("gecko catchup plan marks explicit ops notification capture without enabling send", () => {
+  const now = new Date("2026-04-29T00:00:00.000Z");
+  const output = buildGeckoCatchupSupervisorPlan(
+    parseGeckoCatchupSupervisorArgs([
+      "--pumpOnly",
+      "--limit",
+      "1",
+      "--maxCycles",
+      "1",
+      "--opsNotifyCaptureFile",
+      "/tmp/lowcap-ops-notify.jsonl",
+    ]),
+    [],
+    new Date(now.getTime() - 60_000),
+  );
+
+  assert.equal(output.opsNotifyPlan.enabled, false);
+  assert.equal(output.opsNotifyPlan.delivery, "capture_only");
+  assert.equal(output.opsNotifyPlan.sendSupported, false);
+  assert.equal(output.opsNotifyPlan.captureSupported, true);
+  assert.equal(output.opsNotifyPlan.captureRequested, true);
+  assert.equal(output.opsNotifyPlan.captureFile, "/tmp/lowcap-ops-notify.jsonl");
+  assert.equal(output.opsNotifyPlan.capturedCount, 0);
+  assert.deepEqual(output.opsNotifyPlan.captureResults, []);
 });
