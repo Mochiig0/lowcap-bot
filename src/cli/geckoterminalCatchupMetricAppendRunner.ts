@@ -1,9 +1,14 @@
 import { execFile as nodeExecFile } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 type JsonObject = Record<string, unknown>;
 
 const METRIC_APPEND_EXEC_FILE_MAX_BUFFER = 10 * 1024 * 1024;
-const METRIC_SNAPSHOT_CLI_PATH = "src/cli/metricSnapshotGeckoterminal.ts";
+const METRIC_SNAPSHOT_CLI_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "metricSnapshotGeckoterminal.ts",
+);
 
 export type GeckoMetricAppendCommandPlan = {
   command: "pnpm";
@@ -125,7 +130,6 @@ export function buildMetricAppendCommandArgs(mint: string): string[] {
     "--import",
     "tsx",
     METRIC_SNAPSHOT_CLI_PATH,
-    "--",
     "--mint",
     mint,
     "--write",

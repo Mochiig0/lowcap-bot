@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   buildGeckoMetricAppendRunnerInput,
@@ -16,6 +18,9 @@ import {
 } from "../src/cli/geckoterminalCatchupMetricAppendRunner.ts";
 
 const MINT = "MetricAppendRunner1111111111111111111111111pump";
+const EXPECTED_METRIC_SNAPSHOT_CLI_PATH = resolve(
+  fileURLToPath(new URL("../src/cli/metricSnapshotGeckoterminal.ts", import.meta.url)),
+);
 
 function buildCommandPlan(
   overrides: Partial<GeckoMetricAppendCommandPlan> = {},
@@ -95,15 +100,18 @@ function assertNoRawRunnerDiagnostics(output: object): void {
 }
 
 test("builds metric append command args for one mint write", () => {
-  assert.deepEqual(buildMetricAppendCommandArgs(MINT), [
+  const args = buildMetricAppendCommandArgs(MINT);
+
+  assert.deepEqual(args, [
     "--import",
     "tsx",
-    "src/cli/metricSnapshotGeckoterminal.ts",
-    "--",
+    EXPECTED_METRIC_SNAPSHOT_CLI_PATH,
     "--mint",
     MINT,
     "--write",
   ]);
+  assert.equal(isAbsolute(args[2] ?? ""), true);
+  assert.equal(args.includes("--"), false);
 });
 
 test("parses successful metric append command stdout", () => {
