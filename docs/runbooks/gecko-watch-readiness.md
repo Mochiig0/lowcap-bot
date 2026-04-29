@@ -199,6 +199,11 @@ daemon-reload step. If that environment is not available, the practical
 fallback remains tmux bounded operation. `sudo`, `loginctl enable-linger`, and
 system unit conversion are separate Red tasks and are not part of this gate.
 
+For the tmux bounded fallback, use
+[`gecko-metric-tmux-bounded.md`](./gecko-metric-tmux-bounded.md). It keeps the
+confirmed `lowcap-gecko-metric-bounded` command shape, log path, stop conditions,
+and numeric summary checks separate from systemd work.
+
 ### Enrich / Rescore Notify Wrappers
 
 - Existing shell loop wrappers: yes.
