@@ -188,6 +188,184 @@ test("ops notification send gate sends exactly one selected trigger through inje
   assert.equal("message" in result.results[0], false);
 });
 
+test("ops notification send gate sends selected token_completed after capture confirmation", async () => {
+  const now = new Date("2026-04-29T00:00:00.000Z");
+  const mint = "OpsNotifyTokenCompleted111111111111111111pump";
+  const previews = [
+    buildOpsNotificationPreview({
+      trigger: "token_completed",
+      mint,
+      tokenName: "Completed Token",
+      tokenSymbol: "DONE",
+    }),
+    buildOpsNotificationPreview({
+      trigger: "metric_appended",
+      mint,
+      metricId: 1116,
+      metricSource: "geckoterminal.token_snapshot",
+    }),
+    buildOpsNotificationPreview({
+      trigger: "loop_complete",
+      mint,
+      metricId: 1116,
+      plannedTokenWrites: 0,
+      plannedMetricAppends: 0,
+      metricPendingCount: 0,
+      latestMetricMissingCount: 0,
+      nextRecommendedAction: "no_action",
+    }),
+  ];
+  const baseOutput = buildGeckoCatchupSupervisorPlan(
+    parseGeckoCatchupSupervisorArgs([
+      "--opsNotify",
+      "--opsNotifyTrigger",
+      "token_completed",
+      "--opsNotifyCaptureFile",
+      "/tmp/lowcap-ops-notify.jsonl",
+    ]),
+    [],
+    new Date(now.getTime() - 60_000),
+  );
+  const senderCalls: OpsNotificationSenderInput[] = [];
+
+  const output = await sendOpsNotifyPlan(
+    {
+      ...baseOutput,
+      opsNotifyPlan: {
+        ...baseOutput.opsNotifyPlan,
+        notificationPreviews: previews,
+        previewCount: previews.length,
+        wouldNotifyCount: previews.filter((preview) => preview.wouldNotify).length,
+        captureResults: [
+          {
+            trigger: "token_completed",
+            mint,
+            metricId: null,
+            status: "captured",
+            blockedBy: [],
+          },
+        ],
+      },
+    },
+    {
+      opsNotifySender: async (input) => {
+        senderCalls.push(input);
+        return { status: "sent" };
+      },
+    },
+  );
+
+  assert.equal(senderCalls.length, 1);
+  assert.equal(senderCalls[0]?.trigger, "token_completed");
+  assert.equal(senderCalls[0]?.mint, mint);
+  assert.equal(senderCalls[0]?.metricId, null);
+  assert.match(senderCalls[0]?.message ?? "", /Gecko token completed/);
+  assert.deepEqual(
+    senderCalls.map((call) => call.trigger),
+    ["token_completed"],
+  );
+  assert.equal(output.opsNotifyPlan.sentCount, 1);
+  assert.deepEqual(output.opsNotifyPlan.sendResults, [
+    {
+      trigger: "token_completed",
+      mint,
+      metricId: null,
+      status: "sent",
+      blockedBy: [],
+      errorCode: null,
+    },
+  ]);
+});
+
+test("ops notification send gate sends selected loop_complete after capture confirmation", async () => {
+  const now = new Date("2026-04-29T00:00:00.000Z");
+  const mint = "OpsNotifyLoopComplete11111111111111111111pump";
+  const previews = [
+    buildOpsNotificationPreview({
+      trigger: "token_completed",
+      mint,
+      tokenName: "Loop Token",
+      tokenSymbol: "LOOP",
+    }),
+    buildOpsNotificationPreview({
+      trigger: "metric_appended",
+      mint,
+      metricId: 1116,
+      metricSource: "geckoterminal.token_snapshot",
+    }),
+    buildOpsNotificationPreview({
+      trigger: "loop_complete",
+      mint,
+      metricId: 1116,
+      plannedTokenWrites: 0,
+      plannedMetricAppends: 0,
+      metricPendingCount: 0,
+      latestMetricMissingCount: 0,
+      nextRecommendedAction: "no_action",
+    }),
+  ];
+  const baseOutput = buildGeckoCatchupSupervisorPlan(
+    parseGeckoCatchupSupervisorArgs([
+      "--opsNotify",
+      "--opsNotifyTrigger",
+      "loop_complete",
+      "--opsNotifyCaptureFile",
+      "/tmp/lowcap-ops-notify.jsonl",
+    ]),
+    [],
+    new Date(now.getTime() - 60_000),
+  );
+  const senderCalls: OpsNotificationSenderInput[] = [];
+
+  const output = await sendOpsNotifyPlan(
+    {
+      ...baseOutput,
+      opsNotifyPlan: {
+        ...baseOutput.opsNotifyPlan,
+        notificationPreviews: previews,
+        previewCount: previews.length,
+        wouldNotifyCount: previews.filter((preview) => preview.wouldNotify).length,
+        captureResults: [
+          {
+            trigger: "loop_complete",
+            mint,
+            metricId: 1116,
+            status: "captured",
+            blockedBy: [],
+          },
+        ],
+      },
+    },
+    {
+      opsNotifySender: async (input) => {
+        senderCalls.push(input);
+        return { status: "sent" };
+      },
+    },
+  );
+
+  assert.equal(senderCalls.length, 1);
+  assert.equal(senderCalls[0]?.trigger, "loop_complete");
+  assert.equal(senderCalls[0]?.mint, mint);
+  assert.equal(senderCalls[0]?.metricId, 1116);
+  assert.match(senderCalls[0]?.message ?? "", /Gecko token metric loop complete/);
+  assert.deepEqual(
+    senderCalls.map((call) => call.trigger),
+    ["loop_complete"],
+  );
+  assert.equal(output.opsNotifyPlan.sentCount, 1);
+  assert.deepEqual(output.opsNotifyPlan.sendResults, [
+    {
+      trigger: "loop_complete",
+      mint,
+      metricId: 1116,
+      status: "sent",
+      blockedBy: [],
+      errorCode: null,
+    },
+  ]);
+});
+
 test("ops notification send gate blocks ambiguous or unsupported sends", async () => {
   const preview = buildOpsNotificationPreview({
     trigger: "token_completed",
