@@ -41,6 +41,39 @@ secrets.
   checkpoint is still unused, and always-on / scheduler / queue worker /
   unbounded watch operation is not implemented.
 
+## Interim Adoption
+
+Treat this bounded operation MVP as the current interim operating entrypoint.
+It is suitable for deliberate, human-approved candidate accumulation, not for
+always-on monitoring.
+
+Adopted scope:
+
+- detect uses the isolated `/tmp` checkpoint with `--pumpOnly`, `--limit 1`,
+  `--maxIterations 1`, and `--write` only after explicit Red approval.
+- enrich/rescore uses one `token:enrich-rescore:geckoterminal --write` for one
+  mint.
+- Metric capture uses one `metric:snapshot:geckoterminal --write` for one mint.
+- reporting uses `metrics:report`, `token:compare`, and
+  `tokens:compare-report` without Metric rawJson.
+- the default GeckoTerminal detect checkpoint remains unused.
+- every Red command remains exact, one-at-a-time, and explicitly approved.
+
+Next-phase recommendation:
+
+1. Keep this bounded MVP fixed as the daily operator workflow.
+2. Run a separate read-only preflight before any detect foreground / tmux watch
+   attempt.
+3. Separately decide whether metric snapshot tmux bounded operation should be
+   the formal interim operating entrypoint.
+4. Keep systemd deferred until user systemd is available.
+5. Keep `token_completed` and `loop_complete` production live sends deferred
+   until eligible candidates naturally exist.
+
+Do not move to default checkpoint, long-running watch, unbounded watch,
+scheduler / queue worker, restart-oriented operation, or systemd without a new
+preflight and explicit Red approval.
+
 ## Daily Operator Order
 
 Use this order when continuing bounded Gecko candidate accumulation.
@@ -175,7 +208,8 @@ For Metric confirmation, prefer:
 ## Next Phase Decision
 
 The current bounded operation MVP is useful as a semi-automated investigation
-workflow. The next larger decision is whether to formalize tmux bounded
-operation as the interim operating mode, continue with detect foreground / tmux
-preflight, or wait for a user-systemd-capable environment before service-style
-operation.
+workflow and should be treated as the interim MVP until a new preflight proves a
+wider operating mode. The next practical step is either a detect foreground /
+tmux watch preflight or a decision to formalize metric snapshot tmux bounded
+operation as the interim operating mode. Service-style operation waits for a
+user-systemd-capable environment.

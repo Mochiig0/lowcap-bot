@@ -267,16 +267,17 @@ was isolated to environment-level DNS / network reachability rather than the
 target mint or runner output parsing.
 
 This confirms the minimum Token to Metric loop, capture-only ops notification
-records, one `metric_appended` production Telegram ops live send, both
+records, one `metric_appended` production Telegram ops live send, all three
 watch-detected mints' downstream enrich/rescore, two Metric appends, and
 rawJson-free report confirmation, bounded single-mint and batch Metric snapshot
 watch writes, foreground bounded watch natural exit with `minGapMinutes` skip,
 tmux bounded watch with one Metric append plus one `skipped_recent_metric`, and
 read-only report/compare visibility for a same-mint Metric time series plus
 multi-token Metric-row cohort reporting.
-For the two watch-detected mints, the important proof is loop shape rather than
-price quality: detect, enrich/rescore, first observation, second observation,
-and rawJson-free confirmation all work as separate operator-visible steps.
+For the three watch-detected mints, the important proof is loop shape rather
+than price quality: detect, enrich/rescore, first observation, second
+observation, and rawJson-free confirmation all work as separate
+operator-visible steps.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value

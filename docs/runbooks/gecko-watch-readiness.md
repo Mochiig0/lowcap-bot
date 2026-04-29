@@ -48,16 +48,20 @@ Still unconfirmed:
 
 Next phase choices:
 
-- treat the bounded operation MVP runbook as the operator entrypoint before
-  adding more Red gates.
-- keep tmux bounded operation as the interim MVP entrypoint while user systemd
-  remains blocked in this environment.
-- continue detect watch checks with `/tmp` checkpoint plus `--maxIterations 1`
-  for any fourth or later Red gate.
-- run a separate read-only preflight before detect foreground / tmux.
+- adopt the bounded operation MVP runbook as the current operator entrypoint
+  before adding more Red gates.
+- keep detect bounded to `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and
+  `--maxIterations 1`; do not use the default checkpoint yet.
+- keep enrich/rescore and Metric writes single-mint and exact-command approved.
+- confirm each candidate with `metrics:report`, `token:compare`, and
+  `tokens:compare-report`.
+- next, run a separate read-only preflight before detect foreground / tmux, or
+  decide whether metric snapshot tmux bounded should be the formal interim
+  operating entrypoint.
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
   hold until eligible candidates naturally exist.
+- keep long-running / unbounded watch prohibited.
 
 Operational boundary:
 

@@ -214,10 +214,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - Always-on monitoring is still not implemented: there is no scheduler, queue
   worker, installed service, restart-oriented runner, or unbounded watch
   operation. This remains a temporary human-triggered operation model, not
-  continuous automation. The next major decision is whether to formalize bounded
-  tmux operation as the interim MVP, or continue toward detect foreground /
-  tmux and longer-running watch operation in a more service-capable
-  environment.
+  continuous automation. The next-phase decision is to treat the bounded Gecko
+  operation MVP as the interim operator entrypoint before adding more Red gates:
+  keep detect on the isolated `/tmp` checkpoint with `--pumpOnly --limit 1
+  --maxIterations 1`, keep enrich/rescore and Metric appends as single-mint
+  writes, confirm with rawJson-free reports, and require exact-command approval
+  for every Red step. After that, the next candidates are a read-only preflight
+  for detect foreground / tmux watch or formalizing metric snapshot tmux bounded
+  operation as an interim entrypoint. Systemd stays on hold until a
+  user-systemd-capable environment exists, and unbounded watch remains
+  prohibited.
 
 ## Implemented
 
