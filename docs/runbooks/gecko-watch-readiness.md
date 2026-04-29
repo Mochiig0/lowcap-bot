@@ -66,6 +66,16 @@ preflight has passed and the exact command is explicitly approved.
   `minMetricsCount=1` filters included the mint with `metricsCount=1`,
   latestMetric source / observedAt, and latestMetric safe summary columns.
   These checks did not expose Metric rawJson and did not write to DB.
+- Confirmed second watch-detected time-series append: a second
+  `metric:snapshot:geckoterminal -- --mint ... --write` on the same
+  `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` mint appended Metric
+  `id=1125`, moved `metricsCount` from 1 to 2, and updated latestMetric to
+  `observedAt=2026-04-29T15:55:14.973Z`. The previous Metric remains
+  `id=1124` at `observedAt=2026-04-29T15:41:56.989Z`, so the second
+  watch-detected mint now also has two distinct Metric observations. This was a
+  single-mint one-shot append, not watch mode, and it did not update token
+  fields or send Telegram. Two-Metric rawJson-free report confirmation for this
+  mint remains the next gate.
 - Confirmed watch-detected downstream observation loop: the same watch-origin
   mint then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -166,8 +176,9 @@ bounded pump-only live cycles with an isolated `/tmp` checkpoint, but it has now
 passed twice. The first watch-detected mint has also passed enrich/rescore, two
 Metric appends with distinct `observedAt` values, and rawJson-free report
 confirmation for the two-row Metric history. The second watch-detected mint has
-now also passed enrich/rescore, first Metric append, and rawJson-free report
-confirmation, but not yet a second Metric append.
+now also passed enrich/rescore, two Metric appends with distinct `observedAt`
+values, and first-Metric rawJson-free report confirmation, but not yet
+two-Metric report confirmation.
 For any next
 detect watch write, do not touch the default checkpoint; keep a bounded command
 shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
@@ -179,7 +190,7 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- second watch-detected mint second Metric append / time-series confirmation
+- second watch-detected mint two-Metric report confirmation
 - detect watch write third and later runs
 - detect foreground or tmux operation
 - detect systemd operation

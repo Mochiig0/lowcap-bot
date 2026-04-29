@@ -123,10 +123,20 @@ and one production Telegram ops live send for `metric_appended`:
   booleans; and `tokens:compare-report -- --source geckoterminal.new_pools --metadataStatus partial --hasMetrics true --minMetricsCount 1 --latestMetricSource geckoterminal.token_snapshot --limit 10`
   included the mint with `metricsCount=1`, latestMetric source / observedAt,
   and latestMetric safe summary columns. This confirms first-observation report
-  visibility for the second watch-detected mint without exposing Metric rawJson;
-  time-series append remains unrun.
-- the same mint then confirmed a second single-mint Metric append through the
-  same `metric:snapshot:geckoterminal -- --mint ... --write` command:
+  visibility for the second watch-detected mint without exposing Metric rawJson.
+- the second watch-detected mint then confirmed a second single-mint Metric
+  append through the same
+  `metric:snapshot:geckoterminal -- --mint ... --write` command:
+  `metricsCount` moved from 1 to 2, latestMetric became `metricId=1125` with
+  `observedAt=2026-04-29T15:55:14.973Z`, and the previous Metric remained
+  `metricId=1124` with `observedAt=2026-04-29T15:41:56.989Z`. Token fields
+  stayed `partial`, `wtf` / `WTF`, score `C` / `0`, and `hardRejected=false`;
+  Telegram was not sent. This check was about time-series append behavior for
+  the second watch-detected mint, not price evaluation. Two-Metric rawJson-free
+  report confirmation remains the next step.
+- the earlier one-shot mint `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`
+  then confirmed a second single-mint Metric append through the same
+  `metric:snapshot:geckoterminal -- --mint ... --write` command:
   `metricsCount` moved from 1 to 2, latestMetric became `metricId=1118` with
   `observedAt=2026-04-29T10:50:02.424Z`, and the previous Metric remained at
   `observedAt=2026-04-29T10:35:31.337Z`. This check was about append/time-series
