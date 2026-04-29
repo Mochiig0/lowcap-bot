@@ -72,17 +72,24 @@ preflight has passed and the exact command is explicitly approved.
 - At this point, `metrics:report`, `tokens:compare-report`, and `token:compare`
   are all suitable for rawJson-free read-only Metric confirmation before any
   longer watch or systemd step.
-- Invalid for the pump-only write path: `--watch --write --pumpOnly`.
-- Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
+- Pump-only watch write gate is implemented but not Red-executed:
+  `--watch --write --pumpOnly --limit 1` is now accepted by CLI validation.
+- `--write --pumpOnly` still requires `--limit 1` in both one-shot and watch
+  modes.
+- Checkpoint safety for the bounded pump-only watch path is covered by targeted
+  test: with two eligible pump candidates and `--limit 1`, `checkpointAfter`
+  advances only to the selected / processed candidate cursor and does not skip
+  the limit-out candidate.
 
 Start with file-backed or live one-shot dry-run inspection, then use the
 confirmed one-shot write gate above when the goal is to validate the pump.fun
 lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
 history and cohort-level visibility. These are still not detect watch or systemd
-proofs. If detect watch write is needed later, `--pumpOnly` must be removed,
-which broadens the target set beyond the pump-only lane. Treat that as a
-separate design decision before touching the default checkpoint path.
+proofs. For the first detect watch write Red execution, do not touch the default
+checkpoint. Use only a bounded command with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
+Treat any long-running detect watch, tmux detect watch, or systemd detect watch
+as a later Red task after the isolated `/tmp` checkpoint gate passes.
 
 Still unconfirmed for this lane:
 

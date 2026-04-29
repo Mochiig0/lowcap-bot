@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -25,12 +25,37 @@ type CommandResult = CommandSuccess | CommandFailure;
 
 type JsonObject = Record<string, unknown>;
 
+async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+  const dir = await mkdtemp(join(tmpdir(), "lowcap-detect-gecko-cli-test-"));
+
+  try {
+    return await fn(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function runDbPush(databaseUrl: string): Promise<void> {
+  await execFileAsync(
+    "bash",
+    ["-lc", "pnpm exec prisma db push --skip-generate"],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        DATABASE_URL: databaseUrl,
+      },
+    },
+  );
+}
+
 function shellEscape(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 async function runDetectGeckoterminalNewPools(
   args: string[],
+  envOverrides: Record<string, string | undefined> = {},
 ): Promise<CommandResult> {
   const stdoutPath = join(
     tmpdir(),
@@ -55,7 +80,10 @@ async function runDetectGeckoterminalNewPools(
       ],
       {
         cwd: process.cwd(),
-        env: process.env,
+        env: {
+          ...process.env,
+          ...envOverrides,
+        },
       },
     );
 
@@ -128,13 +156,10 @@ test("detectGeckoterminalNewPools CLI boundary", async (t) => {
     assert.match(result.stderr, /^Error: --write --pumpOnly requires --limit 1$/);
   });
 
-  await t.test("keeps pump-only writes one-shot only", async () => {
+  await t.test("rejects checkpoint files outside write-enabled watch mode", async () => {
     const result = await runDetectGeckoterminalNewPools([
-      "--pumpOnly",
-      "--limit",
-      "1",
-      "--write",
-      "--watch",
+      "--checkpointFile",
+      "/tmp/lowcap-detect-gecko-test-checkpoint.json",
     ]);
 
     assert.equal(result.ok, false);
@@ -142,7 +167,7 @@ test("detectGeckoterminalNewPools CLI boundary", async (t) => {
     assert.match(result.stdout, /^Usage:/);
     assert.match(
       result.stderr,
-      /^Error: --write --pumpOnly is supported only in one-shot mode$/,
+      /^Error: --checkpointFile requires both --watch and --write$/,
     );
   });
 
@@ -254,5 +279,160 @@ test("detectGeckoterminalNewPools CLI boundary", async (t) => {
     } finally {
       await rm(filePath, { force: true });
     }
+  });
+
+  await t.test("allows bounded pump-only watch writes without advancing past the selected checkpoint", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "bounded-pump-watch.db")}`;
+      await runDbPush(databaseUrl);
+
+      const raw = JSON.parse(
+        await readFile(
+          "fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json",
+          "utf-8",
+        ),
+      ) as JsonObject;
+      const firstPool = Array.isArray(raw.data) ? (raw.data[0] as JsonObject) : undefined;
+      assert.ok(firstPool);
+      const secondPool = JSON.parse(JSON.stringify(firstPool)) as JsonObject;
+      const secondMint = "3RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump";
+      const secondPoolAddress = "DXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc";
+
+      secondPool.id = `solana_${secondPoolAddress}`;
+      secondPool.attributes = {
+        ...((secondPool.attributes as JsonObject | undefined) ?? {}),
+        address: secondPoolAddress,
+        name: "WTF2 / SOL",
+        pool_created_at: "2026-04-18T02:14:55Z",
+      };
+      secondPool.relationships = {
+        ...((secondPool.relationships as JsonObject | undefined) ?? {}),
+        base_token: {
+          data: {
+            id: `solana_${secondMint}`,
+            type: "token",
+          },
+        },
+      };
+
+      const filePath = join(dir, "two-pump-candidates.json");
+      const checkpointPath = join(dir, "checkpoint.json");
+
+      await writeFile(
+        filePath,
+        JSON.stringify(
+          {
+            data: [
+              ...(Array.isArray(raw.data) ? raw.data : []),
+              secondPool,
+            ],
+            included: [
+              ...(Array.isArray(raw.included) ? raw.included : []),
+              {
+                id: `solana_${secondMint}`,
+                type: "token",
+                attributes: {
+                  address: secondMint,
+                  name: "WTF Are Agents Buying Too?",
+                  symbol: "WTF2",
+                  decimals: 6,
+                },
+              },
+            ],
+          },
+          null,
+          2,
+        ),
+        "utf-8",
+      );
+
+      const result = await runDetectGeckoterminalNewPools(
+        [
+          "--file",
+          filePath,
+          "--pumpOnly",
+          "--limit",
+          "1",
+          "--write",
+          "--watch",
+          "--maxIterations",
+          "1",
+          "--checkpointFile",
+          checkpointPath,
+        ],
+        { DATABASE_URL: databaseUrl },
+      );
+
+      assert.equal(result.ok, true);
+      if (!result.ok) return;
+
+      const parsed = JSON.parse(result.stdout) as {
+        dryRun: boolean;
+        writeEnabled: boolean;
+        watchEnabled: boolean;
+        checkpointEnabled: boolean;
+        checkpointUpdated: boolean;
+        inputCount: number;
+        processedCount: number;
+        selectedCount: number;
+        acceptedCount: number;
+        importedCount: number;
+        existingCount: number;
+        cycleCount: number;
+        selection: {
+          pumpOnly: boolean;
+          limit: number | null;
+          skippedNonPumpCount: number;
+        };
+        checkpointAfter?: {
+          poolCreatedAt: string;
+          poolAddress: string;
+        };
+        items: Array<{
+          mintAddress: string;
+          importResult?: {
+            created: boolean;
+          };
+        }>;
+      };
+
+      assert.equal(parsed.dryRun, false);
+      assert.equal(parsed.writeEnabled, true);
+      assert.equal(parsed.watchEnabled, true);
+      assert.equal(parsed.checkpointEnabled, true);
+      assert.equal(parsed.checkpointUpdated, true);
+      assert.equal(parsed.inputCount, 2);
+      assert.equal(parsed.processedCount, 1);
+      assert.equal(parsed.selectedCount, 1);
+      assert.equal(parsed.acceptedCount, 1);
+      assert.equal(parsed.importedCount, 1);
+      assert.equal(parsed.existingCount, 0);
+      assert.equal(parsed.cycleCount, 1);
+      assert.equal(parsed.selection.pumpOnly, true);
+      assert.equal(parsed.selection.limit, 1);
+      assert.equal(parsed.selection.skippedNonPumpCount, 0);
+      assert.equal(parsed.items.length, 1);
+      assert.equal(
+        parsed.items[0]?.mintAddress,
+        "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
+      );
+      assert.equal(parsed.items[0]?.importResult?.created, true);
+      assert.deepEqual(parsed.checkpointAfter, {
+        poolCreatedAt: "2026-04-18T02:13:55.000Z",
+        poolAddress: "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc",
+      });
+
+      const checkpoint = JSON.parse(await readFile(checkpointPath, "utf-8")) as {
+        cursor?: {
+          poolCreatedAt?: string;
+          poolAddress?: string;
+        };
+      };
+      assert.deepEqual(checkpoint.cursor, {
+        poolCreatedAt: "2026-04-18T02:13:55.000Z",
+        poolAddress: "CXT7Z7uKVWCjEgLiGZdnzeNfturWimAAorvE8EoZfYHc",
+      });
+      assert.notEqual(checkpoint.cursor?.poolAddress, secondPoolAddress);
+    });
   });
 });

@@ -277,10 +277,6 @@ function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
     printUsageAndExit("--write --pumpOnly requires --limit 1");
   }
 
-  if (out.write && out.pumpOnly && out.watch) {
-    printUsageAndExit("--write --pumpOnly is supported only in one-shot mode");
-  }
-
   return out as DetectGeckoterminalNewPoolsArgs;
 }
 
@@ -814,6 +810,7 @@ async function runCycle(
     ? [...eligibleEntries].sort((left, right) => compareCursor(left.cursor, right.cursor))
     : eligibleEntries;
   const selection = selectCandidateEntries(orderedEntries, args);
+  const checkpointAfterEntry = selection.entries.at(-1);
   const { items, importedCount, existingCount } = await buildDetectItemResults(
     selection.entries,
     args.write,
@@ -838,8 +835,8 @@ async function runCycle(
     existingCount,
     checkpointBefore: toCheckpointCursorView(checkpointBefore),
     checkpointAfter:
-      checkpointEnabled && orderedEntries.length > 0
-        ? toCheckpointCursorView(orderedEntries[orderedEntries.length - 1].cursor)
+      checkpointEnabled && checkpointAfterEntry
+        ? toCheckpointCursorView(checkpointAfterEntry.cursor)
         : toCheckpointCursorView(checkpointBefore),
     checkpointFilteredCount: checkpointEnabled
       ? Math.max(input.entries.length - eligibleEntries.length, 0)
