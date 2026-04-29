@@ -232,8 +232,8 @@ test("ops notification production sender maps Telegram outcomes to safe codes", 
   };
   const missingCredentials = await sendOpsTelegramNotification(input, {
     env: {},
-    fetch: async () => {
-      throw new Error("fetch should not be called without credentials");
+    transport: async () => {
+      throw new Error("transport should not be called without credentials");
     },
   });
   assert.deepEqual(missingCredentials, {
@@ -246,7 +246,7 @@ test("ops notification production sender maps Telegram outcomes to safe codes", 
       TELEGRAM_BOT_TOKEN: "test-token",
       TELEGRAM_CHAT_ID: "test-chat",
     },
-    fetch: async () => new Response("do not expose this body", { status: 500 }),
+    transport: async () => ({ ok: false, statusCode: 500 }),
   });
   assert.deepEqual(apiFailure, {
     status: "failed",
@@ -258,7 +258,7 @@ test("ops notification production sender maps Telegram outcomes to safe codes", 
       TELEGRAM_BOT_TOKEN: "test-token",
       TELEGRAM_CHAT_ID: "test-chat",
     },
-    fetch: async () => {
+    transport: async () => {
       throw new Error("network down");
     },
   });
@@ -267,22 +267,26 @@ test("ops notification production sender maps Telegram outcomes to safe codes", 
     errorCode: "telegram_network_error",
   });
 
-  const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+  const transportCalls: Array<{ body: string; method: string; family: number }> = [];
   const success = await sendOpsTelegramNotification(input, {
     env: {
       TELEGRAM_BOT_TOKEN: "test-token",
       TELEGRAM_CHAT_ID: "test-chat",
     },
-    fetch: async (url, init) => {
-      fetchCalls.push({ url: String(url), init });
-      return new Response("{}", { status: 200 });
+    transport: async (request) => {
+      transportCalls.push({
+        body: request.body,
+        method: request.method,
+        family: request.family,
+      });
+      return { ok: true, statusCode: 200 };
     },
   });
   assert.deepEqual(success, { status: "sent" });
-  assert.equal(fetchCalls.length, 1);
-  assert.equal(fetchCalls[0]?.init?.method, "POST");
-  assert.equal(fetchCalls[0]?.init?.headers?.["content-type" as keyof HeadersInit], "application/json");
-  const body = JSON.parse(String(fetchCalls[0]?.init?.body ?? "{}")) as Record<string, unknown>;
+  assert.equal(transportCalls.length, 1);
+  assert.equal(transportCalls[0]?.method, "POST");
+  assert.equal(transportCalls[0]?.family, 4);
+  const body = JSON.parse(transportCalls[0]?.body ?? "{}") as Record<string, unknown>;
   assert.equal(body["chat_id"], "test-chat");
   assert.equal(body["text"], "safe message");
   assert.equal(body["disable_web_page_preview"], true);
