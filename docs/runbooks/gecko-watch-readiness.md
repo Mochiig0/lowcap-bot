@@ -34,8 +34,9 @@ Confirmed:
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
 - the third watch-detected mint has reached enrich/rescore, first single-mint
-  Metric append, and rawJson-free report confirmation; a second Metric append
-  remains the next token-level gate.
+  Metric append, rawJson-free first-Metric report confirmation, and second
+  single-mint Metric append; rawJson-free two-Metric report confirmation remains
+  the next token-level gate.
 - metric snapshot watch gates: single-mint bounded, batch bounded, foreground
   bounded, tmux bounded, and tmux no-candidate natural exit.
 
@@ -132,8 +133,17 @@ Operational boundary:
   Gecko-origin partial / hasMetrics / `minMetricsCount=1` filters included the
   mint with `metricsCount=1`, latestMetric source / observedAt, and latestMetric
   safe summary columns. These report checks did not expose Metric rawJson and
-  did not write to DB. A second Metric append for this mint remains
-  unconfirmed.
+  did not write to DB.
+- Confirmed third watch-detected time-series append: a second
+  `metric:snapshot:geckoterminal -- --mint ... --write` on the same
+  `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` mint appended Metric
+  `id=1127`, moved `metricsCount` from 1 to 2, and updated latestMetric to
+  `observedAt=2026-04-29T16:42:56.330Z`. The previous Metric remains
+  `id=1126` at `observedAt=2026-04-29T16:27:01.275Z`, so the third
+  watch-detected mint now has two distinct Metric observations. This was a
+  single-mint one-shot append, not watch mode, and it did not update token
+  fields or send Telegram. Two-Metric rawJson-free report confirmation for this
+  mint remains the next gate.
 - Confirmed second watch-detected downstream first observation: the
   `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to

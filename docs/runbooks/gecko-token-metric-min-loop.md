@@ -176,7 +176,18 @@ and one production Telegram ops live send for `metric_appended`:
   included the mint with `metricsCount=1`, latestMetric source / observedAt,
   and latestMetric safe summary columns. This confirms first-observation report
   visibility for the third watch-detected mint without exposing Metric rawJson.
-  Time-series append is still unconfirmed.
+  Time-series append was not part of this report check.
+- the third watch-detected mint then confirmed a second single-mint Metric
+  append through the same
+  `metric:snapshot:geckoterminal -- --mint ... --write` command:
+  `metricsCount` moved from 1 to 2, latestMetric became `metricId=1127` with
+  `observedAt=2026-04-29T16:42:56.330Z`, and the previous Metric remained
+  `metricId=1126` with `observedAt=2026-04-29T16:27:01.275Z`. Token fields
+  stayed `partial`, `The People's House` / `PH`, score `C` / `0`, and
+  `hardRejected=false`; Telegram was not sent. This check was about
+  time-series append behavior for the third watch-detected mint, not price
+  evaluation. The next gate is rawJson-free read-only report confirmation for
+  the two Metric rows.
 - the earlier one-shot mint `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`
   then confirmed a second single-mint Metric append through the same
   `metric:snapshot:geckoterminal -- --mint ... --write` command:

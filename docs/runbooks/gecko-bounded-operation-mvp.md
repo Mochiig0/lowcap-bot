@@ -27,8 +27,11 @@ secrets.
   `partial` as `The People's House` / `PH`, then appended Metric `id=1126` at
   `observedAt=2026-04-29T16:27:01.275Z`. The same mint has also passed
   rawJson-free initial Metric report confirmation through `metrics:report`,
-  `token:compare`, and `tokens:compare-report`. A second Metric append for this
-  mint is still unconfirmed.
+  `token:compare`, and `tokens:compare-report`. It has now also appended a
+  second Metric, moving `metricsCount` from 1 to 2 and setting latestMetric to
+  `id=1127` at `observedAt=2026-04-29T16:42:56.330Z`, while previousMetric
+  remains `id=1126` at `observedAt=2026-04-29T16:27:01.275Z`. RawJson-free
+  two-Metric report confirmation for this mint is still unconfirmed.
 - `metric:snapshot:geckoterminal` has passed bounded single-mint, batch,
   foreground, tmux append, and tmux no-candidate natural-exit gates.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm
