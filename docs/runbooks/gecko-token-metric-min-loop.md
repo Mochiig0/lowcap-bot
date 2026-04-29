@@ -220,6 +220,9 @@ watch writes, foreground bounded watch natural exit with `minGapMinutes` skip,
 tmux bounded watch with one Metric append plus one `skipped_recent_metric`, and
 read-only report/compare visibility for a same-mint Metric time series plus
 multi-token Metric-row cohort reporting.
+For the two watch-detected mints, the important proof is loop shape rather than
+price quality: detect, enrich/rescore, first observation, second observation,
+and rawJson-free confirmation all work as separate operator-visible steps.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value

@@ -15,6 +15,41 @@ The existing watch runners and sample systemd units are useful entrypoints, but
 they can run write-enabled flows. Treat them as Red until the lane-specific
 preflight has passed and the exact command is explicitly approved.
 
+## Current Readiness Summary
+
+GeckoTerminal automation is currently proven as a bounded, operator-triggered
+CLI workflow, not as always-on monitoring.
+
+Confirmed:
+
+- `detect:geckoterminal:new-pools` one-shot pump-only write.
+- two bounded detect watch writes with `/tmp` checkpoint,
+  `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and `--write`.
+- both watch-detected mints completed downstream enrich/rescore, two
+  single-mint Metric appends, and rawJson-free report confirmation through
+  `metrics:report`, `token:compare`, and `tokens:compare-report`.
+- metric snapshot watch gates: single-mint bounded, batch bounded, foreground
+  bounded, tmux bounded, and tmux no-candidate natural exit.
+
+Still unconfirmed:
+
+- detect foreground or tmux watch operation.
+- default-checkpoint detect watch operation.
+- detect long-running or unbounded watch.
+- systemd start / enable and restart-oriented operation.
+- scheduler / queue worker / background automatic ingestion runtime.
+
+Next phase choices:
+
+- keep tmux bounded operation as the interim MVP entrypoint while user systemd
+  remains blocked in this environment.
+- continue detect watch checks with `/tmp` checkpoint plus `--maxIterations 1`
+  for any third or later Red gate.
+- run a separate read-only preflight before detect foreground / tmux.
+- keep systemd on hold until a user-systemd-capable session is available.
+- keep `token_completed` and `loop_complete` production live-send checks on
+  hold until eligible candidates naturally exist.
+
 ## Lanes
 
 ### `detect:geckoterminal:new-pools`

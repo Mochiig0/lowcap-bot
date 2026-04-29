@@ -7,6 +7,11 @@ still needs a bounded short operation path. This is not always-on operation and
 not an unbounded watch. It is a tmux-based bounded confirmation / short run for
 `metric:snapshot:geckoterminal`.
 
+At the current checkpoint, this is the practical interim operation entrypoint
+for the metric snapshot lane in this environment. It is suitable for bounded
+confirmation and short operation, while `systemd`, unbounded watch, and
+restart-oriented operation remain separate later gates.
+
 ## Preconditions
 
 - `git status --short --branch` is clean.

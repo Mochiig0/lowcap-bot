@@ -161,6 +161,32 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `metric:add` is append-only, so repeated submissions with the same values still create new `Metric` rows.
 - Comparison and report CLIs are read-only and do not send Telegram notifications.
 
+### Bounded Gecko Automation Progress
+
+- The GeckoTerminal lane is now usable as a CLI-first, semi-automated bounded
+  operation MVP: operators can detect one pump.fun candidate at a time, enrich /
+  rescore it, append time-series Metrics, and confirm the result with
+  rawJson-free reports.
+- Confirmed detect gates include the one-shot pump-only write and two bounded
+  pump-only watch writes using `--pumpOnly --limit 1 --watch --write
+  --maxIterations 1 --checkpointFile /tmp/...`. Both watch writes used the
+  isolated `/tmp` checkpoint; the default checkpoint remains unused.
+- Both watch-detected mints,
+  `4tCTPRoA5fitVzEP8g17ZeSGpr4i9t8mjtqf6Pkdpump` and
+  `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump`, have completed the same
+  downstream loop: detect -> enrich/rescore -> Metric 1 -> Metric 2 ->
+  rawJson-free report confirmation.
+- The metric snapshot lane has also passed single-mint bounded watch, batch
+  bounded watch, foreground bounded watch, tmux bounded watch with one append,
+  and tmux bounded no-candidate natural exit. In this Codex environment, tmux
+  bounded operation is the practical interim entrypoint because user systemd is
+  blocked.
+- Always-on monitoring is still not implemented: there is no scheduler, queue
+  worker, installed service, restart-oriented runner, or unbounded watch
+  operation. The next decision is whether to formalize bounded tmux operation as
+  the interim MVP, or continue toward longer-running detect / metric watch
+  operation in a more service-capable environment.
+
 ## Implemented
 
 - Prisma + SQLite persistence
