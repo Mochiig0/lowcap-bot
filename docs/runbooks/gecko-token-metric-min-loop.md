@@ -10,6 +10,26 @@ This runbook documents the smallest manual GeckoTerminal loop that has been prov
 
 It is intentionally not a scheduler, worker, queue, retry system, or generic source runtime.
 
+## Confirmed Status
+
+As of the successful ops-path check for metric id `1114`, the full operator-visible
+Token to Metric loop has been manually confirmed:
+
+- Gecko detector selected one pump mint candidate.
+- `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
+- `ops:catchup:gecko --write` completed that token through the token-only runner.
+- `ops:catchup:gecko --write --metricAppend` appended one `Metric` through the
+  production Metric append runner.
+- the Metric append execution result was `status=ok`, `writtenCount=1`, and
+  `tokenWriteExecutionResults=[]`.
+- the post-check matched `latestMetric.id` to the returned metric id.
+- the final ops dry-run reported `plannedTokenWrites=0`,
+  `plannedMetricAppends=0`, `metricPendingCount=0`,
+  `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`.
+
+This confirms the minimum Token to Metric loop. It does not confirm scheduler,
+watch, systemd, Telegram ops, multi-token write, or multi-cycle write operation.
+
 ## Purpose
 
 Use this flow when a single GeckoTerminal-origin pump mint should move from mint-only intake to one current `Metric` observation with explicit operator checkpoints.
@@ -365,7 +385,15 @@ This loop does not yet include:
 - automatic Metric append after token write
 - automatic retry or resume
 - Telegram notification
+- Telegram ops execution
 - generic multi-source adapter runtime
+
+## Next Candidate Steps
+
+After this confirmed minimum loop, the next small operating steps are either:
+
+- design the Telegram ops boundary without enabling live Telegram sends yet
+- run one more explicit Token to Metric loop to confirm repeatability
 
 ## Notes
 

@@ -59,6 +59,10 @@ pnpm ops:summary:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]
 ```
 
 ```bash
+pnpm ops:catchup:gecko -- [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N>] [--metricAppend] [--write]
+```
+
+```bash
 pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]
 ```
 
@@ -129,7 +133,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 9. Use `pnpm token:rescore` to recompute current hard reject and score fields from the current text.
 10. Use `pnpm token:enrich-rescore:geckoterminal` when recent GeckoTerminal-origin tokens should be fetched once, previewed as enrich plus rescore in dry-run, or updated in one batch with `--write`.
 11. Use `pnpm metric:snapshot:geckoterminal` to fetch one-shot current GeckoTerminal token snapshots for recent GeckoTerminal-origin tokens and append `Metric` rows only with `--write`.
-12. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
+12. Use `pnpm ops:catchup:gecko` for the bounded operator-visible Gecko Token to Metric catch-up loop: dry-run planning by default, one token-only write with `--write`, or one Metric append through the production runner only with `--write --metricAppend`.
+13. Use `pnpm metric:add` to append later outcome observations without mutating token score fields.
 
 ### Full Import Path
 
@@ -167,6 +172,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - Token enrichment CLI in `src/cli/tokenEnrich.ts`
 - Token rescore CLI in `src/cli/tokenRescore.ts`
 - GeckoTerminal enrich-plus-rescore batch CLI in `src/cli/tokenEnrichRescoreGeckoterminal.ts`
+- GeckoTerminal bounded catch-up supervisor CLI in `src/cli/geckoterminalCatchupSupervisor.ts`
 - Manual metric append CLI in `src/cli/metricAdd.ts`
 - GeckoTerminal current metric snapshot CLI in `src/cli/metricSnapshotGeckoterminal.ts`
 - Minimal import wrapper CLI in `src/cli/importMin.ts`
@@ -310,6 +316,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `metric:snapshot:geckoterminal --prioritizeRichPending` is an experimental default-off batch-only selection preference that keeps the existing recency order inside ties but pulls non-`mint_only` rows, then rows with stored `reviewFlagsJson`, then rows with positive `reviewFlagsCount` slightly earlier
 - `metric:snapshot:geckoterminal --pumpOnly` is batch-only narrowing for mint strings ending with `pump`, intended for trailing observation of the same fast-follow cohort while leaving `--mint` single-token execution unchanged
 - `metric:snapshot:geckoterminal --write` appends one `Metric` row per successful snapshot without mutating token fields
+- `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
+- the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append check produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `metricId=1114`, `tokenWriteExecutionResults=[]`, and a final ops dry-run with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
+- `ops:catchup:gecko` has not been promoted to scheduler, watch, systemd, Telegram ops, multi-token write, or multi-cycle write operation; next candidates are Telegram ops design or one more explicit loop confirmation
 - `metric:snapshot:geckoterminal --watch` repeats the same selection and snapshot cycle at a fixed interval and keeps going after cycle-level failures
 - `metric:snapshot:geckoterminal --watch` stops the current cycle early after the first token snapshot `429 Too Many Requests`, reports the cycle as rate-limited, and still continues with the next cycle
 - `metric:snapshot:geckoterminal --minGapMinutes <N>` skips a token before fetch when the newest `Metric` for the same token and metric source is newer than `N` minutes
