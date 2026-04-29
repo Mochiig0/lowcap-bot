@@ -18,7 +18,7 @@ secrets.
 - `detect:geckoterminal:new-pools` pump-only watch write has passed three times with
   `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and
   `--write`.
-- Both watch-detected mints completed:
+- All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
 - The third bounded watch-detected mint,
@@ -31,7 +31,8 @@ secrets.
   second Metric, moving `metricsCount` from 1 to 2 and setting latestMetric to
   `id=1127` at `observedAt=2026-04-29T16:42:56.330Z`, while previousMetric
   remains `id=1126` at `observedAt=2026-04-29T16:27:01.275Z`. RawJson-free
-  two-Metric report confirmation for this mint is still unconfirmed.
+  two-Metric report confirmation has also passed through `metrics:report`,
+  `token:compare`, and `tokens:compare-report`.
 - `metric:snapshot:geckoterminal` has passed bounded single-mint, batch,
   foreground, tmux append, and tmux no-candidate natural-exit gates.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm

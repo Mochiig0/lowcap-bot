@@ -30,13 +30,11 @@ Confirmed:
 - `detect:geckoterminal:new-pools` one-shot pump-only write.
 - three bounded detect watch writes with `/tmp` checkpoint,
   `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and `--write`.
-- both watch-detected mints completed downstream enrich/rescore, two
+- all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
-- the third watch-detected mint has reached enrich/rescore, first single-mint
-  Metric append, rawJson-free first-Metric report confirmation, and second
-  single-mint Metric append; rawJson-free two-Metric report confirmation remains
-  the next token-level gate.
+- the third watch-detected mint has reached enrich/rescore, two single-mint
+  Metric appends, and rawJson-free two-Metric report confirmation.
 - metric snapshot watch gates: single-mint bounded, batch bounded, foreground
   bounded, tmux bounded, and tmux no-candidate natural exit.
 
@@ -142,8 +140,16 @@ Operational boundary:
   `id=1126` at `observedAt=2026-04-29T16:27:01.275Z`, so the third
   watch-detected mint now has two distinct Metric observations. This was a
   single-mint one-shot append, not watch mode, and it did not update token
-  fields or send Telegram. Two-Metric rawJson-free report confirmation for this
-  mint remains the next gate.
+  fields or send Telegram.
+- Confirmed third watch-detected two-Metric report visibility:
+  `metrics:report -- --mint ... --limit 2` showed Metric ids `1127 -> 1126`
+  with both `observedAt` values and rawJson-free market-data presence fields;
+  `token:compare -- --mint ...` showed latestMetric `id=1127` and
+  `recentMetrics` containing `1127` plus `1126`, each with true `safeSummary`;
+  `tokens:compare-report` with Gecko-origin partial / hasMetrics /
+  `minMetricsCount=2` filters included the mint with `metricsCount=2`,
+  latestMetric source / observedAt, and latestMetric safe summary columns.
+  These checks did not expose Metric rawJson and did not write to DB.
 - Confirmed second watch-detected downstream first observation: the
   `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to

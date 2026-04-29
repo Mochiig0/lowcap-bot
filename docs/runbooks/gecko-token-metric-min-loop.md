@@ -186,8 +186,19 @@ and one production Telegram ops live send for `metric_appended`:
   stayed `partial`, `The People's House` / `PH`, score `C` / `0`, and
   `hardRejected=false`; Telegram was not sent. This check was about
   time-series append behavior for the third watch-detected mint, not price
-  evaluation. The next gate is rawJson-free read-only report confirmation for
-  the two Metric rows.
+  evaluation.
+- the third watch-detected mint's two-Metric history was then confirmed through
+  existing rawJson-free read-only CLI: `metrics:report -- --mint ... --limit 2`
+  showed Metric ids `1127 -> 1126`, both `observedAt` values, and true
+  `priceUsdPresent` / `fdvUsdPresent` / `reserveUsdPresent` /
+  `topPoolPresent` for both rows; `token:compare -- --mint ...` showed
+  latestMetric `id=1127` plus `recentMetrics` containing `1127` and `1126`,
+  each with true `safeSummary` booleans; and
+  `tokens:compare-report -- --source geckoterminal.new_pools --metadataStatus partial --hasMetrics true --minMetricsCount 2 --latestMetricSource geckoterminal.token_snapshot --limit 10`
+  included the mint with `metricsCount=2`, latestMetric source / observedAt,
+  and latestMetric safe summary columns. This confirms that the third
+  watch-detected mint also reached detection, enrichment, observation,
+  time-series append, and rawJson-free report visibility.
 - the earlier one-shot mint `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`
   then confirmed a second single-mint Metric append through the same
   `metric:snapshot:geckoterminal -- --mint ... --write` command:
