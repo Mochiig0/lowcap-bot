@@ -40,6 +40,13 @@ and one production Telegram ops live send for `metric_appended`:
   notification with `sentCount=1` and `status=sent`, and wrote capture-only
   `metric_appended` plus `loop_complete` records without secret/env/raw
   stdout/raw stderr/full-args style fields.
+- `token_completed` and `loop_complete` have injected-sender selected-trigger
+  success tests without production Telegram delivery.
+- the latest Red live-send preflight for `token_completed` / `loop_complete`
+  stopped at `no_candidate`: token-only dry-run reported `status=no_pending`,
+  `plannedTokenWrites=0`, `pendingCount=0`, and `selectedCandidates=[]`;
+  Metric append dry-run reported `status=no_pending`, `plannedMetricAppends=0`,
+  `metricPendingCount=0`, `pendingCount=0`, and `selectedCandidates=[]`.
 
 Earlier ops-path Metric append failures are accounted for: the child-process
 `cli_error` / `parse_error` path was traced to `tsx` startup and stdout capture
@@ -398,6 +405,14 @@ Write commands mutate data and require explicit current-turn permission:
 
 Do not combine these write steps into one hidden automation path.
 
+Do not run a Red Telegram live-send execution when the read-only preflight has
+no eligible candidate. Do not create a write target only to confirm a live send.
+When a future eligible candidate appears, first run the read-only preflight,
+then choose exactly one command, get explicit Red permission, and only then run
+that command once. Use `--opsNotifyTrigger token_completed` or
+`--opsNotifyTrigger loop_complete` to keep the selected production send to one
+trigger.
+
 ## Phase Update Criteria
 
 Update the phase progress only when the relevant write and read-only confirmation both completed.
@@ -422,6 +437,7 @@ Keep the phase unchanged when:
 - work was read-only only
 - DNS or HTTPS failed before snapshot
 - dry-run did not produce `wouldCreateMetric=true`
+- Red live-send preflight returns no eligible candidate
 - write was not explicitly permitted
 - post-check exposes retry or mismatch candidates
 
