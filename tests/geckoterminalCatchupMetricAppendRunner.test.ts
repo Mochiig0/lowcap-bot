@@ -403,6 +403,29 @@ test("exposes node execFile production runner without executing it in tests", ()
   assert.equal(typeof runGeckoMetricAppendCommandWithNodeExecFile, "function");
 });
 
+test("node execFile production runner captures stdout from a node child", async () => {
+  const input: GeckoMetricAppendRunnerInput = {
+    command: process.execPath,
+    args: ["--eval", `console.log(${JSON.stringify(buildMetricAppendOutput())})`],
+    cwd: process.cwd(),
+    env: {},
+    timeoutMs: 10_000,
+    mint: MINT,
+    cycle: 1,
+    orderInCycle: 1,
+    metricAppend: true,
+    postCheck: true,
+  };
+
+  const result = await runGeckoMetricAppendCommandWithNodeExecFile(input);
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.parseError, null);
+  assert.equal(result.selectedCount, 1);
+  assert.equal(result.writtenCount, 1);
+  assert.equal(result.writeSummary?.metricId, 123);
+});
+
 test("maps runner input and result to sanitized metric append execution result", () => {
   const input = buildGeckoMetricAppendRunnerInput(buildCommandPlan(), {
     cwd: "/repo",

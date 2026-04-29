@@ -1,14 +1,23 @@
 import { execFile as nodeExecFile } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 type JsonObject = Record<string, unknown>;
 
 const METRIC_APPEND_EXEC_FILE_MAX_BUFFER = 10 * 1024 * 1024;
+const METRIC_APPEND_CAPTURE_DIR_PREFIX = "lowcap-gecko-metric-append-runner-";
 const METRIC_SNAPSHOT_CLI_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "metricSnapshotGeckoterminal.ts",
 );
+const CAPTURE_STDIO_SHELL = [
+  'stdout_path="$1"',
+  'stderr_path="$2"',
+  "shift 2",
+  '"$@" > "$stdout_path" 2> "$stderr_path"',
+].join("; ");
 
 export type GeckoMetricAppendCommandPlan = {
   command: "pnpm";
@@ -248,27 +257,51 @@ function readExecFileStderr(error: Error | null, stderr: string | Buffer | undef
   return error.message;
 }
 
-const nodeExecFileAdapter: GeckoMetricAppendExecFile = (command, args, options) =>
-  new Promise((resolve) => {
-    nodeExecFile(
-      command,
-      args,
-      {
-        cwd: options.cwd,
-        env: options.env,
-        encoding: "utf8",
-        maxBuffer: METRIC_APPEND_EXEC_FILE_MAX_BUFFER,
-        timeout: options.timeoutMs,
-      },
-      (error, stdout, stderr) => {
-        resolve({
-          exitCode: readExecFileExitCode(error),
-          stdout: readExecFileOutput(stdout),
-          stderr: readExecFileStderr(error, stderr),
-        });
-      },
-    );
-  });
+async function readCaptureFile(path: string): Promise<string> {
+  return readFile(path, "utf8").catch(() => "");
+}
+
+const nodeExecFileAdapter: GeckoMetricAppendExecFile = async (command, args, options) => {
+  const captureDir = await mkdtemp(join(tmpdir(), METRIC_APPEND_CAPTURE_DIR_PREFIX));
+  const stdoutPath = join(captureDir, "stdout.json");
+  const stderrPath = join(captureDir, "stderr.log");
+
+  try {
+    const wrapperResult = await new Promise<MetricAppendCommandRawResult>((resolve) => {
+      nodeExecFile(
+        "bash",
+        ["-lc", CAPTURE_STDIO_SHELL, "bash", stdoutPath, stderrPath, command, ...args],
+        {
+          cwd: options.cwd,
+          env: options.env,
+          encoding: "utf8",
+          maxBuffer: METRIC_APPEND_EXEC_FILE_MAX_BUFFER,
+          timeout: options.timeoutMs,
+        },
+        (error, stdout, stderr) => {
+          resolve({
+            exitCode: readExecFileExitCode(error),
+            stdout: readExecFileOutput(stdout),
+            stderr: readExecFileStderr(error, stderr),
+          });
+        },
+      );
+    });
+
+    const [capturedStdout, capturedStderr] = await Promise.all([
+      readCaptureFile(stdoutPath),
+      readCaptureFile(stderrPath),
+    ]);
+
+    return {
+      exitCode: wrapperResult.exitCode,
+      stdout: capturedStdout.length > 0 ? capturedStdout : wrapperResult.stdout,
+      stderr: capturedStderr.length > 0 ? capturedStderr : wrapperResult.stderr,
+    };
+  } finally {
+    await rm(captureDir, { recursive: true, force: true });
+  }
+};
 
 export async function runGeckoMetricAppendCommandWithNodeExecFile(
   input: GeckoMetricAppendRunnerInput,
