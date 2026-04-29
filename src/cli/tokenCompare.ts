@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { db } from "./db.js";
+import { buildSafeMetricSummary, type SafeMetricSummary } from "./metricSafeSummary.js";
 
 type TokenCompareArgs = {
   mint: string;
@@ -22,7 +23,7 @@ type MetricView = {
   timeToPeakMinutes: number | null;
   alertedAt: string | null;
   peakMultipleFromAlert: number | null;
-  rawJson: unknown;
+  safeSummary: SafeMetricSummary;
 };
 
 type EntryCompareView = {
@@ -182,7 +183,7 @@ function toMetricView(metric: {
     timeToPeakMinutes: metric.timeToPeakMinutes,
     alertedAt: metric.alertedAt?.toISOString() ?? null,
     peakMultipleFromAlert: metric.peakMultipleFromAlert,
-    rawJson: metric.rawJson,
+    safeSummary: buildSafeMetricSummary(metric.rawJson),
   };
 }
 

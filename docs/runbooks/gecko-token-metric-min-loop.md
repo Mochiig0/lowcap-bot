@@ -100,6 +100,9 @@ and one production Telegram ops live send for `metric_appended`:
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
   shows the latestMetric, and `tokens:compare-report` shows cohort-level
   latestMetric summaries for filtered Gecko-origin rows.
+- `token:compare` Metric views were later made rawJson-free and now include
+  `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
+  operator reports without exposing Metric rawJson.
 - after adding rawJson-free safe summary columns, a later read-only cohort check
   confirmed that `metrics:report -- --limit 10` can show multiple token /
   multiple Metric rows with `priceUsdPresent`, `fdvUsdPresent`,
@@ -480,10 +483,9 @@ Pass conditions:
   `1121 -> 1120 -> 1119 -> 1118 -> 1117`.
 - `metrics:report -- --limit <N>` can show multiple token / multiple Metric
   rows with the same safe summary columns.
-- `token:compare -- --mint <MINT>` shows `metricsCount=2`, latestMetric, and
-  `recentMetrics` containing both Metric rows. It currently includes rawJson in
-  the output, so do not paste raw `token:compare` output into operator reports;
-  summarize only ids, timestamps, counts, and relevant booleans.
+- `token:compare -- --mint <MINT>` shows `metricsCount`, latestMetric, and
+  `recentMetrics`; Metric views omit rawJson and include `safeSummary` booleans
+  for price / fdv / reserve / topPool presence.
 - `token:show -- --mint <MINT>` is useful for confirming the latestMetric only;
   it is not the best view for the full two-row history.
 - `tokens:compare-report` is useful for cohort and latestMetric summaries; it is
@@ -499,8 +501,8 @@ Known gap:
   for cohort selection with `metrics:report` for Metric rows.
 - LatestMetric safe summary fields are presence booleans only; numeric value
   formatting remains intentionally out of scope.
-- `token:compare` still needs rawJson-free safe summary output if it is to be
-  used directly in routine human-facing reports.
+- Safe summary fields are presence booleans only; numeric formatting remains a
+  separate future improvement.
 
 ## Dry-Run Versus Write
 

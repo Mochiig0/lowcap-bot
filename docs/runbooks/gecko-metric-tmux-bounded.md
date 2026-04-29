@@ -139,10 +139,10 @@ Expected confirmations:
   `latestMetricPriceUsdPresent`, `latestMetricFdvUsdPresent`,
   `latestMetricReserveUsdPresent`, and `latestMetricTopPoolPresent`.
 
-`token:compare -- --mint <MINT>` can show latestMetric and `recentMetrics`, but
-the current output includes rawJson. Do not paste that raw output into operator
-reports; use it only as an internal check and summarize the relevant ids,
-timestamps, and counts.
+`token:compare -- --mint <MINT>` can also show latestMetric and
+`recentMetrics`. Its Metric views are rawJson-free and include `safeSummary`
+booleans for price / fdv / reserve / topPool presence, so it can be used for
+single-token history summaries without pasting rawJson.
 
 ## Systemd Relationship
 

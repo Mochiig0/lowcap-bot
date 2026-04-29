@@ -45,6 +45,13 @@ type TokenCompareOutput = {
     observedAt: string;
     peakFdv24h: number | null;
     volume24h: number | null;
+    rawJson?: unknown;
+    safeSummary: {
+      priceUsdPresent: boolean;
+      fdvUsdPresent: boolean;
+      reserveUsdPresent: boolean;
+      topPoolPresent: boolean;
+    };
   } | null;
   recentMetrics: Array<{
     id: number;
@@ -52,6 +59,13 @@ type TokenCompareOutput = {
     observedAt: string;
     peakFdv24h: number | null;
     volume24h: number | null;
+    rawJson?: unknown;
+    safeSummary: {
+      priceUsdPresent: boolean;
+      fdvUsdPresent: boolean;
+      reserveUsdPresent: boolean;
+      topPoolPresent: boolean;
+    };
   }>;
 };
 
@@ -198,6 +212,7 @@ async function seedTokenWithMetrics(
         peakFdv24h: 120000,
         volume24h: 24000,
         observedAt: new Date("2026-04-20T00:00:00.000Z"),
+        rawJson: "unexpected-string-shape",
       },
       select: {
         id: true,
@@ -211,6 +226,16 @@ async function seedTokenWithMetrics(
         peakFdv24h: 180000,
         volume24h: 42000,
         observedAt: new Date("2026-04-21T00:00:00.000Z"),
+        rawJson: {
+          token: {
+            priceUsd: 0.001,
+            fdvUsd: 180000,
+            totalReserveInUsd: 9000,
+          },
+          topPool: {
+            address: "pool-address",
+          },
+        },
       },
       select: {
         id: true,
@@ -243,6 +268,7 @@ test("tokenCompare boundary", async (t) => {
       assert.equal(result.stderr, "");
 
       const parsed = JSON.parse(result.stdout) as TokenCompareOutput;
+      assert.doesNotMatch(result.stdout, /rawJson/);
       assert.equal(parsed.mint, mint);
       assert.equal(parsed.metricsCount, 2);
       assert.equal(parsed.hasMetrics, true);
@@ -267,11 +293,32 @@ test("tokenCompare boundary", async (t) => {
       assert.equal(parsed.latestMetric?.peakFdv24h, 180000);
       assert.equal(parsed.latestMetric?.volume24h, 42000);
       assert.match(parsed.latestMetric?.observedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal(parsed.latestMetric?.rawJson, undefined);
+      assert.deepEqual(parsed.latestMetric?.safeSummary, {
+        priceUsdPresent: true,
+        fdvUsdPresent: true,
+        reserveUsdPresent: true,
+        topPoolPresent: true,
+      });
       assert.equal(parsed.recentMetrics.length, 2);
       assert.equal(parsed.recentMetrics[0]?.id, seeded.latestMetricId);
       assert.equal(parsed.recentMetrics[0]?.source, "test-token-compare-latest-metric");
+      assert.equal(parsed.recentMetrics[0]?.rawJson, undefined);
+      assert.deepEqual(parsed.recentMetrics[0]?.safeSummary, {
+        priceUsdPresent: true,
+        fdvUsdPresent: true,
+        reserveUsdPresent: true,
+        topPoolPresent: true,
+      });
       assert.equal(parsed.recentMetrics[1]?.id, seeded.olderMetricId);
       assert.equal(parsed.recentMetrics[1]?.source, "test-token-compare-older-metric");
+      assert.equal(parsed.recentMetrics[1]?.rawJson, undefined);
+      assert.deepEqual(parsed.recentMetrics[1]?.safeSummary, {
+        priceUsdPresent: false,
+        fdvUsdPresent: false,
+        reserveUsdPresent: false,
+        topPoolPresent: false,
+      });
     });
   });
 

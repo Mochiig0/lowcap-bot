@@ -60,8 +60,10 @@ preflight has passed and the exact command is explicitly approved.
   `1121 -> 1120 -> 1119 -> 1118 -> 1117`, `token:show` showed
   `metricsCount=5` plus latestMetric `id=1121`, and `tokens:compare-report`
   showed the same mint in the Gecko-origin cohort with latestMetric safe summary
-  booleans. `token:compare` can show `recentMetrics`, but it currently includes
-  rawJson, so raw output should not be pasted into operator reports.
+  booleans.
+- Confirmed rawJson-free token compare output: `token:compare` now omits Metric
+  rawJson from latestMetric / `recentMetrics` and includes `safeSummary`
+  booleans for price / fdv / reserve / topPool presence.
 - Invalid for the pump-only write path: `--watch --write --pumpOnly`.
 - Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 
