@@ -75,6 +75,13 @@ and one production Telegram ops live send for `metric_appended`:
   `observedAt=2026-04-29T12:05:54.348Z`. This was not a two-token simultaneous
   write confirmation; it only confirmed that bounded batch watch can terminate
   safely when the current eligible set contains one token.
+- a later foreground bounded watch check used
+  `metric:snapshot:geckoterminal -- --pumpOnly --limit 2 --write --watch --maxIterations 2 --minGapMinutes 10 --intervalSeconds 60`:
+  the process naturally exited after two cycles, both cycles selected the same
+  eligible pump token, and both cycles skipped before fetch as
+  `skipped_recent_metric`. This confirmed the `minGapMinutes` repeat-append gate
+  and natural foreground exit, not a foreground append; `writtenCount` stayed 0,
+  `metricsCount` stayed 4, and latestMetric stayed `metricId=1120`.
 - the resulting two-Metric time series was then confirmed through existing
   read-only CLI: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
@@ -95,12 +102,13 @@ target mint or runner output parsing.
 
 This confirms the minimum Token to Metric loop, capture-only ops notification
 records, one `metric_appended` production Telegram ops live send, bounded
-single-mint and batch Metric snapshot watch writes, and read-only report/compare
-visibility for a same-mint Metric time series plus multi-token Metric-row cohort
-reporting. It does not confirm scheduler, systemd, `token_completed` live send,
-`loop_complete` live send, two-or-more-token simultaneous Metric write,
-long-running watch operation, or numeric value formatting for latestMetric safe
-summary fields.
+single-mint and batch Metric snapshot watch writes, foreground bounded watch
+natural exit with `minGapMinutes` skip, and read-only report/compare visibility
+for a same-mint Metric time series plus multi-token Metric-row cohort reporting.
+It does not confirm scheduler, systemd, `token_completed` live send,
+`loop_complete` live send, foreground append, two-or-more-token simultaneous
+Metric write, long-running watch operation, or numeric value formatting for
+latestMetric safe summary fields.
 
 ## Purpose
 

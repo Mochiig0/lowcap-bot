@@ -39,6 +39,10 @@ preflight has passed and the exact command is explicitly approved.
   ran in `recent_batch` mode for one cycle, selected one eligible pump token,
   appended one Metric, moved the target mint's `metricsCount` from 3 to 4, and
   finished without token field updates or Telegram send.
+- Confirmed foreground bounded watch gate: `metric:snapshot:geckoterminal -- --pumpOnly --limit 2 --write --watch --maxIterations 2 --minGapMinutes 10 --intervalSeconds 60`
+  naturally exited after two cycles. Both cycles selected the same eligible pump
+  token and skipped before fetch as `skipped_recent_metric`, so `writtenCount`
+  stayed 0, `metricsCount` stayed 4, and latestMetric stayed `id=1120`.
 - Confirmed read-only visibility: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` can show the two-row Metric history before any
   watch or systemd work.
@@ -64,8 +68,9 @@ Still unconfirmed for this lane:
 - detect foreground or tmux operation
 - detect systemd operation
 - two-or-more-token simultaneous metric snapshot write
+- foreground metric append during bounded watch
 - long-running metric snapshot watch
-- metric snapshot foreground or tmux operation
+- metric snapshot tmux operation
 - metric snapshot systemd operation
 - multi-token or multi-metric cycles
 - `token_completed` production live send
@@ -93,6 +98,9 @@ Checkpoint/state protection is not available, so small `--limit`,
 `--maxIterations`, and `--minGapMinutes` are mandatory gates before any
 foreground, tmux, or systemd step. Do not run unbounded watch, watch without
 `--limit`, or systemd start from this lane.
+The two-cycle foreground check confirmed that `--minGapMinutes` suppresses
+repeat appends before fetch; keep the same bounded command shape for the first
+tmux check, and do not move to systemd yet.
 
 ### Enrich / Rescore Notify Wrappers
 
