@@ -156,9 +156,17 @@ and one production Telegram ops live send for `metric_appended`:
   mint-only Token `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`, advanced the
   checkpoint to `2026-04-29T16:11:48.000Z |
   H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK`, and kept the default
-  checkpoint unused. This mint is currently only at the mint-only creation
-  stage; enrich/rescore, Metric append, and report confirmation are not yet
-  confirmed.
+  checkpoint unused. That mint then moved through
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` from `mint_only`
+  to `partial` with `name/symbol=The People's House/PH`, score `C` / `0`,
+  `hardRejected=false`, and reviewFlags present. A following
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended its first
+  `geckoterminal.token_snapshot` Metric with `metricId=1126`,
+  `observedAt=2026-04-29T16:27:01.275Z`, and saved volume24h / price / fdv /
+  reserve / topPool presence. This moved `metricsCount` from 0 to 1 without
+  token field updates or Telegram send. It confirms the third watch-detected
+  mint's first-observation loop only; report confirmation and time-series
+  append are still unconfirmed.
 - the earlier one-shot mint `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`
   then confirmed a second single-mint Metric append through the same
   `metric:snapshot:geckoterminal -- --mint ... --write` command:

@@ -33,8 +33,9 @@ Confirmed:
 - both watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
-- the third watch-detected mint is confirmed only through mint-only creation so
-  far; enrich/rescore, Metric append, and report confirmation remain next gates.
+- the third watch-detected mint has reached enrich/rescore plus first
+  single-mint Metric append; report confirmation and a second Metric append
+  remain next gates.
 - metric snapshot watch gates: single-mint bounded, batch bounded, foreground
   bounded, tmux bounded, and tmux no-candidate natural exit.
 
@@ -110,9 +111,19 @@ Operational boundary:
   `2026-04-29T16:11:48.000Z |
   H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK`. The default checkpoint stayed
   uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
-  catchup were not invoked. This was a bounded operation MVP rehearsal; the
-  new mint's enrich/rescore, Metric append, and report confirmation are still
-  unconfirmed.
+  catchup were not invoked. This was a bounded operation MVP rehearsal.
+- Confirmed third watch-detected downstream first observation: the
+  `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` Token then moved through
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` to
+  `metadataStatus=partial` with `name/symbol=The People's House/PH`, score
+  `C` / `0`, `hardRejected=false`, and reviewFlags present. A following
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended the first
+  `geckoterminal.token_snapshot` Metric, moving `metricsCount` from 0 to 1 and
+  setting latestMetric to `id=1126` with
+  `observedAt=2026-04-29T16:27:01.275Z`; volume24h / price / fdv / reserve /
+  topPool were present. The Metric step did not update token fields and did not
+  send Telegram. Report confirmation and a second Metric append for this mint
+  remain unconfirmed.
 - Confirmed second watch-detected downstream first observation: the
   `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to

@@ -22,10 +22,11 @@ secrets.
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
 - The third bounded watch-detected mint,
-  `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`, is confirmed only through
-  mint-only creation so far. It was created by the same bounded command as a
-  runbook rehearsal, advanced only the `/tmp` checkpoint, and did not invoke
-  Telegram, Metric append, enrich, or rescore.
+  `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`, has now reached
+  enrich/rescore plus first Metric append. It moved from `mint_only` to
+  `partial` as `The People's House` / `PH`, then appended Metric `id=1126` at
+  `observedAt=2026-04-29T16:27:01.275Z`. Report confirmation and a second
+  Metric append for this mint are still unconfirmed.
 - `metric:snapshot:geckoterminal` has passed bounded single-mint, batch,
   foreground, tmux append, and tmux no-candidate natural-exit gates.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm
