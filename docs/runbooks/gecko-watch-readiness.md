@@ -35,8 +35,20 @@ preflight has passed and the exact command is explicitly approved.
   checkpoint to `2026-04-29T14:36:09.000Z |
   ANPbYLCgNLGtfC5Qt4iSUERnwUREa8Qpsm7iGkY3uVvx`; the default checkpoint stayed
   unused. Telegram, Metric append, enrich, and rescore were not invoked.
-- Confirmed single-mint observation loop: the same pump.fun mint moved through
-  detect one-shot write, `token:enrich-rescore:geckoterminal -- --mint ... --write`,
+- Confirmed watch-detected downstream observation loop: the same watch-origin
+  mint then moved through
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` to
+  `metadataStatus=partial` with `name/symbol=Jennie/Jennie`, score `C` / `0`,
+  and `hardRejected=false`, then through
+  `metric:snapshot:geckoterminal -- --mint ... --write` to append the first
+  `geckoterminal.token_snapshot` Metric. That moved `metricsCount` from 0 to 1
+  and set latestMetric to `id=1122` with
+  `observedAt=2026-04-29T14:54:49.239Z`; volume24h / price / fdv / reserve /
+  topPool were present. The Metric step did not update token fields and did not
+  send Telegram.
+- Confirmed separate single-mint observation loop: a one-shot-origin pump.fun
+  mint moved through detect one-shot write,
+  `token:enrich-rescore:geckoterminal -- --mint ... --write`,
   and `metric:snapshot:geckoterminal -- --mint ... --write` to reach
   `partial` plus two `geckoterminal.token_snapshot` Metrics with distinct
   `observedAt` values.
@@ -97,14 +109,16 @@ history and cohort-level visibility. The initial detect watch proof is limited
 to one pump-only live cycle with an isolated `/tmp` checkpoint. For any next
 detect watch write, do not touch the default checkpoint; keep a bounded command
 shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
-The first attempt in the Codex sandbox failed before application startup due to
-`tsx` IPC `EPERM`; the same exact command succeeded outside the sandbox and
-stayed within the allowed side-effect bounds. Treat any long-running detect
-watch, tmux detect watch, or systemd detect watch as a later Red task.
+The first attempts in the Codex sandbox for some live `tsx` commands failed
+before application startup due to `tsx` IPC `EPERM`; rerunning the same exact
+commands outside the sandbox succeeded and stayed within the allowed
+side-effect bounds. Treat any long-running detect watch, tmux detect watch, or
+systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
 - detect watch write second and later runs
+- second Metric append and read-only report check for the watch-detected mint
 - detect foreground or tmux operation
 - detect systemd operation
 - default-checkpoint detect watch operation
