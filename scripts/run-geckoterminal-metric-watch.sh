@@ -8,6 +8,8 @@ LIMIT="${LOWCAP_GECKOTERMINAL_METRIC_LIMIT:-5}"
 SINCE_MINUTES="${LOWCAP_GECKOTERMINAL_METRIC_SINCE_MINUTES:-120}"
 SOURCE="${LOWCAP_GECKOTERMINAL_METRIC_SOURCE:-geckoterminal.token_snapshot}"
 START_DELAY_SECONDS="${LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS:-900}"
+MAX_ITERATIONS="${LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS:-}"
+PUMP_ONLY="${LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY:-}"
 
 cd "$REPO_ROOT"
 
@@ -33,12 +35,24 @@ if [[ "$START_DELAY_SECONDS" =~ ^[0-9]+$ ]] && (( START_DELAY_SECONDS > 0 )); th
   sleep "$START_DELAY_SECONDS"
 fi
 
-exec pnpm metric:snapshot:geckoterminal -- \
-  --watch \
-  --write \
-  --intervalSeconds "$INTERVAL_SECONDS" \
-  --minGapMinutes "$MIN_GAP_MINUTES" \
-  --limit "$LIMIT" \
-  --sinceMinutes "$SINCE_MINUTES" \
-  --source "$SOURCE" \
-  "$@"
+metric_args=(
+  --watch
+  --write
+  --intervalSeconds "$INTERVAL_SECONDS"
+  --minGapMinutes "$MIN_GAP_MINUTES"
+  --limit "$LIMIT"
+  --sinceMinutes "$SINCE_MINUTES"
+  --source "$SOURCE"
+)
+
+case "$PUMP_ONLY" in
+  true|TRUE|True|1|yes|YES|Yes)
+    metric_args+=(--pumpOnly)
+    ;;
+esac
+
+if [[ -n "$MAX_ITERATIONS" ]]; then
+  metric_args+=(--maxIterations "$MAX_ITERATIONS")
+fi
+
+exec pnpm metric:snapshot:geckoterminal -- "${metric_args[@]}" "$@"

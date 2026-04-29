@@ -123,9 +123,11 @@ and sample unit do not yet match the confirmed bounded gate:
   `LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=900`,
   `LOWCAP_GECKOTERMINAL_METRIC_SINCE_MINUTES=120`, and
   `LOWCAP_GECKOTERMINAL_METRIC_SOURCE=geckoterminal.token_snapshot`.
-- The wrapper always passes `--watch --write`, does not pass `--pumpOnly` by
-  default, and has no default `--maxIterations`. It does accept trailing args,
-  so `--pumpOnly` and `--maxIterations 2` can be added manually.
+- The wrapper always passes `--watch --write`. It now supports
+  `LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY=true|1|yes` to add `--pumpOnly`, and
+  `LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS=<N>` to add
+  `--maxIterations <N>`. Both are off by default, so existing unbounded wrapper
+  behavior is unchanged unless the first-run environment sets them.
 - The wrapper does not echo `.env` or secret values, but the delegated CLI emits
   JSON output; a systemd run may leave sanitized snapshot JSON in journald unless
   a summary-only logging plan is added.
@@ -139,16 +141,17 @@ and sample unit do not yet match the confirmed bounded gate:
   `Restart=always`.
 
 Do not install, enable, or start this unit yet. The first systemd run must be
-bounded close to the confirmed gate: `--pumpOnly`, limit 2, maxIterations 2,
-minGapMinutes 10, intervalSeconds 60, exact stop and log-check commands, and a
-clear policy that journald must not expose secrets or full raw payloads.
+bounded close to the confirmed gate by explicitly setting
+`LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY=true`,
+`LOWCAP_GECKOTERMINAL_METRIC_LIMIT=2`,
+`LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS=2`,
+`LOWCAP_GECKOTERMINAL_METRIC_MIN_GAP_MINUTES=10`, and
+`LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=60`, plus exact stop and log-check
+commands and a clear policy that journald must not expose secrets or full raw
+payloads.
 
 Yellow follow-up candidates before any Red systemd run:
 
-- Add `LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS` handling to
-  `scripts/run-geckoterminal-metric-watch.sh`.
-- Add `LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY` handling to
-  `scripts/run-geckoterminal-metric-watch.sh`.
 - Add or document a first-run sample unit/env that matches the bounded gate.
 - Decide whether metric watch output should be summary-only for journald, rather
   than full CLI JSON.
