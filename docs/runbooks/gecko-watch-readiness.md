@@ -112,6 +112,47 @@ wrapper and sample unit defaults against this gate explicitly: `--limit`,
 `--intervalSeconds`, log location, restart policy, and stop command must all be
 documented before install / enable / start is requested.
 
+Systemd preflight for this lane has been checked read-only. The current wrapper
+and sample unit do not yet match the confirmed bounded gate:
+
+- Confirmed bounded gate: `--pumpOnly --limit 2 --write --watch --maxIterations 2 --minGapMinutes 10 --intervalSeconds 60`.
+- `scripts/run-geckoterminal-metric-watch.sh` defaults to
+  `LOWCAP_GECKOTERMINAL_METRIC_LIMIT=5`,
+  `LOWCAP_GECKOTERMINAL_METRIC_MIN_GAP_MINUTES=10`,
+  `LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=1800`,
+  `LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=900`,
+  `LOWCAP_GECKOTERMINAL_METRIC_SINCE_MINUTES=120`, and
+  `LOWCAP_GECKOTERMINAL_METRIC_SOURCE=geckoterminal.token_snapshot`.
+- The wrapper always passes `--watch --write`, does not pass `--pumpOnly` by
+  default, and has no default `--maxIterations`. It does accept trailing args,
+  so `--pumpOnly` and `--maxIterations 2` can be added manually.
+- The wrapper does not echo `.env` or secret values, but the delegated CLI emits
+  JSON output; a systemd run may leave sanitized snapshot JSON in journald unless
+  a summary-only logging plan is added.
+- `ops/systemd/lowcap-bot-geckoterminal-metric-watch.service` points
+  `ExecStart` at the wrapper, sets `LOWCAP_GECKOTERMINAL_METRIC_LIMIT=5`,
+  `LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=1800`,
+  `LOWCAP_GECKOTERMINAL_METRIC_MIN_GAP_MINUTES=10`,
+  `LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=900`, and
+  `LOWCAP_GECKOTERMINAL_METRIC_SOURCE=geckoterminal.token_snapshot`, but has no
+  `EnvironmentFile`, no `--pumpOnly`, no `--maxIterations`, and
+  `Restart=always`.
+
+Do not install, enable, or start this unit yet. The first systemd run must be
+bounded close to the confirmed gate: `--pumpOnly`, limit 2, maxIterations 2,
+minGapMinutes 10, intervalSeconds 60, exact stop and log-check commands, and a
+clear policy that journald must not expose secrets or full raw payloads.
+
+Yellow follow-up candidates before any Red systemd run:
+
+- Add `LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS` handling to
+  `scripts/run-geckoterminal-metric-watch.sh`.
+- Add `LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY` handling to
+  `scripts/run-geckoterminal-metric-watch.sh`.
+- Add or document a first-run sample unit/env that matches the bounded gate.
+- Decide whether metric watch output should be summary-only for journald, rather
+  than full CLI JSON.
+
 ### Enrich / Rescore Notify Wrappers
 
 - Existing shell loop wrappers: yes.
