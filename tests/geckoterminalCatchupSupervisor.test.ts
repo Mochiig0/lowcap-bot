@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { PrismaClient } from "@prisma/client";
 
 import {
+  buildMetricAppendCommandArgs,
   parseGeckoMetricAppendCommandResult,
   type GeckoMetricAppendCommandRunner,
 } from "../src/cli/geckoterminalCatchupMetricAppendRunner.ts";
@@ -1550,14 +1551,8 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
 
         assert.equal(tokenRunnerCallsDuringMetricAppend.length, 0);
         assert.equal(metricRunnerCalls.length, 1);
-        assert.equal(metricRunnerCalls[0]?.command, "pnpm");
-        assert.deepEqual(metricRunnerCalls[0]?.args, [
-          "metric:snapshot:geckoterminal",
-          "--",
-          "--mint",
-          metricReady.mint,
-          "--write",
-        ]);
+        assert.equal(metricRunnerCalls[0]?.command, process.execPath);
+        assert.deepEqual(metricRunnerCalls[0]?.args, buildMetricAppendCommandArgs(metricReady.mint));
         assert.equal(metricRunnerCalls[0]?.mint, metricReady.mint);
         assert.equal(metricRunnerCalls[0]?.metricAppend, true);
         assert.equal(metricRunnerCalls[0]?.postCheck, true);
@@ -2003,7 +1998,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     assert.equal(typeof supervisor.shouldRunGeckoTokenWriteRunner, "function");
     assert.equal(typeof supervisor.shouldRunGeckoMetricAppendRunner, "function");
     assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps().tokenWriteRunner, "function");
-    assert.equal("metricAppendRunner" in supervisor.buildGeckoCatchupSupervisorCliDeps(), false);
+    assert.equal(typeof supervisor.buildGeckoCatchupSupervisorCliDeps().metricAppendRunner, "function");
   });
 
   await t.test("plans --write --metricAppend as blocked without connecting runners", async () => {

@@ -3,6 +3,7 @@ import { execFile as nodeExecFile } from "node:child_process";
 type JsonObject = Record<string, unknown>;
 
 const METRIC_APPEND_EXEC_FILE_MAX_BUFFER = 10 * 1024 * 1024;
+const METRIC_SNAPSHOT_CLI_PATH = "src/cli/metricSnapshotGeckoterminal.ts";
 
 export type GeckoMetricAppendCommandPlan = {
   command: "pnpm";
@@ -16,7 +17,7 @@ export type GeckoMetricAppendCommandPlan = {
 };
 
 export type GeckoMetricAppendRunnerInput = {
-  command: "pnpm";
+  command: string;
   args: string[];
   cwd: string;
   env: Record<string, string>;
@@ -121,7 +122,9 @@ type BuildGeckoMetricAppendRunnerInputOptions = {
 
 export function buildMetricAppendCommandArgs(mint: string): string[] {
   return [
-    "metric:snapshot:geckoterminal",
+    "--import",
+    "tsx",
+    METRIC_SNAPSHOT_CLI_PATH,
     "--",
     "--mint",
     mint,
@@ -183,7 +186,7 @@ export function buildGeckoMetricAppendRunnerInput(
   assertMetricAppendCommandPlan(plan);
 
   return {
-    command: plan.command,
+    command: process.execPath,
     args: [...plan.args],
     cwd: options.cwd,
     env: normalizeEnv(options.env),

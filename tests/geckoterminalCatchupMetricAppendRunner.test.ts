@@ -96,7 +96,9 @@ function assertNoRawRunnerDiagnostics(output: object): void {
 
 test("builds metric append command args for one mint write", () => {
   assert.deepEqual(buildMetricAppendCommandArgs(MINT), [
-    "metric:snapshot:geckoterminal",
+    "--import",
+    "tsx",
+    "src/cli/metricSnapshotGeckoterminal.ts",
     "--",
     "--mint",
     MINT,
@@ -260,7 +262,7 @@ test("builds metric append runner input from command plan", () => {
   });
 
   assert.deepEqual(input, {
-    command: "pnpm",
+    command: process.execPath,
     args: buildMetricAppendCommandArgs(MINT),
     cwd: "/repo",
     env: {
@@ -374,7 +376,7 @@ test("runs an injected execFile-like adapter with structured command input", asy
 
   assert.deepEqual(calls, [
     {
-      command: "pnpm",
+      command: process.execPath,
       args: buildMetricAppendCommandArgs(MINT),
       options: {
         cwd: "/repo",
