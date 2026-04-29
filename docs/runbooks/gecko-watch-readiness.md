@@ -28,11 +28,13 @@ boundaries, exact-command examples, and stop conditions.
 Confirmed:
 
 - `detect:geckoterminal:new-pools` one-shot pump-only write.
-- two bounded detect watch writes with `/tmp` checkpoint,
+- three bounded detect watch writes with `/tmp` checkpoint,
   `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and `--write`.
 - both watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
+- the third watch-detected mint is confirmed only through mint-only creation so
+  far; enrich/rescore, Metric append, and report confirmation remain next gates.
 - metric snapshot watch gates: single-mint bounded, batch bounded, foreground
   bounded, tmux bounded, and tmux no-candidate natural exit.
 
@@ -51,7 +53,7 @@ Next phase choices:
 - keep tmux bounded operation as the interim MVP entrypoint while user systemd
   remains blocked in this environment.
 - continue detect watch checks with `/tmp` checkpoint plus `--maxIterations 1`
-  for any third or later Red gate.
+  for any fourth or later Red gate.
 - run a separate read-only preflight before detect foreground / tmux.
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
@@ -98,6 +100,19 @@ Operational boundary:
   3HpavdNkUh1WqK3XSrdUP1EAaHWkGkABkzc84fxNACp8`. The default checkpoint stayed
   uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
   catchup were not invoked.
+- Confirmed third pump-only watch write gate with the same bounded command and
+  `/tmp` checkpoint: it ran one cycle with `inputCount=20`, `selectedCount=1`,
+  `acceptedCount=1`, `importedCount=1`, `existingCount=0`, and `failedCount=0`,
+  and created mint-only Token
+  `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`. The checkpoint advanced from
+  `2026-04-29T15:23:33.000Z |
+  3HpavdNkUh1WqK3XSrdUP1EAaHWkGkABkzc84fxNACp8` to
+  `2026-04-29T16:11:48.000Z |
+  H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK`. The default checkpoint stayed
+  uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
+  catchup were not invoked. This was a bounded operation MVP rehearsal; the
+  new mint's enrich/rescore, Metric append, and report confirmation are still
+  unconfirmed.
 - Confirmed second watch-detected downstream first observation: the
   `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to

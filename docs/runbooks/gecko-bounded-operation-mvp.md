@@ -15,12 +15,17 @@ secrets.
 
 ## Current Proven Scope
 
-- `detect:geckoterminal:new-pools` pump-only watch write has passed twice with
+- `detect:geckoterminal:new-pools` pump-only watch write has passed three times with
   `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and
   `--write`.
 - Both watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
+- The third bounded watch-detected mint,
+  `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`, is confirmed only through
+  mint-only creation so far. It was created by the same bounded command as a
+  runbook rehearsal, advanced only the `/tmp` checkpoint, and did not invoke
+  Telegram, Metric append, enrich, or rescore.
 - `metric:snapshot:geckoterminal` has passed bounded single-mint, batch,
   foreground, tmux append, and tmux no-candidate natural-exit gates.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm

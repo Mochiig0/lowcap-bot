@@ -151,6 +151,14 @@ and one production Telegram ops live send for `metric_appended`:
   and latestMetric safe summary columns. This confirms that the second
   watch-detected mint also reached detection, enrichment, observation,
   time-series append, and rawJson-free report visibility.
+- a third pump-only detect watch write, run as a bounded operation MVP
+  rehearsal with the same `/tmp` checkpoint and `--maxIterations 1`, created
+  mint-only Token `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`, advanced the
+  checkpoint to `2026-04-29T16:11:48.000Z |
+  H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK`, and kept the default
+  checkpoint unused. This mint is currently only at the mint-only creation
+  stage; enrich/rescore, Metric append, and report confirmation are not yet
+  confirmed.
 - the earlier one-shot mint `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`
   then confirmed a second single-mint Metric append through the same
   `metric:snapshot:geckoterminal -- --mint ... --write` command:
