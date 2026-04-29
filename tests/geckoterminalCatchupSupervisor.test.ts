@@ -453,10 +453,15 @@ function safetyStatus(output: CatchupSupervisorOutput, name: string): SafetyChec
 
 function assertReadOnlyWritePlan(
   output: CatchupSupervisorOutput,
-  options: { writeRequested?: boolean; metricAppendRequested?: boolean } = {},
+  options: {
+    writeRequested?: boolean;
+    metricAppendRequested?: boolean;
+    metricAppendRunnerConnected?: boolean;
+  } = {},
 ): void {
   const writeRequested = options.writeRequested ?? false;
   const metricAppendRequested = options.metricAppendRequested ?? false;
+  const metricAppendRunnerConnected = options.metricAppendRunnerConnected ?? false;
   const metricAppendBlockedBy = [
     ...(metricAppendRequested ? [] : ["metric_append_not_requested"]),
     ...(metricAppendRequested && !writeRequested
@@ -473,7 +478,7 @@ function assertReadOnlyWritePlan(
     ...output.safetyChecks
       .filter((check) => check.status === "fail" || check.status === "warn")
       .map((check) => check.name),
-    "metric_append_runner_not_connected",
+    ...(metricAppendRunnerConnected ? [] : ["metric_append_runner_not_connected"]),
   ];
 
   assert.equal(output.readOnly, true);
@@ -508,7 +513,7 @@ function assertReadOnlyWritePlan(
       assert.ok(metricPlanItem);
       return {
       enabled: false,
-      executionSupported: false,
+      executionSupported: metricAppendRunnerConnected,
       executionEligible: false,
       command: "pnpm",
       script: "metric:snapshot:geckoterminal",
@@ -2075,7 +2080,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assertReadOnlyWritePlan(parsed);
+      assertReadOnlyWritePlan(parsed, { metricAppendRunnerConnected: true });
       assert.equal(parsed.currentCounts.pumpTotal, 1);
       assert.equal(parsed.currentCounts.pumpComplete, 1);
       assert.equal(parsed.currentCounts.pumpIncomplete, 0);
@@ -2189,7 +2194,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assertReadOnlyWritePlan(parsed);
+      assertReadOnlyWritePlan(parsed, { metricAppendRunnerConnected: true });
       assert.equal(parsed.selection.pumpOnly, true);
       assert.equal(parsed.selection.limit, 2);
       assert.equal(parsed.selection.maxCycles, 2);
@@ -2320,7 +2325,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assertReadOnlyWritePlan(parsed);
+      assertReadOnlyWritePlan(parsed, { metricAppendRunnerConnected: true });
       assert.equal(parsed.selection.limit, 1);
       assert.equal(parsed.selection.maxCycles, 1);
       assert.equal(parsed.selectedCandidates.length, 1);
@@ -2484,7 +2489,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
     });
   });
 
-  await t.test("marks metric append requested dry-run as blocked until write and runner connection", async () => {
+  await t.test("marks metric append requested CLI dry-run as blocked only until write", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "metric-append-requested-plan.db")}`;
       await runDbPush(databaseUrl);
@@ -2511,14 +2516,16 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assertReadOnlyWritePlan(parsed, { metricAppendRequested: true });
+      assertReadOnlyWritePlan(parsed, {
+        metricAppendRequested: true,
+        metricAppendRunnerConnected: true,
+      });
       assert.equal(parsed.selection.metricAppendRequested, true);
       assert.equal(parsed.writePlan.metricAppendRequested, true);
       assert.equal(parsed.writePlan.metricAppendCommandPlan.length, 1);
       assert.equal(parsed.writePlan.metricAppendCommandPlan[0]?.mint, metricReady.mint);
       assert.deepEqual(parsed.writePlan.metricAppendCommandPlan[0]?.blockedBy, [
         "metric_append_write_not_requested",
-        "metric_append_runner_not_connected",
       ]);
       assert.equal(parsed.writePlan.metricAppendCommandPlan[0]?.executionEligible, false);
       assert.deepEqual(parsed.writePlan.tokenWriteExecutionResults, []);
@@ -2549,7 +2556,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assertReadOnlyWritePlan(parsed);
+      assertReadOnlyWritePlan(parsed, { metricAppendRunnerConnected: true });
       assert.equal(parsed.selection.limit, 1);
       assert.equal(parsed.selection.maxCycles, 1);
       assert.equal(parsed.selectedCandidates.length, 1);
@@ -2721,7 +2728,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as CatchupSupervisorOutput;
-      assertReadOnlyWritePlan(parsed);
+      assertReadOnlyWritePlan(parsed, { metricAppendRunnerConnected: true });
       assert.equal(parsed.currentCounts.pumpTotal, 1);
       assert.equal(parsed.currentCounts.pumpIncomplete, 1);
       assert.equal(parsed.currentCounts.metricPendingCount, 1);

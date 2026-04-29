@@ -928,6 +928,7 @@ function buildMetricAppendCommandPlanBlockedBy(
   args: Args,
   selectedCandidates: SelectedCandidate[],
   safetyChecks: SafetyCheck[],
+  deps: GeckoCatchupSupervisorDeps = {},
 ): string[] {
   const metricAppendConditionBlocks = [
     ...(args.limit === 1 ? [] : ["limit_not_one"]),
@@ -950,7 +951,7 @@ function buildMetricAppendCommandPlanBlockedBy(
       ? ["mixed_token_and_metric_write_not_supported"]
       : []),
     ...blockingSafetyChecks,
-    "metric_append_runner_not_connected",
+    ...(deps.metricAppendRunner ? [] : ["metric_append_runner_not_connected"]),
   ];
 }
 
@@ -1240,6 +1241,7 @@ function buildWritePlan(
   selectedCandidates: SelectedCandidate[],
   metricAppendPlan: MetricAppendPlanItem[],
   safetyChecks: SafetyCheck[],
+  deps: GeckoCatchupSupervisorDeps = {},
 ): WritePlan {
   const writeCommandPlanBlockedBy = buildWriteCommandPlanBlockedBy(
     args,
@@ -1250,8 +1252,10 @@ function buildWritePlan(
     args,
     selectedCandidates,
     safetyChecks,
+    deps,
   );
   const initialWriteCandidate = selectedCandidates.find((candidate) => candidate.wouldWriteToken);
+  const metricAppendExecutionSupported = deps.metricAppendRunner !== undefined;
 
   return {
     enabled: false,
@@ -1307,8 +1311,8 @@ function buildWritePlan(
       .filter((item) => item.wouldAppendMetric)
       .map((item) => ({
         enabled: false,
-        executionSupported: false,
-        executionEligible: false,
+        executionSupported: metricAppendExecutionSupported,
+        executionEligible: metricAppendExecutionSupported && metricAppendCommandPlanBlockedBy.length === 0,
         command: "pnpm",
         script: "metric:snapshot:geckoterminal",
         mint: item.mint,
@@ -1551,6 +1555,7 @@ export function buildGeckoCatchupSupervisorPlan(
   args: Args,
   rawTokens: RawSupervisorToken[],
   sinceCutoff: Date,
+  deps: GeckoCatchupSupervisorDeps = {},
 ): GeckoCatchupSupervisorOutput {
   const geckoTokens = rawTokens
     .map(buildSupervisorToken)
@@ -1604,7 +1609,7 @@ export function buildGeckoCatchupSupervisorPlan(
     metricAppendPlan,
     safetyChecks,
   );
-  const writePlan = buildWritePlan(args, selectedCandidates, metricAppendPlan, safetyChecks);
+  const writePlan = buildWritePlan(args, selectedCandidates, metricAppendPlan, safetyChecks, deps);
   const writeModeReadiness = buildWriteModeReadiness();
 
   return {
@@ -1640,6 +1645,7 @@ export function buildGeckoCatchupSupervisorPlan(
 
 export async function buildGeckoCatchupSupervisorOutput(
   args: Args,
+  deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
   const sinceCutoff = new Date(Date.now() - args.sinceMinutes * 60_000);
 
@@ -1682,14 +1688,14 @@ export async function buildGeckoCatchupSupervisorOutput(
     },
   });
 
-  return buildGeckoCatchupSupervisorPlan(args, rawTokens, sinceCutoff);
+  return buildGeckoCatchupSupervisorPlan(args, rawTokens, sinceCutoff, deps);
 }
 
 export async function runGeckoCatchupSupervisor(
   args: Args,
   deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
-  const output = await buildGeckoCatchupSupervisorOutput(args);
+  const output = await buildGeckoCatchupSupervisorOutput(args, deps);
   const tokenWriteOutput = await runInjectedGeckoTokenWriteRunner(args, output, deps);
   return runInjectedGeckoMetricAppendRunner(args, tokenWriteOutput, deps);
 }
