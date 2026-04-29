@@ -27,6 +27,12 @@ Token to Metric loop has been manually confirmed:
   `plannedMetricAppends=0`, `metricPendingCount=0`,
   `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`.
 
+Earlier ops-path Metric append failures are accounted for: the child-process
+`cli_error` / `parse_error` path was traced to `tsx` startup and stdout capture
+behavior and fixed in the production runner, while a later `fetch failed` result
+was isolated to environment-level DNS / network reachability rather than the
+target mint or runner output parsing.
+
 This confirms the minimum Token to Metric loop. It does not confirm scheduler,
 watch, systemd, Telegram ops, multi-token write, or multi-cycle write operation.
 
