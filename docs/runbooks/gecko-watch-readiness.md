@@ -43,6 +43,11 @@ preflight has passed and the exact command is explicitly approved.
   naturally exited after two cycles. Both cycles selected the same eligible pump
   token and skipped before fetch as `skipped_recent_metric`, so `writtenCount`
   stayed 0, `metricsCount` stayed 4, and latestMetric stayed `id=1120`.
+- Confirmed tmux bounded watch gate: `tmux new-session -d -s lowcap-gecko-metric-bounded "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 2 --write --watch --maxIterations 2 --minGapMinutes 10 --intervalSeconds 60 > /tmp/lowcap-gecko-metric-bounded.log 2>&1'"`
+  started the same bounded command in tmux, naturally exited after
+  `maxIterations=2`, appended Metric `id=1121` in cycle 1, skipped cycle 2 as
+  `skipped_recent_metric`, and moved the target mint's `metricsCount` from 4 to
+  5 without token field updates, Telegram send, or systemd operations.
 - Confirmed read-only visibility: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` can show the two-row Metric history before any
   watch or systemd work.
@@ -57,10 +62,10 @@ Start with file-backed or live one-shot dry-run inspection, then use the
 confirmed one-shot write gate above when the goal is to validate the pump.fun
 lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
-history and cohort-level visibility. These are still not watch or systemd
-proofs. If watch write is needed later, `--pumpOnly` must be removed, which
-broadens the target set beyond the pump-only lane. Treat that as a separate
-design decision before touching the default checkpoint path.
+history and cohort-level visibility. These are still not detect watch or systemd
+proofs. If detect watch write is needed later, `--pumpOnly` must be removed,
+which broadens the target set beyond the pump-only lane. Treat that as a
+separate design decision before touching the default checkpoint path.
 
 Still unconfirmed for this lane:
 
@@ -70,7 +75,7 @@ Still unconfirmed for this lane:
 - two-or-more-token simultaneous metric snapshot write
 - foreground metric append during bounded watch
 - long-running metric snapshot watch
-- metric snapshot tmux operation
+- restart-oriented metric snapshot operation
 - metric snapshot systemd operation
 - multi-token or multi-metric cycles
 - `token_completed` production live send
@@ -85,8 +90,9 @@ Still unconfirmed for this lane:
   first token snapshot rate limit and continues later.
 - Existing checkpoint or state file: none in this lane.
 - Confirmed bounded watch write gates: single mint plus `--maxIterations 1` plus
-  `--minGapMinutes`, and batch mode with `--pumpOnly`, small `--limit`,
-  `--maxIterations 1`, and `--minGapMinutes`.
+  `--minGapMinutes`, batch mode with `--pumpOnly`, small `--limit`,
+  `--maxIterations`, and `--minGapMinutes`, plus foreground and tmux runs using
+  the same bounded command shape.
 - First always-on candidate: yes, after multi-token dry-run and foreground checks.
 - Write behavior: `--write` appends `Metric` rows.
 
@@ -98,9 +104,13 @@ Checkpoint/state protection is not available, so small `--limit`,
 `--maxIterations`, and `--minGapMinutes` are mandatory gates before any
 foreground, tmux, or systemd step. Do not run unbounded watch, watch without
 `--limit`, or systemd start from this lane.
-The two-cycle foreground check confirmed that `--minGapMinutes` suppresses
-repeat appends before fetch; keep the same bounded command shape for the first
-tmux check, and do not move to systemd yet.
+The two-cycle foreground and tmux checks confirmed that `--minGapMinutes`
+suppresses repeat appends before fetch; keep the same bounded command shape for
+any next tmux check, and do not move to systemd yet. Before systemd, compare the
+wrapper and sample unit defaults against this gate explicitly: `--limit`,
+`--maxIterations` or another bounded stop condition, `--minGapMinutes`,
+`--intervalSeconds`, log location, restart policy, and stop command must all be
+documented before install / enable / start is requested.
 
 ### Enrich / Rescore Notify Wrappers
 

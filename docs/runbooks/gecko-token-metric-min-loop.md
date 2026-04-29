@@ -82,7 +82,15 @@ and one production Telegram ops live send for `metric_appended`:
   `skipped_recent_metric`. This confirmed the `minGapMinutes` repeat-append gate
   and natural foreground exit, not a foreground append; `writtenCount` stayed 0,
   `metricsCount` stayed 4, and latestMetric stayed `metricId=1120`.
-- the resulting two-Metric time series was then confirmed through existing
+- a later tmux bounded watch check used the same bounded command shape inside
+  session `lowcap-gecko-metric-bounded`, redirecting output to
+  `/tmp/lowcap-gecko-metric-bounded.log`: the tmux session started, naturally
+  exited after `maxIterations=2`, appended Metric `metricId=1121` at
+  `observedAt=2026-04-29T12:26:25.717Z` in cycle 1, then skipped cycle 2 as
+  `skipped_recent_metric`. This confirmed that tmux can run the bounded gate and
+  that `minGapMinutes` still suppresses immediate repeat appends; `metricsCount`
+  moved from 4 to 5. This was not always-on operation and did not touch systemd.
+- the resulting Metric time series was then confirmed through existing
   read-only CLI: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
   shows the latestMetric, and `tokens:compare-report` shows cohort-level
@@ -103,12 +111,13 @@ target mint or runner output parsing.
 This confirms the minimum Token to Metric loop, capture-only ops notification
 records, one `metric_appended` production Telegram ops live send, bounded
 single-mint and batch Metric snapshot watch writes, foreground bounded watch
-natural exit with `minGapMinutes` skip, and read-only report/compare visibility
+natural exit with `minGapMinutes` skip, tmux bounded watch with one Metric
+append plus one `skipped_recent_metric`, and read-only report/compare visibility
 for a same-mint Metric time series plus multi-token Metric-row cohort reporting.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
-Metric write, long-running watch operation, or numeric value formatting for
-latestMetric safe summary fields.
+Metric write, long-running or restart-oriented watch operation, or numeric value
+formatting for latestMetric safe summary fields.
 
 ## Purpose
 
