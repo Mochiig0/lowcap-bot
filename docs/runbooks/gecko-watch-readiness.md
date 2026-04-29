@@ -32,6 +32,9 @@ preflight has passed and the exact command is explicitly approved.
   and `metric:snapshot:geckoterminal -- --mint ... --write` to reach
   `partial` plus two `geckoterminal.token_snapshot` Metrics with distinct
   `observedAt` values.
+- Confirmed read-only visibility: `metrics:report -- --mint ... --limit 2` and
+  `token:compare -- --mint ...` can show the two-row Metric history before any
+  watch or systemd work.
 - Invalid for the pump-only write path: `--watch --write --pumpOnly`.
 - Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 
@@ -49,7 +52,8 @@ Still unconfirmed for this lane:
 - detect foreground or tmux operation
 - detect systemd operation
 - metric snapshot watch write
-- read-only report or compare visibility for the same-mint Metric time series
+- `metrics:report` safe summary columns for stored Gecko snapshot price / fdv /
+  reserve / topPool fields
 - multi-token or multi-metric cycles
 - `token_completed` production live send
 - `loop_complete` production live send
