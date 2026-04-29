@@ -199,7 +199,27 @@ Stop when:
 - selected count is not 1
 - the snapshot token address does not match the mint
 
-### Step 8: Metric Snapshot Write
+### Step 8: Metric Append Write
+
+There are two confirmed one-metric append paths.
+
+Manual path:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint <MINT> --write
+```
+
+Ops path:
+
+```bash
+pnpm -s ops:catchup:gecko -- --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080
+```
+
+Use the manual path when directly confirming the metric snapshot CLI for one known mint.
+Use the ops path when confirming the production catch-up supervisor can delegate exactly one
+Metric append through the injected runner.
+
+#### Manual Path
 
 Red step. Run only with explicit permission for one Metric append write.
 
@@ -223,6 +243,56 @@ Stop when:
 - more than one metric is written
 - token address in snapshot does not match the mint
 - GeckoTerminal returns a rate limit or network failure
+
+#### Ops Path
+
+Red step. Run only with explicit permission for one ops Metric append write.
+
+```bash
+pnpm -s ops:catchup:gecko -- --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080
+```
+
+Preconditions:
+
+- target token is already complete
+- `metricsCount` is 0
+- `latestMetric` is null
+- ops `--metricAppend` dry-run reports `plannedTokenWrites=0`
+- ops `--metricAppend` dry-run reports `plannedMetricAppends=1`
+- `metricAppendCommandPlan` length is 1
+- safety checks have no fail or warn entries
+
+Pass conditions:
+
+- `metricAppendExecutionResults` length is 1
+- metric append runner status is `ok`
+- selected count is 1
+- `writtenCount` is 1
+- `writeSummary.metricId` is not null
+- `tokenWriteExecutionResults` length is 0
+- `token:show` reports `metricsCount=1` or greater
+- `token:show` reports latest metric source `geckoterminal.token_snapshot`
+- final ops dry-run reports `no_pending`
+- final ops dry-run reports `nextRecommendedAction=no_action`
+
+Stop when:
+
+- the token write plan is not empty
+- `metricAppendCommandPlan` length is not 1
+- any safety check is fail or warn
+- more than one metric append execution result is reported
+- `writtenCount` is not exactly 1
+- `writeSummary.metricId` is missing
+- `tokenWriteExecutionResults` is not empty
+- post-check warnings, retry candidates, or runner DB mismatch candidates appear
+
+Do not:
+
+- run token write and Metric append in the same execution
+- run ops Metric append without `--metricAppend`
+- increase `--limit` above 1
+- increase `--maxCycles` above 1
+- move from this confirmation into Telegram, scheduler, watch, or systemd setup
 
 ### Step 9: Final Read-Only Checks
 
@@ -260,6 +330,7 @@ Write commands mutate data and require explicit current-turn permission:
 - `detect:geckoterminal:new-pools --write` creates or reuses one mint-only token through the mint-first boundary
 - `ops:catchup:gecko --write` performs one gated token-only write through `token:enrich-rescore:geckoterminal`
 - `metric:snapshot:geckoterminal --write` appends one `Metric` row for a successful snapshot
+- `ops:catchup:gecko --write --metricAppend` delegates exactly one Metric append through the production runner only when the gated one-token, one-cycle Metric-only plan is eligible
 
 Do not combine these write steps into one hidden automation path.
 
