@@ -68,8 +68,7 @@ and one production Telegram ops live send for `metric_appended`:
   `observedAt=2026-04-29T14:54:49.239Z`, and saved volume24h / price / fdv /
   reserve / topPool presence. This moved `metricsCount` from 0 to 1 without
   token field updates or Telegram send. It confirms the watch-detected
-  first-observation loop only; second Metric append for this mint is still
-  unconfirmed.
+  first-observation loop only.
 - the watch-detected mint's first Metric was then confirmed through existing
   rawJson-free read-only CLI: `metrics:report -- --mint ... --limit 1` showed
   Metric `id=1122`, `observedAt=2026-04-29T14:54:49.239Z`, `volume24h`, and
@@ -80,6 +79,15 @@ and one production Telegram ops live send for `metric_appended`:
   included the mint with `metricsCount=1`, latestMetric source / observedAt,
   and latestMetric safe summary columns. This confirms report visibility for
   the watch-detected first observation without exposing Metric rawJson.
+- the watch-detected mint then confirmed a second single-mint Metric append
+  through the same `metric:snapshot:geckoterminal -- --mint ... --write`
+  command: `metricsCount` moved from 1 to 2, latestMetric became
+  `metricId=1123` with `observedAt=2026-04-29T15:09:40.608Z`, and the previous
+  Metric remained `metricId=1122` with
+  `observedAt=2026-04-29T14:54:49.239Z`. This check was about time-series
+  append behavior for the watch-detected mint, not price evaluation. Token
+  fields stayed `partial`, `Jennie` / `Jennie`, score `C` / `0`, and
+  `hardRejected=false`; Telegram was not sent.
 - the same mint then confirmed a second single-mint Metric append through the
   same `metric:snapshot:geckoterminal -- --mint ... --write` command:
   `metricsCount` moved from 1 to 2, latestMetric became `metricId=1118` with
@@ -149,16 +157,17 @@ target mint or runner output parsing.
 This confirms the minimum Token to Metric loop, capture-only ops notification
 records, one `metric_appended` production Telegram ops live send, the
 watch-detected mint's first downstream enrich/rescore plus Metric append and
-rawJson-free report confirmation, bounded single-mint and batch Metric snapshot
-watch writes, foreground bounded watch natural exit with `minGapMinutes` skip,
-tmux bounded watch with one Metric append plus one `skipped_recent_metric`, and
+rawJson-free report confirmation, the watch-detected mint's second Metric append
+for time-series behavior, bounded single-mint and batch Metric snapshot watch
+writes, foreground bounded watch natural exit with `minGapMinutes` skip, tmux
+bounded watch with one Metric append plus one `skipped_recent_metric`, and
 read-only report/compare visibility for a same-mint Metric time series plus
 multi-token Metric-row cohort reporting.
 It does not confirm scheduler, systemd, `token_completed` live send,
-`loop_complete` live send, the watch-detected mint's second Metric append,
-foreground append, two-or-more-token simultaneous Metric write, long-running or
-restart-oriented watch operation, or numeric value formatting for latestMetric
-safe summary fields.
+`loop_complete` live send, the watch-detected mint's two-Metric read-only report
+check, foreground append, two-or-more-token simultaneous Metric write,
+long-running or restart-oriented watch operation, or numeric value formatting
+for latestMetric safe summary fields.
 
 ## Purpose
 
