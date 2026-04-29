@@ -25,8 +25,10 @@ secrets.
   `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump`, has now reached
   enrich/rescore plus first Metric append. It moved from `mint_only` to
   `partial` as `The People's House` / `PH`, then appended Metric `id=1126` at
-  `observedAt=2026-04-29T16:27:01.275Z`. Report confirmation and a second
-  Metric append for this mint are still unconfirmed.
+  `observedAt=2026-04-29T16:27:01.275Z`. The same mint has also passed
+  rawJson-free initial Metric report confirmation through `metrics:report`,
+  `token:compare`, and `tokens:compare-report`. A second Metric append for this
+  mint is still unconfirmed.
 - `metric:snapshot:geckoterminal` has passed bounded single-mint, batch,
   foreground, tmux append, and tmux no-candidate natural-exit gates.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm

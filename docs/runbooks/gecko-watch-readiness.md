@@ -33,9 +33,9 @@ Confirmed:
 - both watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
-- the third watch-detected mint has reached enrich/rescore plus first
-  single-mint Metric append; report confirmation and a second Metric append
-  remain next gates.
+- the third watch-detected mint has reached enrich/rescore, first single-mint
+  Metric append, and rawJson-free report confirmation; a second Metric append
+  remains the next token-level gate.
 - metric snapshot watch gates: single-mint bounded, batch bounded, foreground
   bounded, tmux bounded, and tmux no-candidate natural exit.
 
@@ -122,8 +122,18 @@ Operational boundary:
   setting latestMetric to `id=1126` with
   `observedAt=2026-04-29T16:27:01.275Z`; volume24h / price / fdv / reserve /
   topPool were present. The Metric step did not update token fields and did not
-  send Telegram. Report confirmation and a second Metric append for this mint
-  remain unconfirmed.
+  send Telegram.
+- Confirmed third watch-detected read-only report visibility:
+  `metrics:report -- --mint ... --limit 1` showed Metric `id=1126`,
+  `observedAt=2026-04-29T16:27:01.275Z`, `volume24h`, and all four
+  rawJson-free Metric presence fields as true; `token:compare -- --mint ...`
+  showed latestMetric `id=1126`, one `recentMetrics` item, and all four
+  `safeSummary` booleans as true; and `tokens:compare-report` with
+  Gecko-origin partial / hasMetrics / `minMetricsCount=1` filters included the
+  mint with `metricsCount=1`, latestMetric source / observedAt, and latestMetric
+  safe summary columns. These report checks did not expose Metric rawJson and
+  did not write to DB. A second Metric append for this mint remains
+  unconfirmed.
 - Confirmed second watch-detected downstream first observation: the
   `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to

@@ -165,8 +165,18 @@ and one production Telegram ops live send for `metric_appended`:
   `observedAt=2026-04-29T16:27:01.275Z`, and saved volume24h / price / fdv /
   reserve / topPool presence. This moved `metricsCount` from 0 to 1 without
   token field updates or Telegram send. It confirms the third watch-detected
-  mint's first-observation loop only; report confirmation and time-series
-  append are still unconfirmed.
+  mint's first-observation loop.
+- the third watch-detected mint's first Metric was then confirmed through
+  existing rawJson-free read-only CLI: `metrics:report -- --mint ... --limit 1`
+  showed Metric `id=1126`, `observedAt=2026-04-29T16:27:01.275Z`,
+  `volume24h`, and true `priceUsdPresent` / `fdvUsdPresent` /
+  `reserveUsdPresent` / `topPoolPresent`; `token:compare -- --mint ...` showed
+  latestMetric `id=1126`, one `recentMetrics` item, and true `safeSummary`
+  booleans; and `tokens:compare-report -- --source geckoterminal.new_pools --metadataStatus partial --hasMetrics true --minMetricsCount 1 --latestMetricSource geckoterminal.token_snapshot --limit 10`
+  included the mint with `metricsCount=1`, latestMetric source / observedAt,
+  and latestMetric safe summary columns. This confirms first-observation report
+  visibility for the third watch-detected mint without exposing Metric rawJson.
+  Time-series append is still unconfirmed.
 - the earlier one-shot mint `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`
   then confirmed a second single-mint Metric append through the same
   `metric:snapshot:geckoterminal -- --mint ... --write` command:
