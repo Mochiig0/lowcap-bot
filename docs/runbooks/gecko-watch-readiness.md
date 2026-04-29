@@ -76,6 +76,15 @@ preflight has passed and the exact command is explicitly approved.
   single-mint one-shot append, not watch mode, and it did not update token
   fields or send Telegram. Two-Metric rawJson-free report confirmation for this
   mint remains the next gate.
+- Confirmed second watch-detected two-Metric report visibility:
+  `metrics:report -- --mint ... --limit 2` showed Metric ids `1125 -> 1124`
+  with both `observedAt` values and rawJson-free market-data presence fields;
+  `token:compare -- --mint ...` showed latestMetric `id=1125` and
+  `recentMetrics` containing `1125` plus `1124`, each with true `safeSummary`;
+  `tokens:compare-report` with Gecko-origin partial / hasMetrics /
+  `minMetricsCount=2` filters included the mint with `metricsCount=2`,
+  latestMetric source / observedAt, and latestMetric safe summary columns.
+  These checks did not expose Metric rawJson and did not write to DB.
 - Confirmed watch-detected downstream observation loop: the same watch-origin
   mint then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -177,8 +186,7 @@ passed twice. The first watch-detected mint has also passed enrich/rescore, two
 Metric appends with distinct `observedAt` values, and rawJson-free report
 confirmation for the two-row Metric history. The second watch-detected mint has
 now also passed enrich/rescore, two Metric appends with distinct `observedAt`
-values, and first-Metric rawJson-free report confirmation, but not yet
-two-Metric report confirmation.
+values, and rawJson-free report confirmation for the two-row Metric history.
 For any next
 detect watch write, do not touch the default checkpoint; keep a bounded command
 shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
@@ -190,7 +198,6 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- second watch-detected mint two-Metric report confirmation
 - detect watch write third and later runs
 - detect foreground or tmux operation
 - detect systemd operation
