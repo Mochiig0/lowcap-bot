@@ -90,6 +90,11 @@ and one production Telegram ops live send for `metric_appended`:
   `skipped_recent_metric`. This confirmed that tmux can run the bounded gate and
   that `minGapMinutes` still suppresses immediate repeat appends; `metricsCount`
   moved from 4 to 5. This was not always-on operation and did not touch systemd.
+- the post-tmux read-only report check confirmed the same mint at
+  `metricsCount=5` with latestMetric `metricId=1121`; `metrics:report -- --mint ... --limit 5`
+  showed the Metric id order `1121 -> 1120 -> 1119 -> 1118 -> 1117`, and both
+  `metrics:report` plus `tokens:compare-report` showed rawJson-free safe
+  summary booleans for saved price / fdv / reserve / topPool presence.
 - the resulting Metric time series was then confirmed through existing
   read-only CLI: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
@@ -458,6 +463,7 @@ history and cohort visibility before moving toward watch or systemd:
 
 ```bash
 pnpm -s metrics:report -- --mint <MINT> --limit 2
+pnpm -s metrics:report -- --mint <MINT> --limit 5
 pnpm -s metrics:report -- --limit 10
 pnpm -s token:compare -- --mint <MINT>
 pnpm -s token:show -- --mint <MINT>
@@ -469,15 +475,22 @@ Pass conditions:
 - `metrics:report -- --mint <MINT> --limit 2` returns the two latest rows for
   that mint, shows two distinct `observedAt` values, and exposes rawJson-free
   safe summary columns for market-data presence.
+- After the bounded tmux confirmation, `metrics:report -- --mint <MINT> --limit 5`
+  confirmed the five-row Metric history with ids
+  `1121 -> 1120 -> 1119 -> 1118 -> 1117`.
 - `metrics:report -- --limit <N>` can show multiple token / multiple Metric
   rows with the same safe summary columns.
 - `token:compare -- --mint <MINT>` shows `metricsCount=2`, latestMetric, and
-  `recentMetrics` containing both Metric rows.
+  `recentMetrics` containing both Metric rows. It currently includes rawJson in
+  the output, so do not paste raw `token:compare` output into operator reports;
+  summarize only ids, timestamps, counts, and relevant booleans.
 - `token:show -- --mint <MINT>` is useful for confirming the latestMetric only;
   it is not the best view for the full two-row history.
 - `tokens:compare-report` is useful for cohort and latestMetric summaries; it is
   not the best direct view for two-row same-mint history, but it does expose
-  latestMetric safe summary columns.
+  latestMetric safe summary columns. The post-tmux check used `minMetricsCount=5`
+  to confirm the target mint in the Gecko-origin cohort with `metricsCount=5`
+  and latestMetric `id=1121`.
 
 Known gap:
 
@@ -486,6 +499,8 @@ Known gap:
   for cohort selection with `metrics:report` for Metric rows.
 - LatestMetric safe summary fields are presence booleans only; numeric value
   formatting remains intentionally out of scope.
+- `token:compare` still needs rawJson-free safe summary output if it is to be
+  used directly in routine human-facing reports.
 
 ## Dry-Run Versus Write
 

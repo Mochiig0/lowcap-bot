@@ -55,6 +55,13 @@ preflight has passed and the exact command is explicitly approved.
   multiple token / multiple Metric rows with rawJson-free safe summary columns,
   and `tokens:compare-report` can show filtered Gecko-origin latestMetric /
   `metricsCount` cohort summaries.
+- Confirmed post-tmux read-only visibility: after the tmux bounded gate,
+  `metrics:report -- --mint ... --limit 5` showed Metric ids
+  `1121 -> 1120 -> 1119 -> 1118 -> 1117`, `token:show` showed
+  `metricsCount=5` plus latestMetric `id=1121`, and `tokens:compare-report`
+  showed the same mint in the Gecko-origin cohort with latestMetric safe summary
+  booleans. `token:compare` can show `recentMetrics`, but it currently includes
+  rawJson, so raw output should not be pasted into operator reports.
 - Invalid for the pump-only write path: `--watch --write --pumpOnly`.
 - Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 
@@ -202,7 +209,8 @@ system unit conversion are separate Red tasks and are not part of this gate.
 For the tmux bounded fallback, use
 [`gecko-metric-tmux-bounded.md`](./gecko-metric-tmux-bounded.md). It keeps the
 confirmed `lowcap-gecko-metric-bounded` command shape, log path, stop conditions,
-and numeric summary checks separate from systemd work.
+numeric summary checks, and post-run read-only report checks separate from
+systemd work.
 
 ### Enrich / Rescore Notify Wrappers
 

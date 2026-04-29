@@ -108,6 +108,42 @@ The confirmed tmux run started successfully, naturally exited, ran
 `skipped_recent_metric`, did not update Token fields, did not send Telegram, and
 did not touch systemd.
 
+## Post-Run Read-Only Checks
+
+After the bounded tmux run finishes, use read-only CLIs to confirm the latest
+Metric and history. For the confirmed mint
+`4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`, the post-run state was
+`metricsCount=5` with latestMetric `id=1121`,
+`observedAt=2026-04-29T12:26:25.717Z`, and source
+`geckoterminal.token_snapshot`.
+
+Preferred rawJson-free checks:
+
+```bash
+pnpm -s metrics:report -- --mint <MINT> --limit 5
+pnpm -s token:show -- --mint <MINT>
+pnpm -s tokens:compare-report -- --source geckoterminal.new_pools --metadataStatus partial --hasMetrics true --minMetricsCount 5 --latestMetricSource geckoterminal.token_snapshot --limit 10
+```
+
+Expected confirmations:
+
+- `metrics:report -- --mint <MINT> --limit 5` shows the Metric id order
+  `1121 -> 1120 -> 1119 -> 1118 -> 1117`.
+- `metrics:report` shows rawJson-free market-data presence columns:
+  `priceUsdPresent`, `fdvUsdPresent`, `reserveUsdPresent`, and
+  `topPoolPresent`; all five confirmed rows were `true`.
+- `token:show` shows `metricsCount=5` and latestMetric `id=1121`.
+- `tokens:compare-report` includes the target mint in the Gecko-origin cohort
+  and shows `metricsCount=5`, latestMetric source / observedAt, and
+  latestMetric safe summary booleans:
+  `latestMetricPriceUsdPresent`, `latestMetricFdvUsdPresent`,
+  `latestMetricReserveUsdPresent`, and `latestMetricTopPoolPresent`.
+
+`token:compare -- --mint <MINT>` can show latestMetric and `recentMetrics`, but
+the current output includes rawJson. Do not paste that raw output into operator
+reports; use it only as an internal check and summarize the relevant ids,
+timestamps, and counts.
+
 ## Systemd Relationship
 
 Systemd first-run is blocked in the current Codex environment because the user
