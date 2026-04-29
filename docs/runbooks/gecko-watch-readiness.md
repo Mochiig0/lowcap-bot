@@ -180,6 +180,25 @@ Do not run `enable` for the first-run unit. Do not start the always-on metric
 watch unit until the first-run unit has been installed, started, observed,
 stopped or naturally exited, and documented under separate Red approval.
 
+Current Codex environment blocker:
+
+- Phase A installed
+  `/home/mochi/.config/systemd/user/lowcap-bot-geckoterminal-metric-watch-first-run.service`
+  and confirmed it matches the repo sample.
+- `systemctl --user daemon-reload` failed with no user bus.
+- Read-only follow-up found PID 1 is `codex-linux-san`, not systemd.
+- `XDG_RUNTIME_DIR` is set, but the user bus socket is missing.
+- `systemctl --user is-system-running --no-pager` reports `offline`.
+- `loginctl show-user` cannot connect because the environment was not booted
+  with systemd as init.
+
+Do not proceed to Phase B start in this environment. To continue the systemd
+path, use a session where PID 1 is systemd, `XDG_RUNTIME_DIR/bus` exists, and
+`systemctl --user` is not offline, then rerun Phase A from the install /
+daemon-reload step. If that environment is not available, the practical
+fallback remains tmux bounded operation. `sudo`, `loginctl enable-linger`, and
+system unit conversion are separate Red tasks and are not part of this gate.
+
 ### Enrich / Rescore Notify Wrappers
 
 - Existing shell loop wrappers: yes.
