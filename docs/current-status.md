@@ -27,7 +27,7 @@ pnpm detect:dexscreener:token-profiles [--file <PATH>] [--limit <N>] [--write] [
 ```
 
 ```bash
-pnpm detect:geckoterminal:new-pools [--file <PATH>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]
+pnpm detect:geckoterminal:new-pools [--file <PATH>] [--pumpOnly] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]
 ```
 
 ```bash
@@ -228,6 +228,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `detect:geckoterminal:new-pools` stays dry-run by default
 - `detect:geckoterminal:new-pools --write` hands one accepted `{ mint, source? }` payload into the same mint-first boundary used by `import:mint`
 - `detect:geckoterminal:new-pools --write` also preserves a first-seen source snapshot in `Token.entrySnapshot`, including `source`, `detectedAt`, `poolCreatedAt`, `poolAddress`, `dexName`, `baseTokenAddress`, and `quoteTokenAddress` when those values exist in the source payload
+- `detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --write` has been manually confirmed as the Gecko detect lane Red one-shot gate: it selected one pump.fun candidate from 20 live inputs, accepted one, created one `mint_only` Token for `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump`, did not update a checkpoint, and did not send Telegram
+- `detect:geckoterminal:new-pools --write --pumpOnly` is valid only in one-shot mode with `--limit 1`; `--watch --write --pumpOnly` is rejected by CLI validation, so detect watch write remains unconfirmed for the pump-only lowcap path
 - `detect:geckoterminal:new-pools --watch --write` may persist one GeckoTerminal-specific checkpoint cursor, defaulting to `data/checkpoints/geckoterminal-new-pools.json`
 - `detect:geckoterminal:new-pools --watch` retries one GeckoTerminal fetch-only `429 Too Many Requests` or timeout-like failure once after a short backoff before marking the cycle failed
 - `detect:geckoterminal:new-pools --watch` keeps the base polling interval unchanged after successful cycles, but adds extra cooldown only after failed `429 Too Many Requests` or timeout-like cycles; `LOWCAP_GECKOTERMINAL_DETECT_FAILURE_COOLDOWN_SECONDS` may override the default 30-second cooldown
@@ -249,7 +251,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - checkpointing is intentionally conservative: one-shot runs and dry-runs do not update the cursor
 - in watch mode, cycle-level failures are recorded and the next cycle still runs; one-shot mode remains fail-fast
 - for safe local confirmation, start with one file-backed detect dry-run such as `pnpm detect:dexscreener:token-profiles -- --file <fixture>` or `pnpm detect:geckoterminal:new-pools -- --file <fixture>` so checkpoint files stay untouched
-- then use `--watch --write --maxIterations 1 --checkpointFile /tmp/<name>.json` on the same fixture-backed detect command when one isolated checkpoint write should be verified without touching the default repo-local cursor path
+- for the Gecko pump.fun lowcap path, the confirmed Red detector write is the bounded one-shot `pnpm -s detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --write`; this does not update checkpoints or send Telegram
+- then use `--watch --write --maxIterations 1 --checkpointFile /tmp/<name>.json` on the same fixture-backed detect command only when one isolated checkpoint write should be verified without touching the default repo-local cursor path; Gecko detect watch write cannot currently combine `--write --watch` with `--pumpOnly`, so target breadth must be reconsidered before using it for the pump-only lane
 - `metric:snapshot:geckoterminal` may also be checked locally with `--watch --maxIterations 1`, but it does not use checkpoint files and only appends `Metric` rows when `--write` is set
 - `scripts/run-detect-dexscreener-watch.sh` is the fixed repo-local entrypoint for manual runs or a future `systemd --user` service, and delegates into `pnpm detect:dexscreener:token-profiles -- --watch --write`
 - `scripts/run-geckoterminal-detect-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm detect:geckoterminal:new-pools -- --watch --write`
@@ -259,6 +262,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `scripts/run-geckoterminal-enrich-rescore-notify.sh` keeps the normal runner log summary-first by default and suppresses per-cycle full JSON unless `LOWCAP_GECKOTERMINAL_ENRICH_VERBOSE_JSON=1` is set
 - `scripts/run-geckoterminal-metric-watch.sh` is the fixed repo-local entrypoint for manual runs or a sample `systemd --user` service, and delegates into `pnpm metric:snapshot:geckoterminal -- --watch --write` with a trailing-observation default cadence of 30 minutes, 5 tokens, a 120-minute lookback, and an optional start delay
 - `docs/runbooks/gecko-watch-readiness.md` is the current pre-watch gate for Gecko always-on work: always-on monitoring has not started, existing watch runners and sample systemd units exist, `ops:catchup:gecko` remains a bounded one-shot, and systemd enablement should not happen before that runbook's gate is satisfied
+- Gecko detect always-on work has not started: the pump.fun one-shot write gate is confirmed, but detect watch write, detect foreground/tmux operation, detect systemd operation, and metric snapshot watch write remain unconfirmed
 - all GeckoTerminal runners perform a lightweight Prisma `Token`-table preflight before starting; if the target SQLite DB has not been initialized yet, they fail fast with `db_preflight_failed` instead of entering watch/batch loops with repeated `main.Token` errors
 - `pnpm ops:summary:geckoterminal -- --sinceHours 24 --limit 10` is the new read-only DB summary for recent Gecko-origin tokens, covering first-seen snapshot presence, enrich coverage, metric coverage, score-rank counts, notify-candidate counts, current/origin source counts, and a recent preview
 - `pnpm ops:summary:geckoterminal` now also includes minimal cohort-level review flag counts such as `reviewFlagsTokenCount`, `hasWebsiteCount`, `hasXCount`, `hasTelegramCount`, `metaplexHitCount`, and `descriptionPresentCount`, purely as read-only observational summary fields

@@ -23,12 +23,27 @@ preflight has passed and the exact command is explicitly approved.
 - Existing checkpoint support: yes.
 - Existing bounded test shape: `--maxIterations`.
 - Default checkpoint path: repo-local `data/checkpoints/geckoterminal-new-pools.json`.
-- First always-on candidate: yes, after isolated `/tmp` checkpoint confirmation.
+- First always-on candidate: yes, but do not start always-on yet.
 - Write behavior: `--write` hands accepted mints into the mint-first boundary.
+- Confirmed Red one-shot gate: `pnpm -s detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --write`.
+- Confirmed one-shot side effects: at most one mint ingest write, no checkpoint update, and no Telegram send.
+- Invalid for the pump-only write path: `--watch --write --pumpOnly`.
+- Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 
-Start with file-backed dry-run inspection. For Red confirmation, use
-`--watch --write --maxIterations 1 --checkpointFile /tmp/<name>.json` before
-touching the default checkpoint path.
+Start with file-backed or live one-shot dry-run inspection, then use the
+confirmed one-shot write gate above when the goal is to validate the pump.fun
+lowcap ingest path. If watch write is needed later, `--pumpOnly` must be
+removed, which broadens the target set beyond the pump-only lane. Treat that as
+a separate design decision before touching the default checkpoint path.
+
+Still unconfirmed for this lane:
+
+- detect watch write
+- detect foreground or tmux operation
+- detect systemd operation
+- metric snapshot watch write
+- `token_completed` production live send
+- `loop_complete` production live send
 
 ### `metric:snapshot:geckoterminal`
 
@@ -87,6 +102,7 @@ operation yet. Keep token write and Metric append as explicit Red executions.
 ### Red
 
 - `--watch --write`.
+- `detect:geckoterminal:new-pools --write`.
 - Any detector, metric snapshot, or ops catch-up command with `--write`.
 - Production Telegram send.
 - `systemd` install, enable, or start.
