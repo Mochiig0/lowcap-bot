@@ -61,6 +61,10 @@ type MetricsReportOutput = {
     peakFdv7d: number | null;
     volume7d: number | null;
     timeToPeakMinutes: number | null;
+    priceUsdPresent: boolean;
+    fdvUsdPresent: boolean;
+    reserveUsdPresent: boolean;
+    topPoolPresent: boolean;
   }>;
 };
 
@@ -199,11 +203,29 @@ async function seedMetrics(databaseUrl: string): Promise<{
           source: "test-metrics-report",
           peakFdv24h: 180000,
           volume24h: 42000,
+          rawJson: {
+            network: "solana",
+            token: {
+              address: firstToken.mint,
+              priceUsd: 0.00042,
+              fdvUsd: 180000,
+              totalReserveInUsd: 1500,
+              volume24h: 42000,
+            },
+            topPoolCount: 1,
+            topPool: {
+              address: "pool-111",
+              tokenPriceUsd: 0.00042,
+              fdvUsd: 180000,
+              reserveInUsd: 1500,
+            },
+          },
         },
         {
           tokenId: secondToken.id,
           source: "other-source",
           maxMultiple15m: 1.8,
+          rawJson: "unexpected-raw-json-shape",
         },
       ],
     });
@@ -269,6 +291,42 @@ test("metricsReport boundary", async (t) => {
       assert.equal(parsed.items[0]?.peakFdv24h, 180000);
       assert.equal(parsed.items[0]?.volume24h, 42000);
       assert.equal(parsed.items[0]?.maxMultiple15m, null);
+      assert.equal(parsed.items[0]?.priceUsdPresent, true);
+      assert.equal(parsed.items[0]?.fdvUsdPresent, true);
+      assert.equal(parsed.items[0]?.reserveUsdPresent, true);
+      assert.equal(parsed.items[0]?.topPoolPresent, true);
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("unexpected-raw-json-shape"), false);
+    });
+  });
+
+  await t.test("reports safe metric summary booleans without exposing unexpected rawJson", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "safe-summary.db")}`;
+
+      await runDbPush(databaseUrl);
+      await seedMetrics(databaseUrl);
+
+      const result = await runMetricsReport(
+        [
+          "--source",
+          "other-source",
+          "--limit",
+          "5",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricsReportOutput;
+      assert.equal(parsed.count, 1);
+      assert.equal(parsed.items[0]?.source, "other-source");
+      assert.equal(parsed.items[0]?.priceUsdPresent, false);
+      assert.equal(parsed.items[0]?.fdvUsdPresent, false);
+      assert.equal(parsed.items[0]?.reserveUsdPresent, false);
+      assert.equal(parsed.items[0]?.topPoolPresent, false);
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("unexpected-raw-json-shape"), false);
     });
   });
 

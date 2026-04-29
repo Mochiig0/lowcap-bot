@@ -78,8 +78,8 @@ records, one `metric_appended` production Telegram ops live send, and read-only
 report/compare visibility for a two-row same-mint Metric time series. It does
 not confirm scheduler, watch, systemd, `token_completed` live send,
 `loop_complete` live send, multi-token write, multi-cycle write operation, or
-human-friendly safe summary columns for stored Gecko snapshot price / fdv /
-reserve / topPool fields in `metrics:report`.
+numeric value formatting for stored Gecko snapshot price / fdv / reserve /
+topPool fields in `metrics:report`.
 
 ## Purpose
 
@@ -438,13 +438,9 @@ Pass conditions:
 
 Known gap:
 
-- `metrics:report` can confirm the time series and volume fields, but its normal
-  columns still do not expose a human-friendly safe summary for saved Gecko
-  snapshot price / fdv / reserve / topPool fields.
-- If this becomes an operating bottleneck, the smallest implementation task is
-  to add rawJson-free safe summary columns such as `priceUsdPresent`,
-  `fdvUsdPresent`, `reserveUsdPresent`, and `topPoolPresent` to
-  `metrics:report`.
+- `metrics:report` now exposes rawJson-free presence booleans for saved Gecko
+  snapshot price / fdv / reserve / topPool fields, but it still does not format
+  those values for human comparison.
 
 ## Dry-Run Versus Write
 

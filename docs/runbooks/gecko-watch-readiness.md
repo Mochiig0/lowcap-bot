@@ -52,8 +52,6 @@ Still unconfirmed for this lane:
 - detect foreground or tmux operation
 - detect systemd operation
 - metric snapshot watch write
-- `metrics:report` safe summary columns for stored Gecko snapshot price / fdv /
-  reserve / topPool fields
 - multi-token or multi-metric cycles
 - `token_completed` production live send
 - `loop_complete` production live send
