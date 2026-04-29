@@ -1,8 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   buildGeckoTokenWriteRunnerInput,
+  buildTokenWriteCommandArgs,
   parseGeckoTokenWriteCommandResult,
   runGeckoTokenWriteCommandWithExecFile,
   runGeckoTokenWriteCommandWithNodeExecFile,
@@ -14,6 +17,11 @@ import {
   type GeckoTokenWriteRunnerInput,
 } from "../src/cli/geckoterminalCatchupTokenWriteRunner.ts";
 
+const MINT = "RunnerInput111111111111111111111111111111111pump";
+const EXPECTED_TOKEN_WRITE_CLI_PATH = resolve(
+  fileURLToPath(new URL("../src/cli/tokenEnrichRescoreGeckoterminal.ts", import.meta.url)),
+);
+
 function buildCommandPlan(overrides: Partial<GeckoTokenWriteCommandPlan> = {}): GeckoTokenWriteCommandPlan {
   return {
     command: "pnpm",
@@ -22,10 +30,10 @@ function buildCommandPlan(overrides: Partial<GeckoTokenWriteCommandPlan> = {}): 
       "token:enrich-rescore:geckoterminal",
       "--",
       "--mint",
-      "RunnerInput111111111111111111111111111111111pump",
+      MINT,
       "--write",
     ],
-    mint: "RunnerInput111111111111111111111111111111111pump",
+    mint: MINT,
     cycle: 1,
     orderInCycle: 1,
     notify: false,
@@ -161,6 +169,21 @@ test("parses token write stdout when pnpm banner precedes JSON", () => {
   assert.equal(parsed.notifySent, false);
 });
 
+test("builds token write command args for one mint write", () => {
+  const args = buildTokenWriteCommandArgs(MINT);
+
+  assert.deepEqual(args, [
+    "--import",
+    "tsx",
+    EXPECTED_TOKEN_WRITE_CLI_PATH,
+    "--mint",
+    MINT,
+    "--write",
+  ]);
+  assert.equal(isAbsolute(args[2] ?? ""), true);
+  assert.equal(args.includes("--"), false);
+});
+
 test("builds token-only runner input from write command plan", () => {
   const plan = buildCommandPlan();
   const input = buildGeckoTokenWriteRunnerInput(plan, {
@@ -174,21 +197,15 @@ test("builds token-only runner input from write command plan", () => {
   });
 
   assert.deepEqual(input, {
-    command: "pnpm",
-    args: [
-      "token:enrich-rescore:geckoterminal",
-      "--",
-      "--mint",
-      "RunnerInput111111111111111111111111111111111pump",
-      "--write",
-    ],
+    command: process.execPath,
+    args: buildTokenWriteCommandArgs(MINT),
     cwd: "/repo",
     env: {
       DATABASE_URL: "file:/tmp/lowcap-test.db",
       EMPTY_VALUE: "",
     },
     timeoutMs: 10_000,
-    mint: "RunnerInput111111111111111111111111111111111pump",
+    mint: MINT,
     cycle: 1,
     orderInCycle: 1,
     notify: false,
@@ -216,7 +233,7 @@ test("rejects notify command plans before runner execution exists", () => {
             "token:enrich-rescore:geckoterminal",
             "--",
             "--mint",
-            "RunnerInput111111111111111111111111111111111pump",
+            MINT,
             "--write",
             "--notify",
           ],
@@ -296,14 +313,8 @@ test("runs an injected execFile-like adapter with structured command input", asy
 
   assert.deepEqual(calls, [
     {
-      command: "pnpm",
-      args: [
-        "token:enrich-rescore:geckoterminal",
-        "--",
-        "--mint",
-        "RunnerInput111111111111111111111111111111111pump",
-        "--write",
-      ],
+      command: process.execPath,
+      args: buildTokenWriteCommandArgs(MINT),
       options: {
         cwd: "/repo",
         env: {
@@ -326,6 +337,34 @@ test("runs an injected execFile-like adapter with structured command input", asy
 
 test("exposes node execFile production runner without executing it in tests", () => {
   assert.equal(typeof runGeckoTokenWriteCommandWithNodeExecFile, "function");
+});
+
+test("node execFile production runner captures stdout from a node child", async () => {
+  const input: GeckoTokenWriteRunnerInput = {
+    command: process.execPath,
+    args: ["--eval", `console.log(${JSON.stringify(buildTokenWriteOutput())})`],
+    cwd: process.cwd(),
+    env: {},
+    timeoutMs: 10_000,
+    mint: MINT,
+    cycle: 1,
+    orderInCycle: 1,
+    notify: false,
+    metricAppend: false,
+    postCheck: true,
+  };
+
+  const result = await runGeckoTokenWriteCommandWithNodeExecFile(input);
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.parseError, null);
+  assert.deepEqual(result.writeSummary, {
+    enrichUpdated: true,
+    rescoreUpdated: true,
+    contextUpdated: true,
+    metaplexContextUpdated: true,
+  });
+  assert.equal(result.notifySent, false);
 });
 
 test("normalizes non-zero execFile-like adapter output through the parser", async () => {
@@ -368,7 +407,7 @@ test("maps runner input and result to sanitized token write execution result", (
   const executionResult = toGeckoCatchupTokenWriteExecutionResult(input, result);
 
   assert.deepEqual(executionResult, {
-    mint: "RunnerInput111111111111111111111111111111111pump",
+    mint: MINT,
     cycle: 1,
     orderInCycle: 1,
     status: "ok",
@@ -406,7 +445,7 @@ test("maps cli error runner result without leaking diagnostics", () => {
   const executionResult = toGeckoCatchupTokenWriteExecutionResult(input, result);
 
   assert.deepEqual(executionResult, {
-    mint: "RunnerInput111111111111111111111111111111111pump",
+    mint: MINT,
     cycle: 1,
     orderInCycle: 1,
     status: "cli_error",

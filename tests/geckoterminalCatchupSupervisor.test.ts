@@ -15,6 +15,7 @@ import {
 } from "../src/cli/geckoterminalCatchupMetricAppendRunner.ts";
 import {
   buildGeckoTokenWriteRunnerInput,
+  buildTokenWriteCommandArgs,
   parseGeckoTokenWriteCommandResult,
   runGeckoTokenWriteCommandWithRunner,
   toGeckoCatchupTokenWriteExecutionResult,
@@ -371,13 +372,7 @@ function shellEscape(value: string): string {
 }
 
 function expectedTokenWriteArgs(mint: string): string[] {
-  return [
-    "token:enrich-rescore:geckoterminal",
-    "--",
-    "--mint",
-    mint,
-    "--write",
-  ];
+  return buildTokenWriteCommandArgs(mint);
 }
 
 async function runCatchupSupervisor(
@@ -1258,7 +1253,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
         assert.equal(runnerPlan.notify, false);
         assert.equal(runnerPlan.metricAppend, false);
         assert.equal(runnerPlan.postCheck, true);
-        assert.equal(runnerCalls[0]?.command, runnerPlan.command);
+        assert.equal(runnerCalls[0]?.command, process.execPath);
         assert.deepEqual(runnerCalls[0]?.args, expectedTokenWriteArgs(runnerPlan.mint));
         assert.equal("args" in runnerPlan, false);
         assert.equal(runnerCalls[0]?.mint, runnerPlan.mint);
@@ -2453,7 +2448,7 @@ test("geckoterminal catch-up supervisor dry-run", async (t) => {
           },
         },
       );
-      assert.equal(runnerInput.command, "pnpm");
+      assert.equal(runnerInput.command, process.execPath);
       assert.deepEqual(runnerInput.args, expectedTokenWriteArgs(seeded.expectedSelectedMints[0]));
       assert.equal(runnerInput.args.includes("--mint"), true);
       assert.equal(runnerInput.args.includes(seeded.expectedSelectedMints[0]), true);

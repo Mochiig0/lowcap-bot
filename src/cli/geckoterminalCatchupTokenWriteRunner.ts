@@ -1,8 +1,23 @@
 import { execFile as nodeExecFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 type JsonObject = Record<string, unknown>;
 
 const TOKEN_WRITE_EXEC_FILE_MAX_BUFFER = 10 * 1024 * 1024;
+const TOKEN_WRITE_CAPTURE_DIR_PREFIX = "lowcap-gecko-token-write-runner-";
+const TOKEN_WRITE_CLI_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "tokenEnrichRescoreGeckoterminal.ts",
+);
+const CAPTURE_STDIO_SHELL = [
+  'stdout_path="$1"',
+  'stderr_path="$2"',
+  "shift 2",
+  '"$@" > "$stdout_path" 2> "$stderr_path"',
+].join("; ");
 
 export type GeckoTokenWriteCommandPlan = {
   command: "pnpm";
@@ -17,7 +32,7 @@ export type GeckoTokenWriteCommandPlan = {
 };
 
 export type GeckoTokenWriteRunnerInput = {
-  command: "pnpm";
+  command: string;
   args: string[];
   cwd: string;
   env: Record<string, string>;
@@ -106,6 +121,17 @@ type BuildGeckoTokenWriteRunnerInputOptions = {
   timeoutMs?: number;
 };
 
+export function buildTokenWriteCommandArgs(mint: string): string[] {
+  return [
+    "--import",
+    "tsx",
+    TOKEN_WRITE_CLI_PATH,
+    "--mint",
+    mint,
+    "--write",
+  ];
+}
+
 function normalizeEnv(env: Record<string, string | undefined> | undefined): Record<string, string> {
   const normalized: Record<string, string> = {};
   if (!env) {
@@ -137,6 +163,17 @@ function assertTokenOnlyWriteCommandPlan(plan: GeckoTokenWriteCommandPlan): void
   if (plan.postCheck !== true) {
     throw new Error("Token write runner input requires postCheck=true");
   }
+  if (!plan.args.includes("--write")) {
+    throw new Error("Token write runner input requires --write");
+  }
+  if (plan.args.includes("--watch")) {
+    throw new Error("Token write runner input does not support watch");
+  }
+
+  const mintArgIndex = plan.args.indexOf("--mint");
+  if (mintArgIndex < 0 || plan.args[mintArgIndex + 1] !== plan.mint) {
+    throw new Error("Token write runner input requires matching --mint");
+  }
 }
 
 export function buildGeckoTokenWriteRunnerInput(
@@ -146,8 +183,8 @@ export function buildGeckoTokenWriteRunnerInput(
   assertTokenOnlyWriteCommandPlan(plan);
 
   return {
-    command: plan.command,
-    args: [...plan.args],
+    command: process.execPath,
+    args: buildTokenWriteCommandArgs(plan.mint),
     cwd: options.cwd,
     env: normalizeEnv(options.env),
     timeoutMs: options.timeoutMs ?? 60_000,
@@ -205,27 +242,51 @@ function readExecFileStderr(error: Error | null, stderr: string | Buffer | undef
   return error.message;
 }
 
-const nodeExecFileAdapter: GeckoTokenWriteExecFile = (command, args, options) =>
-  new Promise((resolve) => {
-    nodeExecFile(
-      command,
-      args,
-      {
-        cwd: options.cwd,
-        env: options.env,
-        encoding: "utf8",
-        maxBuffer: TOKEN_WRITE_EXEC_FILE_MAX_BUFFER,
-        timeout: options.timeoutMs,
-      },
-      (error, stdout, stderr) => {
-        resolve({
-          exitCode: readExecFileExitCode(error),
-          stdout: readExecFileOutput(stdout),
-          stderr: readExecFileStderr(error, stderr),
-        });
-      },
-    );
-  });
+async function readCaptureFile(path: string): Promise<string> {
+  return readFile(path, "utf8").catch(() => "");
+}
+
+const nodeExecFileAdapter: GeckoTokenWriteExecFile = async (command, args, options) => {
+  const captureDir = await mkdtemp(join(tmpdir(), TOKEN_WRITE_CAPTURE_DIR_PREFIX));
+  const stdoutPath = join(captureDir, "stdout.json");
+  const stderrPath = join(captureDir, "stderr.log");
+
+  try {
+    const wrapperResult = await new Promise<TokenWriteCommandRawResult>((resolve) => {
+      nodeExecFile(
+        "bash",
+        ["-lc", CAPTURE_STDIO_SHELL, "bash", stdoutPath, stderrPath, command, ...args],
+        {
+          cwd: options.cwd,
+          env: options.env,
+          encoding: "utf8",
+          maxBuffer: TOKEN_WRITE_EXEC_FILE_MAX_BUFFER,
+          timeout: options.timeoutMs,
+        },
+        (error, stdout, stderr) => {
+          resolve({
+            exitCode: readExecFileExitCode(error),
+            stdout: readExecFileOutput(stdout),
+            stderr: readExecFileStderr(error, stderr),
+          });
+        },
+      );
+    });
+
+    const [capturedStdout, capturedStderr] = await Promise.all([
+      readCaptureFile(stdoutPath),
+      readCaptureFile(stderrPath),
+    ]);
+
+    return {
+      exitCode: wrapperResult.exitCode,
+      stdout: capturedStdout.length > 0 ? capturedStdout : wrapperResult.stdout,
+      stderr: capturedStderr.length > 0 ? capturedStderr : wrapperResult.stderr,
+    };
+  } finally {
+    await rm(captureDir, { recursive: true, force: true });
+  }
+};
 
 export async function runGeckoTokenWriteCommandWithNodeExecFile(
   input: GeckoTokenWriteRunnerInput,
