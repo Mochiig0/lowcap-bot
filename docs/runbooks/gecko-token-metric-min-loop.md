@@ -61,6 +61,12 @@ and one production Telegram ops live send for `metric_appended`:
   `observedAt=2026-04-29T10:50:02.424Z`, and the previous Metric remained at
   `observedAt=2026-04-29T10:35:31.337Z`. This check was about append/time-series
   behavior, not price evaluation.
+- the same mint then confirmed a bounded single-mint watch write through
+  `metric:snapshot:geckoterminal -- --mint ... --write --watch --maxIterations 1 --minGapMinutes 10`:
+  watch mode ran exactly one cycle, selected one token, appended one Metric,
+  moved `metricsCount` from 2 to 3, and updated latestMetric to `metricId=1119`
+  with `observedAt=2026-04-29T11:45:26.494Z`. This was not long-running
+  operation; it only confirmed that one-cycle watch write can terminate safely.
 - the resulting two-Metric time series was then confirmed through existing
   read-only CLI: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
@@ -80,12 +86,12 @@ was isolated to environment-level DNS / network reachability rather than the
 target mint or runner output parsing.
 
 This confirms the minimum Token to Metric loop, capture-only ops notification
-records, one `metric_appended` production Telegram ops live send, and read-only
-report/compare visibility for a two-row same-mint Metric time series plus
-multi-token Metric-row cohort reporting. It does
-not confirm scheduler, watch, systemd, `token_completed` live send,
-`loop_complete` live send, multi-token write, multi-cycle write operation, or
-numeric value formatting for latestMetric safe summary fields.
+records, one `metric_appended` production Telegram ops live send, one bounded
+single-mint Metric snapshot watch write, and read-only report/compare visibility
+for a same-mint Metric time series plus multi-token Metric-row cohort reporting.
+It does not confirm scheduler, systemd, `token_completed` live send,
+`loop_complete` live send, multi-token watch write, multi-cycle write operation,
+or numeric value formatting for latestMetric safe summary fields.
 
 ## Purpose
 

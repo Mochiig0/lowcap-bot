@@ -32,6 +32,9 @@ preflight has passed and the exact command is explicitly approved.
   and `metric:snapshot:geckoterminal -- --mint ... --write` to reach
   `partial` plus two `geckoterminal.token_snapshot` Metrics with distinct
   `observedAt` values.
+- Confirmed bounded single-mint metric watch write: `metric:snapshot:geckoterminal -- --mint ... --write --watch --maxIterations 1 --minGapMinutes 10`
+  ran one cycle, selected one token, appended one Metric, moved `metricsCount`
+  from 2 to 3, and finished without token field updates or Telegram send.
 - Confirmed read-only visibility: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` can show the two-row Metric history before any
   watch or systemd work.
@@ -56,7 +59,9 @@ Still unconfirmed for this lane:
 - detect watch write
 - detect foreground or tmux operation
 - detect systemd operation
-- metric snapshot watch write
+- multi-token metric snapshot watch write
+- metric snapshot foreground or tmux operation
+- metric snapshot systemd operation
 - multi-token or multi-metric cycles
 - `token_completed` production live send
 - `loop_complete` production live send
@@ -68,11 +73,18 @@ Still unconfirmed for this lane:
 - Existing spacing guard: `--minGapMinutes`.
 - Existing rate-limit behavior: watch mode stops the current cycle after the
   first token snapshot rate limit and continues later.
-- First always-on candidate: yes, after dry-run and one isolated write check.
+- Existing checkpoint or state file: none in this lane.
+- Confirmed bounded watch write gate: single mint plus `--maxIterations 1` plus
+  `--minGapMinutes`.
+- First always-on candidate: yes, after multi-token dry-run and foreground checks.
 - Write behavior: `--write` appends `Metric` rows.
 
 Start with dry-run-only watch using `--maxIterations 1` or `2`. Move to Red only
-when selected count and expected write count are bounded.
+when selected count and expected write count are bounded. For single-mint checks,
+prefer `--mint <MINT> --write --watch --maxIterations 1 --minGapMinutes <N>`.
+For multi-token watch write, checkpoint/state protection is not available, so
+`--limit`, `--maxIterations`, and `--minGapMinutes` are mandatory gates before
+any foreground, tmux, or systemd step.
 
 ### Enrich / Rescore Notify Wrappers
 
