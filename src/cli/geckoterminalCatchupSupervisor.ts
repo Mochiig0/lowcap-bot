@@ -18,6 +18,10 @@ import {
   type GeckoCatchupTokenWriteExecutionResult,
   type GeckoTokenWriteCommandRunner,
 } from "./geckoterminalCatchupTokenWriteRunner.js";
+import {
+  buildOpsNotificationPreview,
+  type OpsNotificationPreview,
+} from "../notify/opsNotificationPreview.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const DEFAULT_LIMIT = 2;
@@ -272,6 +276,16 @@ type WritePlan = {
   };
 };
 
+type OpsNotifyPlan = {
+  enabled: false;
+  channel: "telegram";
+  delivery: "preview_only";
+  sendSupported: false;
+  previewCount: number;
+  wouldNotifyCount: number;
+  notificationPreviews: OpsNotificationPreview[];
+};
+
 type TokenWritePostCheckResult = {
   checked: boolean;
   mint: string;
@@ -364,6 +378,7 @@ export type GeckoCatchupSupervisorOutput = {
   writePlan: WritePlan;
   writeModeReadiness: WriteModeReadiness;
   currentCounts: CurrentCounts;
+  opsNotifyPlan: OpsNotifyPlan;
   pendingCount: number;
   wouldRunCycles: number;
   selectedCandidates: SelectedCandidate[];
@@ -1336,6 +1351,128 @@ function buildWritePlan(
   };
 }
 
+function buildOpsNotifyPlan(output: Omit<GeckoCatchupSupervisorOutput, "opsNotifyPlan">): OpsNotifyPlan {
+  const previews: OpsNotificationPreview[] = [];
+  const selectedByMint = new Map(output.selectedCandidates.map((candidate) => [candidate.mint, candidate]));
+  const postCheck = output.writePlan.postCheckResult;
+
+  if (postCheck && "isStillPending" in postCheck) {
+    const candidate = selectedByMint.get(postCheck.mint);
+    const blockedBy = [
+      ...(postCheck.runnerStatus === "ok" ? [] : ["token_write_not_ok"]),
+      ...(postCheck.tokenFound ? [] : ["token_not_found"]),
+      ...(!postCheck.isStillPending ? [] : ["token_still_pending"]),
+      ...(postCheck.hasName ? [] : ["token_name_missing"]),
+      ...(postCheck.hasSymbol ? [] : ["token_symbol_missing"]),
+    ];
+
+    previews.push(
+      buildOpsNotificationPreview({
+        trigger: "token_completed",
+        mint: postCheck.mint,
+        tokenName: candidate?.name ?? null,
+        tokenSymbol: candidate?.symbol ?? null,
+        blockedBy,
+      }),
+    );
+  }
+
+  if (postCheck && "metricIdMatchesLatest" in postCheck) {
+    const blockedBy = [
+      ...(postCheck.runnerStatus === "ok" ? [] : ["metric_append_not_ok"]),
+      ...(postCheck.tokenFound ? [] : ["token_not_found"]),
+      ...(postCheck.metricsCount > 0 ? [] : ["metric_missing"]),
+      ...(postCheck.metricId !== null ? [] : ["metric_id_missing"]),
+      ...(postCheck.metricIdMatchesLatest ? [] : ["metric_id_not_latest"]),
+      ...postCheck.warnings,
+    ];
+
+    previews.push(
+      buildOpsNotificationPreview({
+        trigger: "metric_appended",
+        mint: postCheck.mint,
+        metricId: postCheck.metricId,
+        metricSource: postCheck.latestMetric?.source ?? null,
+        blockedBy,
+      }),
+    );
+
+    previews.push(
+      buildOpsNotificationPreview({
+        trigger: "loop_complete",
+        mint: postCheck.mint,
+        metricId: postCheck.metricId,
+        plannedTokenWrites: output.summary.plannedTokenWrites,
+        plannedMetricAppends: output.summary.plannedMetricAppends,
+        metricPendingCount: Math.max(output.currentCounts.metricPendingCount - 1, 0),
+        latestMetricMissingCount: Math.max(output.currentCounts.latestMetricMissingCount - 1, 0),
+        nextRecommendedAction:
+          output.summary.plannedTokenWrites === 0 &&
+          output.summary.plannedMetricAppends === 1 &&
+          output.currentCounts.metricPendingCount === 1 &&
+          output.currentCounts.latestMetricMissingCount === 1 &&
+          blockedBy.length === 0
+            ? "no_action"
+            : output.summary.nextRecommendedAction,
+        blockedBy: [
+          ...blockedBy,
+          ...(output.summary.plannedTokenWrites === 0 ? [] : ["token_writes_still_planned"]),
+          ...(output.summary.plannedMetricAppends === 1 ? [] : ["metric_append_plan_not_single"]),
+          ...(output.currentCounts.metricPendingCount === 1 ? [] : ["metric_pending_not_single"]),
+          ...(output.currentCounts.latestMetricMissingCount === 1 ? [] : ["latest_metric_missing_not_single"]),
+        ],
+      }),
+    );
+  }
+
+  if (!postCheck) {
+    for (const candidate of output.selectedCandidates) {
+      if (candidate.wouldWriteToken) {
+        previews.push(
+          buildOpsNotificationPreview({
+            trigger: "token_completed",
+            mint: candidate.mint,
+            tokenName: candidate.name,
+            tokenSymbol: candidate.symbol,
+            blockedBy: ["token_write_not_executed"],
+          }),
+        );
+      }
+    }
+
+    for (const item of output.metricAppendPlan.filter((plan) => plan.wouldAppendMetric)) {
+      previews.push(
+        buildOpsNotificationPreview({
+          trigger: "metric_appended",
+          mint: item.mint,
+          metricId: null,
+          metricSource: item.latestMetric?.source ?? GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
+          blockedBy: ["metric_append_not_executed"],
+        }),
+      );
+    }
+  }
+
+  return {
+    enabled: false,
+    channel: "telegram",
+    delivery: "preview_only",
+    sendSupported: false,
+    previewCount: previews.length,
+    wouldNotifyCount: previews.filter((preview) => preview.wouldNotify).length,
+    notificationPreviews: previews,
+  };
+}
+
+function attachOpsNotifyPlan(
+  output: Omit<GeckoCatchupSupervisorOutput, "opsNotifyPlan">,
+): GeckoCatchupSupervisorOutput {
+  return {
+    ...output,
+    opsNotifyPlan: buildOpsNotifyPlan(output),
+  };
+}
+
 function buildWriteModeReadiness(): WriteModeReadiness {
   return {
     readyForImplementation: true,
@@ -1457,7 +1594,7 @@ async function runInjectedGeckoTokenWriteRunner(
   const executionResult = toGeckoCatchupTokenWriteExecutionResult(runnerInput, runnerResult);
   const postCheckResult = await buildTokenWritePostCheckResult(executionResult);
 
-  return {
+  return attachOpsNotifyPlan({
     ...executableOutput,
     writePlan: {
       ...executableOutput.writePlan,
@@ -1465,7 +1602,7 @@ async function runInjectedGeckoTokenWriteRunner(
       postCheckResult,
       recoveryHints: buildRecoveryHints(postCheckResult),
     },
-  };
+  });
 }
 
 async function runInjectedGeckoMetricAppendRunner(
@@ -1540,7 +1677,7 @@ async function runInjectedGeckoMetricAppendRunner(
   const executionResult = toGeckoCatchupMetricAppendExecutionResult(runnerInput, runnerResult);
   const postCheckResult = await buildMetricAppendPostCheckResult(executionResult);
 
-  return {
+  return attachOpsNotifyPlan({
     ...executableOutput,
     writePlan: {
       ...executableOutput.writePlan,
@@ -1548,7 +1685,7 @@ async function runInjectedGeckoMetricAppendRunner(
       postCheckResult,
       recoveryHints: buildMetricAppendRecoveryHints(postCheckResult),
     },
-  };
+  });
 }
 
 export function buildGeckoCatchupSupervisorPlan(
@@ -1612,7 +1749,7 @@ export function buildGeckoCatchupSupervisorPlan(
   const writePlan = buildWritePlan(args, selectedCandidates, metricAppendPlan, safetyChecks, deps);
   const writeModeReadiness = buildWriteModeReadiness();
 
-  return {
+  return attachOpsNotifyPlan({
     readOnly: true,
     dryRun: args.dryRun,
     writeEnabled: false,
@@ -1640,7 +1777,7 @@ export function buildGeckoCatchupSupervisorPlan(
     cycles,
     stopReason,
     safetyChecks,
-  };
+  });
 }
 
 export async function buildGeckoCatchupSupervisorOutput(
