@@ -46,6 +46,14 @@ preflight has passed and the exact command is explicitly approved.
   `observedAt=2026-04-29T14:54:49.239Z`; volume24h / price / fdv / reserve /
   topPool were present. The Metric step did not update token fields and did not
   send Telegram.
+- Confirmed watch-detected read-only report visibility: `metrics:report -- --mint ... --limit 1`
+  showed Metric `id=1122`, its `observedAt`, `volume24h`, and all four
+  rawJson-free Metric presence fields as true; `token:compare -- --mint ...`
+  showed latestMetric `id=1122`, one `recentMetrics` item, and all four
+  `safeSummary` booleans as true; `tokens:compare-report` with Gecko-origin
+  partial / hasMetrics filters included the same mint with `metricsCount=1`,
+  latestMetric source / observedAt, and latestMetric safe summary columns.
+  These report checks did not expose Metric rawJson and did not write to DB.
 - Confirmed separate single-mint observation loop: a one-shot-origin pump.fun
   mint moved through detect one-shot write,
   `token:enrich-rescore:geckoterminal -- --mint ... --write`,
@@ -106,7 +114,9 @@ confirmed one-shot write gate above when the goal is to validate the pump.fun
 lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
 history and cohort-level visibility. The initial detect watch proof is limited
-to one pump-only live cycle with an isolated `/tmp` checkpoint. For any next
+to one pump-only live cycle with an isolated `/tmp` checkpoint, but its minted
+token has now also passed enrich/rescore, first Metric append, and rawJson-free
+report confirmation. For any next
 detect watch write, do not touch the default checkpoint; keep a bounded command
 shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
 The first attempts in the Codex sandbox for some live `tsx` commands failed
@@ -118,7 +128,7 @@ systemd detect watch as a later Red task.
 Still unconfirmed for this lane:
 
 - detect watch write second and later runs
-- second Metric append and read-only report check for the watch-detected mint
+- second Metric append for the watch-detected mint
 - detect foreground or tmux operation
 - detect systemd operation
 - default-checkpoint detect watch operation
