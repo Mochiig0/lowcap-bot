@@ -27,6 +27,14 @@ preflight has passed and the exact command is explicitly approved.
 - Write behavior: `--write` hands accepted mints into the mint-first boundary.
 - Confirmed Red one-shot gate: `pnpm -s detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --write`.
 - Confirmed one-shot side effects: at most one mint ingest write, no checkpoint update, and no Telegram send.
+- Confirmed initial pump-only watch write gate:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 1 --checkpointFile /tmp/lowcap-gecko-detect-watch-pump-checkpoint.json`.
+  It ran one cycle with `inputCount=20`, `selectedCount=1`, `acceptedCount=1`,
+  `importedCount=1`, `failedCount=0`, and created mint-only Token
+  `4tCTPRoA5fitVzEP8g17ZeSGpr4i9t8mjtqf6Pkdpump`. It updated only the `/tmp`
+  checkpoint to `2026-04-29T14:36:09.000Z |
+  ANPbYLCgNLGtfC5Qt4iSUERnwUREa8Qpsm7iGkY3uVvx`; the default checkpoint stayed
+  unused. Telegram, Metric append, enrich, and rescore were not invoked.
 - Confirmed single-mint observation loop: the same pump.fun mint moved through
   detect one-shot write, `token:enrich-rescore:geckoterminal -- --mint ... --write`,
   and `metric:snapshot:geckoterminal -- --mint ... --write` to reach
@@ -72,8 +80,8 @@ preflight has passed and the exact command is explicitly approved.
 - At this point, `metrics:report`, `tokens:compare-report`, and `token:compare`
   are all suitable for rawJson-free read-only Metric confirmation before any
   longer watch or systemd step.
-- Pump-only watch write gate is implemented but not Red-executed:
-  `--watch --write --pumpOnly --limit 1` is now accepted by CLI validation.
+- Pump-only watch write gate is implemented and the first isolated Red run has
+  passed. Continue to treat it as Red for any further live execution.
 - `--write --pumpOnly` still requires `--limit 1` in both one-shot and watch
   modes.
 - Checkpoint safety for the bounded pump-only watch path is covered by targeted
@@ -85,17 +93,22 @@ Start with file-backed or live one-shot dry-run inspection, then use the
 confirmed one-shot write gate above when the goal is to validate the pump.fun
 lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
-history and cohort-level visibility. These are still not detect watch or systemd
-proofs. For the first detect watch write Red execution, do not touch the default
-checkpoint. Use only a bounded command with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
-Treat any long-running detect watch, tmux detect watch, or systemd detect watch
-as a later Red task after the isolated `/tmp` checkpoint gate passes.
+history and cohort-level visibility. The initial detect watch proof is limited
+to one pump-only live cycle with an isolated `/tmp` checkpoint. For any next
+detect watch write, do not touch the default checkpoint; keep a bounded command
+shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
+The first attempt in the Codex sandbox failed before application startup due to
+`tsx` IPC `EPERM`; the same exact command succeeded outside the sandbox and
+stayed within the allowed side-effect bounds. Treat any long-running detect
+watch, tmux detect watch, or systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- detect watch write
+- detect watch write second and later runs
 - detect foreground or tmux operation
 - detect systemd operation
+- default-checkpoint detect watch operation
+- long-running or unbounded detect watch
 - two-or-more-token simultaneous metric snapshot write
 - foreground metric append during bounded watch
 - long-running metric snapshot watch
