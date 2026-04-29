@@ -47,6 +47,14 @@ and one production Telegram ops live send for `metric_appended`:
   `plannedTokenWrites=0`, `pendingCount=0`, and `selectedCandidates=[]`;
   Metric append dry-run reported `status=no_pending`, `plannedMetricAppends=0`,
   `metricPendingCount=0`, `pendingCount=0`, and `selectedCandidates=[]`.
+- a later same-mint manual one-shot loop for
+  `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump` confirmed the direct
+  detector / enrich-rescore / metric snapshot path without ops notification:
+  `detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --write` created the
+  mint-only Token, `token:enrich-rescore:geckoterminal -- --mint ... --write`
+  moved it to `partial` with name/symbol/context/reviewFlags saved and score
+  `C` / `0`, and `metric:snapshot:geckoterminal -- --mint ... --write`
+  appended one `geckoterminal.token_snapshot` Metric with `metricId=1117`.
 
 Earlier ops-path Metric append failures are accounted for: the child-process
 `cli_error` / `parse_error` path was traced to `tsx` startup and stdout capture
@@ -57,7 +65,8 @@ target mint or runner output parsing.
 This confirms the minimum Token to Metric loop, capture-only ops notification
 records, and one `metric_appended` production Telegram ops live send. It does
 not confirm scheduler, watch, systemd, `token_completed` live send,
-`loop_complete` live send, multi-token write, or multi-cycle write operation.
+`loop_complete` live send, multi-token write, multi-cycle write operation, or a
+second time-series Metric observation for the same mint.
 
 ## Purpose
 
