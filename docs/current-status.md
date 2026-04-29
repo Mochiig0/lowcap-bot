@@ -59,7 +59,7 @@ pnpm ops:summary:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]
 ```
 
 ```bash
-pnpm ops:catchup:gecko -- [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N>] [--metricAppend] [--opsNotifyCaptureFile <PATH>] [--write]
+pnpm ops:catchup:gecko -- [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceMinutes <N>] [--metricAppend] [--opsNotifyCaptureFile <PATH>] [--opsNotify] [--opsNotifyTrigger token_completed|metric_appended|loop_complete] [--write]
 ```
 
 ```bash
@@ -319,8 +319,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
+- `ops:catchup:gecko --opsNotify --opsNotifyTrigger <TRIGGER>` now has the pre-send gate and safe result shape for exactly one selected ops notification trigger, but production Telegram sending is still not connected; only injected sender tests exercise the send path
 - previous ops Metric append runner failures are no longer current blockers: child-process `cli_error` / `parse_error` and stdout-empty behavior were fixed by the production runner startup and file-capture changes, and the later `fetch failed` case was isolated to environment-level DNS / network reachability rather than target-mint or runner parsing behavior
-- `ops:catchup:gecko` has not been promoted to scheduler, watch, systemd, Telegram live send, `--opsNotify` live-send gate, multi-token write, or multi-cycle write operation; next candidates are Telegram ops live-send gate design or one more explicit loop confirmation
+- `ops:catchup:gecko` has not been promoted to scheduler, watch, systemd, production Telegram live send, multi-token write, or multi-cycle write operation; next candidates are wiring the real Telegram ops sender behind the existing gate or one more explicit loop confirmation
 - `metric:snapshot:geckoterminal --watch` repeats the same selection and snapshot cycle at a fixed interval and keeps going after cycle-level failures
 - `metric:snapshot:geckoterminal --watch` stops the current cycle early after the first token snapshot `429 Too Many Requests`, reports the cycle as rate-limited, and still continues with the next cycle
 - `metric:snapshot:geckoterminal --minGapMinutes <N>` skips a token before fetch when the newest `Metric` for the same token and metric source is newer than `N` minutes
