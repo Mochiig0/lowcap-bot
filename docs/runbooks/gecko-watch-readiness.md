@@ -35,16 +35,21 @@ preflight has passed and the exact command is explicitly approved.
 - Confirmed read-only visibility: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` can show the two-row Metric history before any
   watch or systemd work.
+- Confirmed cohort report visibility: `metrics:report -- --limit 10` can show
+  multiple token / multiple Metric rows with rawJson-free safe summary columns,
+  and `tokens:compare-report` can show filtered Gecko-origin latestMetric /
+  `metricsCount` cohort summaries.
 - Invalid for the pump-only write path: `--watch --write --pumpOnly`.
 - Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 
 Start with file-backed or live one-shot dry-run inspection, then use the
 confirmed one-shot write gate above when the goal is to validate the pump.fun
 lowcap ingest path. The single-mint loop confirms the real-data one-shot path
-before automation, but it is not a watch or systemd proof. If watch write is
-needed later, `--pumpOnly` must be removed, which broadens the target set beyond
-the pump-only lane. Treat that as a separate design decision before touching
-the default checkpoint path.
+before automation, and the read-only reports now confirm both single-mint
+history and cohort-level visibility. These are still not watch or systemd
+proofs. If watch write is needed later, `--pumpOnly` must be removed, which
+broadens the target set beyond the pump-only lane. Treat that as a separate
+design decision before touching the default checkpoint path.
 
 Still unconfirmed for this lane:
 
@@ -53,6 +58,7 @@ Still unconfirmed for this lane:
 - detect systemd operation
 - metric snapshot watch write
 - multi-token or multi-metric cycles
+- `tokens:compare-report` latestMetric safe summary columns
 - `token_completed` production live send
 - `loop_complete` production live send
 

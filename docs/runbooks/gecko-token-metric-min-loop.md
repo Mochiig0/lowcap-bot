@@ -66,6 +66,12 @@ and one production Telegram ops live send for `metric_appended`:
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
   shows the latestMetric, and `tokens:compare-report` shows cohort-level
   latestMetric summaries for filtered Gecko-origin rows.
+- after adding rawJson-free safe summary columns, a later read-only cohort check
+  confirmed that `metrics:report -- --limit 10` can show multiple token /
+  multiple Metric rows with `priceUsdPresent`, `fdvUsdPresent`,
+  `reserveUsdPresent`, and `topPoolPresent`, and that `tokens:compare-report`
+  can show the target mint in a filtered Gecko-origin cohort with `metricsCount`
+  and latestMetric source / observedAt.
 
 Earlier ops-path Metric append failures are accounted for: the child-process
 `cli_error` / `parse_error` path was traced to `tsx` startup and stdout capture
@@ -75,11 +81,11 @@ target mint or runner output parsing.
 
 This confirms the minimum Token to Metric loop, capture-only ops notification
 records, one `metric_appended` production Telegram ops live send, and read-only
-report/compare visibility for a two-row same-mint Metric time series. It does
+report/compare visibility for a two-row same-mint Metric time series plus
+multi-token Metric-row cohort reporting. It does
 not confirm scheduler, watch, systemd, `token_completed` live send,
 `loop_complete` live send, multi-token write, multi-cycle write operation, or
-numeric value formatting for stored Gecko snapshot price / fdv / reserve /
-topPool fields in `metrics:report`.
+latestMetric safe summary columns in `tokens:compare-report`.
 
 ## Purpose
 
@@ -416,10 +422,11 @@ Final pass conditions:
 ### Step 10: Read-Only Metric History Checks
 
 After a second same-mint Metric append, use read-only views to confirm the
-history before moving toward watch or systemd:
+history and cohort visibility before moving toward watch or systemd:
 
 ```bash
 pnpm -s metrics:report -- --mint <MINT> --limit 2
+pnpm -s metrics:report -- --limit 10
 pnpm -s token:compare -- --mint <MINT>
 pnpm -s token:show -- --mint <MINT>
 pnpm -s tokens:compare-report -- --source geckoterminal.new_pools --metadataStatus partial --hasMetrics true --minMetricsCount 2 --latestMetricSource geckoterminal.token_snapshot --limit 5
@@ -428,19 +435,25 @@ pnpm -s tokens:compare-report -- --source geckoterminal.new_pools --metadataStat
 Pass conditions:
 
 - `metrics:report -- --mint <MINT> --limit 2` returns the two latest rows for
-  that mint and shows two distinct `observedAt` values.
+  that mint, shows two distinct `observedAt` values, and exposes rawJson-free
+  safe summary columns for market-data presence.
+- `metrics:report -- --limit <N>` can show multiple token / multiple Metric
+  rows with the same safe summary columns.
 - `token:compare -- --mint <MINT>` shows `metricsCount=2`, latestMetric, and
   `recentMetrics` containing both Metric rows.
 - `token:show -- --mint <MINT>` is useful for confirming the latestMetric only;
   it is not the best view for the full two-row history.
 - `tokens:compare-report` is useful for cohort and latestMetric summaries; it is
-  not the best direct view for two-row same-mint history.
+  not the best direct view for two-row same-mint history, and it does not yet
+  expose the safe summary columns from `metrics:report`.
 
 Known gap:
 
-- `metrics:report` now exposes rawJson-free presence booleans for saved Gecko
-  snapshot price / fdv / reserve / topPool fields, but it still does not format
-  those values for human comparison.
+- To inspect Metric row history after filtering by Token source or
+  `metadataStatus`, operators currently need to combine `tokens:compare-report`
+  for cohort selection with `metrics:report` for Metric rows.
+- The next small read-only implementation candidate is to add latestMetric
+  safe summary columns to `tokens:compare-report`.
 
 ## Dry-Run Versus Write
 
