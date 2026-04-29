@@ -30,7 +30,8 @@ preflight has passed and the exact command is explicitly approved.
 - Confirmed single-mint observation loop: the same pump.fun mint moved through
   detect one-shot write, `token:enrich-rescore:geckoterminal -- --mint ... --write`,
   and `metric:snapshot:geckoterminal -- --mint ... --write` to reach
-  `partial` plus one `geckoterminal.token_snapshot` Metric.
+  `partial` plus two `geckoterminal.token_snapshot` Metrics with distinct
+  `observedAt` values.
 - Invalid for the pump-only write path: `--watch --write --pumpOnly`.
 - Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 
@@ -48,7 +49,7 @@ Still unconfirmed for this lane:
 - detect foreground or tmux operation
 - detect systemd operation
 - metric snapshot watch write
-- second and later Metric time-series observations for the same mint
+- read-only report or compare visibility for the same-mint Metric time series
 - multi-token or multi-metric cycles
 - `token_completed` production live send
 - `loop_complete` production live send

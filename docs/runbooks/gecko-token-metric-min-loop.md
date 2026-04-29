@@ -55,6 +55,12 @@ and one production Telegram ops live send for `metric_appended`:
   moved it to `partial` with name/symbol/context/reviewFlags saved and score
   `C` / `0`, and `metric:snapshot:geckoterminal -- --mint ... --write`
   appended one `geckoterminal.token_snapshot` Metric with `metricId=1117`.
+- the same mint then confirmed a second single-mint Metric append through the
+  same `metric:snapshot:geckoterminal -- --mint ... --write` command:
+  `metricsCount` moved from 1 to 2, latestMetric became `metricId=1118` with
+  `observedAt=2026-04-29T10:50:02.424Z`, and the previous Metric remained at
+  `observedAt=2026-04-29T10:35:31.337Z`. This check was about append/time-series
+  behavior, not price evaluation.
 
 Earlier ops-path Metric append failures are accounted for: the child-process
 `cli_error` / `parse_error` path was traced to `tsx` startup and stdout capture
@@ -65,8 +71,8 @@ target mint or runner output parsing.
 This confirms the minimum Token to Metric loop, capture-only ops notification
 records, and one `metric_appended` production Telegram ops live send. It does
 not confirm scheduler, watch, systemd, `token_completed` live send,
-`loop_complete` live send, multi-token write, multi-cycle write operation, or a
-second time-series Metric observation for the same mint.
+`loop_complete` live send, multi-token write, multi-cycle write operation, or
+read-only report/compare visibility for the resulting Metric time series.
 
 ## Purpose
 
