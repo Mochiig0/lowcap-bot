@@ -67,6 +67,14 @@ and one production Telegram ops live send for `metric_appended`:
   moved `metricsCount` from 2 to 3, and updated latestMetric to `metricId=1119`
   with `observedAt=2026-04-29T11:45:26.494Z`. This was not long-running
   operation; it only confirmed that one-cycle watch write can terminate safely.
+- the metric snapshot lane then confirmed bounded batch watch write through
+  `metric:snapshot:geckoterminal -- --pumpOnly --limit 2 --write --watch --maxIterations 1 --minGapMinutes 10`:
+  `recent_batch` mode ran exactly one cycle, selected one eligible pump token,
+  appended one Metric, moved the same mint's `metricsCount` from 3 to 4, and
+  updated latestMetric to `metricId=1120` with
+  `observedAt=2026-04-29T12:05:54.348Z`. This was not a two-token simultaneous
+  write confirmation; it only confirmed that bounded batch watch can terminate
+  safely when the current eligible set contains one token.
 - the resulting two-Metric time series was then confirmed through existing
   read-only CLI: `metrics:report -- --mint ... --limit 2` and
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
@@ -86,12 +94,13 @@ was isolated to environment-level DNS / network reachability rather than the
 target mint or runner output parsing.
 
 This confirms the minimum Token to Metric loop, capture-only ops notification
-records, one `metric_appended` production Telegram ops live send, one bounded
-single-mint Metric snapshot watch write, and read-only report/compare visibility
-for a same-mint Metric time series plus multi-token Metric-row cohort reporting.
-It does not confirm scheduler, systemd, `token_completed` live send,
-`loop_complete` live send, multi-token watch write, multi-cycle write operation,
-or numeric value formatting for latestMetric safe summary fields.
+records, one `metric_appended` production Telegram ops live send, bounded
+single-mint and batch Metric snapshot watch writes, and read-only report/compare
+visibility for a same-mint Metric time series plus multi-token Metric-row cohort
+reporting. It does not confirm scheduler, systemd, `token_completed` live send,
+`loop_complete` live send, two-or-more-token simultaneous Metric write,
+long-running watch operation, or numeric value formatting for latestMetric safe
+summary fields.
 
 ## Purpose
 
