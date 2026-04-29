@@ -46,9 +46,10 @@ function blockedResult(input: {
   mint?: string | null;
   metricId?: number | null;
   blockedBy: string[];
+  sendSupported?: boolean;
 }): SendSelectedOpsNotificationPreviewResult {
   return {
-    sendSupported: false,
+    sendSupported: input.sendSupported ?? false,
     sentCount: 0,
     results: [
       {
@@ -80,6 +81,7 @@ export async function sendSelectedOpsNotificationPreview(
     return blockedResult({
       trigger: null,
       blockedBy: ["ops_notify_trigger_required"],
+      sendSupported,
     });
   }
 
@@ -88,6 +90,7 @@ export async function sendSelectedOpsNotificationPreview(
     return blockedResult({
       trigger: input.trigger,
       blockedBy: ["ops_notify_preview_not_found"],
+      sendSupported,
     });
   }
 
@@ -95,6 +98,7 @@ export async function sendSelectedOpsNotificationPreview(
     return blockedResult({
       trigger: input.trigger,
       blockedBy: ["ops_notify_preview_not_single"],
+      sendSupported,
     });
   }
 
@@ -131,6 +135,7 @@ export async function sendSelectedOpsNotificationPreview(
       mint: preview.mint,
       metricId: preview.metricId,
       blockedBy: ["ops_notify_sender_not_connected"],
+      sendSupported,
     });
   }
 

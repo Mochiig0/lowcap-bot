@@ -32,6 +32,7 @@ import {
   type OpsNotificationSendResult,
   type OpsNotificationSender,
 } from "../notify/opsNotificationSendGate.js";
+import { sendOpsTelegramNotification } from "../notify/opsTelegramSender.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const DEFAULT_LIMIT = 2;
@@ -1571,6 +1572,39 @@ export async function sendOpsNotifyPlan(
   output: GeckoCatchupSupervisorOutput,
   deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
+  if (
+    output.opsNotifyPlan.sendRequested &&
+    output.opsNotifyPlan.captureRequested &&
+    output.opsNotifyPlan.selectedTrigger !== null
+  ) {
+    const selectedCaptureResults = output.opsNotifyPlan.captureResults.filter(
+      (result) => result.trigger === output.opsNotifyPlan.selectedTrigger,
+    );
+    if (
+      selectedCaptureResults.length !== 1 ||
+      selectedCaptureResults[0]?.status !== "captured"
+    ) {
+      return {
+        ...output,
+        opsNotifyPlan: {
+          ...output.opsNotifyPlan,
+          sendSupported: deps.opsNotifySender !== undefined,
+          sentCount: 0,
+          sendResults: [
+            {
+              trigger: output.opsNotifyPlan.selectedTrigger,
+              mint: selectedCaptureResults[0]?.mint ?? null,
+              metricId: selectedCaptureResults[0]?.metricId ?? null,
+              status: "blocked",
+              blockedBy: ["ops_notify_capture_not_confirmed"],
+              errorCode: null,
+            },
+          ],
+        },
+      };
+    }
+  }
+
   const sendResult = await sendSelectedOpsNotificationPreview({
     sendRequested: output.opsNotifyPlan.sendRequested,
     trigger: output.opsNotifyPlan.selectedTrigger,
@@ -1962,6 +1996,7 @@ export function buildGeckoCatchupSupervisorCliDeps(): GeckoCatchupSupervisorDeps
   return {
     tokenWriteRunner: runGeckoTokenWriteCommandWithNodeExecFile,
     metricAppendRunner: runGeckoMetricAppendCommandWithNodeExecFile,
+    opsNotifySender: sendOpsTelegramNotification,
   };
 }
 

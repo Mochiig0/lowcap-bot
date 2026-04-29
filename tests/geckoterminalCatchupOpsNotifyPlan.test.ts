@@ -3,13 +3,16 @@ import assert from "node:assert/strict";
 
 import {
   buildGeckoCatchupSupervisorPlan,
+  buildGeckoCatchupSupervisorCliDeps,
   parseGeckoCatchupSupervisorArgs,
+  sendOpsNotifyPlan,
 } from "../src/cli/geckoterminalCatchupSupervisor.ts";
 import { buildOpsNotificationPreview } from "../src/notify/opsNotificationPreview.ts";
 import {
   sendSelectedOpsNotificationPreview,
   type OpsNotificationSenderInput,
 } from "../src/notify/opsNotificationSendGate.ts";
+import { sendOpsTelegramNotification } from "../src/notify/opsTelegramSender.ts";
 
 const GECKO_SOURCE = "geckoterminal.new_pools";
 
@@ -216,4 +219,152 @@ test("ops notification send gate blocks ambiguous or unsupported sends", async (
     sender: async () => ({ status: "sent" }),
   });
   assert.deepEqual(duplicate.results[0]?.blockedBy, ["ops_notify_preview_not_single"]);
+});
+
+test("ops notification production sender maps Telegram outcomes to safe codes", async () => {
+  assert.equal(typeof buildGeckoCatchupSupervisorCliDeps().opsNotifySender, "function");
+
+  const input = {
+    trigger: "metric_appended" as const,
+    mint: "OpsNotifyTelegram111111111111111111111111pump",
+    metricId: 1115,
+    message: "safe message",
+  };
+  const missingCredentials = await sendOpsTelegramNotification(input, {
+    env: {},
+    fetch: async () => {
+      throw new Error("fetch should not be called without credentials");
+    },
+  });
+  assert.deepEqual(missingCredentials, {
+    status: "failed",
+    errorCode: "telegram_credentials_missing",
+  });
+
+  const apiFailure = await sendOpsTelegramNotification(input, {
+    env: {
+      TELEGRAM_BOT_TOKEN: "test-token",
+      TELEGRAM_CHAT_ID: "test-chat",
+    },
+    fetch: async () => new Response("do not expose this body", { status: 500 }),
+  });
+  assert.deepEqual(apiFailure, {
+    status: "failed",
+    errorCode: "telegram_response_not_ok",
+  });
+
+  const networkFailure = await sendOpsTelegramNotification(input, {
+    env: {
+      TELEGRAM_BOT_TOKEN: "test-token",
+      TELEGRAM_CHAT_ID: "test-chat",
+    },
+    fetch: async () => {
+      throw new Error("network down");
+    },
+  });
+  assert.deepEqual(networkFailure, {
+    status: "failed",
+    errorCode: "telegram_network_error",
+  });
+
+  const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+  const success = await sendOpsTelegramNotification(input, {
+    env: {
+      TELEGRAM_BOT_TOKEN: "test-token",
+      TELEGRAM_CHAT_ID: "test-chat",
+    },
+    fetch: async (url, init) => {
+      fetchCalls.push({ url: String(url), init });
+      return new Response("{}", { status: 200 });
+    },
+  });
+  assert.deepEqual(success, { status: "sent" });
+  assert.equal(fetchCalls.length, 1);
+  assert.equal(fetchCalls[0]?.init?.method, "POST");
+  assert.equal(fetchCalls[0]?.init?.headers?.["content-type" as keyof HeadersInit], "application/json");
+  const body = JSON.parse(String(fetchCalls[0]?.init?.body ?? "{}")) as Record<string, unknown>;
+  assert.equal(body["chat_id"], "test-chat");
+  assert.equal(body["text"], "safe message");
+  assert.equal(body["disable_web_page_preview"], true);
+});
+
+test("ops notification send waits for selected trigger capture confirmation", async () => {
+  const now = new Date("2026-04-29T00:00:00.000Z");
+  const preview = buildOpsNotificationPreview({
+    trigger: "metric_appended",
+    mint: "OpsNotifyCaptureGate11111111111111111111pump",
+    metricId: 1115,
+    metricSource: "geckoterminal.token_snapshot",
+  });
+  const baseOutput = buildGeckoCatchupSupervisorPlan(
+    parseGeckoCatchupSupervisorArgs([
+      "--opsNotify",
+      "--opsNotifyTrigger",
+      "metric_appended",
+      "--opsNotifyCaptureFile",
+      "/tmp/lowcap-ops-notify.jsonl",
+    ]),
+    [],
+    new Date(now.getTime() - 60_000),
+  );
+  const outputWithPreview = {
+    ...baseOutput,
+    opsNotifyPlan: {
+      ...baseOutput.opsNotifyPlan,
+      notificationPreviews: [preview],
+      previewCount: 1,
+      wouldNotifyCount: 1,
+    },
+  };
+  const senderCalls: OpsNotificationSenderInput[] = [];
+  const sender = async (input: OpsNotificationSenderInput) => {
+    senderCalls.push(input);
+    return { status: "sent" as const };
+  };
+
+  const blocked = await sendOpsNotifyPlan(
+    {
+      ...outputWithPreview,
+      opsNotifyPlan: {
+        ...outputWithPreview.opsNotifyPlan,
+        captureResults: [
+          {
+            trigger: "metric_appended",
+            mint: preview.mint,
+            metricId: preview.metricId,
+            status: "skipped",
+            blockedBy: ["capture_failed"],
+          },
+        ],
+      },
+    },
+    { opsNotifySender: sender },
+  );
+  assert.equal(senderCalls.length, 0);
+  assert.equal(blocked.opsNotifyPlan.sentCount, 0);
+  assert.deepEqual(blocked.opsNotifyPlan.sendResults[0]?.blockedBy, [
+    "ops_notify_capture_not_confirmed",
+  ]);
+
+  const sent = await sendOpsNotifyPlan(
+    {
+      ...outputWithPreview,
+      opsNotifyPlan: {
+        ...outputWithPreview.opsNotifyPlan,
+        captureResults: [
+          {
+            trigger: "metric_appended",
+            mint: preview.mint,
+            metricId: preview.metricId,
+            status: "captured",
+            blockedBy: [],
+          },
+        ],
+      },
+    },
+    { opsNotifySender: sender },
+  );
+  assert.equal(senderCalls.length, 1);
+  assert.equal(sent.opsNotifyPlan.sentCount, 1);
+  assert.equal(sent.opsNotifyPlan.sendResults[0]?.status, "sent");
 });
