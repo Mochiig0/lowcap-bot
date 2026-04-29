@@ -12,8 +12,8 @@ It is intentionally not a scheduler, worker, queue, retry system, or generic sou
 
 ## Confirmed Status
 
-As of the successful ops-path check for metric id `1114`, the full operator-visible
-Token to Metric loop has been manually confirmed:
+As of the successful ops-path checks, the full operator-visible Token to Metric
+loop has been manually confirmed, including capture-only ops notification records:
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
@@ -26,6 +26,11 @@ Token to Metric loop has been manually confirmed:
 - the final ops dry-run reported `plannedTokenWrites=0`,
   `plannedMetricAppends=0`, `metricPendingCount=0`,
   `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`.
+- a later capture-enabled run also confirmed `--opsNotifyCaptureFile` writes
+  JSONL records for `token_completed`, `metric_appended`, and `loop_complete`
+  after a successful Metric append with `metricId=1115`; delivery stayed
+  `capture_only`, without Telegram live send and without secret/env/raw
+  stdout/raw stderr/full-args style fields in the capture output.
 
 Earlier ops-path Metric append failures are accounted for: the child-process
 `cli_error` / `parse_error` path was traced to `tsx` startup and stdout capture
@@ -33,8 +38,10 @@ behavior and fixed in the production runner, while a later `fetch failed` result
 was isolated to environment-level DNS / network reachability rather than the
 target mint or runner output parsing.
 
-This confirms the minimum Token to Metric loop. It does not confirm scheduler,
-watch, systemd, Telegram ops, multi-token write, or multi-cycle write operation.
+This confirms the minimum Token to Metric loop and capture-only ops notification
+records. It does not confirm scheduler, watch, systemd, Telegram live send,
+`--opsNotify` live-send gating, multi-token write, or multi-cycle write
+operation.
 
 ## Purpose
 
@@ -162,6 +169,12 @@ pnpm -s ops:catchup:gecko -- --write --pumpOnly --limit 1 --maxCycles 1
 ```
 
 This path runs the token write runner only. It must not append metrics and must not notify.
+When capture-only ops notification preview records are explicitly being checked,
+add the capture file option:
+
+```bash
+pnpm -s ops:catchup:gecko -- --write --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080 --opsNotifyCaptureFile /tmp/lowcap-ops-notify-capture.jsonl
+```
 
 Pass conditions:
 
@@ -180,6 +193,7 @@ Stop when:
 - `tokenWriteRetryCandidates` contains the mint
 - `runnerDbMismatchCandidates` contains the mint
 - token remains pending
+- capture-only was requested but no `token_completed` record appears after an otherwise successful token completion
 
 ### Step 6: Post Token Write Read-Only Check
 
@@ -244,6 +258,12 @@ pnpm -s ops:catchup:gecko -- --write --metricAppend --pumpOnly --limit 1 --maxCy
 Use the manual path when directly confirming the metric snapshot CLI for one known mint.
 Use the ops path when confirming the production catch-up supervisor can delegate exactly one
 Metric append through the injected runner.
+When capture-only ops notification preview records are explicitly being checked,
+the ops path may include:
+
+```bash
+--opsNotifyCaptureFile /tmp/lowcap-ops-notify-capture.jsonl
+```
 
 #### Manual Path
 
@@ -298,6 +318,8 @@ Pass conditions:
 - `tokenWriteExecutionResults` length is 0
 - `token:show` reports `metricsCount=1` or greater
 - `token:show` reports latest metric source `geckoterminal.token_snapshot`
+- if capture-only was requested, JSONL includes `metric_appended` and
+  `loop_complete` records with `delivery=capture_only`
 - final ops dry-run reports `no_pending`
 - final ops dry-run reports `nextRecommendedAction=no_action`
 
@@ -311,6 +333,8 @@ Stop when:
 - `writeSummary.metricId` is missing
 - `tokenWriteExecutionResults` is not empty
 - post-check warnings, retry candidates, or runner DB mismatch candidates appear
+- capture-only was requested but the capture records include secret/env/raw
+  stdout/raw stderr/full-args style fields
 
 Do not:
 
@@ -319,6 +343,7 @@ Do not:
 - increase `--limit` above 1
 - increase `--maxCycles` above 1
 - move from this confirmation into Telegram, scheduler, watch, or systemd setup
+- treat capture-only as Telegram live send readiness by itself
 
 ### Step 9: Final Read-Only Checks
 
@@ -337,6 +362,8 @@ Final pass conditions:
 
 - `metricsCount` is 1 or greater for the mint
 - `latestMetric` is present
+- capture-only records, when requested, contain only safe preview fields and
+  include the expected trigger names for the completed step
 - `summary.status` is `no_pending`
 - `plannedTokenWrites` is 0
 - `plannedMetricAppends` is 0
@@ -357,6 +384,7 @@ Write commands mutate data and require explicit current-turn permission:
 - `ops:catchup:gecko --write` performs one gated token-only write through `token:enrich-rescore:geckoterminal`
 - `metric:snapshot:geckoterminal --write` appends one `Metric` row for a successful snapshot
 - `ops:catchup:gecko --write --metricAppend` delegates exactly one Metric append through the production runner only when the gated one-token, one-cycle Metric-only plan is eligible
+- `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` appends ops notification preview records to a local JSONL file only; it does not send Telegram messages and should remain separate from any future live-send `--opsNotify` gate
 
 Do not combine these write steps into one hidden automation path.
 
@@ -370,6 +398,9 @@ Use these markers:
 - Token-only ops write complete: post-check confirms token found, not pending, name and symbol present.
 - Metric append complete: exactly one Metric row was appended and `token:show` reports a latest metric.
 - Loop complete: final `ops:catchup:gecko` dry-run reports `no_pending` and `no_action`.
+- Capture-only ops notification complete: JSONL contains the expected
+  `token_completed`, `metric_appended`, and `loop_complete` records with
+  `delivery=capture_only` and no secret/env/raw-output/full-args leakage.
 
 Keep the phase unchanged when:
 
@@ -390,15 +421,16 @@ This loop does not yet include:
 - multi-cycle write
 - automatic Metric append after token write
 - automatic retry or resume
-- Telegram notification
-- Telegram ops execution
+- Telegram live-send notification
+- Telegram ops live-send execution
+- `--opsNotify` live-send gate
 - generic multi-source adapter runtime
 
 ## Next Candidate Steps
 
 After this confirmed minimum loop, the next small operating steps are either:
 
-- design the Telegram ops boundary without enabling live Telegram sends yet
+- design the Telegram ops live-send gate without enabling live Telegram sends yet
 - run one more explicit Token to Metric loop to confirm repeatability
 
 ## Notes
