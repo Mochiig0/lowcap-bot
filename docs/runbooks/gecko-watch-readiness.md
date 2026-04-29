@@ -46,6 +46,17 @@ preflight has passed and the exact command is explicitly approved.
   3HpavdNkUh1WqK3XSrdUP1EAaHWkGkABkzc84fxNACp8`. The default checkpoint stayed
   uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
   catchup were not invoked.
+- Confirmed second watch-detected downstream first observation: the
+  `3zSwTacnYy4GiWtqXHoh4W9H5yqMaQ3tRYUcP7Xwpump` Token then moved through
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` to
+  `metadataStatus=partial` with `name/symbol=wtf/WTF`, score `C` / `0`,
+  `hardRejected=false`, and reviewFlags present. A following
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended the first
+  `geckoterminal.token_snapshot` Metric, moving `metricsCount` from 0 to 1 and
+  setting latestMetric to `id=1124` with
+  `observedAt=2026-04-29T15:41:56.989Z`; volume24h / price / fdv / reserve /
+  topPool were present. The Metric step did not update token fields and did not
+  send Telegram.
 - Confirmed watch-detected downstream observation loop: the same watch-origin
   mint then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -145,9 +156,9 @@ history and cohort-level visibility. The detect watch proof is still limited to
 bounded pump-only live cycles with an isolated `/tmp` checkpoint, but it has now
 passed twice. The first watch-detected mint has also passed enrich/rescore, two
 Metric appends with distinct `observedAt` values, and rawJson-free report
-confirmation for the two-row Metric history. The second watch-detected mint is
-currently confirmed only through mint-only creation, making its enrich/rescore
-preflight the natural next downstream check.
+confirmation for the two-row Metric history. The second watch-detected mint has
+now also passed enrich/rescore and first Metric append, but not yet read-only
+report confirmation or a second Metric append.
 For any next
 detect watch write, do not touch the default checkpoint; keep a bounded command
 shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
@@ -159,7 +170,8 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- second watch-detected mint downstream enrich/rescore / Metric append / report confirmation
+- second watch-detected mint read-only report confirmation
+- second watch-detected mint second Metric append / time-series confirmation
 - detect watch write third and later runs
 - detect foreground or tmux operation
 - detect systemd operation
