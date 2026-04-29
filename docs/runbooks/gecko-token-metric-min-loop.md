@@ -85,7 +85,7 @@ report/compare visibility for a two-row same-mint Metric time series plus
 multi-token Metric-row cohort reporting. It does
 not confirm scheduler, watch, systemd, `token_completed` live send,
 `loop_complete` live send, multi-token write, multi-cycle write operation, or
-latestMetric safe summary columns in `tokens:compare-report`.
+numeric value formatting for latestMetric safe summary fields.
 
 ## Purpose
 
@@ -444,16 +444,16 @@ Pass conditions:
 - `token:show -- --mint <MINT>` is useful for confirming the latestMetric only;
   it is not the best view for the full two-row history.
 - `tokens:compare-report` is useful for cohort and latestMetric summaries; it is
-  not the best direct view for two-row same-mint history, and it does not yet
-  expose the safe summary columns from `metrics:report`.
+  not the best direct view for two-row same-mint history, but it does expose
+  latestMetric safe summary columns.
 
 Known gap:
 
 - To inspect Metric row history after filtering by Token source or
   `metadataStatus`, operators currently need to combine `tokens:compare-report`
   for cohort selection with `metrics:report` for Metric rows.
-- The next small read-only implementation candidate is to add latestMetric
-  safe summary columns to `tokens:compare-report`.
+- LatestMetric safe summary fields are presence booleans only; numeric value
+  formatting remains intentionally out of scope.
 
 ## Dry-Run Versus Write
 

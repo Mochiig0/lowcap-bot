@@ -58,7 +58,6 @@ Still unconfirmed for this lane:
 - detect systemd operation
 - metric snapshot watch write
 - multi-token or multi-metric cycles
-- `tokens:compare-report` latestMetric safe summary columns
 - `token_completed` production live send
 - `loop_complete` production live send
 

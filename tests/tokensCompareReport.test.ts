@@ -102,6 +102,10 @@ type TokensCompareReportOutput = {
     latestPeakFdv24h: number | null;
     latestMaxMultiple15m: number | null;
     latestTimeToPeakMinutes: number | null;
+    latestMetricPriceUsdPresent: boolean;
+    latestMetricFdvUsdPresent: boolean;
+    latestMetricReserveUsdPresent: boolean;
+    latestMetricTopPoolPresent: boolean;
   }>;
 };
 
@@ -200,6 +204,8 @@ async function runTokensCompareReport(
 
 async function seedTokens(databaseUrl: string): Promise<{
   targetMint: string;
+  noMetricMint: string;
+  weirdMetricMint: string;
 }> {
   const db = new PrismaClient({
     datasources: {
@@ -251,10 +257,26 @@ async function seedTokens(databaseUrl: string): Promise<{
         peakFdv24h: 180000,
         maxMultiple15m: 2.5,
         timeToPeakMinutes: 18,
+        rawJson: {
+          network: "solana",
+          token: {
+            address: target.mint,
+            priceUsd: 0.00042,
+            fdvUsd: 180000,
+            totalReserveInUsd: 1500,
+          },
+          topPoolCount: 1,
+          topPool: {
+            address: "pool-compare-report",
+            tokenPriceUsd: 0.00042,
+            fdvUsd: 180000,
+            reserveInUsd: 1500,
+          },
+        },
       },
     });
 
-    await db.token.create({
+    const noMetric = await db.token.create({
       data: {
         mint: "CmpRpt2222222222222222222222222222222222222",
         name: "Other Compare Report Token",
@@ -264,10 +286,36 @@ async function seedTokens(databaseUrl: string): Promise<{
         scoreRank: "C",
         scoreTotal: 3,
       },
+      select: {
+        mint: true,
+      },
+    });
+
+    const weirdMetric = await db.token.create({
+      data: {
+        mint: "CmpRpt3333333333333333333333333333333333333",
+        name: "Weird Metric Compare Report Token",
+        symbol: "WCRP",
+        source: "weird-raw-json-source",
+        metadataStatus: "partial",
+        scoreRank: "C",
+        scoreTotal: 1,
+        metrics: {
+          create: {
+            source: "weird-raw-json-metric",
+            rawJson: "unexpected-compare-report-raw-json",
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
     });
 
     return {
       targetMint: target.mint,
+      noMetricMint: noMetric.mint,
+      weirdMetricMint: weirdMetric.mint,
     };
   } finally {
     await db.$disconnect();
@@ -363,7 +411,62 @@ test("tokensCompareReport boundary", async (t) => {
       assert.equal(parsed.items[0]?.latestPeakFdv24h, 180000);
       assert.equal(parsed.items[0]?.latestMaxMultiple15m, 2.5);
       assert.equal(parsed.items[0]?.latestTimeToPeakMinutes, 18);
+      assert.equal(parsed.items[0]?.latestMetricPriceUsdPresent, true);
+      assert.equal(parsed.items[0]?.latestMetricFdvUsdPresent, true);
+      assert.equal(parsed.items[0]?.latestMetricReserveUsdPresent, true);
+      assert.equal(parsed.items[0]?.latestMetricTopPoolPresent, true);
       assert.match(parsed.items[0]?.latestMetricObservedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("unexpected-compare-report-raw-json"), false);
+    });
+  });
+
+  await t.test("reports latestMetric safe booleans as false for missing or unexpected rawJson", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "safe-summary.db")}`;
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedTokens(databaseUrl);
+
+      const noMetricResult = await runTokensCompareReport(
+        [
+          "--source",
+          "other-source",
+          "--limit",
+          "5",
+        ],
+        databaseUrl,
+      );
+      assert.equal(noMetricResult.ok, true);
+
+      const noMetricParsed = JSON.parse(noMetricResult.stdout) as TokensCompareReportOutput;
+      assert.equal(noMetricParsed.items[0]?.mint, seeded.noMetricMint);
+      assert.equal(noMetricParsed.items[0]?.metricCompleteness.hasLatestMetric, false);
+      assert.equal(noMetricParsed.items[0]?.latestMetricPriceUsdPresent, false);
+      assert.equal(noMetricParsed.items[0]?.latestMetricFdvUsdPresent, false);
+      assert.equal(noMetricParsed.items[0]?.latestMetricReserveUsdPresent, false);
+      assert.equal(noMetricParsed.items[0]?.latestMetricTopPoolPresent, false);
+
+      const weirdMetricResult = await runTokensCompareReport(
+        [
+          "--source",
+          "weird-raw-json-source",
+          "--limit",
+          "5",
+        ],
+        databaseUrl,
+      );
+      assert.equal(weirdMetricResult.ok, true);
+
+      const weirdMetricParsed = JSON.parse(weirdMetricResult.stdout) as TokensCompareReportOutput;
+      assert.equal(weirdMetricParsed.items[0]?.mint, seeded.weirdMetricMint);
+      assert.equal(weirdMetricParsed.items[0]?.metricCompleteness.hasLatestMetric, true);
+      assert.equal(weirdMetricParsed.items[0]?.latestMetricPriceUsdPresent, false);
+      assert.equal(weirdMetricParsed.items[0]?.latestMetricFdvUsdPresent, false);
+      assert.equal(weirdMetricParsed.items[0]?.latestMetricReserveUsdPresent, false);
+      assert.equal(weirdMetricParsed.items[0]?.latestMetricTopPoolPresent, false);
+      assert.equal(weirdMetricResult.stdout.includes("rawJson"), false);
+      assert.equal(weirdMetricResult.stdout.includes("unexpected-compare-report-raw-json"), false);
     });
   });
 

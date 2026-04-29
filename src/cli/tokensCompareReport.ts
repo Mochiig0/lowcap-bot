@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { db } from "./db.js";
+import { buildSafeMetricSummary } from "./metricSafeSummary.js";
 
 type TokensCompareReportArgs = {
   rank?: string;
@@ -117,6 +118,10 @@ type CompareReportItem = {
   latestPeakFdv24h: number | null;
   latestMaxMultiple15m: number | null;
   latestTimeToPeakMinutes: number | null;
+  latestMetricPriceUsdPresent: boolean;
+  latestMetricFdvUsdPresent: boolean;
+  latestMetricReserveUsdPresent: boolean;
+  latestMetricTopPoolPresent: boolean;
 };
 
 const WORKING_WINNER_MAX_MULTIPLE_15M = 2;
@@ -616,6 +621,7 @@ async function run(): Promise<void> {
             peakFdv24h: true,
             maxMultiple15m: true,
             timeToPeakMinutes: true,
+            rawJson: true,
           },
         },
       },
@@ -625,6 +631,7 @@ async function run(): Promise<void> {
   const items = tokens.map((token): CompareReportItem => {
     const entrySnapshot = extractEntrySnapshotView(token.entrySnapshot);
     const latestMetric = token.metrics[0] ?? null;
+    const latestMetricSafeSummary = buildSafeMetricSummary(latestMetric?.rawJson);
     const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
     const outcomeBucket = deriveOutcomeBucket(
       token._count.metrics,
@@ -666,6 +673,10 @@ async function run(): Promise<void> {
       latestPeakFdv24h: latestMetric?.peakFdv24h ?? null,
       latestMaxMultiple15m: latestMetric?.maxMultiple15m ?? null,
       latestTimeToPeakMinutes: latestMetric?.timeToPeakMinutes ?? null,
+      latestMetricPriceUsdPresent: latestMetricSafeSummary.priceUsdPresent,
+      latestMetricFdvUsdPresent: latestMetricSafeSummary.fdvUsdPresent,
+      latestMetricReserveUsdPresent: latestMetricSafeSummary.reserveUsdPresent,
+      latestMetricTopPoolPresent: latestMetricSafeSummary.topPoolPresent,
     };
   });
 
