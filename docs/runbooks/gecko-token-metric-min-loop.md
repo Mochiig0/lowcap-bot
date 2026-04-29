@@ -483,9 +483,10 @@ Pass conditions:
   `1121 -> 1120 -> 1119 -> 1118 -> 1117`.
 - `metrics:report -- --limit <N>` can show multiple token / multiple Metric
   rows with the same safe summary columns.
-- `token:compare -- --mint <MINT>` shows `metricsCount`, latestMetric, and
-  `recentMetrics`; Metric views omit rawJson and include `safeSummary` booleans
-  for price / fdv / reserve / topPool presence.
+- `token:compare -- --mint <MINT>` shows single-token details plus
+  `metricsCount`, latestMetric, and `recentMetrics`; Metric views omit rawJson
+  and include `safeSummary` booleans for price / fdv / reserve / topPool
+  presence.
 - `token:show -- --mint <MINT>` is useful for confirming the latestMetric only;
   it is not the best view for the full two-row history.
 - `tokens:compare-report` is useful for cohort and latestMetric summaries; it is
@@ -493,14 +494,15 @@ Pass conditions:
   latestMetric safe summary columns. The post-tmux check used `minMetricsCount=5`
   to confirm the target mint in the Gecko-origin cohort with `metricsCount=5`
   and latestMetric `id=1121`.
+- Together, `metrics:report`, `token:compare`, and `tokens:compare-report`
+  cover Metric row history, single-token history/details, and cohort/latestMetric
+  summaries without printing Metric rawJson.
 
 Known gap:
 
 - To inspect Metric row history after filtering by Token source or
   `metadataStatus`, operators currently need to combine `tokens:compare-report`
   for cohort selection with `metrics:report` for Metric rows.
-- LatestMetric safe summary fields are presence booleans only; numeric value
-  formatting remains intentionally out of scope.
 - Safe summary fields are presence booleans only; numeric formatting remains a
   separate future improvement.
 

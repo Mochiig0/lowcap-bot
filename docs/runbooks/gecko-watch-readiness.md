@@ -64,6 +64,9 @@ preflight has passed and the exact command is explicitly approved.
 - Confirmed rawJson-free token compare output: `token:compare` now omits Metric
   rawJson from latestMetric / `recentMetrics` and includes `safeSummary`
   booleans for price / fdv / reserve / topPool presence.
+- At this point, `metrics:report`, `tokens:compare-report`, and `token:compare`
+  are all suitable for rawJson-free read-only Metric confirmation before any
+  longer watch or systemd step.
 - Invalid for the pump-only write path: `--watch --write --pumpOnly`.
 - Reason: `--write --pumpOnly` is one-shot-only and requires `--limit 1`, so it cannot be combined with `--watch`.
 

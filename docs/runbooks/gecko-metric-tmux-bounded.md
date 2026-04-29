@@ -142,7 +142,9 @@ Expected confirmations:
 `token:compare -- --mint <MINT>` can also show latestMetric and
 `recentMetrics`. Its Metric views are rawJson-free and include `safeSummary`
 booleans for price / fdv / reserve / topPool presence, so it can be used for
-single-token history summaries without pasting rawJson.
+single-token history summaries without pasting rawJson. Keep operator reports
+to ids, timestamps, counts, and safeSummary booleans rather than raw stdout
+blocks.
 
 ## Systemd Relationship
 
