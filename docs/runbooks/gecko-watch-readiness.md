@@ -139,6 +139,16 @@ and sample unit do not yet match the confirmed bounded gate:
   `LOWCAP_GECKOTERMINAL_METRIC_SOURCE=geckoterminal.token_snapshot`, but has no
   `EnvironmentFile`, no `--pumpOnly`, no `--maxIterations`, and
   `Restart=always`.
+- `ops/systemd/lowcap-bot-geckoterminal-metric-watch-first-run.service` is the
+  bounded first-run sample. It uses the same wrapper, sets
+  `LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY=true`,
+  `LOWCAP_GECKOTERMINAL_METRIC_LIMIT=2`,
+  `LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS=2`,
+  `LOWCAP_GECKOTERMINAL_METRIC_MIN_GAP_MINUTES=10`,
+  `LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=60`,
+  `LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=0`, and `Restart=no`.
+  This unit is for manual first-run confirmation only and is not the always-on
+  metric watch unit.
 
 Do not install, enable, or start this unit yet. The first systemd run must be
 bounded close to the confirmed gate by explicitly setting
@@ -152,9 +162,23 @@ payloads.
 
 Yellow follow-up candidates before any Red systemd run:
 
-- Add or document a first-run sample unit/env that matches the bounded gate.
 - Decide whether metric watch output should be summary-only for journald, rather
   than full CLI JSON.
+
+Red systemd first-run must still be split into exact commands and explicitly
+approved before execution:
+
+1. Copy/install the first-run unit into the user systemd directory.
+2. Run `systemctl --user daemon-reload`.
+3. Start only `lowcap-bot-geckoterminal-metric-watch-first-run.service`.
+4. Stop the first-run unit if any stop condition is hit.
+5. Check bounded logs for cycle count, selected count, written count, skipped
+   count, failure/rate-limit fields, and natural exit. Do not paste rawJson,
+   secrets, or large journal output into reports.
+
+Do not run `enable` for the first-run unit. Do not start the always-on metric
+watch unit until the first-run unit has been installed, started, observed,
+stopped or naturally exited, and documented under separate Red approval.
 
 ### Enrich / Rescore Notify Wrappers
 
