@@ -167,6 +167,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   operation MVP: operators can detect one pump.fun candidate at a time, enrich /
   rescore it, append time-series Metrics, and confirm the result with
   rawJson-free reports.
+- The daily bounded-operation entrypoint is now documented in
+  `docs/runbooks/gecko-bounded-operation-mvp.md`. It defines the Red / Green
+  boundary, exact-command examples, report commands, stop conditions, and the
+  rule that Red commands are run only with explicit one-step approval.
 - Confirmed detect gates include the one-shot pump-only write and two bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`. Both watch writes used the
@@ -183,9 +187,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   blocked.
 - Always-on monitoring is still not implemented: there is no scheduler, queue
   worker, installed service, restart-oriented runner, or unbounded watch
-  operation. The next decision is whether to formalize bounded tmux operation as
-  the interim MVP, or continue toward longer-running detect / metric watch
-  operation in a more service-capable environment.
+  operation. This remains a temporary human-triggered operation model, not
+  continuous automation. The next major decision is whether to formalize bounded
+  tmux operation as the interim MVP, or continue toward detect foreground /
+  tmux and longer-running watch operation in a more service-capable
+  environment.
 
 ## Implemented
 

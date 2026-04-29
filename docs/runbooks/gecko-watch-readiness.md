@@ -20,6 +20,11 @@ preflight has passed and the exact command is explicitly approved.
 GeckoTerminal automation is currently proven as a bounded, operator-triggered
 CLI workflow, not as always-on monitoring.
 
+Use `docs/runbooks/gecko-bounded-operation-mvp.md` as the current daily
+operation entrypoint. It defines the temporary bounded MVP, the recommended
+detect -> enrich/rescore -> Metric -> rawJson-free report order, Red / Green
+boundaries, exact-command examples, and stop conditions.
+
 Confirmed:
 
 - `detect:geckoterminal:new-pools` one-shot pump-only write.
@@ -41,6 +46,8 @@ Still unconfirmed:
 
 Next phase choices:
 
+- treat the bounded operation MVP runbook as the operator entrypoint before
+  adding more Red gates.
 - keep tmux bounded operation as the interim MVP entrypoint while user systemd
   remains blocked in this environment.
 - continue detect watch checks with `/tmp` checkpoint plus `--maxIterations 1`
@@ -49,6 +56,16 @@ Next phase choices:
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
   hold until eligible candidates naturally exist.
+
+Operational boundary:
+
+- Green includes docs updates, read-only CLI, dry-runs without `--write` /
+  `--watch`, rawJson-free reports, typecheck, and targeted tests.
+- Red includes any detect write, detect watch write, enrich/rescore write,
+  Metric snapshot write, tmux start, systemd operation, or Telegram live send.
+- Stop if counts exceed the approved bound, the default checkpoint could be
+  touched, rawJson / secret display risk appears, the command differs from the
+  exact approval, or the next step requires unbounded watch.
 
 ## Lanes
 

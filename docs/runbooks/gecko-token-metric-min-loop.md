@@ -10,6 +10,12 @@ This runbook documents the smallest manual GeckoTerminal loop that has been prov
 
 It is intentionally not a scheduler, worker, queue, retry system, or generic source runtime.
 
+For day-to-day bounded Gecko operation across detect, enrich/rescore, Metric
+append, and rawJson-free report confirmation, use
+`docs/runbooks/gecko-bounded-operation-mvp.md` as the temporary MVP entrypoint.
+This minimum-loop document remains the evidence log for individual mint
+progression and Metric time-series confirmation.
+
 ## Confirmed Status
 
 As of the successful ops-path checks, the full operator-visible Token to Metric

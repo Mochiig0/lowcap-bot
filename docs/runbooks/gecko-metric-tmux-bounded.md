@@ -12,6 +12,10 @@ for the metric snapshot lane in this environment. It is suitable for bounded
 confirmation and short operation, while `systemd`, unbounded watch, and
 restart-oriented operation remain separate later gates.
 
+For the full cross-lane bounded operation MVP, including detect watch write,
+enrich/rescore, Metric append, rawJson-free reporting, Red / Green boundaries,
+and stop conditions, see `docs/runbooks/gecko-bounded-operation-mvp.md`.
+
 ## Preconditions
 
 - `git status --short --branch` is clean.
