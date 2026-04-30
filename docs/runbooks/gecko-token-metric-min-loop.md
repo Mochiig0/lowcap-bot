@@ -307,8 +307,16 @@ and one production Telegram ops live send for `metric_appended`:
   from 0 to 1 and setting latestMetric source to
   `geckoterminal.token_snapshot`. The Metric append preserved Token fields and
   did not send Telegram. `volume24h=null`, while price / fdv / reserve / topPool
-  presence were true. This confirms first observation only; rawJson-free report
-  confirmation and time-series append remain unrun for this mint.
+  presence were true. That first Metric has now also passed rawJson-free report
+  confirmation: `metrics:report -- --mint ... --limit 1` shows Metric
+  `id=1130`, `observedAt=2026-04-30T16:51:54.070Z`, `volume24h=null`, and all
+  four market-data presence columns true; `token:compare -- --mint ...` shows
+  latestMetric `id=1130`, one `recentMetrics` item, and all four `safeSummary`
+  booleans true; and `tokens:compare-report` includes the mint with
+  `metricsCount=1`, latestMetric observedAt, and latestMetric safe summary
+  columns. Metric rawJson was not exposed by the report / compare views. This
+  confirms first observation only; time-series append remains unrun for this
+  mint.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -341,9 +349,10 @@ The first foreground-created mint is now part of the confirmed Token to Metric
 loop through first observation, first-Metric rawJson-free report confirmation,
 second Metric append, and two-Metric rawJson-free report confirmation. The
 second foreground-created mint has now entered the Metric path through
-enrich/rescore plus first Metric append, and still needs rawJson-free report
-confirmation through `metrics:report`, `token:compare`, and
-`tokens:compare-report`, plus any second Metric append.
+enrich/rescore plus first Metric append, and its first Metric `id=1130` is now
+visible rawJson-free through `metrics:report`, `token:compare`, and
+`tokens:compare-report`; it still needs read-only preflight before any second
+Metric append.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value

@@ -64,8 +64,11 @@ secrets.
   `id=1130` at `observedAt=2026-04-30T16:51:54.070Z`, moving `metricsCount`
   from 0 to 1. Token fields were preserved by the Metric write, Telegram was
   not sent, `volume24h=null`, and price / fdv / reserve / topPool presence were
-  true. RawJson-free report confirmation and a second Metric append remain
-  unrun for this mint.
+  true. RawJson-free report confirmation has now passed through
+  `metrics:report`, `token:compare`, and `tokens:compare-report`: Metric
+  `id=1130`, `observedAt=2026-04-30T16:51:54.070Z`, `metricsCount=1`,
+  `volume24h=null`, and latestMetric safe summary columns are visible without
+  Metric rawJson. A second Metric append remains unrun for this mint.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -111,14 +114,13 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run rawJson-free report confirmation for `6MD8...pump` Metric `id=1130`.
-3. Run read-only preflight before any second Metric append for `6MD8...pump`.
-4. Run a separate read-only preflight before any detect tmux bounded watch
+2. Run read-only preflight before any second Metric append for `6MD8...pump`.
+3. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.
-5. Separately decide whether metric snapshot tmux bounded operation should be
+4. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
-6. Keep systemd deferred until user systemd is available.
-7. Keep `token_completed` and `loop_complete` production live sends deferred
+5. Keep systemd deferred until user systemd is available.
+6. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
 
 Do not move to default checkpoint, long-running watch, unbounded watch,

@@ -40,8 +40,8 @@ Confirmed:
   `tokens:compare-report`.
 - the second foreground-created mint,
   `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, has completed
-  enrich/rescore and its first single-mint Metric append; rawJson-free report
-  confirmation and any second Metric append remain unconfirmed.
+  enrich/rescore, its first single-mint Metric append, and rawJson-free report
+  confirmation; any second Metric append remains unconfirmed.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -67,8 +67,8 @@ Next phase choices:
 - keep enrich/rescore and Metric writes single-mint and exact-command approved.
 - confirm each candidate with `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
-- next, run rawJson-free report confirmation for `6MD8...pump` Metric
-  `id=1130`, run a separate preflight before detect tmux, or decide whether
+- next, run read-only preflight before any second Metric append for
+  `6MD8...pump`, run a separate preflight before detect tmux, or decide whether
   metric snapshot tmux bounded should be the formal interim operating entrypoint.
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
@@ -196,7 +196,16 @@ Operational boundary:
   `observedAt=2026-04-30T16:51:54.070Z`; `volume24h=null`, while price / fdv /
   reserve / topPool presence were true. The Metric write preserved Token fields,
   did not send Telegram, and did not invoke detect / enrich / ops / watch /
-  tmux / systemd. The first foreground-created mint remains unchanged with
+  tmux / systemd. The same mint has now also passed rawJson-free report
+  confirmation: `metrics:report -- --mint ... --limit 1` showed Metric
+  `id=1130`, `observedAt=2026-04-30T16:51:54.070Z`, `volume24h=null`, and all
+  four market-data presence columns true; `token:compare -- --mint ...` showed
+  latestMetric `id=1130`, one `recentMetrics` item, and all four `safeSummary`
+  booleans true; and `tokens:compare-report` with Gecko-origin partial /
+  hasMetrics / `minMetricsCount=1` filters included the mint with
+  `metricsCount=1`, latestMetric observedAt, and latestMetric safe summary
+  columns. The report / compare output did not expose Metric rawJson and did not
+  write to DB. The first foreground-created mint remains unchanged with
   `metricsCount=2` and latestMetric `id=1129`.
 - Confirmed third watch-detected downstream first observation: the
   `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` Token then moved through
@@ -382,8 +391,8 @@ values, and rawJson-free report confirmation for the two-row Metric history.
 The third watch-detected mint has also completed that same downstream loop.
 The first foreground-created mint has now reached enrich/rescore, two Metric
 appends, and two-Metric rawJson-free report confirmation. The second
-foreground-created mint has reached enrich/rescore plus its first Metric append,
-but still needs rawJson-free report confirmation and any second Metric append.
+foreground-created mint has reached enrich/rescore, first Metric append, and
+rawJson-free report confirmation, but still needs any second Metric append.
 For any next detect watch write,
 do not touch the default
 checkpoint; keep a bounded command shape with
@@ -397,7 +406,6 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- rawJson-free report confirmation for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
 - second Metric append for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
 - detect tmux bounded watch operation
 - detect systemd operation
