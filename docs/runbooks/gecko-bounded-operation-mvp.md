@@ -45,7 +45,17 @@ secrets.
   previousMetric remains `id=1128` at
   `observedAt=2026-04-30T13:50:42.230Z`, so time-series append is confirmed.
   Token fields and Telegram state were unchanged by the second append, and
-  two-Metric rawJson-free report confirmation remains unrun. The second
+  two-Metric rawJson-free report confirmation has now passed: `metrics:report -- --mint ... --limit 2`
+  shows Metric ids `1129 -> 1128`, both `observedAt` values, `volume24h=0` on
+  both rows, and all four market-data presence columns true on both rows;
+  `token:compare -- --mint ...` shows latestMetric `id=1129` and
+  `recentMetrics` containing `1129` plus `1128`, each with true `safeSummary`
+  booleans; `tokens:compare-report -- --source geckoterminal.new_pools
+  --metadataStatus partial --hasMetrics true --minMetricsCount 2
+  --latestMetricSource geckoterminal.token_snapshot --limit 10` includes the
+  mint with `metricsCount=2`, latestMetric observedAt, and latestMetric safe
+  summary columns. The report / compare output did not expose Metric rawJson and
+  did not write to DB. The second
   foreground-created mint,
   `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, remains `mint_only` with no
   name / symbol, no Metrics, and no latestMetric.
@@ -94,14 +104,13 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run two-Metric rawJson-free report confirmation for `5vLb...pump`.
-3. Run read-only preflight for `6MD8...pump` before any enrich/rescore write.
-4. Run a separate read-only preflight before any detect tmux bounded watch
+2. Run read-only preflight for `6MD8...pump` before any enrich/rescore write.
+3. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.
-5. Separately decide whether metric snapshot tmux bounded operation should be
+4. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
-6. Keep systemd deferred until user systemd is available.
-7. Keep `token_completed` and `loop_complete` production live sends deferred
+5. Keep systemd deferred until user systemd is available.
+6. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
 
 Do not move to default checkpoint, long-running watch, unbounded watch,
