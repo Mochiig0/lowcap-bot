@@ -33,6 +33,9 @@ Confirmed:
 - one foreground bounded detect watch wrapper run with env-pinned `/tmp`
   checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 2`, two natural
   cycles, two mint-only Token writes, and no failed cycles.
+- the first foreground-created mint,
+  `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`, has completed
+  enrich/rescore and one single-mint Metric append.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -135,6 +138,21 @@ Operational boundary:
   BWruAw7CYweENaRJ7WFrqSX6VEWd6qwteL3faiB5UgRi`. The default checkpoint stayed
   uncreated / unused, and Telegram, Metric append, enrich, rescore, ops
   catchup, tmux, systemd, and journal operations were not invoked.
+- Confirmed first foreground-created downstream observation:
+  `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump` moved through
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` from
+  `mint_only` to `metadataStatus=partial` with
+  `name/symbol=Something Dumb/DUMB`, score `C` / `0`, `hardRejected=false`,
+  and reviewFlags present. A following
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended the first
+  `geckoterminal.token_snapshot` Metric, moving `metricsCount` from 0 to 1 and
+  setting latestMetric to `id=1128` at
+  `observedAt=2026-04-30T13:50:42.230Z`; volume24h / price / fdv / reserve /
+  topPool were present. The Metric write preserved Token fields, did not send
+  Telegram, and did not invoke detect / enrich / ops / watch / tmux / systemd.
+  RawJson-free report confirmation and a second Metric append remain unrun for
+  this mint. `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump` remains
+  `mint_only` with no name / symbol, no Metrics, and no latestMetric.
 - Confirmed third watch-detected downstream first observation: the
   `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -317,11 +335,14 @@ confirmation for the two-row Metric history. The second watch-detected mint has
 now also passed enrich/rescore, two Metric appends with distinct `observedAt`
 values, and rawJson-free report confirmation for the two-row Metric history.
 The third watch-detected mint has also completed that same downstream loop.
-The two foreground-created mints are confirmed only through `mint_only`
-creation; their enrich/rescore, Metric append, and report checks remain
-unrun. For any next detect watch write, do not touch the default checkpoint;
-keep a bounded command shape with `--pumpOnly --limit 1 --write --watch`, an
-explicit `--maxIterations`, and `/tmp` checkpoint isolation.
+The first foreground-created mint has now reached enrich/rescore plus first
+Metric append, but still needs rawJson-free report confirmation and any second
+Metric append. The second foreground-created mint is still confirmed only
+through `mint_only` creation; its enrich/rescore, Metric append, and report
+checks remain unrun. For any next detect watch write, do not touch the default
+checkpoint; keep a bounded command shape with
+`--pumpOnly --limit 1 --write --watch`, an explicit `--maxIterations`, and
+`/tmp` checkpoint isolation.
 The first attempts in the Codex sandbox for some live `tsx` commands failed
 before application startup due to `tsx` IPC `EPERM`; rerunning the same exact
 commands outside the sandbox succeeded and stayed within the allowed
@@ -330,9 +351,9 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- enrich/rescore for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
+- rawJson-free report confirmation for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
+- second Metric append for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
 - enrich/rescore for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
-- Metric append for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
 - Metric append for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
 - detect tmux bounded watch operation
 - detect systemd operation

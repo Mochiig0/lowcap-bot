@@ -29,6 +29,17 @@ secrets.
   `selectedCount=2`, `importedCount=2`, and `failedCount=0`, and advanced only
   the `/tmp` checkpoint to `2026-04-29T17:55:30.000Z |
   BWruAw7CYweENaRJ7WFrqSX6VEWd6qwteL3faiB5UgRi`.
+- The first foreground-created mint,
+  `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`, has reached first Metric
+  append: enrich/rescore moved it from `mint_only` to `partial` as
+  `Something Dumb` / `DUMB` with score `C` / `0`, `hardRejected=false`, and
+  reviewFlags present; then single-mint Metric snapshot write appended Metric
+  `id=1128` at `observedAt=2026-04-30T13:50:42.230Z`, moving
+  `metricsCount` from 0 to 1. Token fields were preserved by the Metric write,
+  Telegram was not sent, and rawJson-free report confirmation plus any second
+  Metric append remain unrun. The second foreground-created mint,
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, remains `mint_only` with no
+  name / symbol, no Metrics, and no latestMetric.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -74,14 +85,15 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run read-only preflight for the two foreground-created mints before any
-   enrich/rescore write.
-3. Run a separate read-only preflight before any detect tmux bounded watch
+2. Run rawJson-free report confirmation for `5vLb...pump`, then decide whether
+   to do a second Metric append preflight for that mint.
+3. Run read-only preflight for `6MD8...pump` before any enrich/rescore write.
+4. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.
-4. Separately decide whether metric snapshot tmux bounded operation should be
+5. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
-5. Keep systemd deferred until user systemd is available.
-6. Keep `token_completed` and `loop_complete` production live sends deferred
+6. Keep systemd deferred until user systemd is available.
+7. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
 
 Do not move to default checkpoint, long-running watch, unbounded watch,
