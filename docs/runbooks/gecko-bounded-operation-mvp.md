@@ -18,6 +18,17 @@ secrets.
 - `detect:geckoterminal:new-pools` pump-only watch write has passed three times with
   `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and
   `--write`.
+- `scripts/run-geckoterminal-detect-watch.sh` has passed one foreground
+  bounded detect watch run with
+  `LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json`,
+  `LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60`, `--pumpOnly`,
+  `--limit 1`, and `--maxIterations 2`. It naturally exited after two cycles,
+  created mint-only Tokens
+  `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump` and
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, reported
+  `selectedCount=2`, `importedCount=2`, and `failedCount=0`, and advanced only
+  the `/tmp` checkpoint to `2026-04-29T17:55:30.000Z |
+  BWruAw7CYweENaRJ7WFrqSX6VEWd6qwteL3faiB5UgRi`.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -50,7 +61,8 @@ always-on monitoring.
 Adopted scope:
 
 - detect uses the isolated `/tmp` checkpoint with `--pumpOnly`, `--limit 1`,
-  `--maxIterations 1`, and `--write` only after explicit Red approval.
+  an explicit `--maxIterations`, and `--write` only after explicit Red
+  approval.
 - enrich/rescore uses one `token:enrich-rescore:geckoterminal --write` for one
   mint.
 - Metric capture uses one `metric:snapshot:geckoterminal --write` for one mint.
@@ -62,12 +74,14 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run a separate read-only preflight before any detect foreground / tmux watch
+2. Run read-only preflight for the two foreground-created mints before any
+   enrich/rescore write.
+3. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.
-3. Separately decide whether metric snapshot tmux bounded operation should be
+4. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
-4. Keep systemd deferred until user systemd is available.
-5. Keep `token_completed` and `loop_complete` production live sends deferred
+5. Keep systemd deferred until user systemd is available.
+6. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
 
 Do not move to default checkpoint, long-running watch, unbounded watch,
@@ -89,8 +103,8 @@ git log --oneline -8
 2. Run a read-only preflight for the specific Red step being considered.
 
 3. With explicit Red approval only, run one bounded detect watch write using
-   the isolated `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and
-   `--maxIterations 1`.
+   the isolated `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and an explicit
+   `--maxIterations`.
 
 4. Confirm the created mint with `token:show` or a narrow read-only query.
 

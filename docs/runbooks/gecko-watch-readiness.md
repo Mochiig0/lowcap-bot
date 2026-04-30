@@ -30,6 +30,9 @@ Confirmed:
 - `detect:geckoterminal:new-pools` one-shot pump-only write.
 - three bounded detect watch writes with `/tmp` checkpoint,
   `--pumpOnly`, `--limit 1`, `--maxIterations 1`, and `--write`.
+- one foreground bounded detect watch wrapper run with env-pinned `/tmp`
+  checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 2`, two natural
+  cycles, two mint-only Token writes, and no failed cycles.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -40,7 +43,7 @@ Confirmed:
 
 Still unconfirmed:
 
-- detect foreground or tmux watch operation.
+- detect tmux watch operation.
 - default-checkpoint detect watch operation.
 - detect long-running or unbounded watch.
 - systemd start / enable and restart-oriented operation.
@@ -50,12 +53,13 @@ Next phase choices:
 
 - adopt the bounded operation MVP runbook as the current operator entrypoint
   before adding more Red gates.
-- keep detect bounded to `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and
-  `--maxIterations 1`; do not use the default checkpoint yet.
+- keep detect bounded to `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and an
+  explicit `--maxIterations`; do not use the default checkpoint yet.
 - keep enrich/rescore and Metric writes single-mint and exact-command approved.
 - confirm each candidate with `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
-- next, run a separate read-only preflight before detect foreground / tmux, or
+- next, run read-only preflight for the two foreground-created mints before
+  downstream enrich/rescore, run a separate preflight before detect tmux, or
   decide whether metric snapshot tmux bounded should be the formal interim
   operating entrypoint.
 - keep systemd on hold until a user-systemd-capable session is available.
@@ -115,6 +119,22 @@ Operational boundary:
   H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK`. The default checkpoint stayed
   uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
   catchup were not invoked. This was a bounded operation MVP rehearsal.
+- Confirmed foreground bounded detect watch wrapper gate:
+  `LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60 bash scripts/run-geckoterminal-detect-watch.sh --pumpOnly --limit 1 --maxIterations 2`.
+  The wrapper kept the checkpoint on `/tmp`, naturally exited after
+  `cycleCount=2`, and reported `watchEnabled=true`, `writeEnabled=true`,
+  `checkpointEnabled=true`, `checkpointUpdated=true`, `failedCount=0`,
+  `inputCount=40`, `selectedCount=2`, `skippedNonPumpCount=10`,
+  `acceptedCount=2`, `rejectedCount=0`, `importedCount=2`, and
+  `existingCount=0`. It created mint-only Tokens
+  `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump` and
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`. The checkpoint advanced
+  from `2026-04-29T16:11:48.000Z |
+  H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK` to
+  `2026-04-29T17:55:30.000Z |
+  BWruAw7CYweENaRJ7WFrqSX6VEWd6qwteL3faiB5UgRi`. The default checkpoint stayed
+  uncreated / unused, and Telegram, Metric append, enrich, rescore, ops
+  catchup, tmux, systemd, and journal operations were not invoked.
 - Confirmed third watch-detected downstream first observation: the
   `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -290,14 +310,18 @@ lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
 history and cohort-level visibility. The detect watch proof is still limited to
 bounded pump-only live cycles with an isolated `/tmp` checkpoint, but it has now
-passed twice. The first watch-detected mint has also passed enrich/rescore, two
+passed three one-cycle writes plus one foreground `maxIterations=2` wrapper
+run. The first watch-detected mint has also passed enrich/rescore, two
 Metric appends with distinct `observedAt` values, and rawJson-free report
 confirmation for the two-row Metric history. The second watch-detected mint has
 now also passed enrich/rescore, two Metric appends with distinct `observedAt`
 values, and rawJson-free report confirmation for the two-row Metric history.
-For any next
-detect watch write, do not touch the default checkpoint; keep a bounded command
-shape with `--pumpOnly --limit 1 --write --watch --maxIterations 1 --checkpointFile /tmp/<name>.json`.
+The third watch-detected mint has also completed that same downstream loop.
+The two foreground-created mints are confirmed only through `mint_only`
+creation; their enrich/rescore, Metric append, and report checks remain
+unrun. For any next detect watch write, do not touch the default checkpoint;
+keep a bounded command shape with `--pumpOnly --limit 1 --write --watch`, an
+explicit `--maxIterations`, and `/tmp` checkpoint isolation.
 The first attempts in the Codex sandbox for some live `tsx` commands failed
 before application startup due to `tsx` IPC `EPERM`; rerunning the same exact
 commands outside the sandbox succeeded and stayed within the allowed
@@ -306,8 +330,11 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- detect watch write third and later runs
-- detect foreground or tmux operation
+- enrich/rescore for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
+- enrich/rescore for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
+- Metric append for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
+- Metric append for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
+- detect tmux bounded watch operation
 - detect systemd operation
 - default-checkpoint detect watch operation
 - long-running or unbounded detect watch

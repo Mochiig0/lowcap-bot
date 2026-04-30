@@ -250,6 +250,14 @@ and one production Telegram ops live send for `metric_appended`:
   `token:compare -- --mint ...` show both `observedAt` values, `token:show`
   shows the latestMetric, and `tokens:compare-report` shows cohort-level
   latestMetric summaries for filtered Gecko-origin rows.
+- a later foreground bounded detect watch wrapper run created two additional
+  Gecko-origin pump mints,
+  `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump` and
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, with the wrapper pinned by
+  env to `/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json` and
+  `--pumpOnly --limit 1 --maxIterations 2`. Those two mints are confirmed only
+  through `mint_only` creation so far; enrich/rescore, Metric append, and
+  report confirmation remain unrun for both.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -278,6 +286,9 @@ For the three watch-detected mints, the important proof is loop shape rather
 than price quality: detect, enrich/rescore, first observation, second
 observation, and rawJson-free confirmation all work as separate
 operator-visible steps.
+The two foreground-created mints are not yet part of the confirmed Token to
+Metric loop; the next Green step for them is read-only preflight before any
+single-mint enrich/rescore write.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value
