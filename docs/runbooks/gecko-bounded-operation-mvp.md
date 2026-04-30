@@ -39,8 +39,14 @@ secrets.
   `metricsCount` from 0 to 1. Token fields were preserved by the Metric write,
   Telegram was not sent, and `metrics:report`, `token:compare`, and
   `tokens:compare-report` now show Metric `id=1128` / `metricsCount=1` /
-  latestMetric observedAt plus rawJson-free market-data presence columns. Any
-  second Metric append remains unrun. The second foreground-created mint,
+  latestMetric observedAt plus rawJson-free market-data presence columns. It
+  has now also appended Metric `id=1129` at
+  `observedAt=2026-04-30T14:23:38.900Z`, moving `metricsCount` from 1 to 2;
+  previousMetric remains `id=1128` at
+  `observedAt=2026-04-30T13:50:42.230Z`, so time-series append is confirmed.
+  Token fields and Telegram state were unchanged by the second append, and
+  two-Metric rawJson-free report confirmation remains unrun. The second
+  foreground-created mint,
   `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, remains `mint_only` with no
   name / symbol, no Metrics, and no latestMetric.
 - All three watch-detected mints completed:
@@ -88,7 +94,7 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Decide whether to do a second Metric append preflight for `5vLb...pump`.
+2. Run two-Metric rawJson-free report confirmation for `5vLb...pump`.
 3. Run read-only preflight for `6MD8...pump` before any enrich/rescore write.
 4. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.

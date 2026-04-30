@@ -277,8 +277,15 @@ and one production Telegram ops live send for `metric_appended`:
   --minMetricsCount 1 --latestMetricSource geckoterminal.token_snapshot
   --limit 10` includes the mint with `metricsCount=1`, latestMetric
   observedAt, and latestMetric safe summary columns. Metric rawJson was not
-  exposed by the report / compare views. This confirms first observation only;
-  time-series / second Metric append remains unrun for this mint.
+  exposed by the report / compare views. A second single-mint Metric snapshot
+  write then confirmed time-series append behavior: Metric `id=1129` was
+  appended at `observedAt=2026-04-30T14:23:38.900Z`, moving `metricsCount`
+  from 1 to 2 while previousMetric remained `id=1128` at
+  `observedAt=2026-04-30T13:50:42.230Z`. The two observations have distinct
+  timestamps. Token fields were preserved, Telegram was not sent,
+  `volume24h=0` persisted, and price / fdv / reserve / topPool were present.
+  This confirms first observation plus time-series append only; two-Metric
+  rawJson-free report confirmation remains unrun for this mint.
 - the second foreground-created mint,
   `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, remains confirmed only
   through `mint_only` creation so far. It still needs separate enrich/rescore
@@ -312,11 +319,12 @@ than price quality: detect, enrich/rescore, first observation, second
 observation, and rawJson-free confirmation all work as separate
 operator-visible steps.
 The first foreground-created mint is now part of the confirmed Token to Metric
-loop through first observation and rawJson-free report confirmation only; the
-next Green step for it is a second Metric append preflight if time-series
-confirmation is needed. The second foreground-created mint still needs a
-separate enrich/rescore preflight / Red write before it can enter the Metric
-path.
+loop through first observation, first-Metric rawJson-free report confirmation,
+and second Metric append only; the next Green step for it is
+`metrics:report` / `token:compare` / `tokens:compare-report` rawJson-free
+confirmation for the two Metric rows. The second foreground-created mint still
+needs a separate enrich/rescore preflight / Red write before it can enter the
+Metric path.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value
