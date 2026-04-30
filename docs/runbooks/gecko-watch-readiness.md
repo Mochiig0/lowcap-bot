@@ -35,7 +35,8 @@ Confirmed:
   cycles, two mint-only Token writes, and no failed cycles.
 - the first foreground-created mint,
   `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`, has completed
-  enrich/rescore and one single-mint Metric append.
+  enrich/rescore, one single-mint Metric append, and rawJson-free report
+  confirmation.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -150,9 +151,19 @@ Operational boundary:
   `observedAt=2026-04-30T13:50:42.230Z`; volume24h / price / fdv / reserve /
   topPool were present. The Metric write preserved Token fields, did not send
   Telegram, and did not invoke detect / enrich / ops / watch / tmux / systemd.
-  RawJson-free report confirmation and a second Metric append remain unrun for
-  this mint. `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump` remains
-  `mint_only` with no name / symbol, no Metrics, and no latestMetric.
+  `metrics:report -- --mint ... --limit 1` shows Metric `id=1128`,
+  `observedAt=2026-04-30T13:50:42.230Z`, `volume24h=0`, and all four
+  rawJson-free market-data presence columns true; `token:compare -- --mint ...`
+  shows latestMetric `id=1128`, one `recentMetrics` item, and all four
+  `safeSummary` booleans true; `tokens:compare-report -- --source
+  geckoterminal.new_pools --metadataStatus partial --hasMetrics true
+  --minMetricsCount 1 --latestMetricSource geckoterminal.token_snapshot
+  --limit 10` includes the mint with `metricsCount=1`, latestMetric source /
+  observedAt, and latestMetric safe summary columns. The report / compare
+  output did not expose Metric rawJson and did not write to DB. A second Metric
+  append remains unrun for this mint.
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump` remains `mint_only` with no
+  name / symbol, no Metrics, and no latestMetric.
 - Confirmed third watch-detected downstream first observation: the
   `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -335,11 +346,11 @@ confirmation for the two-row Metric history. The second watch-detected mint has
 now also passed enrich/rescore, two Metric appends with distinct `observedAt`
 values, and rawJson-free report confirmation for the two-row Metric history.
 The third watch-detected mint has also completed that same downstream loop.
-The first foreground-created mint has now reached enrich/rescore plus first
-Metric append, but still needs rawJson-free report confirmation and any second
-Metric append. The second foreground-created mint is still confirmed only
-through `mint_only` creation; its enrich/rescore, Metric append, and report
-checks remain unrun. For any next detect watch write, do not touch the default
+The first foreground-created mint has now reached enrich/rescore, first Metric
+append, and rawJson-free report confirmation, but still needs any second Metric
+append. The second foreground-created mint is still confirmed only through
+`mint_only` creation; its enrich/rescore, Metric append, and report checks
+remain unrun. For any next detect watch write, do not touch the default
 checkpoint; keep a bounded command shape with
 `--pumpOnly --limit 1 --write --watch`, an explicit `--maxIterations`, and
 `/tmp` checkpoint isolation.
@@ -351,7 +362,6 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- rawJson-free report confirmation for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
 - second Metric append for `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`
 - enrich/rescore for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
 - Metric append for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
