@@ -57,8 +57,15 @@ secrets.
   summary columns. The report / compare output did not expose Metric rawJson and
   did not write to DB. The second
   foreground-created mint,
-  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, remains `mint_only` with no
-  name / symbol, no Metrics, and no latestMetric.
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, has now reached first Metric
+  append: enrich/rescore moved it from `mint_only` to `partial` as
+  `Ghostpool` / `GHOST` with score `C` / `0`, `hardRejected=false`, and
+  reviewFlags present; then single-mint Metric snapshot write appended Metric
+  `id=1130` at `observedAt=2026-04-30T16:51:54.070Z`, moving `metricsCount`
+  from 0 to 1. Token fields were preserved by the Metric write, Telegram was
+  not sent, `volume24h=null`, and price / fdv / reserve / topPool presence were
+  true. RawJson-free report confirmation and a second Metric append remain
+  unrun for this mint.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -104,13 +111,14 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run read-only preflight for `6MD8...pump` before any enrich/rescore write.
-3. Run a separate read-only preflight before any detect tmux bounded watch
+2. Run rawJson-free report confirmation for `6MD8...pump` Metric `id=1130`.
+3. Run read-only preflight before any second Metric append for `6MD8...pump`.
+4. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.
-4. Separately decide whether metric snapshot tmux bounded operation should be
+5. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
-5. Keep systemd deferred until user systemd is available.
-6. Keep `token_completed` and `loop_complete` production live sends deferred
+6. Keep systemd deferred until user systemd is available.
+7. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
 
 Do not move to default checkpoint, long-running watch, unbounded watch,

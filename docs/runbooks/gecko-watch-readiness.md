@@ -38,6 +38,10 @@ Confirmed:
   enrich/rescore, two single-mint Metric appends, and two-Metric rawJson-free
   report confirmation through `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
+- the second foreground-created mint,
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, has completed
+  enrich/rescore and its first single-mint Metric append; rawJson-free report
+  confirmation and any second Metric append remain unconfirmed.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -63,10 +67,9 @@ Next phase choices:
 - keep enrich/rescore and Metric writes single-mint and exact-command approved.
 - confirm each candidate with `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
-- next, run read-only preflight for the two foreground-created mints before
-  downstream enrich/rescore, run a separate preflight before detect tmux, or
-  decide whether metric snapshot tmux bounded should be the formal interim
-  operating entrypoint.
+- next, run rawJson-free report confirmation for `6MD8...pump` Metric
+  `id=1130`, run a separate preflight before detect tmux, or decide whether
+  metric snapshot tmux bounded should be the formal interim operating entrypoint.
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
   hold until eligible candidates naturally exist.
@@ -181,8 +184,20 @@ Operational boundary:
   did not expose Metric rawJson and did not write to DB. This confirms the
   foreground-created path through detect foreground -> enrich/rescore -> Metric
   1 -> Metric 2 -> report confirmation.
-  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump` remains `mint_only` with no
-  name / symbol, no Metrics, and no latestMetric.
+- Confirmed second foreground-created downstream first observation:
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump` moved through
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` from
+  `mint_only` to `metadataStatus=partial` with
+  `name/symbol=Ghostpool/GHOST`, score `C` / `0`, `hardRejected=false`, and
+  reviewFlags present. A following
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended the first
+  `geckoterminal.token_snapshot` Metric, moving `metricsCount` from 0 to 1 and
+  setting latestMetric to `id=1130` at
+  `observedAt=2026-04-30T16:51:54.070Z`; `volume24h=null`, while price / fdv /
+  reserve / topPool presence were true. The Metric write preserved Token fields,
+  did not send Telegram, and did not invoke detect / enrich / ops / watch /
+  tmux / systemd. The first foreground-created mint remains unchanged with
+  `metricsCount=2` and latestMetric `id=1129`.
 - Confirmed third watch-detected downstream first observation: the
   `CQgM65qrpe3whqU2SJhcU7MfVhodL92zRADqanbvpump` Token then moved through
   `token:enrich-rescore:geckoterminal -- --mint ... --write` to
@@ -367,9 +382,9 @@ values, and rawJson-free report confirmation for the two-row Metric history.
 The third watch-detected mint has also completed that same downstream loop.
 The first foreground-created mint has now reached enrich/rescore, two Metric
 appends, and two-Metric rawJson-free report confirmation. The second
-foreground-created mint is still confirmed only through `mint_only` creation;
-its enrich/rescore, Metric append, and report checks remain unrun. For any next
-detect watch write,
+foreground-created mint has reached enrich/rescore plus its first Metric append,
+but still needs rawJson-free report confirmation and any second Metric append.
+For any next detect watch write,
 do not touch the default
 checkpoint; keep a bounded command shape with
 `--pumpOnly --limit 1 --write --watch`, an explicit `--maxIterations`, and
@@ -382,8 +397,8 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- enrich/rescore for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
-- Metric append for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
+- rawJson-free report confirmation for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
+- second Metric append for `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`
 - detect tmux bounded watch operation
 - detect systemd operation
 - default-checkpoint detect watch operation

@@ -297,9 +297,18 @@ and one production Telegram ops live send for `metric_appended`:
   mint through detection, enrichment, first observation, time-series append, and
   rawJson-free report visibility.
 - the second foreground-created mint,
-  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, remains confirmed only
-  through `mint_only` creation so far. It still needs separate enrich/rescore
-  preflight / Red write before any Metric append.
+  `6MD8LtMX1Jf7W9hDs8rnthkeFS2sonzSaYiQHkZgpump`, then confirmed its minimum
+  observation path through first Metric append:
+  `token:enrich-rescore:geckoterminal -- --mint ... --write` moved it from
+  `mint_only` to `partial` with `name/symbol=Ghostpool/GHOST`, score
+  `C` / `0`, `hardRejected=false`, and reviewFlags present; and
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended Metric
+  `id=1130` at `observedAt=2026-04-30T16:51:54.070Z`, moving `metricsCount`
+  from 0 to 1 and setting latestMetric source to
+  `geckoterminal.token_snapshot`. The Metric append preserved Token fields and
+  did not send Telegram. `volume24h=null`, while price / fdv / reserve / topPool
+  presence were true. This confirms first observation only; rawJson-free report
+  confirmation and time-series append remain unrun for this mint.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -331,8 +340,10 @@ operator-visible steps.
 The first foreground-created mint is now part of the confirmed Token to Metric
 loop through first observation, first-Metric rawJson-free report confirmation,
 second Metric append, and two-Metric rawJson-free report confirmation. The
-second foreground-created mint still needs a separate enrich/rescore preflight /
-Red write before it can enter the Metric path.
+second foreground-created mint has now entered the Metric path through
+enrich/rescore plus first Metric append, and still needs rawJson-free report
+confirmation through `metrics:report`, `token:compare`, and
+`tokens:compare-report`, plus any second Metric append.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value
