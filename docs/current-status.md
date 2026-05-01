@@ -175,8 +175,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
   wrapper watch using env-pinned `/tmp` checkpoint plus
-  `--pumpOnly --limit 1 --maxIterations 2`, plus one tmux bounded detect watch
-  using the same isolated `/tmp` checkpoint shape. All detect watch writes used
+  `--pumpOnly --limit 1 --maxIterations 2`, plus two tmux bounded detect watch
+  runs using the same isolated `/tmp` checkpoint shape. All detect watch writes used
   the isolated `/tmp` checkpoint; the default checkpoint remains unused.
 - Both watch-detected mints,
   `4tCTPRoA5fitVzEP8g17ZeSGpr4i9t8mjtqf6Pkdpump` and
@@ -361,6 +361,30 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   all without exposing Metric rawJson. Token fields were not changed by either
   Metric write, and Telegram / detect / watch / tmux / systemd were not invoked
   during the Metric steps.
+- A second detect tmux bounded watch run has now passed with the same session
+  name, `/tmp` log output, isolated `/tmp` checkpoint,
+  `--pumpOnly --limit 1 --maxIterations 1`, `selectedCount=1`,
+  `importedCount=1`, `failedCount=0`, and `skippedNonPumpCount=2`, creating
+  mint-only Token `AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`. The default
+  checkpoint stayed unused and Telegram, Metric append, enrich/rescore, ops,
+  systemd, and unbounded watch were not invoked during detect. The same mint
+  then moved through `token:enrich-rescore:geckoterminal -- --mint ... --write`
+  from `mint_only` to `partial` with `name/symbol=WarlockCoin/Warlock`, score
+  `C` / `0`, `hardRejected=false`, all reviewFlags false, and `linkCount=0`.
+  That write reported `contextWriteCount=1`; this was the safe context capture
+  update `Token.entrySnapshot.contextCapture.geckoterminalTokenSnapshot`, not a
+  Metric write or Telegram send. A following single-mint
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended Metric
+  `id=1134` at `observedAt=2026-05-01T09:30:04.949Z` with source
+  `geckoterminal.token_snapshot`, moving `metricsCount` from 0 to 1. The Metric
+  row has `volume24h=395.7346968031` and rawJson-free safe summary columns
+  `priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+  `topPoolPresent=true`. `metrics:report -- --mint ... --limit 1` and
+  `token:compare -- --mint ...` confirmed latestMetric `id=1134` and one
+  `recentMetrics` item without exposing Metric rawJson. Token fields were not
+  changed by the Metric write, and Telegram / detect / watch / tmux / systemd
+  were not invoked during the Metric step. The next gate for this mint is the
+  second Metric append.
 - The metric snapshot lane has also passed single-mint bounded watch, batch
   bounded watch, foreground bounded watch, tmux bounded watch with one append,
   and tmux bounded no-candidate natural exit. In this Codex environment, tmux

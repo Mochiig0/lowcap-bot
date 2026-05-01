@@ -355,6 +355,23 @@ and one production Telegram ops live send for `metric_appended`:
   were true. `metrics:report -- --mint ... --limit 2` and `token:compare`
   confirmed Metric ids `1133 -> 1132`, latestMetric `id=1133`, and
   `recentMetrics` containing `1133` plus `1132` rawJson-free.
+- the second tmux bounded detect-created mint,
+  `AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, has reached first Metric
+  observation. The detect wrapper ran in tmux with `/tmp` checkpoint isolation,
+  `--pumpOnly`, `--limit 1`, and `--maxIterations 1`, selected one candidate,
+  imported one mint-only Token, reported `failedCount=0` and
+  `skippedNonPumpCount=2`, and did not use the default checkpoint. Enrich/rescore
+  then moved the mint to `partial` as `WarlockCoin` / `Warlock` with score
+  `C` / `0`, `hardRejected=false`, all reviewFlags false, and `linkCount=0`.
+  Its `contextWriteCount=1` was the Token
+  `entrySnapshot.contextCapture.geckoterminalTokenSnapshot` update, not a
+  Metric write or Telegram send. A single-mint Metric snapshot then appended
+  Metric `id=1134` at `observedAt=2026-05-01T09:30:04.949Z`, moved
+  `metricsCount` from 0 to 1, and set latestMetric source to
+  `geckoterminal.token_snapshot`; `volume24h=395.7346968031`, and price / fdv /
+  reserve / topPool presence were true. `metrics:report -- --mint ... --limit
+  1` and `token:compare` confirmed latestMetric `id=1134` plus one
+  `recentMetrics` item rawJson-free. Its second Metric append remains unrun.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.

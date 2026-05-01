@@ -37,6 +37,11 @@ Confirmed:
   `--pumpOnly`, `--limit 1`, `--maxIterations 1`, one natural cycle, one
   mint-only Token write for
   `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, and no failed cycles.
+- a second tmux bounded detect watch wrapper run with the same env-pinned
+  `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 1`, one
+  natural cycle, one mint-only Token write for
+  `AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, `skippedNonPumpCount=2`, and
+  no failed cycles.
 - the first foreground-created mint,
   `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`, has completed
   enrich/rescore, two single-mint Metric appends, and two-Metric rawJson-free
@@ -440,6 +445,19 @@ time from `1132` to `1133` was about 14 minutes 41 seconds. The latest row has
 `volume24h=20335.4710939884`, and price / fdv / reserve / topPool presence all
 true. `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed
 Metric ids `1133 -> 1132` without exposing Metric rawJson.
+The second tmux-created mint,
+`AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, has reached enrich/rescore,
+first Metric append, and rawJson-free first-Metric report confirmation:
+enrich/rescore moved it to `partial` as `WarlockCoin` / `Warlock` with score
+`C` / `0`, `hardRejected=false`, all reviewFlags false, and `linkCount=0`;
+`contextWriteCount=1` was the Token
+`entrySnapshot.contextCapture.geckoterminalTokenSnapshot` update, not a Metric
+write or Telegram send; and single-mint Metric snapshot appended Metric
+`id=1134` at `observedAt=2026-05-01T09:30:04.949Z` with source
+`geckoterminal.token_snapshot`, `volume24h=395.7346968031`, and price / fdv /
+reserve / topPool presence all true. `metrics:report -- --mint ... --limit 1`
+and `token:compare` confirmed latestMetric `id=1134` and one `recentMetrics`
+item without exposing Metric rawJson. Its second Metric append remains unrun.
 For any next detect watch write,
 do not touch the default
 checkpoint; keep a bounded command shape with
