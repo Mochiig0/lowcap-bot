@@ -181,29 +181,60 @@ git status --short --branch
 git log --oneline -8
 ```
 
-2. Run a read-only preflight for the specific Red step being considered.
+2. Run a read-only preflight for the specific Red step being considered. If the
+   next step is detect, confirm no `lowcap-gecko-detect-bounded` tmux session
+   already exists and keep the exact command pinned to `/tmp` checkpoint
+   isolation.
 
 3. With explicit Red approval only, run one bounded detect watch write using
    the isolated `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and an explicit
    `--maxIterations`.
 
-4. Confirm the created mint with `token:show` or a narrow read-only query.
+   The proven tmux shape is:
 
-5. Run `token:enrich-rescore:geckoterminal` dry-run for that mint.
+```bash
+tmux new-session -d -s lowcap-gecko-detect-bounded "bash -lc 'cd /home/mochi/projects/lowcap-bot && LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60 bash scripts/run-geckoterminal-detect-watch.sh --pumpOnly --limit 1 --maxIterations 1 > /tmp/lowcap-gecko-detect-bounded.log 2>&1'"
+```
 
-6. With explicit Red approval only, run one
+   Its allowed side effects are limited to starting that tmux session, updating
+   `/tmp/lowcap-gecko-detect-bounded.log`, live GeckoTerminal fetch, at most one
+   mint-only Token creation, and updating
+   `/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json`.
+
+4. Confirm detect output before downstream work: `selectedCount=1`,
+   `importedCount<=1`, `failedCount=0`, default checkpoint unused, no Telegram,
+   no Metric write, and clean `git status`.
+
+5. Confirm the created mint with `token:compare`, `token:show`, or a narrow
+   read-only query. It should start as `metadataStatus=mint_only` with no
+   Metrics.
+
+6. Run `token:enrich-rescore:geckoterminal` dry-run for that mint.
+
+7. With explicit Red approval only, run one
    `token:enrich-rescore:geckoterminal --write` for that mint.
 
-7. Run `metric:snapshot:geckoterminal` dry-run for that mint.
+   If `contextWriteCount` appears, treat it as a Token context-capture update
+   such as `entrySnapshot.contextCapture.geckoterminalTokenSnapshot`; verify it
+   is not a Metric write or Telegram send.
 
-8. With explicit Red approval only, run one
+8. Run `metric:snapshot:geckoterminal` dry-run for that mint and verify the
+   output is rawJson-free safe summary output.
+
+9. With explicit Red approval only, run one
    `metric:snapshot:geckoterminal --write` for that mint.
 
-9. Confirm with rawJson-free read-only reports:
+10. Confirm with rawJson-free read-only reports:
    `metrics:report`, `token:compare`, and `tokens:compare-report`.
 
-10. If time-series confirmation is needed, do a second Metric append preflight
-    before any second `metric:snapshot:geckoterminal --write`.
+11. If time-series confirmation is needed, record the time gap from the latest
+    Metric, run a second dry-run, then with explicit Red approval run exactly
+    one second `metric:snapshot:geckoterminal --write` for the same mint.
+
+12. Confirm the two-Metric history with `metrics:report -- --mint <MINT>
+    --limit 2` and `token:compare -- --mint <MINT>`. The latest row should be
+    the new Metric, the previous row should be the first Metric, and neither
+    report should expose Metric rawJson.
 
 ## Red / Green Boundary
 
@@ -269,11 +300,15 @@ Stop before continuing if any of these happen:
 - `importedCount > 1`.
 - `failedCount > 0`.
 - rate limit, timeout, or network instability.
+- the tmux session name already exists for a detect run.
 - the command may touch the default checkpoint.
+- `--pumpOnly`, `--limit 1`, or explicit `--maxIterations` would be removed.
 - rawJson, `.env`, token, chat id, or other secret display risk appears.
 - the next step would require removing `--maxIterations`.
-- the task expands into systemd or tmux outside the explicitly approved step.
+- the task expands into systemd, ops catchup, or a tmux command outside the
+  explicitly approved step.
 - Telegram sending becomes part of the path.
+- `git status` becomes dirty outside docs-only tasks.
 - the exact command differs from the approved command.
 
 ## Reporting Rules
@@ -290,13 +325,13 @@ For Metric confirmation, prefer:
 
 ## Out Of Scope / Still Unconfirmed
 
-- detect foreground / tmux operation.
 - detect long-running watch.
 - default checkpoint operation.
 - systemd start / enable.
 - scheduler / queue worker.
 - unbounded watch.
 - restart-oriented operation.
+- multiple-token simultaneous Metric snapshot write.
 - `token_completed` production live send.
 - `loop_complete` production live send.
 
@@ -304,7 +339,7 @@ For Metric confirmation, prefer:
 
 The current bounded operation MVP is useful as a semi-automated investigation
 workflow and should be treated as the interim MVP until a new preflight proves a
-wider operating mode. The next practical step is either a detect foreground /
-tmux watch preflight or a decision to formalize metric snapshot tmux bounded
-operation as the interim operating mode. Service-style operation waits for a
-user-systemd-capable environment.
+wider operating mode. The next practical step is either one more bounded detect
+candidate using the checklist above or a decision to formalize metric snapshot
+tmux bounded operation as the interim operating mode. Service-style operation
+waits for a user-systemd-capable environment.
