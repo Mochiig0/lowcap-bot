@@ -245,6 +245,23 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   command into a separate Red approval task without executing it in the
   selection task. If `nextRedCommand=null`, stop at report confirmation. Red
   execution and docs commit / push must remain separate tasks.
+- The planner-gated flow has now been exercised once after the human approval
+  gate. `7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump` was selected as a
+  `partial_with_one_metric` candidate (`INDIA KASHMIR RAID` / `Inkraid`,
+  score `C` / `1`, `hardRejected=false`, previous latestMetric `id=1114` at
+  `observedAt=2026-04-29T05:29:14.486Z`). The planner only printed the
+  `lowcap-gecko-metric-single` `nextRedCommand` string with side-effect upper
+  bound `tmux single-run; target mint one geckoterminal.token_snapshot Metric
+  append; writtenCount<=1`. After separate Red approval, that exact command
+  ran once and appended Metric `id=1138` at
+  `observedAt=2026-05-01T16:56:49.272Z` with source
+  `geckoterminal.token_snapshot`, `volume24h=0`, and price / fdv / reserve /
+  topPool presence all true. The mint moved `metricsCount` from 1 to 2, with
+  `recentMetrics` `1138 -> 1114`; `metrics:report -- --mint ... --limit 2`
+  and `token:compare` confirmed the result rawJson-free. Token fields remained
+  `partial / INDIA KASHMIR RAID / Inkraid / C / 1 / hardRejected=false`, and
+  Telegram / detect / watch / enrich / ops / systemd / checkpoint operations
+  were not invoked.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded

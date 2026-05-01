@@ -460,6 +460,36 @@ Human approval gate:
   scheduler, queue worker, default checkpoint operation, unbounded watch, or
   multi-mint writes.
 
+Planner-gated Red execution record:
+
+- `7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump` is the first live operator
+  selection flow that moved from planner output to a separate Red task. The
+  baseline was `partial / INDIA KASHMIR RAID / Inkraid / C / 1 /
+  hardRejected=false`, `metricsCount=1`, latestMetric `id=1114` with source
+  `geckoterminal.token_snapshot`, and rawJson-free reports.
+- The planner returned `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`, and only printed the
+  `lowcap-gecko-metric-single` tmux single-mint command string. It did not
+  execute the command.
+- After the human approval gate, the exact `nextRedCommand` ran once as a
+  separate Red task:
+
+```bash
+tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --mint 7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"
+```
+
+- The run naturally exited as a no-`--watch` single-run, reported
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+  `writtenCount=1`, and appended exactly one
+  `geckoterminal.token_snapshot` Metric. The new Metric is `id=1138` at
+  `observedAt=2026-05-01T16:56:49.272Z`, `volume24h=0`, with price / fdv /
+  reserve / topPool presence all true. `metricsCount` moved from 1 to 2 with
+  `recentMetrics` `1138 -> 1114`.
+- `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed
+  `1138 -> 1114` rawJson-free. Token fields were unchanged, and Telegram /
+  detect / watch / enrich / ops / systemd / checkpoint operations were not
+  invoked. The Red execution remained separate from this docs commit / push.
+
 Planner stop conditions:
 
 - the mint is missing, ambiguous, or not a GeckoTerminal-origin candidate.
