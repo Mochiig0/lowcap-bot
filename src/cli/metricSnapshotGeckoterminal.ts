@@ -3,6 +3,7 @@ import "dotenv/config";
 import { readFile } from "node:fs/promises";
 
 import { db } from "./db.js";
+import { buildSafeMetricSummary, type SafeMetricSummary } from "./metricSafeSummary.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const GECKOTERMINAL_NETWORK = "solana";
@@ -93,8 +94,7 @@ type MetricCandidate = {
   observedAt: string;
   source: string;
   volume24h: number | null;
-  rawJson: SanitizedSnapshot;
-  rawJsonBytes: number;
+  safeSummary: SafeMetricSummary;
 };
 
 type ProcessedTokenResult = {
@@ -887,13 +887,11 @@ async function processToken(
     const raw = await fetchTokenSnapshotRaw(token.mint);
     const observedAt = new Date().toISOString();
     const rawJson = parseSanitizedSnapshot(raw);
-    const rawJsonBytes = Buffer.byteLength(JSON.stringify(rawJson), "utf-8");
     const metricCandidate: MetricCandidate = {
       observedAt,
       source: args.source,
       volume24h: rawJson.token.volume24h,
-      rawJson,
-      rawJsonBytes,
+      safeSummary: buildSafeMetricSummary(rawJson),
     };
 
     let metricId: number | null = null;

@@ -72,22 +72,12 @@ type MetricSnapshotGeckoterminalOutput = {
       observedAt: string;
       source: string;
       volume24h: number | null;
-      rawJson: {
-        network: string;
-        token: {
-          address: string;
-          name: string | null;
-          symbol: string | null;
-          volume24h: number | null;
-        };
-        topPoolCount: number;
-        topPool: {
-          address: string;
-          dexId: string | null;
-          volume24h: number | null;
-        } | null;
+      safeSummary: {
+        priceUsdPresent: boolean;
+        fdvUsdPresent: boolean;
+        reserveUsdPresent: boolean;
+        topPoolPresent: boolean;
       };
-      rawJsonBytes: number;
     };
     writeSummary: {
       dryRun: boolean;
@@ -99,6 +89,12 @@ type MetricSnapshotGeckoterminalOutput = {
     error?: string;
   }>;
 };
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "lowcap-metric-snapshot-gecko-test-"));
@@ -414,6 +410,36 @@ async function readMetrics(
   }
 }
 
+async function readMetricRawJson(databaseUrl: string, mint: string): Promise<unknown> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const metric = await db.metric.findFirst({
+      where: {
+        token: {
+          mint,
+        },
+      },
+      select: {
+        rawJson: true,
+      },
+      orderBy: {
+        id: "asc",
+      },
+    });
+
+    return metric?.rawJson ?? null;
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("metricSnapshotGeckoterminal boundary", async (t) => {
   await t.test("supports a deterministic single dry-run through snapshot fixture override", async () => {
     await withTempDir(async (dir) => {
@@ -467,29 +493,68 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       assert.equal(parsed.items[0]?.status, "ok");
       assert.equal(parsed.items[0]?.metricCandidate?.source, METRIC_SOURCE);
       assert.equal(parsed.items[0]?.metricCandidate?.volume24h, 1234);
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.network, "solana");
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.token.address, mint);
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.token.name, "Metric Snapshot Token");
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.token.symbol, "MST");
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.token.volume24h, 1234);
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.topPoolCount, 1);
-      assert.equal(
-        parsed.items[0]?.metricCandidate?.rawJson.topPool?.address,
-        "metric_snapshot_pool",
-      );
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.topPool?.dexId, "pumpswap");
-      assert.equal(parsed.items[0]?.metricCandidate?.rawJson.topPool?.volume24h, 321);
-      assert.equal(
-        typeof parsed.items[0]?.metricCandidate?.rawJsonBytes,
-        "number",
-      );
+      assert.deepEqual(parsed.items[0]?.metricCandidate?.safeSummary, {
+        priceUsdPresent: true,
+        fdvUsdPresent: true,
+        reserveUsdPresent: true,
+        topPoolPresent: true,
+      });
       assert.match(parsed.items[0]?.metricCandidate?.observedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
       assert.equal(parsed.items[0]?.writeSummary.dryRun, true);
       assert.equal(parsed.items[0]?.writeSummary.wouldCreateMetric, true);
       assert.equal(parsed.items[0]?.writeSummary.metricId, null);
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
+      assert.equal(result.stdout.includes("metric_snapshot_pool"), false);
 
       const metrics = await readMetrics(databaseUrl, mint);
       assert.deepEqual(metrics, []);
+    });
+  });
+
+  await t.test("keeps write output rawJson-free while preserving saved rawJson", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "write-output.db")}`;
+      const mint = "MetricSnapshotWrite1111111111111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-write-snapshot.json");
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--mint", mint, "--write"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.dryRun, false);
+      assert.equal(parsed.writeEnabled, true);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.summary.okCount, 1);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.summary.writtenCount, 1);
+      assert.equal(parsed.items[0]?.metricCandidate?.volume24h, 1234);
+      assert.deepEqual(parsed.items[0]?.metricCandidate?.safeSummary, {
+        priceUsdPresent: true,
+        fdvUsdPresent: true,
+        reserveUsdPresent: true,
+        topPoolPresent: true,
+      });
+      assert.equal(typeof parsed.items[0]?.writeSummary.metricId, "number");
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
+      assert.equal(result.stdout.includes("metric_snapshot_pool"), false);
+
+      const savedRawJson = readRecord(await readMetricRawJson(databaseUrl, mint));
+      const savedToken = readRecord(savedRawJson?.token);
+      const savedTopPool = readRecord(savedRawJson?.topPool);
+      assert.equal(savedRawJson?.network, "solana");
+      assert.equal(savedToken?.address, mint);
+      assert.equal(savedToken?.name, "Metric Snapshot Token");
+      assert.equal(savedToken?.symbol, "MST");
+      assert.equal(savedTopPool?.address, "metric_snapshot_pool");
     });
   });
 
