@@ -262,6 +262,26 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `partial / INDIA KASHMIR RAID / Inkraid / C / 1 / hardRejected=false`, and
   Telegram / detect / watch / enrich / ops / systemd / checkpoint operations
   were not invoked.
+- The same planner-gated single-mint Metric flow has now been reproduced for
+  `GaUK8sUuGfLUD15sZmKhwtBk6Y9PHybdzUzYaSaLpump`. The planner selection
+  baseline was `partial / CheatGPT / CheatGPT / C / 0 / hardRejected=false`
+  with `metricsCount=1`, latestMetric `id=1113` at
+  `observedAt=2026-04-29T04:18:39.953Z`, source
+  `geckoterminal.token_snapshot`, and `volume24h=58.4719055192`. The planner
+  only printed `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`, and the
+  `lowcap-gecko-metric-single` `nextRedCommand` string with side-effect upper
+  bound `tmux single-run; target mint one geckoterminal.token_snapshot Metric
+  append; writtenCount<=1`. After a separate human gate, that exact command
+  ran once and appended Metric `id=1139` at
+  `observedAt=2026-05-01T17:24:03.489Z` with source
+  `geckoterminal.token_snapshot`, `volume24h=0`, and price / fdv / reserve /
+  topPool presence all true. The mint moved `metricsCount` from 1 to 2, with
+  `recentMetrics` `1139 -> 1113`; `metrics:report -- --mint ... --limit 2`
+  and `token:compare` confirmed the result rawJson-free. Token fields remained
+  `partial / CheatGPT / CheatGPT / C / 0 / hardRejected=false`, and Telegram /
+  detect / watch / enrich / ops / systemd / checkpoint operations were not
+  invoked.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded

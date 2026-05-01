@@ -489,6 +489,26 @@ tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/proj
   `1138 -> 1114` rawJson-free. Token fields were unchanged, and Telegram /
   detect / watch / enrich / ops / systemd / checkpoint operations were not
   invoked. The Red execution remained separate from this docs commit / push.
+- The same planner-gated Red pattern was reproduced for
+  `GaUK8sUuGfLUD15sZmKhwtBk6Y9PHybdzUzYaSaLpump`. Its baseline was
+  `partial / CheatGPT / CheatGPT / C / 0 / hardRejected=false`,
+  `metricsCount=1`, latestMetric `id=1113` with source
+  `geckoterminal.token_snapshot`, and rawJson-free reports. The planner again
+  only printed `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`, and the
+  `lowcap-gecko-metric-single` tmux single-mint command string; it did not
+  execute the command. After the human approval gate, that exact command ran
+  once as a separate Red task, naturally exited as a no-`--watch` single-run,
+  reported `selectedCount=1`, `okCount=1`, `errorCount=0`,
+  `writeEnabled=true`, and `writtenCount=1`, and appended Metric `id=1139` at
+  `observedAt=2026-05-01T17:24:03.489Z` with source
+  `geckoterminal.token_snapshot`, `volume24h=0`, and price / fdv / reserve /
+  topPool presence all true. `metricsCount` moved from 1 to 2 with
+  `recentMetrics` `1139 -> 1113`; `metrics:report -- --mint ... --limit 2`
+  and `token:compare` confirmed the result rawJson-free. Token fields were
+  unchanged, Telegram / detect / watch / enrich / ops / systemd / checkpoint
+  operations were not invoked, and the Red execution remained separate from the
+  docs commit / push.
 
 Planner stop conditions:
 

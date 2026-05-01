@@ -96,6 +96,25 @@ checkpoint operations were not invoked. This remains a strict single-mint
 no-`--watch` flow and does not change the separate batch/watch bounded
 procedure.
 
+Second planner-gated reproduced result: with target mint
+`GaUK8sUuGfLUD15sZmKhwtBk6Y9PHybdzUzYaSaLpump`, the planner returned
+`currentStage=partial_with_one_metric`,
+`nextStage=second_metric_write_or_tmux_single`, and only printed the
+`lowcap-gecko-metric-single` command string. After a separate human-approved
+Red task, that exact command naturally exited as a single-run, created /
+updated `/tmp/lowcap-gecko-metric-single.log`, reported `selectedCount=1`,
+`okCount=1`, `errorCount=0`, `writeEnabled=true`, and `writtenCount=1`, and
+appended Metric `id=1139` at `observedAt=2026-05-01T17:24:03.489Z` with
+source `geckoterminal.token_snapshot`, `volume24h=0`, and price / fdv /
+reserve / topPool presence all true. The target moved `metricsCount` from 1
+to 2 with previous Metric `id=1113`; `metrics:report -- --mint ... --limit 2`
+and `token:compare -- --mint ...` confirmed `1139 -> 1113` rawJson-free.
+Token fields stayed `partial / CheatGPT / CheatGPT / C / 0 /
+hardRejected=false`, and Telegram / detect / watch / enrich / ops / systemd /
+checkpoint operations were not invoked. This remains a strict single-mint
+no-`--watch` flow and does not change the separate batch/watch bounded
+procedure.
+
 Confirmed bounded batch/watch tmux command:
 
 ```bash
