@@ -31,6 +31,7 @@
     "logs:summary:geckoterminal:metaplex": "node ./scripts/summarize-geckoterminal-enrich-metaplex-log.mjs",
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
     "ops:catchup:gecko": "node --import tsx src/cli/geckoterminalCatchupSupervisor.ts",
+    "ops:gecko:single-candidate:plan": "tsx src/cli/geckoterminalSingleCandidatePlan.ts",
     "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "review:pending-shape:geckoterminal": "node --import tsx src/cli/geckoterminalPendingShape.ts",
     "review:manual-targets:geckoterminal": "node --import tsx src/cli/geckoterminalManualTargets.ts",
