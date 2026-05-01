@@ -322,7 +322,15 @@ and one production Telegram ops live send for `metric_appended`:
   for this foreground-created mint. This is a loop-shape confirmation rather
   than a price-quality judgment. Token fields were preserved, Telegram was not
   sent, `volume24h=null`, and price / fdv / reserve / topPool presence were
-  true. Two-Metric rawJson-free report confirmation remains the next Green gate.
+  true. Two-Metric rawJson-free report confirmation has now also passed:
+  `metrics:report -- --mint ... --limit 2` shows Metric ids `1131 -> 1130`,
+  latest `observedAt=2026-04-30T23:55:54.844Z`, previous
+  `observedAt=2026-04-30T16:51:54.070Z`, `volume24h=null`, and all four
+  market-data presence columns true; `token:compare -- --mint ...` shows
+  latestMetric `id=1131` and `recentMetrics` containing `1131` plus `1130`;
+  and `tokens:compare-report` includes the mint with `metricsCount=2` and
+  latestMetric safe summary columns. Metric rawJson was not exposed by the
+  report / compare views.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -358,8 +366,8 @@ second foreground-created mint has now entered the Metric path through
 enrich/rescore plus first Metric append, and its first Metric `id=1130` is now
 visible rawJson-free through `metrics:report`, `token:compare`, and
 `tokens:compare-report`. It has also confirmed time-series append with Metric
-`id=1130 -> 1131` and `metricsCount` `1 -> 2`; it still needs two-Metric
-rawJson-free confirmation through `metrics:report`, `token:compare`, and
+`id=1130 -> 1131` and `metricsCount` `1 -> 2`, then confirmed the two-Metric
+history rawJson-free through `metrics:report`, `token:compare`, and
 `tokens:compare-report`.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
