@@ -617,8 +617,13 @@ Pass conditions:
 - `metricId` is null
 - `writtenCount` is 0
 - `metricCandidate.source` is `geckoterminal.token_snapshot`
-- `metricCandidate.rawJson.token.address` matches the mint
-- `metricCandidate.rawJsonBytes` is present
+- `metricCandidate.safeSummary.priceUsdPresent` is visible
+- `metricCandidate.safeSummary.fdvUsdPresent` is visible
+- `metricCandidate.safeSummary.reserveUsdPresent` is visible
+- `metricCandidate.safeSummary.topPoolPresent` is visible
+- `metricCandidate.volume24h` is visible as a number or null
+- no `metricCandidate.rawJson` field, raw payload body, or rawJson byte count is
+  printed in user-facing output; DB storage of Metric rawJson remains unchanged
 
 Stop when:
 
@@ -626,7 +631,8 @@ Stop when:
 - error is DNS or network related
 - `wouldCreateMetric` is false
 - selected count is not 1
-- the snapshot token address does not match the mint
+- safe summary fields are missing from the dry-run output
+- a rawJson field or raw payload body appears in user-facing output
 
 ### Step 8: Metric Append Write
 

@@ -179,8 +179,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   rawJson-free confirmation through `metrics:report` and `token:compare`.
   This milestone is not an always-on bot, not systemd readiness, not unbounded
   watch readiness, and not scheduler / queue worker completion.
-- The metric snapshot lane has now also confirmed a strict single-mint tmux
-  single-run candidate for interim operation: session
+- The metric snapshot lane now uses the strict single-mint tmux single-run as
+  the formal interim operator procedure before systemd or unbounded watch:
+  session
   `lowcap-gecko-metric-single` ran one `metric:snapshot:geckoterminal
   -- --mint ... --write` command, wrote
   `/tmp/lowcap-gecko-metric-single.log`, used no `--watch`, naturally exited,

@@ -218,9 +218,10 @@ Next-phase recommendation:
 1. Keep this bounded MVP fixed as the daily operator workflow.
 2. Run one more bounded detect candidate if another detect-origin sample is the
    next goal.
-3. Treat strict single-mint tmux metric snapshot as an execution-confirmed
-   interim entrypoint candidate for the Metric lane; formalize it in operator
-   docs when the next docs-only step is approved.
+3. Treat strict single-mint tmux metric snapshot as the adopted interim
+   operator procedure for the Metric lane before systemd or unbounded watch:
+   one `lowcap-gecko-metric-single` session, one `--mint`, no `--watch`,
+   `/tmp/lowcap-gecko-metric-single.log`, and at most one Metric append.
 4. Keep systemd deferred until user systemd is available.
 5. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
@@ -399,7 +400,8 @@ For Metric confirmation, prefer:
 
 The current bounded operation MVP is useful as a semi-automated investigation
 workflow and should be treated as the interim MVP until a new preflight proves a
-wider operating mode. The next practical step is either one more bounded detect
-candidate using the checklist above or a decision to formalize metric snapshot
-tmux bounded operation as the interim operating mode. Service-style operation
+wider operating mode. For Metric capture, the adopted interim operator
+procedure is the strict single-mint tmux single-run shape documented above and
+in `docs/runbooks/gecko-metric-tmux-bounded.md`. Batch/watch bounded metric
+operation remains a separate wider-bound option, and service-style operation
 waits for a user-systemd-capable environment.
