@@ -179,6 +179,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   rawJson-free confirmation through `metrics:report` and `token:compare`.
   This milestone is not an always-on bot, not systemd readiness, not unbounded
   watch readiness, and not scheduler / queue worker completion.
+- The metric snapshot lane has now also confirmed a strict single-mint tmux
+  single-run candidate for interim operation: session
+  `lowcap-gecko-metric-single` ran one `metric:snapshot:geckoterminal
+  -- --mint ... --write` command, wrote
+  `/tmp/lowcap-gecko-metric-single.log`, used no `--watch`, naturally exited,
+  and appended exactly one Metric for
+  `MMeYRRhuFtpJUvHYb7UDsQGDrmB6uKCcMEWsLtopump`. That moved `metricsCount`
+  from 1 to 2 with latestMetric `id=1136` at
+  `observedAt=2026-05-01T10:51:23.716Z`, source
+  `geckoterminal.token_snapshot`, previous Metric `id=1116` at
+  `observedAt=2026-04-29T09:31:32.689Z`, `volume24h=0`, and price / fdv /
+  reserve / topPool presence all true. `metrics:report -- --mint ... --limit 2`
+  showed `1136 -> 1116` rawJson-free, `token:compare` showed
+  `metricsCount=2` and `recentMetrics` `1136 -> 1116`, Token fields were not
+  updated, and Telegram / detect / watch / enrich / ops / systemd were not
+  invoked.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
@@ -559,7 +575,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - metric snapshot systemd preflight has been checked read-only after the tmux bounded gate, and the current sample unit should not be started as-is: the wrapper now supports `LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY=true|1|yes` and `LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS=<N>` for bounded first-run setup, but defaults still remain `LOWCAP_GECKOTERMINAL_METRIC_LIMIT=5`, no `--pumpOnly`, no `--maxIterations`, `LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=1800`, `LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=900`, and the sample unit uses `Restart=always`, so first-run env and journald output policy must still be finalized before systemd start
 - `ops/systemd/lowcap-bot-geckoterminal-metric-watch-first-run.service` is now available as a bounded first-run sample with `Restart=no`, `LOWCAP_GECKOTERMINAL_METRIC_PUMP_ONLY=true`, `LOWCAP_GECKOTERMINAL_METRIC_LIMIT=2`, `LOWCAP_GECKOTERMINAL_METRIC_MAX_ITERATIONS=2`, `LOWCAP_GECKOTERMINAL_METRIC_MIN_GAP_MINUTES=10`, `LOWCAP_GECKOTERMINAL_METRIC_INTERVAL_SECONDS=60`, and `LOWCAP_GECKOTERMINAL_METRIC_START_DELAY_SECONDS=0`; Phase A installed it to `/home/mochi/.config/systemd/user/lowcap-bot-geckoterminal-metric-watch-first-run.service` and confirmed it matches the repo sample, but `systemctl --user daemon-reload` failed with no user bus, and start / enable / status / journal checks remain unrun
 - this Codex execution environment cannot currently run the user systemd first-run path: PID 1 is `codex-linux-san` rather than systemd, `XDG_RUNTIME_DIR` is set but its user bus socket is missing, `systemctl --user is-system-running --no-pager` reports `offline`, and `loginctl show-user` cannot connect to a systemd bus; Phase B start should not be attempted here, so continue with tmux bounded operation or retry Phase A in a user-systemd-enabled session
-- `docs/runbooks/gecko-metric-tmux-bounded.md` is the current practical runbook for metric snapshot bounded operation in this environment: it documents the confirmed `lowcap-gecko-metric-bounded` tmux command, `/tmp/lowcap-gecko-metric-bounded.log`, stop conditions, numeric log checks, and the systemd user-bus blocker context
+- `docs/runbooks/gecko-metric-tmux-bounded.md` is the current practical runbook for metric snapshot bounded operation in this environment: it documents both the confirmed strict single-mint tmux single-run candidate (`lowcap-gecko-metric-single`, `/tmp/lowcap-gecko-metric-single.log`, one target mint, no `--watch`, Metric append maximum 1) and the confirmed bounded batch/watch tmux command (`lowcap-gecko-metric-bounded`, `/tmp/lowcap-gecko-metric-bounded.log`), plus stop conditions, numeric log checks, and the systemd user-bus blocker context
 - Gecko detect always-on work has not started: the pump.fun one-shot write gate, three pump-only one-cycle detect watch write gates with the same `/tmp` checkpoint, the first foreground bounded detect watch wrapper gate with `--maxIterations 2`, two detect tmux bounded gates, both foreground-detected mints' follow-up through enrich/rescore, two Metric appends, and two-Metric rawJson-free report confirmation, both tmux-detected mints' follow-up through enrich/rescore, two Metric appends, and two-Metric rawJson-free report confirmation, first watch-detected mint follow-up through enrich/rescore, two Metric appends, and rawJson-free report confirmation, second watch-detected mint follow-up through enrich/rescore, two Metric appends, and rawJson-free report confirmation, third watch-detected mint follow-up through enrich/rescore, two Metric appends, and rawJson-free report confirmation, same-mint one-shot observation loop with two Metrics, bounded single-mint and batch Metric snapshot watch writes, bounded foreground/tmux Metric snapshot gates, and read-only multi-token Metric cohort reporting are confirmed, but default-checkpoint detect watch operation, detect systemd operation, two-or-more-token simultaneous metric snapshot write, long-running metric snapshot watch, restart-oriented metric snapshot operation, and metric snapshot systemd operation remain unconfirmed
 - all GeckoTerminal runners perform a lightweight Prisma `Token`-table preflight before starting; if the target SQLite DB has not been initialized yet, they fail fast with `db_preflight_failed` instead of entering watch/batch loops with repeated `main.Token` errors
 - `pnpm ops:summary:geckoterminal -- --sinceHours 24 --limit 10` is the new read-only DB summary for recent Gecko-origin tokens, covering first-seen snapshot presence, enrich coverage, metric coverage, score-rank counts, notify-candidate counts, current/origin source counts, and a recent preview

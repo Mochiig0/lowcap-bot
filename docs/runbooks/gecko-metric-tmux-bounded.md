@@ -12,6 +12,14 @@ for the metric snapshot lane in this environment. It is suitable for bounded
 confirmation and short operation, while `systemd`, unbounded watch, and
 restart-oriented operation remain separate later gates.
 
+There are two bounded tmux shapes:
+
+- strict single-mint single-run: one target mint, no `--watch`, one tmux
+  session, one `/tmp` log, and at most one Metric append. Use this when the
+  operator wants the narrowest interim entrypoint.
+- bounded batch/watch: `--watch` plus explicit `--maxIterations`, with bounded
+  `--limit`. Use this only when the operator accepts the wider write bound.
+
 For the full cross-lane bounded operation MVP, including detect watch write,
 enrich/rescore, Metric append, rawJson-free reporting, Red / Green boundaries,
 and stop conditions, see `docs/runbooks/gecko-bounded-operation-mvp.md`.
@@ -27,7 +35,34 @@ and stop conditions, see `docs/runbooks/gecko-bounded-operation-mvp.md`.
 
 ## Start Command
 
-Confirmed bounded tmux command:
+Confirmed strict single-mint tmux command shape:
+
+```bash
+tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --mint <MINT> --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"
+```
+
+This uses:
+
+- session: `lowcap-gecko-metric-single`
+- log file: `/tmp/lowcap-gecko-metric-single.log`
+- `--mint <MINT>`
+- `--write`
+- no `--watch`
+
+Confirmed result: with target mint
+`MMeYRRhuFtpJUvHYb7UDsQGDrmB6uKCcMEWsLtopump`, the tmux command naturally
+exited as a single-run, created / updated `/tmp/lowcap-gecko-metric-single.log`,
+reported `selectedCount=1`, `okCount=1`, `errorCount=0`,
+`writeEnabled=true`, and `writtenCount=1`, and appended Metric `id=1136` at
+`observedAt=2026-05-01T10:51:23.716Z` with source
+`geckoterminal.token_snapshot`, `volume24h=0`, and price / fdv / reserve /
+topPool presence all true. The target moved `metricsCount` from 1 to 2 with
+previous Metric `id=1116`; `metrics:report -- --mint ... --limit 2` and
+`token:compare -- --mint ...` confirmed `1136 -> 1116` rawJson-free. Token
+fields were not updated, and Telegram / detect / watch / enrich / ops / systemd
+were not invoked.
+
+Confirmed bounded batch/watch tmux command:
 
 ```bash
 tmux new-session -d -s lowcap-gecko-metric-bounded "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 2 --write --watch --maxIterations 2 --minGapMinutes 10 --intervalSeconds 60 > /tmp/lowcap-gecko-metric-bounded.log 2>&1'"
@@ -47,7 +82,19 @@ This uses:
 
 ## Check Commands
 
-Session check:
+Strict single-mint session check:
+
+```bash
+tmux has-session -t lowcap-gecko-metric-single
+```
+
+Strict single-mint log check:
+
+```bash
+tail -n 120 /tmp/lowcap-gecko-metric-single.log
+```
+
+Batch/watch session check:
 
 ```bash
 tmux has-session -t lowcap-gecko-metric-bounded
@@ -95,9 +142,15 @@ Summarize these fields:
 
 Stop before continuing if any of these happen:
 
+- a strict single-mint command lacks `--mint <MINT>`.
+- `--watch` appears in the strict single-mint command.
+- a strict single-mint command can select more than one token.
 - `selectedCount` is higher than expected.
 - `writtenCount` exceeds the bounded maximum.
 - `failedCount > 0`.
+- `errorCount > 0`.
+- Token fields are updated by the Metric step.
+- Telegram, detect, enrich/rescore, ops, or systemd appear in the Metric step.
 - `rateLimited` or `abortedDueToRateLimit` is true.
 - There is any risk of showing rawJson, `.env`, tokens, chat ids, or other
   secrets.
@@ -107,10 +160,16 @@ Stop before continuing if any of these happen:
 
 ## Side-Effect Bound
 
-The command is bounded by `--limit 2 * --maxIterations 2`, so it can append at
-most four Metric rows. `--minGapMinutes 10` skips tokens with a recent Metric for
-the same source before fetch. It should not update Token fields and should not
-send Telegram notifications.
+The strict single-mint command is bounded by one explicit `--mint`, no
+`--watch`, and one tmux session. It can append at most one Metric row for the
+target mint, writes only the `/tmp/lowcap-gecko-metric-single.log` log file
+besides the Metric row, and does not use or update checkpoints. It should not
+update Token fields and should not send Telegram notifications.
+
+The batch/watch command is bounded by `--limit 2 * --maxIterations 2`, so it can
+append at most four Metric rows. `--minGapMinutes 10` skips tokens with a recent
+Metric for the same source before fetch. It should not update Token fields and
+should not send Telegram notifications.
 
 The confirmed tmux run started successfully, naturally exited, ran
 `maxIterations=2`, appended Metric `id=1121` in cycle 1, skipped cycle 2 as

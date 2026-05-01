@@ -158,7 +158,14 @@ secrets.
   two-Metric report confirmation has also passed through `metrics:report`,
   `token:compare`, and `tokens:compare-report`.
 - `metric:snapshot:geckoterminal` has passed bounded single-mint, batch,
-  foreground, tmux append, and tmux no-candidate natural-exit gates.
+  foreground, tmux append, tmux no-candidate natural-exit, and strict
+  single-mint tmux single-run gates. The strict tmux single-run confirmation
+  used `lowcap-gecko-metric-single`, one `--mint`, no `--watch`, and
+  `/tmp/lowcap-gecko-metric-single.log`; it appended exactly one Metric
+  (`id=1136`) for `MMeYRRhuFtpJUvHYb7UDsQGDrmB6uKCcMEWsLtopump`, moved
+  `metricsCount` from 1 to 2 with previous Metric `id=1116`, preserved Token
+  fields, and did not invoke Telegram / detect / watch / enrich / ops /
+  systemd.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm
   saved Metric state without showing Metric rawJson.
 - User systemd is blocked in this environment, the default GeckoTerminal detect
@@ -197,6 +204,10 @@ Adopted scope:
 - enrich/rescore uses one `token:enrich-rescore:geckoterminal --write` for one
   mint.
 - Metric capture uses one `metric:snapshot:geckoterminal --write` for one mint.
+  When tmux wrapping is useful, the confirmed strict interim shape is one
+  `lowcap-gecko-metric-single` tmux session that runs the same single-mint
+  command once without `--watch` and writes only `/tmp/lowcap-gecko-metric-single.log`
+  plus at most one Metric row.
 - reporting uses `metrics:report`, `token:compare`, and
   `tokens:compare-report` without Metric rawJson.
 - the default GeckoTerminal detect checkpoint remains unused.
@@ -207,8 +218,9 @@ Next-phase recommendation:
 1. Keep this bounded MVP fixed as the daily operator workflow.
 2. Run one more bounded detect candidate if another detect-origin sample is the
    next goal.
-3. Separately decide whether metric snapshot tmux bounded operation should be
-   the formal interim operating entrypoint.
+3. Treat strict single-mint tmux metric snapshot as an execution-confirmed
+   interim entrypoint candidate for the Metric lane; formalize it in operator
+   docs when the next docs-only step is approved.
 4. Keep systemd deferred until user systemd is available.
 5. Keep `token_completed` and `loop_complete` production live sends deferred
    until eligible candidates naturally exist.
