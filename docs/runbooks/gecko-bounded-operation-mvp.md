@@ -422,6 +422,13 @@ pnpm -s metrics:report -- --mint <MINT> --limit 2
 pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT>
 ```
 
+For Red execution preflight, include the expected Metric count from the
+baseline:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT>
+```
+
 4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
    `nextRedCommand`, `sideEffectUpperBound`, and `stopConditions`.
 5. Confirm the planner output does not expose a Metric `rawJson` field, raw
@@ -447,6 +454,14 @@ Candidate interpretation:
   matching tokens; confirm this stage separately when a real candidate appears.
 - `hardRejected=true`, latestMetric source mismatch, or any guard mismatch:
   manual review stop.
+- `--expectedMetricsCount` mismatch: stop before Red approval with
+  `status=stop`, `currentStage=guard_mismatch`, `nextStage=null`,
+  `nextRedCommand=null`, and actual `guards.metricsCount`. Do not proceed to
+  the proposed Red command until the operator re-baselines the mint.
+- invalid `--expectedMetricsCount` input: stop with `currentStage=invalid_args`
+  and `nextRedCommand=null`.
+- Token missing still takes priority over `--expectedMetricsCount` as
+  `currentStage=missing_token`.
 
 Human approval gate:
 

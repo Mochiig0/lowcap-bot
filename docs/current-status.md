@@ -282,6 +282,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `partial / CheatGPT / CheatGPT / C / 0 / hardRejected=false`, and Telegram /
   detect / watch / enrich / ops / systemd / checkpoint operations were not
   invoked.
+- The read-only planner now supports `--expectedMetricsCount <number>` as a Red
+  preflight guard against metricsCount drift. When the expected count does not
+  match the actual count, the planner returns `status=stop`,
+  `currentStage=guard_mismatch`, `nextStage=null`, `nextRedCommand=null`, and
+  actual `guards.metricsCount`; invalid values such as non-numeric, empty,
+  negative, or fractional counts return `currentStage=invalid_args` and do not
+  print a Red command. Missing Token still takes priority as `missing_token`.
+  The guard keeps the existing read-only / non-executor contract and does not
+  expose Metric `rawJson`.
+- The new guard passed a real-DB read-only smoke on
+  `GaUK8sUuGfLUD15sZmKhwtBk6Y9PHybdzUzYaSaLpump` with
+  `pnpm -s ops:gecko:single-candidate:plan -- --mint ... --expectedMetricsCount 2`:
+  actual `metricsCount=2` matched, `currentStage=two_or_more_metrics`,
+  `nextRedCommand=null`, and the output remained rawJson-free. That smoke did
+  not write DB / Token / Metric rows, did not send Telegram, and did not start
+  tmux / watch / systemd.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
