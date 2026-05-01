@@ -195,7 +195,20 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   showed `1136 -> 1116` rawJson-free, `token:compare` showed
   `metricsCount=2` and `recentMetrics` `1136 -> 1116`, Token fields were not
   updated, and Telegram / detect / watch / enrich / ops / systemd were not
-  invoked.
+  invoked. The same formal interim operator procedure has now been reproduced
+  for `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`: the
+  `lowcap-gecko-metric-single` tmux single-run naturally exited, created /
+  updated `/tmp/lowcap-gecko-metric-single.log`, reported
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+  `writtenCount=1`, and appended exactly one `geckoterminal.token_snapshot`
+  Metric. That moved `metricsCount` from 1 to 2 with latestMetric `id=1137`
+  at `observedAt=2026-05-01T15:31:56.893Z`, previous Metric `id=1115` at
+  `observedAt=2026-04-29T06:45:25.143Z`, `volume24h=0`, and price / fdv /
+  reserve / topPool presence all true. `metrics:report -- --mint ... --limit 2`
+  showed `1137 -> 1115` rawJson-free, `token:compare` showed
+  `metricsCount=2` and `recentMetrics` `1137 -> 1115`, Token fields remained
+  `partial / Court Room Memes / Court Room / C / 1 / hardRejected=false`, and
+  Telegram / detect / watch / enrich / ops / systemd were not invoked.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded

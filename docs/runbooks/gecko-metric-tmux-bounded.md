@@ -62,6 +62,21 @@ previous Metric `id=1116`; `metrics:report -- --mint ... --limit 2` and
 fields were not updated, and Telegram / detect / watch / enrich / ops / systemd
 were not invoked.
 
+Reproduced result: with target mint
+`3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`, the same formal interim
+operator command naturally exited as a single-run, created / updated
+`/tmp/lowcap-gecko-metric-single.log`, reported `selectedCount=1`,
+`okCount=1`, `errorCount=0`, `writeEnabled=true`, and `writtenCount=1`, and
+appended Metric `id=1137` at `observedAt=2026-05-01T15:31:56.893Z` with
+source `geckoterminal.token_snapshot`, `volume24h=0`, and price / fdv /
+reserve / topPool presence all true. The target moved `metricsCount` from 1
+to 2 with previous Metric `id=1115`; `metrics:report -- --mint ... --limit 2`
+and `token:compare -- --mint ...` confirmed `1137 -> 1115` rawJson-free.
+Token fields stayed `partial / Court Room Memes / Court Room / C / 1 /
+hardRejected=false`, and Telegram / detect / watch / enrich / ops / systemd
+were not invoked. This remains a strict single-mint no-`--watch` flow and does
+not change the separate batch/watch bounded procedure.
+
 Confirmed bounded batch/watch tmux command:
 
 ```bash

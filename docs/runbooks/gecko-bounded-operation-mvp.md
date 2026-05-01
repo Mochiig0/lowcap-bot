@@ -165,6 +165,13 @@ secrets.
   (`id=1136`) for `MMeYRRhuFtpJUvHYb7UDsQGDrmB6uKCcMEWsLtopump`, moved
   `metricsCount` from 1 to 2 with previous Metric `id=1116`, preserved Token
   fields, and did not invoke Telegram / detect / watch / enrich / ops /
+  systemd. The same formal interim operator procedure was then reproduced for
+  `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`: one
+  `lowcap-gecko-metric-single` single-run appended exactly one Metric
+  (`id=1137`) with source `geckoterminal.token_snapshot`, moved `metricsCount`
+  from 1 to 2 with previous Metric `id=1115`, confirmed `1137 -> 1115`
+  rawJson-free through `metrics:report` and `token:compare`, preserved Token
+  fields, and did not invoke Telegram / detect / watch / enrich / ops /
   systemd.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm
   saved Metric state without showing Metric rawJson.
