@@ -209,6 +209,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `metricsCount=2` and `recentMetrics` `1137 -> 1115`, Token fields remained
   `partial / Court Room Memes / Court Room / C / 1 / hardRejected=false`, and
   Telegram / detect / watch / enrich / ops / systemd were not invoked.
+- The next GeckoTerminal operating step is not another broad Red rehearsal by
+  default. It is bounded human-triggered orchestration design: define how the
+  existing detect -> enrich/rescore -> metric snapshot CLIs may be wrapped for
+  one operator-approved mint at a time, with dry-run -> write gates, rawJson-free
+  confirmation after each Metric write, and stage-specific stop conditions. This
+  design must keep Telegram live send, scheduler / queue worker, systemd,
+  unbounded watch, default checkpoint operation, ops catchup, and simultaneous
+  multi-mint writes out of scope unless a later preflight explicitly promotes
+  them.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded

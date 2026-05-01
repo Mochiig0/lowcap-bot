@@ -223,8 +223,8 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run one more bounded detect candidate if another detect-origin sample is the
-   next goal.
+2. Prefer bounded human-triggered orchestration design over more Red
+   reproducibility runs unless a new sample is explicitly needed.
 3. Treat strict single-mint tmux metric snapshot as the adopted interim
    operator procedure for the Metric lane before systemd or unbounded watch:
    one `lowcap-gecko-metric-single` session, one `--mint`, no `--watch`,
@@ -236,6 +236,75 @@ Next-phase recommendation:
 Do not move to default checkpoint, long-running watch, unbounded watch,
 scheduler / queue worker, restart-oriented operation, or systemd without a new
 preflight and explicit Red approval.
+
+## Next Phase: Bounded Human-Triggered Orchestration Design
+
+The next design step is a minimal wrapper / operator command that sequences the
+already-confirmed CLIs for one mint while keeping every mutating stage gated by
+human approval. This is a design target only until implemented and separately
+preflighted.
+
+Target flow:
+
+1. bounded detect creates or identifies at most one mint-only Token.
+2. `token:compare` / `token:show` establish the baseline.
+3. `token:enrich-rescore:geckoterminal -- --mint <MINT>` dry-runs the
+   enrich/rescore plan.
+4. `token:enrich-rescore:geckoterminal -- --mint <MINT> --write` runs only
+   after explicit approval for that mint.
+5. `metric:snapshot:geckoterminal -- --mint <MINT>` dry-runs the Metric
+   candidate with rawJson-free safe summary output.
+6. `metric:snapshot:geckoterminal -- --mint <MINT> --write` appends at most
+   one Metric after explicit approval.
+7. `metrics:report` and `token:compare` confirm the saved Metric state
+   rawJson-free.
+8. docs record the completed stage before moving on.
+
+Semi-automation may cover:
+
+- carrying one selected mint through the stage list.
+- printing the exact next Red command instead of executing it automatically.
+- enforcing dry-run -> write gates per stage.
+- checking stage-local counts such as `selectedCount`, `okCount`,
+  `errorCount`, `enrichWriteCount`, `rescoreWriteCount`, `contextWriteCount`,
+  `writtenCount`, and `metricsCount`.
+- running rawJson-free read-only reports after a successful write.
+- refusing to continue when repo state, mint state, or output shape does not
+  match the expected single-mint contract.
+
+Semi-automation must not include:
+
+- unbounded watch.
+- default checkpoint operation.
+- systemd start / enable / restart-oriented service operation.
+- scheduler / queue worker behavior.
+- simultaneous multi-mint processing.
+- Telegram live send or `--notify` / `--opsNotify`.
+- `ops:catchup:gecko --write`.
+- implicit retries that hide a failed stage from the operator.
+
+Required stop conditions for any future wrapper:
+
+- the target mint is missing or more than one mint is selected.
+- baseline `metadataStatus`, `metricsCount`, latestMetric, or source differs
+  from the stage expectation.
+- any dry-run reports `errorCount > 0`, `writeEnabled=true`, or a write count
+  above zero.
+- any write reports `selectedCount > 1`, `okCount > 1`, `writtenCount > 1`, or
+  `errorCount > 0`.
+- rawJson, raw payload, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
+  `TELEGRAM_CHAT_ID` would be printed.
+- the flow would add Telegram live send, ops catchup, systemd, scheduler,
+  queue worker, default checkpoint use, or unbounded / long-running watch.
+- `git status --short --branch` is dirty before or after a stage.
+
+Small implementation units, if this moves beyond docs:
+
+- a read-only planner that selects one mint and prints the next exact command.
+- a stage verifier that parses existing CLI output and applies the stop
+  conditions without writing.
+- a wrapper that pauses before each Red command and never auto-advances from
+  dry-run into write.
 
 ## Daily Operator Order
 
