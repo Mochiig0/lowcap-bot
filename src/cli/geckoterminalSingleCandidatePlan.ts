@@ -65,7 +65,9 @@ type SafeMetricPlanItem = {
 
 type Args = {
   mint?: string;
+  expectedMetricsCount?: number;
   error?: string;
+  errorStage?: string;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -78,20 +80,36 @@ function parseArgs(argv: string[]): Args {
     if (key === "--") continue;
     if (!key.startsWith("--")) continue;
 
-    if (key !== "--mint") {
-      return { error: `Unknown option: ${key}` };
+    if (key !== "--mint" && key !== "--expectedMetricsCount") {
+      return { error: `Unknown option: ${key}`, errorStage: "invalid_args" };
     }
 
     if (value === undefined || value.startsWith("--") || value === "") {
-      return { error: "Missing value for --mint" };
+      return { error: `Missing value for ${key}`, errorStage: "invalid_args" };
     }
 
-    out.mint = value;
+    if (key === "--mint") {
+      out.mint = value;
+    } else {
+      const expectedMetricsCount = Number(value);
+      if (
+        !Number.isInteger(expectedMetricsCount) ||
+        expectedMetricsCount < 0
+      ) {
+        return {
+          error: `Invalid expectedMetricsCount: ${value}`,
+          errorStage: "invalid_args",
+        };
+      }
+
+      out.expectedMetricsCount = expectedMetricsCount;
+    }
+
     i += 1;
   }
 
   if (!out.mint) {
-    return { error: "Missing required --mint" };
+    return { error: "Missing required --mint", errorStage: "missing_mint_arg" };
   }
 
   return out;
@@ -218,7 +236,12 @@ function baseOutput(token: {
   };
 }
 
-async function buildPlan(mint: string): Promise<PlanOutput> {
+async function buildPlan(
+  mint: string,
+  options: {
+    expectedMetricsCount?: number;
+  } = {},
+): Promise<PlanOutput> {
   const token = await db.token.findUnique({
     where: {
       mint,
@@ -258,6 +281,21 @@ async function buildPlan(mint: string): Promise<PlanOutput> {
   const base = baseOutput(token);
   const metricsCount = token._count.metrics;
   const latestMetricSource = base.latestMetric?.source ?? null;
+
+  if (
+    options.expectedMetricsCount !== undefined &&
+    metricsCount !== options.expectedMetricsCount
+  ) {
+    return {
+      ...base,
+      status: "stop",
+      currentStage: "guard_mismatch",
+      nextStage: null,
+      reason: `expectedMetricsCount mismatch: expected ${options.expectedMetricsCount}, actual ${metricsCount}`,
+      nextRedCommand: null,
+      sideEffectUpperBound: null,
+    };
+  }
 
   if (token.hardRejected) {
     return {
@@ -354,7 +392,7 @@ async function main(): Promise<void> {
   if (args.error || !args.mint) {
     const output = stopOutput(
       args.mint ?? null,
-      "missing_mint_arg",
+      args.errorStage ?? "invalid_args",
       args.error ?? "Missing required --mint",
     );
     console.log(JSON.stringify(output, null, 2));
@@ -362,7 +400,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  const output = await buildPlan(args.mint);
+  const output = await buildPlan(args.mint, {
+    expectedMetricsCount: args.expectedMetricsCount,
+  });
   console.log(JSON.stringify(output, null, 2));
 }
 

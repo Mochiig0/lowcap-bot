@@ -284,6 +284,27 @@ test("geckoterminal single candidate planner", async (t) => {
     });
   });
 
+  await t.test("missing token stop takes priority over expected metrics count", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "missing-expected.db")}`;
+      const mint = "MissingExpectedPlanner11111111111111111111111";
+
+      await runDbPush(databaseUrl);
+
+      const output = parsePlannerOutput(
+        await runPlanner(
+          ["--mint", mint, "--expectedMetricsCount", "1"],
+          databaseUrl,
+        ),
+      );
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "missing_token");
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.guards.metricsCount, null);
+    });
+  });
+
   await t.test("plans enrich write for a mint_only token without metrics", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "mint-only.db")}`;
@@ -354,7 +375,10 @@ test("geckoterminal single candidate planner", async (t) => {
       });
 
       const beforeCount = await countMetrics(databaseUrl, mint);
-      const result = await runPlanner(["--mint", mint], databaseUrl);
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedMetricsCount", "1"],
+        databaseUrl,
+      );
       const output = parsePlannerOutput(result);
       const afterCount = await countMetrics(databaseUrl, mint);
 
@@ -368,6 +392,75 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(result.stdout.includes('"rawJson":'), false);
       assert.equal(beforeCount, 1);
       assert.equal(afterCount, 1);
+    });
+  });
+
+  await t.test("stops when expected metrics count does not match actual count", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "expected-mismatch.db")}`;
+      const mint = "ExpectedMismatchPlanner111111111111111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, {
+        mint,
+        metadataStatus: "partial",
+        metrics: [
+          {
+            source: "geckoterminal.token_snapshot",
+            observedAt: "2026-05-01T00:00:00.000Z",
+          },
+          {
+            source: "geckoterminal.token_snapshot",
+            observedAt: "2026-05-01T00:10:00.000Z",
+          },
+        ],
+      });
+
+      const beforeCount = await countMetrics(databaseUrl, mint);
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedMetricsCount", "1"],
+        databaseUrl,
+      );
+      const output = parsePlannerOutput(result);
+      const afterCount = await countMetrics(databaseUrl, mint);
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "guard_mismatch");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(
+        output.reason.includes("expectedMetricsCount mismatch: expected 1, actual 2"),
+        true,
+      );
+      assert.equal(output.guards.metricsCount, 2);
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+      assert.equal(beforeCount, 2);
+      assert.equal(afterCount, 2);
+    });
+  });
+
+  await t.test("stops on invalid expected metrics count", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "invalid-expected.db")}`;
+      const mint = "InvalidExpectedPlanner1111111111111111111111";
+
+      await runDbPush(databaseUrl);
+
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedMetricsCount", "abc"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, false);
+
+      const output = JSON.parse(result.stdout) as PlannerOutput;
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "invalid_args");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(output.reason.includes("Invalid expectedMetricsCount"), true);
+      assert.equal(result.stdout.includes('"rawJson":'), false);
     });
   });
 
