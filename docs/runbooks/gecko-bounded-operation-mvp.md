@@ -29,6 +29,14 @@ secrets.
   `selectedCount=2`, `importedCount=2`, and `failedCount=0`, and advanced only
   the `/tmp` checkpoint to `2026-04-29T17:55:30.000Z |
   BWruAw7CYweENaRJ7WFrqSX6VEWd6qwteL3faiB5UgRi`.
+- The same detect wrapper has now passed one tmux bounded run through session
+  `lowcap-gecko-detect-bounded` with output redirected to
+  `/tmp/lowcap-gecko-detect-bounded.log`, the same isolated `/tmp` checkpoint,
+  `--pumpOnly`, `--limit 1`, and `--maxIterations 1`. It selected one
+  candidate, imported one mint-only Token
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, reported
+  `selectedCount=1`, `importedCount=1`, and `failedCount=0`, and did not use
+  the default checkpoint.
 - The first foreground-created mint,
   `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`, has reached first Metric
   append plus rawJson-free report confirmation: enrich/rescore moved it from
@@ -81,6 +89,21 @@ secrets.
   `1131` plus `1130`; and `tokens:compare-report` included the mint with
   `metricsCount=2` and latestMetric safe summary columns. Metric rawJson was
   not exposed by the report / compare output.
+- The first tmux-created mint,
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has reached first Metric
+  append plus rawJson-free report confirmation. Enrich/rescore moved it from
+  `mint_only` to `partial` as `WHO GRANTS WISHES` / `WHO??` with score `C` /
+  `0` and `hardRejected=false`. The enrich/rescore write also reported
+  `contextWriteCount=1`; this was the Token
+  `entrySnapshot.contextCapture.geckoterminalTokenSnapshot` context capture
+  update, not a Metric write or Telegram send. Single-mint Metric snapshot
+  then appended Metric `id=1132` at
+  `observedAt=2026-05-01T07:53:31.204Z`, moving `metricsCount` from 0 to 1
+  with source `geckoterminal.token_snapshot`, `volume24h=20333.5730222922`,
+  and price / fdv / reserve / topPool presence all true. Token fields were
+  preserved by the Metric write, Telegram was not sent, and `metrics:report`
+  plus `token:compare` confirmed the saved Metric without exposing Metric
+  rawJson. A second Metric append for this mint remains unrun.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -126,8 +149,8 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run a separate read-only preflight before any detect tmux bounded watch
-   attempt.
+2. Run a second Metric append read-only preflight for the tmux-created
+   `F6eet...pump` mint if time-series confirmation is the next goal.
 3. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
 4. Keep systemd deferred until user systemd is available.

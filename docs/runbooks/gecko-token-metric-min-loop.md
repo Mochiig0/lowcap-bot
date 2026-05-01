@@ -331,6 +331,23 @@ and one production Telegram ops live send for `metric_appended`:
   and `tokens:compare-report` includes the mint with `metricsCount=2` and
   latestMetric safe summary columns. Metric rawJson was not exposed by the
   report / compare views.
+- the first tmux bounded detect-created mint,
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has now completed the first
+  observation step. The detect wrapper ran in tmux with `/tmp` checkpoint
+  isolation, `--pumpOnly`, `--limit 1`, and `--maxIterations 1`, selected one
+  candidate, imported one mint-only Token, and did not use the default
+  checkpoint. Enrich/rescore then moved the mint to `partial` as
+  `WHO GRANTS WISHES` / `WHO??` with score `C` / `0` and
+  `hardRejected=false`. Its `contextWriteCount=1` was the Token
+  `entrySnapshot.contextCapture.geckoterminalTokenSnapshot` update, not a
+  Metric write or Telegram send. A single-mint Metric snapshot then appended
+  Metric `id=1132` at `observedAt=2026-05-01T07:53:31.204Z`, moved
+  `metricsCount` from 0 to 1, and set latestMetric source to
+  `geckoterminal.token_snapshot`; `volume24h=20333.5730222922`, and price /
+  fdv / reserve / topPool presence were true. `metrics:report` and
+  `token:compare` confirmed that one saved Metric rawJson-free. A second Metric
+  append for this mint remains unrun, so this confirms first observation rather
+  than a time-series append for F6eet.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -369,6 +386,10 @@ visible rawJson-free through `metrics:report`, `token:compare`, and
 `id=1130 -> 1131` and `metricsCount` `1 -> 2`, then confirmed the two-Metric
 history rawJson-free through `metrics:report`, `token:compare`, and
 `tokens:compare-report`.
+The first tmux-created mint has now entered the loop through bounded tmux
+detect, enrich/rescore, first Metric append, and rawJson-free report
+confirmation for Metric `id=1132`; it still needs a second Metric append before
+it can be treated as time-series confirmed.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value

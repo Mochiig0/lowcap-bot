@@ -33,6 +33,10 @@ Confirmed:
 - one foreground bounded detect watch wrapper run with env-pinned `/tmp`
   checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 2`, two natural
   cycles, two mint-only Token writes, and no failed cycles.
+- one tmux bounded detect watch wrapper run with env-pinned `/tmp` checkpoint,
+  `--pumpOnly`, `--limit 1`, `--maxIterations 1`, one natural cycle, one
+  mint-only Token write for
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, and no failed cycles.
 - the first foreground-created mint,
   `5vLb2TaW3sx7bc8pPjmiZX3sYwBxb2kg9mW67ggspump`, has completed
   enrich/rescore, two single-mint Metric appends, and two-Metric rawJson-free
@@ -43,6 +47,10 @@ Confirmed:
   enrich/rescore, two single-mint Metric appends, and two-Metric rawJson-free
   report confirmation through `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
+- the tmux-created mint,
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has completed
+  enrich/rescore to `partial`, one single-mint Metric append, and rawJson-free
+  report confirmation through `metrics:report` and `token:compare`.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -53,7 +61,7 @@ Confirmed:
 
 Still unconfirmed:
 
-- detect tmux watch operation.
+- detect tmux long-running or unbounded watch operation.
 - default-checkpoint detect watch operation.
 - detect long-running or unbounded watch.
 - systemd start / enable and restart-oriented operation.
@@ -68,8 +76,9 @@ Next phase choices:
 - keep enrich/rescore and Metric writes single-mint and exact-command approved.
 - confirm each candidate with `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
-- next, run a separate preflight before detect tmux, or decide whether
-  metric snapshot tmux bounded should be the formal interim operating entrypoint.
+- next, either run a second Metric append preflight for the tmux-created
+  `F6eet...pump`, or decide whether metric snapshot tmux bounded should be the
+  formal interim operating entrypoint.
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
   hold until eligible candidates naturally exist.
@@ -399,8 +408,13 @@ lowcap ingest path. The single-mint loop confirms the real-data one-shot path
 before automation, and the read-only reports now confirm both single-mint
 history and cohort-level visibility. The detect watch proof is still limited to
 bounded pump-only live cycles with an isolated `/tmp` checkpoint, but it has now
-passed three one-cycle writes plus one foreground `maxIterations=2` wrapper
-run. The first watch-detected mint has also passed enrich/rescore, two
+passed three one-cycle writes, one foreground `maxIterations=2` wrapper run, and
+one tmux bounded wrapper run. The tmux run used
+`lowcap-gecko-detect-bounded`, `/tmp/lowcap-gecko-detect-bounded.log`,
+`LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json`,
+`--pumpOnly --limit 1 --maxIterations 1`, selected one candidate, imported one
+mint-only Token, and had `failedCount=0` without touching the default
+checkpoint. The first watch-detected mint has also passed enrich/rescore, two
 Metric appends with distinct `observedAt` values, and rawJson-free report
 confirmation for the two-row Metric history. The second watch-detected mint has
 now also passed enrich/rescore, two Metric appends with distinct `observedAt`
@@ -409,7 +423,18 @@ The third watch-detected mint has also completed that same downstream loop.
 The first foreground-created mint has now reached enrich/rescore, two Metric
 appends, and two-Metric rawJson-free report confirmation. The second
 foreground-created mint has reached enrich/rescore, two Metric appends, and
-two-Metric rawJson-free report confirmation.
+two-Metric rawJson-free report confirmation. The first tmux-created mint,
+`F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has reached enrich/rescore,
+first Metric append, and rawJson-free report confirmation: enrich/rescore moved
+it to `partial` as `WHO GRANTS WISHES` / `WHO??` with score `C` / `0` and
+`hardRejected=false`; `contextWriteCount=1` was the Token
+`entrySnapshot.contextCapture.geckoterminalTokenSnapshot` update, not a Metric
+write or Telegram send; and single-mint Metric snapshot appended Metric
+`id=1132` at `observedAt=2026-05-01T07:53:31.204Z` with source
+`geckoterminal.token_snapshot`, `volume24h=20333.5730222922`, and price / fdv /
+reserve / topPool presence all true. `metrics:report` and `token:compare`
+confirmed the saved Metric without exposing Metric rawJson. A second Metric
+append for this mint remains unrun.
 For any next detect watch write,
 do not touch the default
 checkpoint; keep a bounded command shape with
@@ -423,7 +448,7 @@ systemd detect watch as a later Red task.
 
 Still unconfirmed for this lane:
 
-- detect tmux bounded watch operation
+- detect tmux long-running or unbounded watch operation
 - detect systemd operation
 - default-checkpoint detect watch operation
 - long-running or unbounded detect watch
