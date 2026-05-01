@@ -370,6 +370,36 @@ The planner must not emit:
 - default-checkpoint detect commands.
 - multi-mint Metric write commands.
 
+Implementation and smoke status:
+
+- The planner contract is implemented as
+  `pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT>`.
+- Real-DB read-only smoke has passed for these stages:
+  - `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`:
+    `currentStage=two_or_more_metrics`,
+    `nextStage=report_confirmation_or_stop`, and `nextRedCommand=null`.
+  - `7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump`:
+    `currentStage=partial_with_one_metric`,
+    `nextStage=second_metric_write_or_tmux_single`, and
+    `nextRedCommand` is only the `lowcap-gecko-metric-single` tmux
+    single-mint Metric command string.
+  - `SMOKE_1777155335104_GECKO_COMPARE_NOISE_11`:
+    `currentStage=mint_only_without_metrics`, `nextStage=enrich_write`, and
+    `nextRedCommand` is only the
+    `token:enrich-rescore:geckoterminal --write` command string. This is a
+    smoke-only mint, not a live market candidate proof.
+- `partial_without_metrics` remains unconfirmed in the smoke matrix because the
+  read-only candidate report returned zero matching tokens.
+- The smoke confirmed planner output is rawJson-free in the user-facing sense:
+  it did not expose a Metric `rawJson` field, raw payload body, `.env`,
+  `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or `TELEGRAM_CHAT_ID`. The
+  `rawJsonFreeRequired` flag and stop-condition wording are specification text,
+  not raw payload output.
+- The smoke did not execute any `nextRedCommand`, did not attach `--write`, did
+  not start tmux, did not write DB / Token / Metric rows, did not send
+  Telegram, and did not touch watch, checkpoint, systemd, scheduler, or queue
+  behavior.
+
 Planner stop conditions:
 
 - the mint is missing, ambiguous, or not a GeckoTerminal-origin candidate.

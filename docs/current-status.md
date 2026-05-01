@@ -217,10 +217,26 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   design must keep Telegram live send, scheduler / queue worker, systemd,
   unbounded watch, default checkpoint operation, ops catchup, and simultaneous
   multi-mint writes out of scope unless a later preflight explicitly promotes
-  them. The first contract in that design is the read-only planner: it is a
-  proposed specification only, not implemented yet, and its role is limited to
-  inspecting one mint and printing one next exact Red command plus side-effect
-  bounds and stop conditions without executing anything.
+  them. The first contract in that design is now implemented as
+  `pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT>`. It is a
+  read-only planner, not an executor: it inspects one mint and prints one next
+  exact Red command plus side-effect bounds and stop conditions without running
+  the command. The real-DB read-only smoke matrix has passed for three stages:
+  `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump` returned
+  `currentStage=two_or_more_metrics`, `nextStage=report_confirmation_or_stop`,
+  and `nextRedCommand=null`; `7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump`
+  returned `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`, and a
+  `lowcap-gecko-metric-single` tmux single-mint command string without running
+  it; smoke-only mint `SMOKE_1777155335104_GECKO_COMPARE_NOISE_11` returned
+  `currentStage=mint_only_without_metrics`, `nextStage=enrich_write`, and a
+  `token:enrich-rescore:geckoterminal --write` command string without running
+  it. `partial_without_metrics` remains unconfirmed because the read-only
+  `tokens:compare-report` candidate check returned zero matching tokens. The
+  planner output did not expose a Metric `rawJson` field, raw payload body, or
+  secrets; `rawJsonFreeRequired` and stop-condition wording are specification
+  text only. The smoke did not write DB / Token / Metric rows, did not send
+  Telegram, did not start tmux, and did not touch watch / systemd.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
