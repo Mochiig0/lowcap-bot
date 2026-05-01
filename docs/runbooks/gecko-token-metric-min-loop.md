@@ -421,6 +421,11 @@ history rawJson-free through `metrics:report`, `token:compare`, and
 The first tmux-created mint has now entered the loop through bounded tmux
 detect, enrich/rescore, two Metric appends, and rawJson-free two-Metric report
 confirmation for Metric ids `1133 -> 1132`.
+The second tmux-created mint has also completed the same loop through bounded
+tmux detect, enrich/rescore, two Metric appends, and rawJson-free two-Metric
+report confirmation for Metric ids `1135 -> 1134`. Together these two
+tmux-created mints make the human-triggered bounded operation MVP complete for
+the single-candidate operator-approved Token-to-Metric scope.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value

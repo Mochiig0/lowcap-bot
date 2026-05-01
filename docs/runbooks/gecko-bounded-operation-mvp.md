@@ -165,11 +165,29 @@ secrets.
   checkpoint is still unused, and always-on / scheduler / queue worker /
   unbounded watch operation is not implemented.
 
+## Milestone Status
+
+The human-triggered bounded operation MVP is complete within its intended
+scope. This means the operator-approved, single-candidate path has been proven
+end to end: bounded detect with `/tmp` checkpoint isolation, no default
+checkpoint use, `--pumpOnly --limit 1` plus explicit `--maxIterations`,
+single-mint enrich/rescore, two single-mint Metric appends, and rawJson-free
+report confirmation.
+
+The milestone is based on two tmux-created mints,
+`F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump` and
+`AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, both of which completed
+detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
+confirmation. This does not mark lowcap-bot complete, does not make the lane
+always-on, and does not approve systemd, unbounded watch, the default
+checkpoint, scheduler / queue worker operation, multiple-token simultaneous
+Metric writes, or additional production Telegram live-send gates.
+
 ## Interim Adoption
 
-Treat this bounded operation MVP as the current interim operating entrypoint.
-It is suitable for deliberate, human-approved candidate accumulation, not for
-always-on monitoring.
+Treat this completed bounded operation MVP as the current interim operating
+entrypoint. It is suitable for deliberate, human-approved candidate
+accumulation, not for always-on monitoring.
 
 Adopted scope:
 

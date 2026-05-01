@@ -57,6 +57,11 @@ Confirmed:
   enrich/rescore to `partial`, two single-mint Metric appends, and two-Metric
   rawJson-free report confirmation through `metrics:report` and
   `token:compare`.
+- the second tmux-created mint,
+  `AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, has completed
+  enrich/rescore to `partial`, two single-mint Metric appends, and two-Metric
+  rawJson-free report confirmation through `metrics:report` and
+  `token:compare`.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -75,8 +80,9 @@ Still unconfirmed:
 
 Next phase choices:
 
-- adopt the bounded operation MVP runbook as the current operator entrypoint
-  before adding more Red gates.
+- treat the human-triggered bounded operation MVP as complete for the
+  single-candidate operator-approved scope, and keep its runbook as the current
+  operator entrypoint before adding more Red gates.
 - keep detect bounded to `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, and an
   explicit `--maxIterations`; do not use the default checkpoint yet.
 - keep enrich/rescore and Metric writes single-mint and exact-command approved.
