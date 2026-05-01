@@ -68,7 +68,13 @@ secrets.
   `metrics:report`, `token:compare`, and `tokens:compare-report`: Metric
   `id=1130`, `observedAt=2026-04-30T16:51:54.070Z`, `metricsCount=1`,
   `volume24h=null`, and latestMetric safe summary columns are visible without
-  Metric rawJson. A second Metric append remains unrun for this mint.
+  Metric rawJson. A second single-mint Metric snapshot write then appended
+  Metric `id=1131` at `observedAt=2026-04-30T23:55:54.844Z`, moved
+  `metricsCount` from 1 to 2, and left previousMetric as `id=1130` at
+  `observedAt=2026-04-30T16:51:54.070Z`, confirming distinct time-series
+  observations. Token fields were preserved, Telegram was not sent,
+  `volume24h=null`, and price / fdv / reserve / topPool presence were true.
+  Two-Metric rawJson-free report confirmation remains unrun for this mint.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -114,7 +120,7 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run read-only preflight before any second Metric append for `6MD8...pump`.
+2. Run two-Metric rawJson-free report confirmation for `6MD8...pump`.
 3. Run a separate read-only preflight before any detect tmux bounded watch
    attempt.
 4. Separately decide whether metric snapshot tmux bounded operation should be

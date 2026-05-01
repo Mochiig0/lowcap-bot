@@ -314,9 +314,15 @@ and one production Telegram ops live send for `metric_appended`:
   latestMetric `id=1130`, one `recentMetrics` item, and all four `safeSummary`
   booleans true; and `tokens:compare-report` includes the mint with
   `metricsCount=1`, latestMetric observedAt, and latestMetric safe summary
-  columns. Metric rawJson was not exposed by the report / compare views. This
-  confirms first observation only; time-series append remains unrun for this
-  mint.
+  columns. Metric rawJson was not exposed by the report / compare views. A
+  second single-mint Metric snapshot write later appended Metric
+  `id=1131` at `observedAt=2026-04-30T23:55:54.844Z`, moved `metricsCount`
+  from 1 to 2, and left previousMetric as `id=1130` at
+  `observedAt=2026-04-30T16:51:54.070Z`, confirming time-series append shape
+  for this foreground-created mint. This is a loop-shape confirmation rather
+  than a price-quality judgment. Token fields were preserved, Telegram was not
+  sent, `volume24h=null`, and price / fdv / reserve / topPool presence were
+  true. Two-Metric rawJson-free report confirmation remains the next Green gate.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -351,8 +357,10 @@ second Metric append, and two-Metric rawJson-free report confirmation. The
 second foreground-created mint has now entered the Metric path through
 enrich/rescore plus first Metric append, and its first Metric `id=1130` is now
 visible rawJson-free through `metrics:report`, `token:compare`, and
-`tokens:compare-report`; it still needs read-only preflight before any second
-Metric append.
+`tokens:compare-report`. It has also confirmed time-series append with Metric
+`id=1130 -> 1131` and `metricsCount` `1 -> 2`; it still needs two-Metric
+rawJson-free confirmation through `metrics:report`, `token:compare`, and
+`tokens:compare-report`.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value
