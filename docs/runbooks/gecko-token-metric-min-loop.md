@@ -332,8 +332,8 @@ and one production Telegram ops live send for `metric_appended`:
   latestMetric safe summary columns. Metric rawJson was not exposed by the
   report / compare views.
 - the first tmux bounded detect-created mint,
-  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has now completed the first
-  observation step. The detect wrapper ran in tmux with `/tmp` checkpoint
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has now completed the
+  two-Metric observation step. The detect wrapper ran in tmux with `/tmp` checkpoint
   isolation, `--pumpOnly`, `--limit 1`, and `--maxIterations 1`, selected one
   candidate, imported one mint-only Token, and did not use the default
   checkpoint. Enrich/rescore then moved the mint to `partial` as
@@ -345,9 +345,16 @@ and one production Telegram ops live send for `metric_appended`:
   `metricsCount` from 0 to 1, and set latestMetric source to
   `geckoterminal.token_snapshot`; `volume24h=20333.5730222922`, and price /
   fdv / reserve / topPool presence were true. `metrics:report` and
-  `token:compare` confirmed that one saved Metric rawJson-free. A second Metric
-  append for this mint remains unrun, so this confirms first observation rather
-  than a time-series append for F6eet.
+  `token:compare` confirmed that one saved Metric rawJson-free. A second
+  single-mint Metric snapshot then appended Metric `id=1133` at
+  `observedAt=2026-05-01T08:08:12.847Z`, moved `metricsCount` from 1 to 2, and
+  left previousMetric as `id=1132` at
+  `observedAt=2026-05-01T07:53:31.204Z`, confirming a time-series append about
+  14 minutes 41 seconds later. The latest row has
+  `volume24h=20335.4710939884`, and price / fdv / reserve / topPool presence
+  were true. `metrics:report -- --mint ... --limit 2` and `token:compare`
+  confirmed Metric ids `1133 -> 1132`, latestMetric `id=1133`, and
+  `recentMetrics` containing `1133` plus `1132` rawJson-free.
 - `token:compare` Metric views were later made rawJson-free and now include
   `safeSummary` booleans, so latestMetric and `recentMetrics` can be used in
   operator reports without exposing Metric rawJson.
@@ -387,9 +394,8 @@ visible rawJson-free through `metrics:report`, `token:compare`, and
 history rawJson-free through `metrics:report`, `token:compare`, and
 `tokens:compare-report`.
 The first tmux-created mint has now entered the loop through bounded tmux
-detect, enrich/rescore, first Metric append, and rawJson-free report
-confirmation for Metric `id=1132`; it still needs a second Metric append before
-it can be treated as time-series confirmed.
+detect, enrich/rescore, two Metric appends, and rawJson-free two-Metric report
+confirmation for Metric ids `1133 -> 1132`.
 It does not confirm scheduler, systemd, `token_completed` live send,
 `loop_complete` live send, foreground append, two-or-more-token simultaneous
 Metric write, long-running or restart-oriented watch operation, or numeric value

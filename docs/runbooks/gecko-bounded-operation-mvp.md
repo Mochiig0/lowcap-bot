@@ -90,8 +90,8 @@ secrets.
   `metricsCount=2` and latestMetric safe summary columns. Metric rawJson was
   not exposed by the report / compare output.
 - The first tmux-created mint,
-  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has reached first Metric
-  append plus rawJson-free report confirmation. Enrich/rescore moved it from
+  `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has reached two Metric
+  appends plus rawJson-free two-Metric report confirmation. Enrich/rescore moved it from
   `mint_only` to `partial` as `WHO GRANTS WISHES` / `WHO??` with score `C` /
   `0` and `hardRejected=false`. The enrich/rescore write also reported
   `contextWriteCount=1`; this was the Token
@@ -101,9 +101,17 @@ secrets.
   `observedAt=2026-05-01T07:53:31.204Z`, moving `metricsCount` from 0 to 1
   with source `geckoterminal.token_snapshot`, `volume24h=20333.5730222922`,
   and price / fdv / reserve / topPool presence all true. Token fields were
-  preserved by the Metric write, Telegram was not sent, and `metrics:report`
-  plus `token:compare` confirmed the saved Metric without exposing Metric
-  rawJson. A second Metric append for this mint remains unrun.
+  preserved by the Metric write, and Telegram was not sent. A second
+  single-mint Metric snapshot then appended Metric `id=1133` at
+  `observedAt=2026-05-01T08:08:12.847Z`, moved `metricsCount` from 1 to 2,
+  and kept previousMetric as `id=1132` at
+  `observedAt=2026-05-01T07:53:31.204Z`, about 14 minutes 41 seconds earlier.
+  The latest row has `volume24h=20335.4710939884`, and price / fdv / reserve /
+  topPool presence all true. `metrics:report -- --mint ... --limit 2` plus
+  `token:compare` confirmed Metric ids `1133 -> 1132`, latestMetric `id=1133`,
+  and `recentMetrics` containing `1133` plus `1132` without exposing Metric
+  rawJson. Token fields were preserved by both Metric writes, and Telegram /
+  detect / watch / tmux / systemd were not invoked during the Metric steps.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -149,8 +157,8 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. Run a second Metric append read-only preflight for the tmux-created
-   `F6eet...pump` mint if time-series confirmation is the next goal.
+2. Run one more bounded detect candidate if another detect-origin sample is the
+   next goal.
 3. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
 4. Keep systemd deferred until user systemd is available.

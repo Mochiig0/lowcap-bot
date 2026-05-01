@@ -49,8 +49,9 @@ Confirmed:
   `tokens:compare-report`.
 - the tmux-created mint,
   `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has completed
-  enrich/rescore to `partial`, one single-mint Metric append, and rawJson-free
-  report confirmation through `metrics:report` and `token:compare`.
+  enrich/rescore to `partial`, two single-mint Metric appends, and two-Metric
+  rawJson-free report confirmation through `metrics:report` and
+  `token:compare`.
 - all three watch-detected mints completed downstream enrich/rescore, two
   single-mint Metric appends, and rawJson-free report confirmation through
   `metrics:report`, `token:compare`, and `tokens:compare-report`.
@@ -76,9 +77,8 @@ Next phase choices:
 - keep enrich/rescore and Metric writes single-mint and exact-command approved.
 - confirm each candidate with `metrics:report`, `token:compare`, and
   `tokens:compare-report`.
-- next, either run a second Metric append preflight for the tmux-created
-  `F6eet...pump`, or decide whether metric snapshot tmux bounded should be the
-  formal interim operating entrypoint.
+- next, either run one more bounded detect candidate, or decide whether metric
+  snapshot tmux bounded should be the formal interim operating entrypoint.
 - keep systemd on hold until a user-systemd-capable session is available.
 - keep `token_completed` and `loop_complete` production live-send checks on
   hold until eligible candidates naturally exist.
@@ -425,16 +425,21 @@ appends, and two-Metric rawJson-free report confirmation. The second
 foreground-created mint has reached enrich/rescore, two Metric appends, and
 two-Metric rawJson-free report confirmation. The first tmux-created mint,
 `F6eetKrYwCsF8FYLu9ZbrHXyb7JvP1kaoVDgs37ppump`, has reached enrich/rescore,
-first Metric append, and rawJson-free report confirmation: enrich/rescore moved
+two Metric appends, and two-Metric rawJson-free report confirmation:
+enrich/rescore moved
 it to `partial` as `WHO GRANTS WISHES` / `WHO??` with score `C` / `0` and
 `hardRejected=false`; `contextWriteCount=1` was the Token
 `entrySnapshot.contextCapture.geckoterminalTokenSnapshot` update, not a Metric
 write or Telegram send; and single-mint Metric snapshot appended Metric
 `id=1132` at `observedAt=2026-05-01T07:53:31.204Z` with source
 `geckoterminal.token_snapshot`, `volume24h=20333.5730222922`, and price / fdv /
-reserve / topPool presence all true. `metrics:report` and `token:compare`
-confirmed the saved Metric without exposing Metric rawJson. A second Metric
-append for this mint remains unrun.
+reserve / topPool presence all true. A second single-mint Metric snapshot
+appended Metric `id=1133` at `observedAt=2026-05-01T08:08:12.847Z`, moved
+`metricsCount` from 1 to 2, and left previousMetric as `id=1132`; the elapsed
+time from `1132` to `1133` was about 14 minutes 41 seconds. The latest row has
+`volume24h=20335.4710939884`, and price / fdv / reserve / topPool presence all
+true. `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed
+Metric ids `1133 -> 1132` without exposing Metric rawJson.
 For any next detect watch write,
 do not touch the default
 checkpoint; keep a bounded command shape with
