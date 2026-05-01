@@ -381,10 +381,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
   `topPoolPresent=true`. `metrics:report -- --mint ... --limit 1` and
   `token:compare -- --mint ...` confirmed latestMetric `id=1134` and one
-  `recentMetrics` item without exposing Metric rawJson. Token fields were not
-  changed by the Metric write, and Telegram / detect / watch / tmux / systemd
-  were not invoked during the Metric step. The next gate for this mint is the
-  second Metric append.
+  `recentMetrics` item without exposing Metric rawJson. A second single-mint
+  Metric snapshot write then appended Metric `id=1135` at
+  `observedAt=2026-05-01T09:46:34.724Z`, moving `metricsCount` from 1 to 2 and
+  leaving previousMetric as `id=1134` at
+  `observedAt=2026-05-01T09:30:04.949Z`, about 16 minutes 29.775 seconds
+  earlier. The latest row has source `geckoterminal.token_snapshot`,
+  `volume24h=395.7346968031`, and price / fdv / reserve / topPool presence all
+  true. `metrics:report -- --mint ... --limit 2` now shows Metric ids
+  `1135 -> 1134`, and `token:compare -- --mint ...` shows `metricsCount=2`,
+  latestMetric `id=1135`, and `recentMetrics` containing `1135` plus `1134`,
+  all without exposing Metric rawJson. Token fields were not changed by either
+  Metric write, and Telegram / detect / watch / tmux / systemd were not invoked
+  during the Metric steps.
 - The metric snapshot lane has also passed single-mint bounded watch, batch
   bounded watch, foreground bounded watch, tmux bounded watch with one append,
   and tmux bounded no-candidate natural exit. In this Codex environment, tmux

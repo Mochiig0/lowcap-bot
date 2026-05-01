@@ -447,7 +447,7 @@ true. `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed
 Metric ids `1133 -> 1132` without exposing Metric rawJson.
 The second tmux-created mint,
 `AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, has reached enrich/rescore,
-first Metric append, and rawJson-free first-Metric report confirmation:
+two Metric appends, and rawJson-free two-Metric report confirmation:
 enrich/rescore moved it to `partial` as `WarlockCoin` / `Warlock` with score
 `C` / `0`, `hardRejected=false`, all reviewFlags false, and `linkCount=0`;
 `contextWriteCount=1` was the Token
@@ -457,7 +457,13 @@ write or Telegram send; and single-mint Metric snapshot appended Metric
 `geckoterminal.token_snapshot`, `volume24h=395.7346968031`, and price / fdv /
 reserve / topPool presence all true. `metrics:report -- --mint ... --limit 1`
 and `token:compare` confirmed latestMetric `id=1134` and one `recentMetrics`
-item without exposing Metric rawJson. Its second Metric append remains unrun.
+item without exposing Metric rawJson. A second single-mint Metric snapshot
+appended Metric `id=1135` at `observedAt=2026-05-01T09:46:34.724Z`, moved
+`metricsCount` from 1 to 2, and left previousMetric as `id=1134`; the elapsed
+time from `1134` to `1135` was about 16 minutes 29.775 seconds. The latest row
+has `volume24h=395.7346968031`, and price / fdv / reserve / topPool presence
+all true. `metrics:report -- --mint ... --limit 2` and `token:compare`
+confirmed Metric ids `1135 -> 1134` without exposing Metric rawJson.
 For any next detect watch write,
 do not touch the default
 checkpoint; keep a bounded command shape with

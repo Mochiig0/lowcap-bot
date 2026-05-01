@@ -119,7 +119,7 @@ secrets.
   detect / watch / tmux / systemd were not invoked during the Metric steps.
 - The second tmux-created mint,
   `AchhX1W8L4pqefS3dxNPvrWwGsfoSz6YfvYBWwnDpump`, has reached partial plus
-  first Metric append and rawJson-free report confirmation. Enrich/rescore
+  two Metric appends and rawJson-free two-Metric report confirmation. Enrich/rescore
   moved it from `mint_only` to `partial` as `WarlockCoin` / `Warlock` with
   score `C` / `0`, `hardRejected=false`, all reviewFlags false, and
   `linkCount=0`. The enrich/rescore write reported `contextWriteCount=1`;
@@ -130,9 +130,18 @@ secrets.
   with source `geckoterminal.token_snapshot`, `volume24h=395.7346968031`, and
   price / fdv / reserve / topPool presence all true. `metrics:report -- --mint
   ... --limit 1` plus `token:compare` confirmed latestMetric `id=1134` and one
-  `recentMetrics` item without exposing Metric rawJson. Token fields were
-  preserved by the Metric write, Telegram was not sent, and the second Metric
-  append remains unrun for this mint.
+  `recentMetrics` item without exposing Metric rawJson. A second single-mint
+  Metric snapshot then appended Metric `id=1135` at
+  `observedAt=2026-05-01T09:46:34.724Z`, moved `metricsCount` from 1 to 2, and
+  kept previousMetric as `id=1134` at
+  `observedAt=2026-05-01T09:30:04.949Z`, about 16 minutes 29.775 seconds
+  earlier. The latest row has `volume24h=395.7346968031`, and price / fdv /
+  reserve / topPool presence all true. `metrics:report -- --mint ... --limit 2`
+  plus `token:compare` confirmed Metric ids `1135 -> 1134`, latestMetric
+  `id=1135`, and `recentMetrics` containing `1135` plus `1134` without
+  exposing Metric rawJson. Token fields were preserved by both Metric writes,
+  and Telegram / detect / watch / tmux / systemd were not invoked during the
+  Metric steps.
 - All three watch-detected mints completed:
   detect -> enrich/rescore -> Metric 1 -> Metric 2 -> rawJson-free report
   confirmation.
@@ -178,8 +187,8 @@ Adopted scope:
 Next-phase recommendation:
 
 1. Keep this bounded MVP fixed as the daily operator workflow.
-2. For `Achh...pump`, run a second Metric append preflight / write only after a
-   new explicit Red approval.
+2. Run one more bounded detect candidate if another detect-origin sample is the
+   next goal.
 3. Separately decide whether metric snapshot tmux bounded operation should be
    the formal interim operating entrypoint.
 4. Keep systemd deferred until user systemd is available.
