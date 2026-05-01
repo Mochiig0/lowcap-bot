@@ -306,6 +306,85 @@ Small implementation units, if this moves beyond docs:
 - a wrapper that pauses before each Red command and never auto-advances from
   dry-run into write.
 
+### Read-Only Planner Contract
+
+The planner is not an executor. It must not run Red commands, start tmux,
+attach `--write`, send Telegram, touch checkpoints, or mutate DB state. Its only
+job is to inspect one mint through read-only CLIs, decide the current stage, and
+print one next exact Red command with the expected side-effect upper bound and
+stop conditions.
+
+Inputs:
+
+- `mint`: required; exactly one mint.
+- `intendedStage`: optional operator hint, one of `baseline`,
+  `enrich_dry_run`, `enrich_write`, `metric_dry_run`, `metric_write`,
+  `second_metric_dry_run`, `second_metric_write`, or `report_confirmation`.
+- `expectedMetricsCount`: optional guard.
+- `expectedMetadataStatus`: optional guard.
+
+Outputs:
+
+- current stage.
+- next stage.
+- one next exact Red command, or `stop`.
+- expected side-effect upper bound for that Red command.
+- required read-only confirmation commands.
+- stop conditions that apply before the command can be approved.
+- rawJson-free confirmation requirement for the following report step.
+
+Stage rules:
+
+- Token missing or mint lookup does not return exactly one token: stop.
+- `metadataStatus=mint_only` with `metricsCount=0`: next stage is
+  `enrich_dry_run`; if that passes, the next Red command may be
+  `pnpm -s token:enrich-rescore:geckoterminal -- --mint <MINT> --write`.
+- `metadataStatus=partial` with `metricsCount=0`: next stage is
+  `metric_dry_run`; if that passes, the next Red command may be
+  `pnpm -s metric:snapshot:geckoterminal -- --mint <MINT> --write`.
+- `metadataStatus=partial` with `metricsCount=1`: next stage is
+  `second_metric_dry_run`; if the operator wants tmux isolation, the next Red
+  command may be the strict `lowcap-gecko-metric-single` command for that mint;
+  otherwise it may be the single-mint `metric:snapshot:geckoterminal --write`
+  command.
+- `metricsCount>=2`: next stage is `report_confirmation` or stop; do not plan a
+  further Metric write unless the operator explicitly asks for another
+  time-series sample and supplies a fresh preflight.
+- `hardRejected=true`: stop for manual review.
+- latestMetric source exists and is not `geckoterminal.token_snapshot`: stop for
+  manual review.
+
+Allowed Red command families:
+
+- `pnpm -s token:enrich-rescore:geckoterminal -- --mint <MINT> --write`
+- `pnpm -s metric:snapshot:geckoterminal -- --mint <MINT> --write`
+- the strict single-mint tmux Metric command:
+  `tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --mint <MINT> --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"`
+
+The planner must not emit:
+
+- Telegram live-send commands, `--notify`, or `--opsNotify`.
+- `ops:catchup:gecko --write`.
+- systemd commands.
+- unbounded watch commands.
+- default-checkpoint detect commands.
+- multi-mint Metric write commands.
+
+Planner stop conditions:
+
+- the mint is missing, ambiguous, or not a GeckoTerminal-origin candidate.
+- `expectedMetricsCount` or `expectedMetadataStatus` does not match.
+- the stage would require more than one mint.
+- a dry-run needed for the next stage reports `errorCount > 0`,
+  `writeEnabled=true`, or a write count above zero.
+- the next Red command could report `selectedCount > 1`, `writtenCount > 1`, or
+  update Token fields outside the selected stage.
+- rawJson, raw payload, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
+  `TELEGRAM_CHAT_ID` would be printed.
+- the flow expands into Telegram, ops catchup, systemd, scheduler, queue worker,
+  unbounded watch, or default checkpoint operation.
+- `git status --short --branch` is dirty.
+
 ## Daily Operator Order
 
 Use this order when continuing bounded Gecko candidate accumulation.

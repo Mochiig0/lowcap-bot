@@ -217,7 +217,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   design must keep Telegram live send, scheduler / queue worker, systemd,
   unbounded watch, default checkpoint operation, ops catchup, and simultaneous
   multi-mint writes out of scope unless a later preflight explicitly promotes
-  them.
+  them. The first contract in that design is the read-only planner: it is a
+  proposed specification only, not implemented yet, and its role is limited to
+  inspecting one mint and printing one next exact Red command plus side-effect
+  bounds and stop conditions without executing anything.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
