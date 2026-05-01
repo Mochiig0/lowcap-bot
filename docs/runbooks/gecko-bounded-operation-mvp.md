@@ -400,6 +400,66 @@ Implementation and smoke status:
   Telegram, and did not touch watch, checkpoint, systemd, scheduler, or queue
   behavior.
 
+### Planner Operator Selection Procedure
+
+Use the planner only to select and describe the next Red step. It is a
+read-only selector, not the approval or execution step.
+
+1. Select exactly one candidate mint from read-only reports. Prefer reports that
+   show `metadataStatus`, `metricsCount`, `hardRejected`, and latestMetric
+   source, such as `tokens:compare-report`, `token:compare`, and
+   `metrics:report`.
+2. Confirm the baseline for that mint:
+
+```bash
+pnpm -s token:compare -- --mint <MINT>
+pnpm -s metrics:report -- --mint <MINT> --limit 2
+```
+
+3. Run the planner:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT>
+```
+
+4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
+   `nextRedCommand`, `sideEffectUpperBound`, and `stopConditions`.
+5. Confirm the planner output does not expose a Metric `rawJson` field, raw
+   payload body, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
+   `TELEGRAM_CHAT_ID`. The `rawJsonFreeRequired` flag and stop-condition wording
+   are specification text, not payload output.
+6. Do not execute `nextRedCommand` in the selection task. Paste the exact command
+   into the next human-approved Red task together with side-effect upper bound
+   and stop conditions.
+7. If `nextRedCommand=null`, do not move to Red. Treat the result as report
+   confirmation or stop.
+
+Candidate interpretation:
+
+- `metricsCount>=2`: generally no write is needed; confirm reports or stop.
+- `partial_with_one_metric`: the planner may propose the strict
+  `lowcap-gecko-metric-single` tmux single-mint Metric command, but it must not
+  start tmux.
+- `mint_only_without_metrics`: the planner may propose the single-mint
+  `token:enrich-rescore:geckoterminal --write` command, but it must not run it.
+- `partial_without_metrics`: covered by temp SQLite tests, but not yet by a
+  real-DB smoke candidate because the latest candidate report returned zero
+  matching tokens; confirm this stage separately when a real candidate appears.
+- `hardRejected=true`, latestMetric source mismatch, or any guard mismatch:
+  manual review stop.
+
+Human approval gate:
+
+- Red execution is always a separate task with one exact command, expected
+  counts, side-effect upper bound, and stop conditions.
+- Do not combine planner selection, Red execution, and docs commit / push in one
+  task.
+- SMOKE-prefixed mints are acceptable for planner smoke, but they are not live
+  market candidate proofs.
+- The planner selection flow does not authorize Telegram, ops catchup, systemd,
+  scheduler, queue worker, default checkpoint operation, unbounded watch, or
+  multi-mint writes.
+
 Planner stop conditions:
 
 - the mint is missing, ambiguous, or not a GeckoTerminal-origin candidate.

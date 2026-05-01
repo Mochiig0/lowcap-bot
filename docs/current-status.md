@@ -237,6 +237,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   secrets; `rawJsonFreeRequired` and stop-condition wording are specification
   text only. The smoke did not write DB / Token / Metric rows, did not send
   Telegram, did not start tmux, and did not touch watch / systemd.
+- The planner is ready only for read-only operator selection before a separate
+  human approval gate. The operator procedure is: choose exactly one mint from
+  read-only reports, confirm its `token:compare` / `metrics:report` baseline,
+  run the planner, inspect `currentStage`, `nextStage`, `guards`, and
+  `nextRedCommand`, verify the output is rawJson-free, then paste the proposed
+  command into a separate Red approval task without executing it in the
+  selection task. If `nextRedCommand=null`, stop at report confirmation. Red
+  execution and docs commit / push must remain separate tasks.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
