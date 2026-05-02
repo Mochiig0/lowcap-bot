@@ -134,6 +134,29 @@ and Telegram / detect / watch / enrich / ops / systemd / checkpoint operations
 were not invoked. This remains a strict single-mint no-`--watch` flow and does
 not change the separate batch/watch bounded procedure.
 
+Dual-guard planner-gated reproduced result: with target mint
+`9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump`, the planner command included
+`--expectedMetricsCount 1 --expectedMetadataStatus partial` and passed with
+actual `guards.metricsCount=1`, actual `guards.metadataStatus=partial`,
+`currentStage=partial_with_one_metric`, and
+`nextStage=second_metric_write_or_tmux_single`. It only printed the
+`lowcap-gecko-metric-single` command string. After a separate human-approved
+Red task, that exact command naturally exited as a single-run, created /
+updated `/tmp/lowcap-gecko-metric-single.log`, reported `selectedCount=1`,
+`okCount=1`, `errorCount=0`, `writeEnabled=true`, and `writtenCount=1`, and
+appended Metric `id=1141` at `observedAt=2026-05-02T06:08:23.396Z` with
+source `geckoterminal.token_snapshot` and `volume24h=0`. The latest
+rawJson-free safe presence was `priceUsdPresent=false`,
+`fdvUsdPresent=false`, `reserveUsdPresent=true`, and `topPoolPresent=false`.
+The target moved `metricsCount` from 1 to 2 with previous Metric `id=993`;
+`metrics:report -- --mint ... --limit 2` and
+`token:compare -- --mint ...` confirmed `1141 -> 993` rawJson-free. Token
+fields stayed `partial / Palantir Manifesto / Manifesto / C / 0 /
+hardRejected=false`, and Telegram / detect / watch / enrich / ops / systemd /
+checkpoint operations were not invoked. This remains a strict single-mint
+no-`--watch` flow and does not change the separate batch/watch bounded
+procedure.
+
 Confirmed bounded batch/watch tmux command:
 
 ```bash

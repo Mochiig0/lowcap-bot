@@ -334,6 +334,29 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   and `token:compare` confirmed the result rawJson-free. Token fields remained
   unchanged, and Telegram / detect / watch / enrich / ops / systemd /
   checkpoint operations were not invoked.
+- The same guarded planner-gated single-mint Metric flow has now also passed
+  with both `--expectedMetricsCount 1` and `--expectedMetadataStatus partial`
+  before Red approval. Target
+  `9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump` had baseline
+  `partial / Palantir Manifesto / Manifesto / C / 0 / hardRejected=false`,
+  `metricsCount=1`, latestMetric `id=993` at
+  `observedAt=2026-04-24T15:44:41.073Z`, and source
+  `geckoterminal.token_snapshot`. The guarded planner command passed with
+  `status=ok`, actual `guards.metricsCount=1`,
+  `guards.metadataStatus=partial`, `currentStage=partial_with_one_metric`, and
+  `nextStage=second_metric_write_or_tmux_single`; it only printed the
+  `lowcap-gecko-metric-single` `nextRedCommand` string. After a separate human
+  gate, that exact command ran once, naturally exited as a no-`--watch`
+  single-run, and appended Metric `id=1141` at
+  `observedAt=2026-05-02T06:08:23.396Z` with source
+  `geckoterminal.token_snapshot` and `volume24h=0`. The latest rawJson-free
+  safe presence was `priceUsdPresent=false`, `fdvUsdPresent=false`,
+  `reserveUsdPresent=true`, and `topPoolPresent=false`; those false values are
+  recorded as observed availability, not a failed write. The mint moved
+  `metricsCount` from 1 to 2, with `recentMetrics` `1141 -> 993`;
+  `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed the
+  result rawJson-free. Token fields remained unchanged, and Telegram / detect /
+  watch / enrich / ops / systemd / checkpoint operations were not invoked.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
