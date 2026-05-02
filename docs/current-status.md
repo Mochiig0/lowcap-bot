@@ -298,6 +298,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `nextRedCommand=null`, and the output remained rawJson-free. That smoke did
   not write DB / Token / Metric rows, did not send Telegram, and did not start
   tmux / watch / systemd.
+- The read-only planner now also supports `--expectedMetadataStatus <status>`
+  as a Red preflight guard against metadataStatus drift. Allowed values are
+  `mint_only`, `partial`, and `enriched`. When the expected status does not
+  match the actual token status, the planner returns `status=stop`,
+  `currentStage=guard_mismatch`, `nextStage=null`, `nextRedCommand=null`,
+  `sideEffectUpperBound=null`, and actual `guards.metadataStatus`; unknown or
+  empty status values return `currentStage=invalid_args` and do not print a Red
+  command. Token missing still takes priority as `missing_token`, and the
+  planner remains read-only / non-executing.
+- The metadataStatus guard passed a real-DB read-only smoke on
+  `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` with
+  `pnpm -s ops:gecko:single-candidate:plan -- --mint ... --expectedMetricsCount 2 --expectedMetadataStatus partial`:
+  actual `metricsCount=2` and `metadataStatus=partial` matched,
+  `currentStage=two_or_more_metrics`, `nextRedCommand=null`, and the output
+  remained rawJson-free. That smoke did not write DB / Token / Metric rows, did
+  not send Telegram, and did not start tmux / watch / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline

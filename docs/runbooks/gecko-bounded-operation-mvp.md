@@ -429,6 +429,16 @@ baseline:
 pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT>
 ```
 
+When the expected token metadata state is part of the gate, include the
+metadataStatus guard as well:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT> --expectedMetadataStatus <EXPECTED_STATUS>
+```
+
+Allowed `--expectedMetadataStatus` values are `mint_only`, `partial`, and
+`enriched`.
+
 4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
    `nextRedCommand`, `sideEffectUpperBound`, and `stopConditions`.
 5. Confirm the planner output does not expose a Metric `rawJson` field, raw
@@ -458,10 +468,18 @@ Candidate interpretation:
   `status=stop`, `currentStage=guard_mismatch`, `nextStage=null`,
   `nextRedCommand=null`, and actual `guards.metricsCount`. Do not proceed to
   the proposed Red command until the operator re-baselines the mint.
+- `--expectedMetadataStatus` mismatch: stop before Red approval with
+  `status=stop`, `currentStage=guard_mismatch`, `nextStage=null`,
+  `nextRedCommand=null`, `sideEffectUpperBound=null`, and actual
+  `guards.metadataStatus`. Do not proceed to the proposed Red command until the
+  operator re-baselines the mint.
 - invalid `--expectedMetricsCount` input: stop with `currentStage=invalid_args`
   and `nextRedCommand=null`.
-- Token missing still takes priority over `--expectedMetricsCount` as
-  `currentStage=missing_token`.
+- invalid `--expectedMetadataStatus` input, including unknown values outside
+  `mint_only`, `partial`, and `enriched`, stops with
+  `currentStage=invalid_args` and `nextRedCommand=null`.
+- Token missing still takes priority over `--expectedMetricsCount` and
+  `--expectedMetadataStatus` as `currentStage=missing_token`.
 
 Human approval gate:
 
