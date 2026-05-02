@@ -5,6 +5,11 @@ import { buildSafeMetricSummary } from "./metricSafeSummary.js";
 
 const GECKOTERMINAL_METRIC_SOURCE = "geckoterminal.token_snapshot";
 const REPO_ROOT = "/home/mochi/projects/lowcap-bot";
+const ALLOWED_EXPECTED_METADATA_STATUSES = new Set([
+  "mint_only",
+  "partial",
+  "enriched",
+]);
 
 const COMMON_STOP_CONDITIONS = [
   "mint is missing or ambiguous",
@@ -66,6 +71,7 @@ type SafeMetricPlanItem = {
 type Args = {
   mint?: string;
   expectedMetricsCount?: number;
+  expectedMetadataStatus?: string;
   error?: string;
   errorStage?: string;
 };
@@ -80,7 +86,11 @@ function parseArgs(argv: string[]): Args {
     if (key === "--") continue;
     if (!key.startsWith("--")) continue;
 
-    if (key !== "--mint" && key !== "--expectedMetricsCount") {
+    if (
+      key !== "--mint" &&
+      key !== "--expectedMetricsCount" &&
+      key !== "--expectedMetadataStatus"
+    ) {
       return { error: `Unknown option: ${key}`, errorStage: "invalid_args" };
     }
 
@@ -90,7 +100,7 @@ function parseArgs(argv: string[]): Args {
 
     if (key === "--mint") {
       out.mint = value;
-    } else {
+    } else if (key === "--expectedMetricsCount") {
       const expectedMetricsCount = Number(value);
       if (
         !Number.isInteger(expectedMetricsCount) ||
@@ -103,6 +113,15 @@ function parseArgs(argv: string[]): Args {
       }
 
       out.expectedMetricsCount = expectedMetricsCount;
+    } else {
+      if (!ALLOWED_EXPECTED_METADATA_STATUSES.has(value)) {
+        return {
+          error: `Invalid expectedMetadataStatus: ${value}`,
+          errorStage: "invalid_args",
+        };
+      }
+
+      out.expectedMetadataStatus = value;
     }
 
     i += 1;
@@ -240,6 +259,7 @@ async function buildPlan(
   mint: string,
   options: {
     expectedMetricsCount?: number;
+    expectedMetadataStatus?: string;
   } = {},
 ): Promise<PlanOutput> {
   const token = await db.token.findUnique({
@@ -281,6 +301,21 @@ async function buildPlan(
   const base = baseOutput(token);
   const metricsCount = token._count.metrics;
   const latestMetricSource = base.latestMetric?.source ?? null;
+
+  if (
+    options.expectedMetadataStatus !== undefined &&
+    token.metadataStatus !== options.expectedMetadataStatus
+  ) {
+    return {
+      ...base,
+      status: "stop",
+      currentStage: "guard_mismatch",
+      nextStage: null,
+      reason: `expectedMetadataStatus mismatch: expected ${options.expectedMetadataStatus}, actual ${token.metadataStatus}`,
+      nextRedCommand: null,
+      sideEffectUpperBound: null,
+    };
+  }
 
   if (
     options.expectedMetricsCount !== undefined &&
@@ -402,6 +437,7 @@ async function main(): Promise<void> {
 
   const output = await buildPlan(args.mint, {
     expectedMetricsCount: args.expectedMetricsCount,
+    expectedMetadataStatus: args.expectedMetadataStatus,
   });
   console.log(JSON.stringify(output, null, 2));
 }

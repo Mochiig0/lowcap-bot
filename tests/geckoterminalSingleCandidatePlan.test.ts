@@ -305,6 +305,27 @@ test("geckoterminal single candidate planner", async (t) => {
     });
   });
 
+  await t.test("missing token stop takes priority over expected metadata status", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "missing-expected-status.db")}`;
+      const mint = "MissingExpectedStatusPlanner11111111111111111";
+
+      await runDbPush(databaseUrl);
+
+      const output = parsePlannerOutput(
+        await runPlanner(
+          ["--mint", mint, "--expectedMetadataStatus", "partial"],
+          databaseUrl,
+        ),
+      );
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "missing_token");
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.guards.metadataStatus, null);
+    });
+  });
+
   await t.test("plans enrich write for a mint_only token without metrics", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "mint-only.db")}`;
@@ -317,7 +338,10 @@ test("geckoterminal single candidate planner", async (t) => {
       });
 
       const output = parsePlannerOutput(
-        await runPlanner(["--mint", mint], databaseUrl),
+        await runPlanner(
+          ["--mint", mint, "--expectedMetadataStatus", "mint_only"],
+          databaseUrl,
+        ),
       );
 
       assert.equal(output.status, "ok");
@@ -343,7 +367,10 @@ test("geckoterminal single candidate planner", async (t) => {
       });
 
       const output = parsePlannerOutput(
-        await runPlanner(["--mint", mint], databaseUrl),
+        await runPlanner(
+          ["--mint", mint, "--expectedMetadataStatus", "partial"],
+          databaseUrl,
+        ),
       );
 
       assert.equal(output.status, "ok");
@@ -376,7 +403,14 @@ test("geckoterminal single candidate planner", async (t) => {
 
       const beforeCount = await countMetrics(databaseUrl, mint);
       const result = await runPlanner(
-        ["--mint", mint, "--expectedMetricsCount", "1"],
+        [
+          "--mint",
+          mint,
+          "--expectedMetadataStatus",
+          "partial",
+          "--expectedMetricsCount",
+          "1",
+        ],
         databaseUrl,
       );
       const output = parsePlannerOutput(result);
@@ -392,6 +426,37 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(result.stdout.includes('"rawJson":'), false);
       assert.equal(beforeCount, 1);
       assert.equal(afterCount, 1);
+    });
+  });
+
+  await t.test("stops when expected metadata status does not match actual status", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "expected-status-mismatch.db")}`;
+      const mint = "ExpectedStatusMismatchPlanner11111111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, {
+        mint,
+        metadataStatus: "partial",
+      });
+
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedMetadataStatus", "mint_only"],
+        databaseUrl,
+      );
+      const output = parsePlannerOutput(result);
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "guard_mismatch");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(
+        output.reason.includes("expectedMetadataStatus mismatch: expected mint_only, actual partial"),
+        true,
+      );
+      assert.equal(output.guards.metadataStatus, "partial");
+      assert.equal(result.stdout.includes('"rawJson":'), false);
     });
   });
 
@@ -460,6 +525,30 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.nextRedCommand, null);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(output.reason.includes("Invalid expectedMetricsCount"), true);
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+    });
+  });
+
+  await t.test("stops on invalid expected metadata status", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "invalid-expected-status.db")}`;
+      const mint = "InvalidExpectedStatusPlanner111111111111111";
+
+      await runDbPush(databaseUrl);
+
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedMetadataStatus", "unknown"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, false);
+
+      const output = JSON.parse(result.stdout) as PlannerOutput;
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "invalid_args");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(output.reason.includes("Invalid expectedMetadataStatus"), true);
       assert.equal(result.stdout.includes('"rawJson":'), false);
     });
   });
