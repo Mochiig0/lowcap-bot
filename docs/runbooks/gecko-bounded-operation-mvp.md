@@ -539,6 +539,56 @@ Human approval gate:
   scheduler, queue worker, default checkpoint operation, unbounded watch, or
   multi-mint writes.
 
+### Triple-Guard Planner Gated Operation Milestone
+
+The current milestone is the strict planner-gated single-mint flow, not a broad
+automation runtime. For Red execution preflight, use all three guards whenever
+the intended stage is known:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT> --expectedMetadataStatus <EXPECTED_STATUS> --expectedStage <EXPECTED_STAGE>
+```
+
+The milestone is complete only when:
+
+- `guard_mismatch`, `invalid_args`, and `manual_review_required` stop before
+  Red.
+- `nextRedCommand=null` stops before Red.
+- the planner only prints `nextRedCommand`; it never starts tmux or runs a Red
+  command.
+- a separate human-approved Red task runs exactly one copied command.
+- Red execution and docs commit / push remain separate tasks.
+- strict `lowcap-gecko-metric-single` execution has one mint, no `--watch`,
+  `writtenCount=1`, at most one Metric append, rawJson-free report
+  confirmation, and no Token field update.
+
+Confirmed milestone evidence:
+
+- `H2RJiUGeB9LUeAHhKp2JZc836oGonhAYYgB5QPxCpump` passed
+  `--expectedMetricsCount 1 --expectedMetadataStatus partial --expectedStage partial_with_one_metric`
+  with `currentStage=partial_with_one_metric` and
+  `nextStage=second_metric_write_or_tmux_single`.
+- after the separate human gate, the exact
+  `lowcap-gecko-metric-single` command appended Metric `id=1151`, kept
+  previous Metric `id=1102`, moved `metricsCount` from 1 to 2, reported
+  `writtenCount=1`, and was confirmed rawJson-free.
+- Token fields stayed `partial / REKT / REKT / C / 0 / hardRejected=false`.
+- latest safe-presence false values such as `priceUsdPresent=false`,
+  `fdvUsdPresent=false`, and `topPoolPresent=false` are observed
+  availability in the saved snapshot, not failed Red gates.
+
+Next-step comparison:
+
+- A, more same-shape triple-guard Red reproductions: low priority now that the
+  milestone has one guarded real-DB success.
+- B, milestone docs整理: this section records that milestone.
+- C, planner output / `nextRedCommand` safety hardening: good next design
+  target.
+- D, detect -> enrich/rescore -> metric bounded orchestration: good next
+  design target after the safety contract is clear.
+- E, systemd / unbounded watch / default checkpoint / scheduler / queue: hold.
+  This milestone does not authorize those behaviors.
+
 Planner-gated Red execution record:
 
 - `7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump` is the first live operator

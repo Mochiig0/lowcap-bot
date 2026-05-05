@@ -408,6 +408,28 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   and `token:compare` confirmed the result rawJson-free. Token fields remained
   unchanged, and Telegram / detect / watch / enrich / ops / systemd /
   checkpoint operations were not invoked.
+- This is the current triple-guard planner gated operation milestone. The
+  confirmed scope is intentionally narrow: the planner remains a read-only /
+  non-executor selector, the three guards are available for Red preflight, a
+  `partial_with_one_metric` candidate can be guarded through
+  `nextStage=second_metric_write_or_tmux_single`, and the printed
+  `nextRedCommand` can be carried into a separate human-approved Red task that
+  runs exactly one strict `lowcap-gecko-metric-single` no-`--watch` command.
+  That Red path is bounded to one target mint, `writtenCount=1`, at most one
+  `geckoterminal.token_snapshot` Metric append, `metricsCount` moving from 1
+  to 2, rawJson-free report confirmation, and no Token field update. The
+  latest safe-presence false values observed on `9zqk...pump` and
+  `H2RJi...pump` are availability observations in the saved snapshot, not
+  failed writes. At this point, adding more same-shape Red reproductions has
+  lower value than documenting the milestone and moving to the next safety /
+  orchestration design question.
+- Remaining planner / bounded-operation gaps are still explicit: a real-DB
+  `partial_without_metrics` planner smoke is unconfirmed; default-checkpoint
+  detect watch, long-running / unbounded watch, restart-oriented operation,
+  systemd operation, scheduler / queue worker behavior, planner output /
+  `nextRedCommand` machine-readable safety hardening, and a bounded
+  detect -> enrich/rescore -> metric orchestration wrapper are not promoted by
+  this milestone.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
