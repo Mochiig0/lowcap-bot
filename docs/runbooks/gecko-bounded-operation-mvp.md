@@ -322,6 +322,7 @@ Inputs:
   `second_metric_dry_run`, `second_metric_write`, or `report_confirmation`.
 - `expectedMetricsCount`: optional guard.
 - `expectedMetadataStatus`: optional guard.
+- `expectedStage`: optional guard for the current planner stage.
 
 Outputs:
 
@@ -374,6 +375,10 @@ Implementation and smoke status:
 
 - The planner contract is implemented as
   `pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT>`.
+- The planner supports three Red preflight guards:
+  `--expectedMetricsCount`, `--expectedMetadataStatus`, and
+  `--expectedStage`. The stage guard was introduced by
+  `b64ad16 feat: add planner stage guard`.
 - Real-DB read-only smoke has passed for these stages:
   - `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`:
     `currentStage=two_or_more_metrics`,
@@ -399,6 +404,13 @@ Implementation and smoke status:
   not start tmux, did not write DB / Token / Metric rows, did not send
   Telegram, and did not touch watch, checkpoint, systemd, scheduler, or queue
   behavior.
+- A later real-DB read-only stage-guard smoke passed on
+  `9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump` with
+  `--expectedMetricsCount 2 --expectedMetadataStatus partial --expectedStage two_or_more_metrics`:
+  actual `guards.metricsCount=2`, `guards.metadataStatus=partial`, and
+  `currentStage=two_or_more_metrics` matched, `nextRedCommand=null`, and the
+  output remained rawJson-free. That smoke did not write DB / Token / Metric
+  rows, did not send Telegram, and did not start tmux / watch / systemd.
 
 ### Planner Operator Selection Procedure
 
@@ -439,6 +451,25 @@ pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount 
 Allowed `--expectedMetadataStatus` values are `mint_only`, `partial`, and
 `enriched`.
 
+For Red execution preflight, prefer all three guards when the intended planner
+stage is known:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT> --expectedMetadataStatus <EXPECTED_STATUS> --expectedStage <EXPECTED_STAGE>
+```
+
+Allowed `--expectedStage` values are:
+
+- `mint_only_without_metrics`
+- `partial_without_metrics`
+- `partial_with_one_metric`
+- `two_or_more_metrics`
+- `manual_review_required`
+
+Do not pass `missing_mint_arg`, `invalid_args`, `guard_mismatch`, or
+`missing_token` as `--expectedStage`; those are parse / error / missing states,
+not normal operator-intended stages.
+
 4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
    `nextRedCommand`, `sideEffectUpperBound`, and `stopConditions`.
 5. Confirm the planner output does not expose a Metric `rawJson` field, raw
@@ -473,18 +504,33 @@ Candidate interpretation:
   `nextRedCommand=null`, `sideEffectUpperBound=null`, and actual
   `guards.metadataStatus`. Do not proceed to the proposed Red command until the
   operator re-baselines the mint.
+- `--expectedStage` mismatch: stop before Red approval with `status=stop`,
+  `currentStage=guard_mismatch`, `nextStage=null`, `nextRedCommand=null`,
+  `sideEffectUpperBound=null`, and actual `guards`. Do not proceed to the
+  proposed Red command until the operator re-baselines the mint.
 - invalid `--expectedMetricsCount` input: stop with `currentStage=invalid_args`
   and `nextRedCommand=null`.
 - invalid `--expectedMetadataStatus` input, including unknown values outside
   `mint_only`, `partial`, and `enriched`, stops with
   `currentStage=invalid_args` and `nextRedCommand=null`.
+- invalid `--expectedStage` input, including unknown values outside the allowed
+  stage list, stops with `currentStage=invalid_args` and `nextRedCommand=null`.
 - Token missing still takes priority over `--expectedMetricsCount` and
-  `--expectedMetadataStatus` as `currentStage=missing_token`.
+  `--expectedMetadataStatus` / `--expectedStage` as
+  `currentStage=missing_token`. `--expectedMetadataStatus` mismatch is checked
+  before `--expectedMetricsCount`, and both are checked before
+  `--expectedStage`.
+- `hardRejected=true` or latestMetric source mismatch is actual
+  `currentStage=manual_review_required`. If
+  `--expectedStage manual_review_required` is supplied, keep that stop. If a
+  different expected stage is supplied, return `guard_mismatch`.
 
 Human approval gate:
 
 - Red execution is always a separate task with one exact command, expected
   counts, side-effect upper bound, and stop conditions.
+- Guard mismatch, invalid args, and `manual_review_required` stop states do not
+  authorize Red execution.
 - Do not combine planner selection, Red execution, and docs commit / push in one
   task.
 - SMOKE-prefixed mints are acceptable for planner smoke, but they are not live

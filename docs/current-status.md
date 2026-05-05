@@ -240,11 +240,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - The planner is ready only for read-only operator selection before a separate
   human approval gate. The operator procedure is: choose exactly one mint from
   read-only reports, confirm its `token:compare` / `metrics:report` baseline,
-  run the planner, inspect `currentStage`, `nextStage`, `guards`, and
-  `nextRedCommand`, verify the output is rawJson-free, then paste the proposed
-  command into a separate Red approval task without executing it in the
-  selection task. If `nextRedCommand=null`, stop at report confirmation. Red
-  execution and docs commit / push must remain separate tasks.
+  run the planner with the appropriate `--expectedMetricsCount`,
+  `--expectedMetadataStatus`, and `--expectedStage` guards, inspect
+  `currentStage`, `nextStage`, `guards`, and `nextRedCommand`, verify the
+  output is rawJson-free, then paste the proposed command into a separate Red
+  approval task without executing it in the selection task. If
+  `nextRedCommand=null`, stop at report confirmation. Red execution and docs
+  commit / push must remain separate tasks.
 - The planner-gated flow has now been exercised once after the human approval
   gate. `7nuUe3Y4pC6PbwbUWe6NKkjaCcZxXa9UoNLYXSC1pump` was selected as a
   `partial_with_one_metric` candidate (`INDIA KASHMIR RAID` / `Inkraid`,
@@ -314,6 +316,30 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `currentStage=two_or_more_metrics`, `nextRedCommand=null`, and the output
   remained rawJson-free. That smoke did not write DB / Token / Metric rows, did
   not send Telegram, and did not start tmux / watch / systemd.
+- The read-only planner now also supports `--expectedStage <stage>` as a Red
+  preflight guard against currentStage drift. Allowed values are
+  `mint_only_without_metrics`, `partial_without_metrics`,
+  `partial_with_one_metric`, `two_or_more_metrics`, and
+  `manual_review_required`; `missing_mint_arg`, `invalid_args`,
+  `guard_mismatch`, and `missing_token` are not valid expected stages because
+  they are parse / error / missing states. When the expected stage does not
+  match the actual planner stage, the planner returns `status=stop`,
+  `currentStage=guard_mismatch`, `nextStage=null`, `nextRedCommand=null`,
+  `sideEffectUpperBound=null`, and actual `guards`. Unknown stage values return
+  `currentStage=invalid_args` and do not print a Red command. Token missing
+  still takes priority as `missing_token`; `--expectedMetadataStatus` and
+  `--expectedMetricsCount` mismatches are evaluated before
+  `--expectedStage`. For `hardRejected=true` or latestMetric source mismatch,
+  actual stage is `manual_review_required`; matching
+  `--expectedStage manual_review_required` preserves that stop, while any other
+  expected stage returns `guard_mismatch`.
+- The stage guard passed a real-DB read-only smoke on
+  `9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump` with
+  `pnpm -s ops:gecko:single-candidate:plan -- --mint ... --expectedMetricsCount 2 --expectedMetadataStatus partial --expectedStage two_or_more_metrics`:
+  actual `guards.metricsCount=2`, `guards.metadataStatus=partial`, and
+  `currentStage=two_or_more_metrics` matched, `nextRedCommand=null`, and the
+  output remained rawJson-free. That smoke did not write DB / Token / Metric
+  rows, did not send Telegram, and did not start tmux / watch / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
