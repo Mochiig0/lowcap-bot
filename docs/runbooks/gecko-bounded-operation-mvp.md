@@ -634,6 +634,32 @@ tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/proj
   unchanged, Telegram / detect / watch / enrich / ops / systemd / checkpoint
   operations were not invoked, and the Red execution remained separate from the
   docs commit / push.
+- The first triple-guard planner-gated Red pattern was then confirmed for
+  `H2RJiUGeB9LUeAHhKp2JZc836oGonhAYYgB5QPxCpump`. Its baseline was
+  `partial / REKT / REKT / C / 0 / hardRejected=false`, `metricsCount=1`,
+  latestMetric `id=1102` with source `geckoterminal.token_snapshot`,
+  `observedAt=2026-04-25T03:28:20.484Z`, and `volume24h=0`; the baseline
+  safe summary had price / fdv / reserve / topPool present. The planner
+  command with
+  `--expectedMetricsCount 1 --expectedMetadataStatus partial --expectedStage partial_with_one_metric`
+  passed with `status=ok`, actual `guards.metricsCount=1`,
+  `guards.metadataStatus=partial`, `currentStage=partial_with_one_metric`, and
+  `nextStage=second_metric_write_or_tmux_single`; it only printed the
+  `lowcap-gecko-metric-single` tmux single-mint command string. After the
+  human approval gate, that exact command ran once as a separate Red task,
+  naturally exited as a no-`--watch` single-run with no tmux server remaining,
+  reported `selectedCount=1`, `okCount=1`, `errorCount=0`,
+  `writeEnabled=true`, and `writtenCount=1`, and appended Metric `id=1151` at
+  `observedAt=2026-05-05T14:34:02.700Z` with source
+  `geckoterminal.token_snapshot` and `volume24h=0`. The latest rawJson-free
+  safe presence was `priceUsdPresent=false`, `fdvUsdPresent=false`,
+  `reserveUsdPresent=true`, and `topPoolPresent=false`; the false values are
+  an observed safe-summary state, not a failed Red gate. `metricsCount` moved
+  from 1 to 2 with `recentMetrics` `1151 -> 1102`;
+  `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed the
+  result rawJson-free. Token fields were unchanged, Telegram / detect / watch /
+  enrich / ops / systemd / checkpoint operations were not invoked, and the Red
+  execution remained separate from the docs commit / push.
 
 Planner stop conditions:
 

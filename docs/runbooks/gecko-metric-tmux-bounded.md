@@ -157,6 +157,30 @@ checkpoint operations were not invoked. This remains a strict single-mint
 no-`--watch` flow and does not change the separate batch/watch bounded
 procedure.
 
+Triple-guard planner-gated reproduced result: with target mint
+`H2RJiUGeB9LUeAHhKp2JZc836oGonhAYYgB5QPxCpump`, the planner command included
+`--expectedMetricsCount 1 --expectedMetadataStatus partial --expectedStage partial_with_one_metric`
+and passed with actual `guards.metricsCount=1`, actual
+`guards.metadataStatus=partial`, `currentStage=partial_with_one_metric`, and
+`nextStage=second_metric_write_or_tmux_single`. It only printed the
+`lowcap-gecko-metric-single` command string. After a separate human-approved
+Red task, that exact command naturally exited as a single-run, left no tmux
+server running, created / updated `/tmp/lowcap-gecko-metric-single.log`,
+reported `selectedCount=1`, `okCount=1`, `errorCount=0`,
+`writeEnabled=true`, and `writtenCount=1`, and appended Metric `id=1151` at
+`observedAt=2026-05-05T14:34:02.700Z` with source
+`geckoterminal.token_snapshot` and `volume24h=0`. The latest rawJson-free safe
+presence was `priceUsdPresent=false`, `fdvUsdPresent=false`,
+`reserveUsdPresent=true`, and `topPoolPresent=false`; these values are
+recorded as observed availability, not a failed append. The target moved
+`metricsCount` from 1 to 2 with previous Metric `id=1102`;
+`metrics:report -- --mint ... --limit 2` and
+`token:compare -- --mint ...` confirmed `1151 -> 1102` rawJson-free. Token
+fields stayed `partial / REKT / REKT / C / 0 / hardRejected=false`, and
+Telegram / detect / watch / enrich / ops / systemd / checkpoint operations were
+not invoked. This remains a strict single-mint no-`--watch` flow and does not
+change the separate batch/watch bounded procedure.
+
 Confirmed bounded batch/watch tmux command:
 
 ```bash
