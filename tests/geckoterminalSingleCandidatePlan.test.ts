@@ -326,6 +326,27 @@ test("geckoterminal single candidate planner", async (t) => {
     });
   });
 
+  await t.test("missing token stop takes priority over expected stage", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "missing-expected-stage.db")}`;
+      const mint = "MissingExpectedStagePlanner1111111111111111";
+
+      await runDbPush(databaseUrl);
+
+      const output = parsePlannerOutput(
+        await runPlanner(
+          ["--mint", mint, "--expectedStage", "partial_with_one_metric"],
+          databaseUrl,
+        ),
+      );
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "missing_token");
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.guards.metricsCount, null);
+    });
+  });
+
   await t.test("plans enrich write for a mint_only token without metrics", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "mint-only.db")}`;
@@ -410,6 +431,8 @@ test("geckoterminal single candidate planner", async (t) => {
           "partial",
           "--expectedMetricsCount",
           "1",
+          "--expectedStage",
+          "partial_with_one_metric",
         ],
         databaseUrl,
       );
@@ -460,6 +483,50 @@ test("geckoterminal single candidate planner", async (t) => {
     });
   });
 
+  await t.test("expected metadata status mismatch takes priority over expected stage mismatch", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "expected-status-stage-priority.db")}`;
+      const mint = "ExpectedStatusStagePriorityPlanner111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, {
+        mint,
+        metadataStatus: "partial",
+        metrics: [
+          {
+            source: "geckoterminal.token_snapshot",
+            observedAt: "2026-05-01T00:00:00.000Z",
+          },
+        ],
+      });
+
+      const result = await runPlanner(
+        [
+          "--mint",
+          mint,
+          "--expectedMetadataStatus",
+          "mint_only",
+          "--expectedStage",
+          "two_or_more_metrics",
+        ],
+        databaseUrl,
+      );
+      const output = parsePlannerOutput(result);
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "guard_mismatch");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(
+        output.reason.includes("expectedMetadataStatus mismatch: expected mint_only, actual partial"),
+        true,
+      );
+      assert.equal(output.reason.includes("expectedStage mismatch"), false);
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+    });
+  });
+
   await t.test("stops when expected metrics count does not match actual count", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "expected-mismatch.db")}`;
@@ -496,6 +563,51 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(
         output.reason.includes("expectedMetricsCount mismatch: expected 1, actual 2"),
+        true,
+      );
+      assert.equal(output.guards.metricsCount, 2);
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+      assert.equal(beforeCount, 2);
+      assert.equal(afterCount, 2);
+    });
+  });
+
+  await t.test("stops when expected stage does not match actual stage", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "expected-stage-mismatch.db")}`;
+      const mint = "ExpectedStageMismatchPlanner11111111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, {
+        mint,
+        metadataStatus: "partial",
+        metrics: [
+          {
+            source: "geckoterminal.token_snapshot",
+            observedAt: "2026-05-01T00:00:00.000Z",
+          },
+          {
+            source: "geckoterminal.token_snapshot",
+            observedAt: "2026-05-01T00:10:00.000Z",
+          },
+        ],
+      });
+
+      const beforeCount = await countMetrics(databaseUrl, mint);
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedStage", "partial_with_one_metric"],
+        databaseUrl,
+      );
+      const output = parsePlannerOutput(result);
+      const afterCount = await countMetrics(databaseUrl, mint);
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "guard_mismatch");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(
+        output.reason.includes("expectedStage mismatch: expected partial_with_one_metric, actual two_or_more_metrics"),
         true,
       );
       assert.equal(output.guards.metricsCount, 2);
@@ -553,6 +665,30 @@ test("geckoterminal single candidate planner", async (t) => {
     });
   });
 
+  await t.test("stops on invalid expected stage", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "invalid-expected-stage.db")}`;
+      const mint = "InvalidExpectedStagePlanner1111111111111111";
+
+      await runDbPush(databaseUrl);
+
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedStage", "unknown"],
+        databaseUrl,
+      );
+      assert.equal(result.ok, false);
+
+      const output = JSON.parse(result.stdout) as PlannerOutput;
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "invalid_args");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(output.sideEffectUpperBound, null);
+      assert.equal(output.reason.includes("Invalid expectedStage"), true);
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+    });
+  });
+
   await t.test("does not suggest a write when two or more metrics exist", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "partial-two.db")}`;
@@ -585,6 +721,36 @@ test("geckoterminal single candidate planner", async (t) => {
     });
   });
 
+  await t.test("stops with guard mismatch when hard rejected token is not the expected stage", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "hard-rejected-stage-mismatch.db")}`;
+      const mint = "HardRejectedStageMismatchPlanner111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, {
+        mint,
+        metadataStatus: "partial",
+        hardRejected: true,
+      });
+
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedStage", "partial_with_one_metric"],
+        databaseUrl,
+      );
+      const output = parsePlannerOutput(result);
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "guard_mismatch");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(
+        output.reason.includes("expectedStage mismatch: expected partial_with_one_metric, actual manual_review_required"),
+        true,
+      );
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+    });
+  });
+
   await t.test("stops for hard rejected tokens", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "hard-rejected.db")}`;
@@ -598,13 +764,55 @@ test("geckoterminal single candidate planner", async (t) => {
       });
 
       const output = parsePlannerOutput(
-        await runPlanner(["--mint", mint], databaseUrl),
+        await runPlanner(
+          ["--mint", mint, "--expectedStage", "manual_review_required"],
+          databaseUrl,
+        ),
       );
 
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "manual_review_required");
       assert.equal(output.reason.includes("hardRejected=true"), true);
       assert.equal(output.nextRedCommand, null);
+    });
+  });
+
+  await t.test("stops with guard mismatch when latest metric source mismatch is not the expected stage", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "source-stage-mismatch.db")}`;
+      const mint = "SourceStageMismatchPlanner111111111111111";
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, {
+        mint,
+        metadataStatus: "partial",
+        metrics: [
+          {
+            source: "other.metric.source",
+            observedAt: "2026-05-01T00:00:00.000Z",
+          },
+        ],
+      });
+
+      const beforeCount = await countMetrics(databaseUrl, mint);
+      const result = await runPlanner(
+        ["--mint", mint, "--expectedStage", "partial_with_one_metric"],
+        databaseUrl,
+      );
+      const output = parsePlannerOutput(result);
+      const afterCount = await countMetrics(databaseUrl, mint);
+
+      assert.equal(output.status, "stop");
+      assert.equal(output.currentStage, "guard_mismatch");
+      assert.equal(output.nextStage, null);
+      assert.equal(output.nextRedCommand, null);
+      assert.equal(
+        output.reason.includes("expectedStage mismatch: expected partial_with_one_metric, actual manual_review_required"),
+        true,
+      );
+      assert.equal(result.stdout.includes('"rawJson":'), false);
+      assert.equal(beforeCount, 1);
+      assert.equal(afterCount, 1);
     });
   });
 
@@ -626,7 +834,10 @@ test("geckoterminal single candidate planner", async (t) => {
       });
 
       const output = parsePlannerOutput(
-        await runPlanner(["--mint", mint], databaseUrl),
+        await runPlanner(
+          ["--mint", mint, "--expectedStage", "manual_review_required"],
+          databaseUrl,
+        ),
       );
 
       assert.equal(output.status, "stop");

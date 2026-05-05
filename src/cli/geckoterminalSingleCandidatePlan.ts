@@ -10,6 +10,13 @@ const ALLOWED_EXPECTED_METADATA_STATUSES = new Set([
   "partial",
   "enriched",
 ]);
+const ALLOWED_EXPECTED_STAGES = new Set([
+  "mint_only_without_metrics",
+  "partial_without_metrics",
+  "partial_with_one_metric",
+  "two_or_more_metrics",
+  "manual_review_required",
+]);
 
 const COMMON_STOP_CONDITIONS = [
   "mint is missing or ambiguous",
@@ -72,6 +79,7 @@ type Args = {
   mint?: string;
   expectedMetricsCount?: number;
   expectedMetadataStatus?: string;
+  expectedStage?: string;
   error?: string;
   errorStage?: string;
 };
@@ -89,18 +97,27 @@ function parseArgs(argv: string[]): Args {
     if (
       key !== "--mint" &&
       key !== "--expectedMetricsCount" &&
-      key !== "--expectedMetadataStatus"
+      key !== "--expectedMetadataStatus" &&
+      key !== "--expectedStage"
     ) {
       return { error: `Unknown option: ${key}`, errorStage: "invalid_args" };
     }
 
-    if (value === undefined || value.startsWith("--") || value === "") {
+    if (value === undefined || value.startsWith("--")) {
       return { error: `Missing value for ${key}`, errorStage: "invalid_args" };
     }
 
     if (key === "--mint") {
+      if (value === "") {
+        return { error: `Missing value for ${key}`, errorStage: "invalid_args" };
+      }
+
       out.mint = value;
     } else if (key === "--expectedMetricsCount") {
+      if (value === "") {
+        return { error: `Missing value for ${key}`, errorStage: "invalid_args" };
+      }
+
       const expectedMetricsCount = Number(value);
       if (
         !Number.isInteger(expectedMetricsCount) ||
@@ -113,7 +130,11 @@ function parseArgs(argv: string[]): Args {
       }
 
       out.expectedMetricsCount = expectedMetricsCount;
-    } else {
+    } else if (key === "--expectedMetadataStatus") {
+      if (value === "") {
+        return { error: `Missing value for ${key}`, errorStage: "invalid_args" };
+      }
+
       if (!ALLOWED_EXPECTED_METADATA_STATUSES.has(value)) {
         return {
           error: `Invalid expectedMetadataStatus: ${value}`,
@@ -122,6 +143,15 @@ function parseArgs(argv: string[]): Args {
       }
 
       out.expectedMetadataStatus = value;
+    } else {
+      if (!ALLOWED_EXPECTED_STAGES.has(value)) {
+        return {
+          error: `Invalid expectedStage: ${value}`,
+          errorStage: "invalid_args",
+        };
+      }
+
+      out.expectedStage = value;
     }
 
     i += 1;
@@ -255,11 +285,31 @@ function baseOutput(token: {
   };
 }
 
+function applyExpectedStageGuard(
+  output: PlanOutput,
+  expectedStage?: string,
+): PlanOutput {
+  if (expectedStage === undefined || output.currentStage === expectedStage) {
+    return output;
+  }
+
+  return {
+    ...output,
+    status: "stop",
+    currentStage: "guard_mismatch",
+    nextStage: null,
+    reason: `expectedStage mismatch: expected ${expectedStage}, actual ${output.currentStage}`,
+    nextRedCommand: null,
+    sideEffectUpperBound: null,
+  };
+}
+
 async function buildPlan(
   mint: string,
   options: {
     expectedMetricsCount?: number;
     expectedMetadataStatus?: string;
+    expectedStage?: string;
   } = {},
 ): Promise<PlanOutput> {
   const token = await db.token.findUnique({
@@ -333,92 +383,113 @@ async function buildPlan(
   }
 
   if (token.hardRejected) {
-    return {
-      ...base,
-      status: "stop",
-      currentStage: "manual_review_required",
-      nextStage: null,
-      reason: "hardRejected=true; manual review required before planning a Red command",
-      nextRedCommand: null,
-      sideEffectUpperBound: null,
-    };
+    return applyExpectedStageGuard(
+      {
+        ...base,
+        status: "stop",
+        currentStage: "manual_review_required",
+        nextStage: null,
+        reason: "hardRejected=true; manual review required before planning a Red command",
+        nextRedCommand: null,
+        sideEffectUpperBound: null,
+      },
+      options.expectedStage,
+    );
   }
 
   if (
     latestMetricSource !== null &&
     latestMetricSource !== GECKOTERMINAL_METRIC_SOURCE
   ) {
-    return {
+    return applyExpectedStageGuard(
+      {
+        ...base,
+        status: "stop",
+        currentStage: "manual_review_required",
+        nextStage: null,
+        reason: `latestMetricSource mismatch: ${latestMetricSource}`,
+        nextRedCommand: null,
+        sideEffectUpperBound: null,
+      },
+      options.expectedStage,
+    );
+  }
+
+  if (token.metadataStatus === "mint_only" && metricsCount === 0) {
+    return applyExpectedStageGuard(
+      {
+        ...base,
+        status: "ok",
+        currentStage: "mint_only_without_metrics",
+        nextStage: "enrich_write",
+        reason: "mint_only Token has no metrics; next Red gate is single-mint enrich/rescore write after dry-run confirmation",
+        nextRedCommand: enrichWriteCommand(token.mint),
+        sideEffectUpperBound:
+          "target mint Token fields update only; enrichWriteCount<=1; rescoreWriteCount<=1; notifySentCount=0",
+      },
+      options.expectedStage,
+    );
+  }
+
+  if (token.metadataStatus === "partial" && metricsCount === 0) {
+    return applyExpectedStageGuard(
+      {
+        ...base,
+        status: "ok",
+        currentStage: "partial_without_metrics",
+        nextStage: "metric_write",
+        reason: "partial Token has no metrics; next Red gate is single-mint metric snapshot write after dry-run confirmation",
+        nextRedCommand: metricWriteCommand(token.mint),
+        sideEffectUpperBound:
+          "target mint one geckoterminal.token_snapshot Metric append; writtenCount<=1",
+      },
+      options.expectedStage,
+    );
+  }
+
+  if (token.metadataStatus === "partial" && metricsCount === 1) {
+    return applyExpectedStageGuard(
+      {
+        ...base,
+        status: "ok",
+        currentStage: "partial_with_one_metric",
+        nextStage: "second_metric_write_or_tmux_single",
+        reason: "partial Token has one metric; next Red gate can append one additional metric through the single-mint tmux operator flow after dry-run confirmation",
+        nextRedCommand: tmuxSingleMetricCommand(token.mint),
+        sideEffectUpperBound:
+          "tmux single-run; target mint one geckoterminal.token_snapshot Metric append; writtenCount<=1",
+      },
+      options.expectedStage,
+    );
+  }
+
+  if (metricsCount >= 2) {
+    return applyExpectedStageGuard(
+      {
+        ...base,
+        status: "ok",
+        currentStage: "two_or_more_metrics",
+        nextStage: "report_confirmation_or_stop",
+        reason: "metricsCount>=2; no write needed without a fresh preflight",
+        nextRedCommand: null,
+        sideEffectUpperBound: null,
+      },
+      options.expectedStage,
+    );
+  }
+
+  return applyExpectedStageGuard(
+    {
       ...base,
       status: "stop",
       currentStage: "manual_review_required",
       nextStage: null,
-      reason: `latestMetricSource mismatch: ${latestMetricSource}`,
+      reason: `Unsupported planner state: metadataStatus=${token.metadataStatus}, metricsCount=${metricsCount}`,
       nextRedCommand: null,
       sideEffectUpperBound: null,
-    };
-  }
-
-  if (token.metadataStatus === "mint_only" && metricsCount === 0) {
-    return {
-      ...base,
-      status: "ok",
-      currentStage: "mint_only_without_metrics",
-      nextStage: "enrich_write",
-      reason: "mint_only Token has no metrics; next Red gate is single-mint enrich/rescore write after dry-run confirmation",
-      nextRedCommand: enrichWriteCommand(token.mint),
-      sideEffectUpperBound:
-        "target mint Token fields update only; enrichWriteCount<=1; rescoreWriteCount<=1; notifySentCount=0",
-    };
-  }
-
-  if (token.metadataStatus === "partial" && metricsCount === 0) {
-    return {
-      ...base,
-      status: "ok",
-      currentStage: "partial_without_metrics",
-      nextStage: "metric_write",
-      reason: "partial Token has no metrics; next Red gate is single-mint metric snapshot write after dry-run confirmation",
-      nextRedCommand: metricWriteCommand(token.mint),
-      sideEffectUpperBound:
-        "target mint one geckoterminal.token_snapshot Metric append; writtenCount<=1",
-    };
-  }
-
-  if (token.metadataStatus === "partial" && metricsCount === 1) {
-    return {
-      ...base,
-      status: "ok",
-      currentStage: "partial_with_one_metric",
-      nextStage: "second_metric_write_or_tmux_single",
-      reason: "partial Token has one metric; next Red gate can append one additional metric through the single-mint tmux operator flow after dry-run confirmation",
-      nextRedCommand: tmuxSingleMetricCommand(token.mint),
-      sideEffectUpperBound:
-        "tmux single-run; target mint one geckoterminal.token_snapshot Metric append; writtenCount<=1",
-    };
-  }
-
-  if (metricsCount >= 2) {
-    return {
-      ...base,
-      status: "ok",
-      currentStage: "two_or_more_metrics",
-      nextStage: "report_confirmation_or_stop",
-      reason: "metricsCount>=2; no write needed without a fresh preflight",
-      nextRedCommand: null,
-      sideEffectUpperBound: null,
-    };
-  }
-
-  return {
-    ...base,
-    status: "stop",
-    currentStage: "manual_review_required",
-    nextStage: null,
-    reason: `Unsupported planner state: metadataStatus=${token.metadataStatus}, metricsCount=${metricsCount}`,
-    nextRedCommand: null,
-    sideEffectUpperBound: null,
-  };
+    },
+    options.expectedStage,
+  );
 }
 
 async function main(): Promise<void> {
@@ -438,6 +509,7 @@ async function main(): Promise<void> {
   const output = await buildPlan(args.mint, {
     expectedMetricsCount: args.expectedMetricsCount,
     expectedMetadataStatus: args.expectedMetadataStatus,
+    expectedStage: args.expectedStage,
   });
   console.log(JSON.stringify(output, null, 2));
 }
