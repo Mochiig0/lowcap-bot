@@ -329,10 +329,24 @@ Outputs:
 - current stage.
 - next stage.
 - one next exact Red command, or `stop`.
+- machine-readable safety metadata for that command:
+  `nextRedCommandKind`, `requiresHumanApproval`, `executor`, and
+  `willExecute`.
 - expected side-effect upper bound for that Red command.
 - required read-only confirmation commands.
 - stop conditions that apply before the command can be approved.
 - rawJson-free confirmation requirement for the following report step.
+
+Safety metadata interpretation:
+
+- When `nextRedCommand` is present, `nextRedCommandKind` identifies the command
+  family, `requiresHumanApproval=true`, `executor="human"`, and
+  `willExecute=false`.
+- When `nextRedCommand=null`, `nextRedCommandKind=null`,
+  `requiresHumanApproval=false`, `executor="none"`, and
+  `willExecute=false`.
+- `nextRedCommandKind` is a machine-readable label, not an executor. The
+  planner still only prints command text for a later human-approved Red task.
 
 Stage rules:
 
@@ -379,6 +393,11 @@ Implementation and smoke status:
   `--expectedMetricsCount`, `--expectedMetadataStatus`, and
   `--expectedStage`. The stage guard was introduced by
   `b64ad16 feat: add planner stage guard`.
+- The planner output now includes machine-readable safety metadata fields from
+  `956e18a feat: add planner safety metadata fields`: `nextRedCommandKind`,
+  `requiresHumanApproval`, `executor`, and `willExecute`. The existing
+  `nextRedCommand` string / null field remains the backward-compatible command
+  text field.
 - Real-DB read-only smoke has passed for these stages:
   - `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`:
     `currentStage=two_or_more_metrics`,
@@ -411,6 +430,12 @@ Implementation and smoke status:
   `currentStage=two_or_more_metrics` matched, `nextRedCommand=null`, and the
   output remained rawJson-free. That smoke did not write DB / Token / Metric
   rows, did not send Telegram, and did not start tmux / watch / systemd.
+- A later real-DB read-only safety-metadata smoke on the same mint confirmed
+  the no-Red-command shape: `nextRedCommand=null`,
+  `nextRedCommandKind=null`, `requiresHumanApproval=false`,
+  `executor="none"`, and `willExecute=false`. The output remained
+  rawJson-free and did not write DB / Token / Metric rows, send Telegram, start
+  watch, start tmux, or touch systemd.
 
 ### Planner Operator Selection Procedure
 
@@ -471,16 +496,21 @@ Do not pass `missing_mint_arg`, `invalid_args`, `guard_mismatch`, or
 not normal operator-intended stages.
 
 4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
-   `nextRedCommand`, `sideEffectUpperBound`, and `stopConditions`.
+   `nextRedCommand`, `nextRedCommandKind`, `requiresHumanApproval`,
+   `executor`, `willExecute`, `sideEffectUpperBound`, and `stopConditions`.
 5. Confirm the planner output does not expose a Metric `rawJson` field, raw
    payload body, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
    `TELEGRAM_CHAT_ID`. The `rawJsonFreeRequired` flag and stop-condition wording
    are specification text, not payload output.
-6. Do not execute `nextRedCommand` in the selection task. Paste the exact command
-   into the next human-approved Red task together with side-effect upper bound
-   and stop conditions.
+6. Do not execute `nextRedCommand` in the selection task. If a command is
+   present, require `requiresHumanApproval=true`, `executor="human"`, and
+   `willExecute=false`, then paste the exact command into the next
+   human-approved Red task together with side-effect upper bound and stop
+   conditions.
 7. If `nextRedCommand=null`, do not move to Red. Treat the result as report
-   confirmation or stop.
+   confirmation or stop; the safety metadata should be
+   `nextRedCommandKind=null`, `requiresHumanApproval=false`,
+   `executor="none"`, and `willExecute=false`.
 
 Candidate interpretation:
 
@@ -582,8 +612,8 @@ Next-step comparison:
 - A, more same-shape triple-guard Red reproductions: low priority now that the
   milestone has one guarded real-DB success.
 - B, milestone docs整理: this section records that milestone.
-- C, planner output / `nextRedCommand` safety hardening: good next design
-  target.
+- C, planner output / `nextRedCommand` safety hardening: completed for
+  machine-readable approval / executor metadata; keep future changes docs-first.
 - D, detect -> enrich/rescore -> metric bounded orchestration: good next
   design target after the safety contract is clear.
 - E, systemd / unbounded watch / default checkpoint / scheduler / queue: hold.

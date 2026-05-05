@@ -340,6 +340,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `currentStage=two_or_more_metrics` matched, `nextRedCommand=null`, and the
   output remained rawJson-free. That smoke did not write DB / Token / Metric
   rows, did not send Telegram, and did not start tmux / watch / systemd.
+- The read-only planner output now includes machine-readable safety metadata
+  fields while preserving the existing `nextRedCommand` string / null field:
+  `nextRedCommandKind`, `requiresHumanApproval`, `executor`, and
+  `willExecute`. When a Red command is present, the planner marks it as
+  `requiresHumanApproval=true`, `executor="human"`, and
+  `willExecute=false`; when no Red command is present, it returns
+  `nextRedCommandKind=null`, `requiresHumanApproval=false`,
+  `executor="none"`, and `willExecute=false`. The fields are metadata only:
+  the planner remains read-only / non-executing and never runs the printed Red
+  command. A real-DB read-only smoke on
+  `9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump` confirmed
+  `currentStage=two_or_more_metrics`, `nextRedCommand=null`,
+  `nextRedCommandKind=null`, `requiresHumanApproval=false`,
+  `executor="none"`, `willExecute=false`, and rawJson-free output. That smoke
+  did not write DB / Token / Metric rows, did not send Telegram, and did not
+  start watch / tmux / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
@@ -426,10 +442,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - Remaining planner / bounded-operation gaps are still explicit: a real-DB
   `partial_without_metrics` planner smoke is unconfirmed; default-checkpoint
   detect watch, long-running / unbounded watch, restart-oriented operation,
-  systemd operation, scheduler / queue worker behavior, planner output /
-  `nextRedCommand` machine-readable safety hardening, and a bounded
-  detect -> enrich/rescore -> metric orchestration wrapper are not promoted by
-  this milestone.
+  systemd operation, scheduler / queue worker behavior, and a bounded detect
+  -> enrich/rescore -> metric orchestration wrapper are not promoted by this
+  milestone.
 - Confirmed detect gates include the one-shot pump-only write, three bounded
   pump-only watch writes using `--pumpOnly --limit 1 --watch --write
   --maxIterations 1 --checkpointFile /tmp/...`, and one foreground bounded
