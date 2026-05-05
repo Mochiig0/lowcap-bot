@@ -24,6 +24,11 @@ type CommandFailure = {
 };
 
 type CommandResult = CommandSuccess | CommandFailure;
+type NextRedCommandKind =
+  | "gecko_enrich_rescore_single_mint"
+  | "gecko_metric_snapshot_single_mint"
+  | "tmux_metric_single_mint"
+  | null;
 
 type PlannerOutput = {
   status: "ok" | "stop";
@@ -65,6 +70,10 @@ type PlannerOutput = {
   }>;
   readOnlyCommands: string[];
   nextRedCommand: string | null;
+  nextRedCommandKind: NextRedCommandKind;
+  requiresHumanApproval: boolean;
+  executor: "human" | "none";
+  willExecute: false;
   sideEffectUpperBound: string | null;
   stopConditions: string[];
   rawJsonFreeRequired: true;
@@ -265,6 +274,25 @@ async function countMetrics(
   }
 }
 
+function assertNoRedCommandSafety(output: PlannerOutput): void {
+  assert.equal(output.nextRedCommand, null);
+  assert.equal(output.nextRedCommandKind, null);
+  assert.equal(output.requiresHumanApproval, false);
+  assert.equal(output.executor, "none");
+  assert.equal(output.willExecute, false);
+}
+
+function assertRedCommandSafety(
+  output: PlannerOutput,
+  kind: Exclude<NextRedCommandKind, null>,
+): void {
+  assert.notEqual(output.nextRedCommand, null);
+  assert.equal(output.nextRedCommandKind, kind);
+  assert.equal(output.requiresHumanApproval, true);
+  assert.equal(output.executor, "human");
+  assert.equal(output.willExecute, false);
+}
+
 test("geckoterminal single candidate planner", async (t) => {
   await t.test("stops when the token is missing", async () => {
     await withTempDir(async (dir) => {
@@ -279,7 +307,7 @@ test("geckoterminal single candidate planner", async (t) => {
 
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "missing_token");
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.guards.metricsCount, null);
     });
   });
@@ -372,6 +400,7 @@ test("geckoterminal single candidate planner", async (t) => {
         output.nextRedCommand,
         `pnpm -s token:enrich-rescore:geckoterminal -- --mint ${mint} --write`,
       );
+      assertRedCommandSafety(output, "gecko_enrich_rescore_single_mint");
       assert.equal(output.guards.metricsCount, 0);
     });
   });
@@ -401,6 +430,7 @@ test("geckoterminal single candidate planner", async (t) => {
         output.nextRedCommand,
         `pnpm -s metric:snapshot:geckoterminal -- --mint ${mint} --write`,
       );
+      assertRedCommandSafety(output, "gecko_metric_snapshot_single_mint");
     });
   });
 
@@ -445,6 +475,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.nextRedCommand?.includes("tmux new-session -d -s lowcap-gecko-metric-single"), true);
       assert.equal(output.nextRedCommand?.includes(`--mint ${mint} --write`), true);
       assert.equal(output.nextRedCommand?.includes("--watch"), false);
+      assertRedCommandSafety(output, "tmux_metric_single_mint");
       assert.equal(output.latestMetric?.safeSummary.priceUsdPresent, true);
       assert.equal(result.stdout.includes('"rawJson":'), false);
       assert.equal(beforeCount, 1);
@@ -472,7 +503,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "guard_mismatch");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(
         output.reason.includes("expectedMetadataStatus mismatch: expected mint_only, actual partial"),
@@ -516,7 +547,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "guard_mismatch");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(
         output.reason.includes("expectedMetadataStatus mismatch: expected mint_only, actual partial"),
@@ -559,7 +590,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "guard_mismatch");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(
         output.reason.includes("expectedMetricsCount mismatch: expected 1, actual 2"),
@@ -604,7 +635,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "guard_mismatch");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(
         output.reason.includes("expectedStage mismatch: expected partial_with_one_metric, actual two_or_more_metrics"),
@@ -634,7 +665,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "invalid_args");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(output.reason.includes("Invalid expectedMetricsCount"), true);
       assert.equal(result.stdout.includes('"rawJson":'), false);
@@ -658,7 +689,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "invalid_args");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(output.reason.includes("Invalid expectedMetadataStatus"), true);
       assert.equal(result.stdout.includes('"rawJson":'), false);
@@ -682,7 +713,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "invalid_args");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.sideEffectUpperBound, null);
       assert.equal(output.reason.includes("Invalid expectedStage"), true);
       assert.equal(result.stdout.includes('"rawJson":'), false);
@@ -716,7 +747,7 @@ test("geckoterminal single candidate planner", async (t) => {
 
       assert.equal(output.status, "ok");
       assert.equal(output.currentStage, "two_or_more_metrics");
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(output.reason.includes("metricsCount>=2"), true);
     });
   });
@@ -742,7 +773,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "guard_mismatch");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(
         output.reason.includes("expectedStage mismatch: expected partial_with_one_metric, actual manual_review_required"),
         true,
@@ -773,7 +804,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "manual_review_required");
       assert.equal(output.reason.includes("hardRejected=true"), true);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
     });
   });
 
@@ -805,7 +836,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "guard_mismatch");
       assert.equal(output.nextStage, null);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
       assert.equal(
         output.reason.includes("expectedStage mismatch: expected partial_with_one_metric, actual manual_review_required"),
         true,
@@ -843,7 +874,7 @@ test("geckoterminal single candidate planner", async (t) => {
       assert.equal(output.status, "stop");
       assert.equal(output.currentStage, "manual_review_required");
       assert.equal(output.reason.includes("latestMetricSource mismatch"), true);
-      assert.equal(output.nextRedCommand, null);
+      assertNoRedCommandSafety(output);
     });
   });
 });

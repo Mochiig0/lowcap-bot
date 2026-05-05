@@ -30,6 +30,12 @@ const COMMON_STOP_CONDITIONS = [
 ];
 
 type PlanStatus = "ok" | "stop";
+type NextRedCommandKind =
+  | "gecko_enrich_rescore_single_mint"
+  | "gecko_metric_snapshot_single_mint"
+  | "tmux_metric_single_mint"
+  | null;
+type PlanExecutor = "human" | "none";
 
 type PlanOutput = {
   status: PlanStatus;
@@ -57,6 +63,10 @@ type PlanOutput = {
   recentMetrics: SafeMetricPlanItem[];
   readOnlyCommands: string[];
   nextRedCommand: string | null;
+  nextRedCommandKind: NextRedCommandKind;
+  requiresHumanApproval: boolean;
+  executor: PlanExecutor;
+  willExecute: false;
   sideEffectUpperBound: string | null;
   stopConditions: string[];
   rawJsonFreeRequired: true;
@@ -183,6 +193,32 @@ function tmuxSingleMetricCommand(mint: string): string {
   return `tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd ${REPO_ROOT} && pnpm -s metric:snapshot:geckoterminal -- --mint ${mint} --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"`;
 }
 
+function redCommandSafety(
+  kind: Exclude<NextRedCommandKind, null>,
+): Pick<
+  PlanOutput,
+  "nextRedCommandKind" | "requiresHumanApproval" | "executor" | "willExecute"
+> {
+  return {
+    nextRedCommandKind: kind,
+    requiresHumanApproval: true,
+    executor: "human",
+    willExecute: false,
+  };
+}
+
+function noRedCommandSafety(): Pick<
+  PlanOutput,
+  "nextRedCommandKind" | "requiresHumanApproval" | "executor" | "willExecute"
+> {
+  return {
+    nextRedCommandKind: null,
+    requiresHumanApproval: false,
+    executor: "none",
+    willExecute: false,
+  };
+}
+
 function emptyGuards(): PlanOutput["guards"] {
   return {
     metadataStatus: null,
@@ -210,6 +246,7 @@ function stopOutput(
     recentMetrics: [],
     readOnlyCommands: mint ? readOnlyCommands(mint) : [],
     nextRedCommand: null,
+    ...noRedCommandSafety(),
     sideEffectUpperBound: null,
     stopConditions: COMMON_STOP_CONDITIONS,
     rawJsonFreeRequired: true,
@@ -254,7 +291,16 @@ function baseOutput(token: {
   };
 }): Omit<
   PlanOutput,
-  "status" | "currentStage" | "nextStage" | "reason" | "nextRedCommand" | "sideEffectUpperBound"
+  | "status"
+  | "currentStage"
+  | "nextStage"
+  | "reason"
+  | "nextRedCommand"
+  | "nextRedCommandKind"
+  | "requiresHumanApproval"
+  | "executor"
+  | "willExecute"
+  | "sideEffectUpperBound"
 > {
   const recentMetrics = token.metrics.map(safeMetric);
   const latestMetric = recentMetrics[0] ?? null;
@@ -300,6 +346,7 @@ function applyExpectedStageGuard(
     nextStage: null,
     reason: `expectedStage mismatch: expected ${expectedStage}, actual ${output.currentStage}`,
     nextRedCommand: null,
+    ...noRedCommandSafety(),
     sideEffectUpperBound: null,
   };
 }
@@ -363,6 +410,7 @@ async function buildPlan(
       nextStage: null,
       reason: `expectedMetadataStatus mismatch: expected ${options.expectedMetadataStatus}, actual ${token.metadataStatus}`,
       nextRedCommand: null,
+      ...noRedCommandSafety(),
       sideEffectUpperBound: null,
     };
   }
@@ -378,6 +426,7 @@ async function buildPlan(
       nextStage: null,
       reason: `expectedMetricsCount mismatch: expected ${options.expectedMetricsCount}, actual ${metricsCount}`,
       nextRedCommand: null,
+      ...noRedCommandSafety(),
       sideEffectUpperBound: null,
     };
   }
@@ -391,6 +440,7 @@ async function buildPlan(
         nextStage: null,
         reason: "hardRejected=true; manual review required before planning a Red command",
         nextRedCommand: null,
+        ...noRedCommandSafety(),
         sideEffectUpperBound: null,
       },
       options.expectedStage,
@@ -409,6 +459,7 @@ async function buildPlan(
         nextStage: null,
         reason: `latestMetricSource mismatch: ${latestMetricSource}`,
         nextRedCommand: null,
+        ...noRedCommandSafety(),
         sideEffectUpperBound: null,
       },
       options.expectedStage,
@@ -424,6 +475,7 @@ async function buildPlan(
         nextStage: "enrich_write",
         reason: "mint_only Token has no metrics; next Red gate is single-mint enrich/rescore write after dry-run confirmation",
         nextRedCommand: enrichWriteCommand(token.mint),
+        ...redCommandSafety("gecko_enrich_rescore_single_mint"),
         sideEffectUpperBound:
           "target mint Token fields update only; enrichWriteCount<=1; rescoreWriteCount<=1; notifySentCount=0",
       },
@@ -440,6 +492,7 @@ async function buildPlan(
         nextStage: "metric_write",
         reason: "partial Token has no metrics; next Red gate is single-mint metric snapshot write after dry-run confirmation",
         nextRedCommand: metricWriteCommand(token.mint),
+        ...redCommandSafety("gecko_metric_snapshot_single_mint"),
         sideEffectUpperBound:
           "target mint one geckoterminal.token_snapshot Metric append; writtenCount<=1",
       },
@@ -456,6 +509,7 @@ async function buildPlan(
         nextStage: "second_metric_write_or_tmux_single",
         reason: "partial Token has one metric; next Red gate can append one additional metric through the single-mint tmux operator flow after dry-run confirmation",
         nextRedCommand: tmuxSingleMetricCommand(token.mint),
+        ...redCommandSafety("tmux_metric_single_mint"),
         sideEffectUpperBound:
           "tmux single-run; target mint one geckoterminal.token_snapshot Metric append; writtenCount<=1",
       },
@@ -472,6 +526,7 @@ async function buildPlan(
         nextStage: "report_confirmation_or_stop",
         reason: "metricsCount>=2; no write needed without a fresh preflight",
         nextRedCommand: null,
+        ...noRedCommandSafety(),
         sideEffectUpperBound: null,
       },
       options.expectedStage,
@@ -486,6 +541,7 @@ async function buildPlan(
       nextStage: null,
       reason: `Unsupported planner state: metadataStatus=${token.metadataStatus}, metricsCount=${metricsCount}`,
       nextRedCommand: null,
+      ...noRedCommandSafety(),
       sideEffectUpperBound: null,
     },
     options.expectedStage,
