@@ -766,9 +766,10 @@ strings and stage order only.
 pnpm -s ops:gecko:bounded-flow:guide -- --mint <MINT> --expectedMetricsCount <N> --expectedMetadataStatus <STATUS> --expectedStage <STAGE>
 ```
 
-The guide output uses `mode="non_executor_guide"`, top-level
-`willExecute=false`, `executor="human"`, and `rawJsonFreeRequired=true`. Its
-stage order is:
+The guide output shape includes `status`, `reason`, `mint`,
+`mode="non_executor_guide"`, top-level `willExecute=false`,
+`executor="human"`, `rawJsonFreeRequired=true`, `steps`, `forbidden`, and
+`notes`. Its stage order is:
 
 1. `baseline`
 2. `planner`
