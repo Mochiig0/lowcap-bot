@@ -30,6 +30,18 @@ type NextRedCommandKind =
   | "tmux_metric_single_mint"
   | null;
 
+type SideEffectUpperBoundSpec = {
+  metricWriteMax: number;
+  tokenWrite: boolean;
+  tokenWriteMax: number;
+  telegramSend: boolean;
+  tmux: boolean;
+  tmuxSession: string | null;
+  checkpointWrite: boolean;
+  systemd: boolean;
+  multiMint: boolean;
+};
+
 type PlannerOutput = {
   status: "ok" | "stop";
   mint: string | null;
@@ -75,6 +87,7 @@ type PlannerOutput = {
   executor: "human" | "none";
   willExecute: false;
   sideEffectUpperBound: string | null;
+  sideEffectUpperBoundSpec: SideEffectUpperBoundSpec;
   stopConditions: string[];
   rawJsonFreeRequired: true;
 };
@@ -274,12 +287,58 @@ async function countMetrics(
   }
 }
 
+function expectedSideEffectUpperBoundSpec(
+  kind: NextRedCommandKind,
+): SideEffectUpperBoundSpec {
+  const base: SideEffectUpperBoundSpec = {
+    metricWriteMax: 0,
+    tokenWrite: false,
+    tokenWriteMax: 0,
+    telegramSend: false,
+    tmux: false,
+    tmuxSession: null,
+    checkpointWrite: false,
+    systemd: false,
+    multiMint: false,
+  };
+
+  if (kind === "gecko_enrich_rescore_single_mint") {
+    return {
+      ...base,
+      tokenWrite: true,
+      tokenWriteMax: 1,
+    };
+  }
+
+  if (kind === "gecko_metric_snapshot_single_mint") {
+    return {
+      ...base,
+      metricWriteMax: 1,
+    };
+  }
+
+  if (kind === "tmux_metric_single_mint") {
+    return {
+      ...base,
+      metricWriteMax: 1,
+      tmux: true,
+      tmuxSession: "lowcap-gecko-metric-single",
+    };
+  }
+
+  return base;
+}
+
 function assertNoRedCommandSafety(output: PlannerOutput): void {
   assert.equal(output.nextRedCommand, null);
   assert.equal(output.nextRedCommandKind, null);
   assert.equal(output.requiresHumanApproval, false);
   assert.equal(output.executor, "none");
   assert.equal(output.willExecute, false);
+  assert.deepEqual(
+    output.sideEffectUpperBoundSpec,
+    expectedSideEffectUpperBoundSpec(null),
+  );
 }
 
 function assertRedCommandSafety(
@@ -291,6 +350,10 @@ function assertRedCommandSafety(
   assert.equal(output.requiresHumanApproval, true);
   assert.equal(output.executor, "human");
   assert.equal(output.willExecute, false);
+  assert.deepEqual(
+    output.sideEffectUpperBoundSpec,
+    expectedSideEffectUpperBoundSpec(kind),
+  );
 }
 
 test("geckoterminal single candidate planner", async (t) => {

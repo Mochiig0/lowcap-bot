@@ -37,6 +37,18 @@ type NextRedCommandKind =
   | null;
 type PlanExecutor = "human" | "none";
 
+type SideEffectUpperBoundSpec = {
+  metricWriteMax: number;
+  tokenWrite: boolean;
+  tokenWriteMax: number;
+  telegramSend: boolean;
+  tmux: boolean;
+  tmuxSession: string | null;
+  checkpointWrite: boolean;
+  systemd: boolean;
+  multiMint: boolean;
+};
+
 type PlanOutput = {
   status: PlanStatus;
   mint: string | null;
@@ -68,6 +80,7 @@ type PlanOutput = {
   executor: PlanExecutor;
   willExecute: false;
   sideEffectUpperBound: string | null;
+  sideEffectUpperBoundSpec: SideEffectUpperBoundSpec;
   stopConditions: string[];
   rawJsonFreeRequired: true;
 };
@@ -193,29 +206,81 @@ function tmuxSingleMetricCommand(mint: string): string {
   return `tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd ${REPO_ROOT} && pnpm -s metric:snapshot:geckoterminal -- --mint ${mint} --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"`;
 }
 
+function sideEffectUpperBoundSpecForKind(
+  kind: NextRedCommandKind,
+): SideEffectUpperBoundSpec {
+  const base = {
+    metricWriteMax: 0,
+    tokenWrite: false,
+    tokenWriteMax: 0,
+    telegramSend: false,
+    tmux: false,
+    tmuxSession: null,
+    checkpointWrite: false,
+    systemd: false,
+    multiMint: false,
+  };
+
+  if (kind === "gecko_enrich_rescore_single_mint") {
+    return {
+      ...base,
+      tokenWrite: true,
+      tokenWriteMax: 1,
+    };
+  }
+
+  if (kind === "gecko_metric_snapshot_single_mint") {
+    return {
+      ...base,
+      metricWriteMax: 1,
+    };
+  }
+
+  if (kind === "tmux_metric_single_mint") {
+    return {
+      ...base,
+      metricWriteMax: 1,
+      tmux: true,
+      tmuxSession: "lowcap-gecko-metric-single",
+    };
+  }
+
+  return base;
+}
+
 function redCommandSafety(
   kind: Exclude<NextRedCommandKind, null>,
 ): Pick<
   PlanOutput,
-  "nextRedCommandKind" | "requiresHumanApproval" | "executor" | "willExecute"
+  | "nextRedCommandKind"
+  | "requiresHumanApproval"
+  | "executor"
+  | "willExecute"
+  | "sideEffectUpperBoundSpec"
 > {
   return {
     nextRedCommandKind: kind,
     requiresHumanApproval: true,
     executor: "human",
     willExecute: false,
+    sideEffectUpperBoundSpec: sideEffectUpperBoundSpecForKind(kind),
   };
 }
 
 function noRedCommandSafety(): Pick<
   PlanOutput,
-  "nextRedCommandKind" | "requiresHumanApproval" | "executor" | "willExecute"
+  | "nextRedCommandKind"
+  | "requiresHumanApproval"
+  | "executor"
+  | "willExecute"
+  | "sideEffectUpperBoundSpec"
 > {
   return {
     nextRedCommandKind: null,
     requiresHumanApproval: false,
     executor: "none",
     willExecute: false,
+    sideEffectUpperBoundSpec: sideEffectUpperBoundSpecForKind(null),
   };
 }
 
@@ -301,6 +366,7 @@ function baseOutput(token: {
   | "executor"
   | "willExecute"
   | "sideEffectUpperBound"
+  | "sideEffectUpperBoundSpec"
 > {
   const recentMetrics = token.metrics.map(safeMetric);
   const latestMetric = recentMetrics[0] ?? null;
