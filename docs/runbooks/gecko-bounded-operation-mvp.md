@@ -686,6 +686,66 @@ Human approval gate:
   scheduler, queue worker, default checkpoint operation, unbounded watch, or
   multi-mint writes.
 
+### Planner + Validator Approval Flow Milestone
+
+The current approval milestone is the bounded one-mint flow:
+
+1. Pick exactly one candidate mint from read-only reports.
+2. Confirm the baseline with `token:compare` and, when relevant,
+   `metrics:report`.
+3. Run `ops:gecko:single-candidate:plan` with all three guards:
+   `--expectedMetricsCount`, `--expectedMetadataStatus`, and
+   `--expectedStage`.
+4. Save or pipe the planner JSON.
+5. Run `ops:gecko:single-candidate:validate` against that planner JSON.
+6. Move to an upstream Red approval request only when both
+   `approvalReady=true` and `canProceedToHumanGate=true`.
+7. Execute only one copied Red exact command in the separate Red task.
+8. Confirm the result with rawJson-free read-only reports, then record the
+   result in docs-only follow-up.
+
+Example:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <N> --expectedMetadataStatus <STATUS> --expectedStage <STAGE> > /tmp/lowcap-planner.json
+pnpm -s ops:gecko:single-candidate:validate -- --plannerJson /tmp/lowcap-planner.json
+```
+
+The validator can also read stdin:
+
+```bash
+cat /tmp/lowcap-planner.json | pnpm -s ops:gecko:single-candidate:validate
+```
+
+This milestone establishes the approval boundary, not automatic execution. If
+the validator returns `stop`, do not move to Red. If the validator returns
+`ok`, still do not execute automatically: paste the exact `nextRedCommand` into
+the separate human-approved Red task with the side-effect upper bound and stop
+conditions.
+
+What the validator guarantees:
+
+- the planner JSON has an approval-ready shape for one known Red command kind.
+- `requiresHumanApproval=true`, `executor="human"`, and `willExecute=false`
+  are present for a proposed Red command.
+- `sideEffectUpperBoundSpec` remains within the accepted single-mint bounds.
+- required `stopConditionCodes` are present.
+- rawJson / secret-marker risk is not present in the validator-accepted JSON.
+
+What the validator does not guarantee:
+
+- future market-data values or liquidity state.
+- Red command execution success.
+- Telegram, systemd, or watch safety outside the bounded one-command approval
+  contract.
+- replacement of human judgment at the Red approval gate.
+
+Planner and validator are both non-executors. They must not run Red commands,
+start tmux, attach `--write`, connect to DB / network, send Telegram, or touch
+systemd / scheduler / queue / unbounded watch behavior. Systemd, unbounded
+watch, scheduler, queue worker, and default checkpoint operation remain
+deferred.
+
 ### Triple-Guard Planner Gated Operation Milestone
 
 The current milestone is the strict planner-gated single-mint flow, not a broad

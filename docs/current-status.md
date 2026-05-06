@@ -412,6 +412,23 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `approvalReady=true` / `canProceedToHumanGate=true` without executing the Red
   command. That smoke did not write DB / Token / Metric rows, did not send
   Telegram, and did not start watch / tmux / systemd.
+- Milestone: the approval boundary for one GeckoTerminal single-candidate
+  follow-up is now planner -> validator -> human gate -> Red exact command. In
+  that boundary, the planner performs read-only stage selection for exactly one
+  mint, supports the three guards `--expectedMetricsCount`,
+  `--expectedMetadataStatus`, and `--expectedStage`, and only prints
+  `nextRedCommand` text plus safety metadata. The validator checks the saved or
+  piped planner JSON, returns `approvalReady` /
+  `canProceedToHumanGate`, and stops on rawJson / secret-marker risk. Neither
+  planner nor validator executes the Red command, starts tmux, attaches
+  `--write`, connects to DB / network, sends Telegram, or touches systemd /
+  scheduler / queue / unbounded watch behavior. The boundary is an approval
+  aid, not an executor, orchestrator, scheduler, queue worker, or live-send
+  path. Systemd, default checkpoint operation, unbounded watch, and Telegram
+  live send remain unapproved. Next useful work is either docs-only operator
+  procedure polish, using planner -> validator smoke before human approval in
+  real operations, or a separate bounded detect -> enrich/rescore -> metric
+  orchestration design; more same-shape Red reproductions are lower priority.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
