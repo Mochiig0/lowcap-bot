@@ -732,6 +732,16 @@ What the validator guarantees:
 - required `stopConditionCodes` are present.
 - rawJson / secret-marker risk is not present in the validator-accepted JSON.
 
+Validator safety coverage is fixed by fixture tests for these representative
+paths:
+
+- ok: `gecko_enrich_rescore_single_mint`,
+  `gecko_metric_snapshot_single_mint`, and `tmux_metric_single_mint`.
+- stop: unknown `nextRedCommandKind`, `missing_token`, `missing_mint_arg`,
+  `tokenWriteMax > 1`, required `stopConditionCodes` gaps, side-effect
+  upper-bound expansion, rawJson key, raw payload marker, and secret marker.
+- unsafe marker detection stops and does not reprint `nextRedCommand`.
+
 What the validator does not guarantee:
 
 - future market-data values or liquidity state.
@@ -741,10 +751,10 @@ What the validator does not guarantee:
 - replacement of human judgment at the Red approval gate.
 
 Planner and validator are both non-executors. They must not run Red commands,
-start tmux, attach `--write`, connect to DB / network, send Telegram, or touch
-systemd / scheduler / queue / unbounded watch behavior. Systemd, unbounded
-watch, scheduler, queue worker, and default checkpoint operation remain
-deferred.
+start tmux, attach `--write`, connect to DB / Prisma / network, use
+child-process execution, send Telegram, or touch systemd / scheduler / queue /
+unbounded watch behavior. Systemd, unbounded watch, scheduler, queue worker,
+and default checkpoint operation remain deferred.
 
 ### Triple-Guard Planner Gated Operation Milestone
 

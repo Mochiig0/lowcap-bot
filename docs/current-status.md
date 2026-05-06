@@ -397,21 +397,27 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   checks only the planner output JSON, and returns `approvalReady` plus
   `canProceedToHumanGate` with per-field `checks`. It does not run the planner,
   execute `nextRedCommand`, start tmux, attach `--write`, connect to DB /
-  Prisma / network, send Telegram, or touch systemd / scheduler / queue /
-  unbounded watch behavior. It returns `approvalReady=true` only when planner
-  `status=ok`, a known `nextRedCommandKind` and non-empty `nextRedCommand` are
-  present, `requiresHumanApproval=true`, `executor="human"`,
-  `willExecute=false`, `sideEffectUpperBoundSpec` is within bounds, required
-  `stopConditionCodes` are present, and the JSON is rawJson-free with no
-  secret/env marker. It stops on no input, invalid JSON, both stdin and file
-  input, `nextRedCommand=null`, planner stop / guard / missing / manual-review
-  stages, approval metadata mismatch, side-effect upper-bound expansion,
-  required code gaps, or rawJson / secret marker detection. If rawJson or a
-  secret/env marker is detected, it stops and does not reprint
-  `nextRedCommand`. Fixture-based validator smoke confirmed
-  `approvalReady=true` / `canProceedToHumanGate=true` without executing the Red
-  command. That smoke did not write DB / Token / Metric rows, did not send
-  Telegram, and did not start watch / tmux / systemd.
+  Prisma / network, use child-process execution, send Telegram, or touch
+  systemd / scheduler / queue / unbounded watch behavior. It returns
+  `approvalReady=true` only when planner `status=ok`, a known
+  `nextRedCommandKind` and non-empty `nextRedCommand` are present,
+  `requiresHumanApproval=true`, `executor="human"`, `willExecute=false`,
+  `sideEffectUpperBoundSpec` is within bounds, required `stopConditionCodes`
+  are present, and the JSON is rawJson-free with no secret/env marker. It stops
+  on no input, invalid JSON, both stdin and file input, `nextRedCommand=null`,
+  planner stop / guard / missing / manual-review stages, approval metadata
+  mismatch, side-effect upper-bound expansion, required code gaps, or rawJson /
+  secret marker detection. If rawJson or a secret/env marker is detected, it
+  stops and does not reprint `nextRedCommand`. Fixture-based validator smoke
+  confirmed `approvalReady=true` / `canProceedToHumanGate=true` without
+  executing the Red command. Validator safety coverage now pins ok paths for
+  `gecko_enrich_rescore_single_mint`, `gecko_metric_snapshot_single_mint`, and
+  `tmux_metric_single_mint`; stop paths for unknown `nextRedCommandKind`,
+  `missing_token`, `missing_mint_arg`, `tokenWriteMax > 1`, raw payload marker,
+  rawJson key, secret marker, required-code gaps, and side-effect expansion;
+  and the rule that unsafe marker detection does not reprint `nextRedCommand`.
+  That smoke and coverage work did not write DB / Token / Metric rows, did not
+  send Telegram, and did not start watch / tmux / systemd.
 - Milestone: the approval boundary for one GeckoTerminal single-candidate
   follow-up is now planner -> validator -> human gate -> Red exact command. In
   that boundary, the planner performs read-only stage selection for exactly one
