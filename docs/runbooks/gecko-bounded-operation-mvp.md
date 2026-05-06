@@ -756,6 +756,39 @@ child-process execution, send Telegram, or touch systemd / scheduler / queue /
 unbounded watch behavior. Systemd, unbounded watch, scheduler, queue worker,
 and default checkpoint operation remain deferred.
 
+### Bounded Flow Guide
+
+Use `ops:gecko:bounded-flow:guide` when the operator needs the bounded
+procedure as one JSON checklist. The guide is a non-executor: it prints command
+strings and stage order only.
+
+```bash
+pnpm -s ops:gecko:bounded-flow:guide -- --mint <MINT> --expectedMetricsCount <N> --expectedMetadataStatus <STATUS> --expectedStage <STAGE>
+```
+
+The guide output uses `mode="non_executor_guide"`, top-level
+`willExecute=false`, `executor="human"`, and `rawJsonFreeRequired=true`. Its
+stage order is:
+
+1. `baseline`
+2. `planner`
+3. `validator`
+4. `human_gate`
+5. `red_execution`
+6. `report_confirmation`
+7. `docs_record`
+
+All steps have `willExecute=false`. The `red_execution` step is a placeholder,
+not an execution step: after validator acceptance, request a separate human
+gate and run exactly one copied Red command only in that separate Red task.
+Keep Red execution and docs commit / push as separate follow-ups.
+
+The guide must not execute existing CLI commands, planner, validator,
+`nextRedCommand`, `--write`, `--watch`, tmux, DB / Prisma / network, Telegram,
+systemd, scheduler / queue, unbounded watch, default checkpoint, multi-mint
+work, or silent retry. It does not authorize systemd, unbounded watch,
+scheduler, queue worker, default checkpoint operation, or Telegram live send.
+
 ### Triple-Guard Planner Gated Operation Milestone
 
 The current milestone is the strict planner-gated single-mint flow, not a broad

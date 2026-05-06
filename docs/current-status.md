@@ -435,6 +435,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   procedure polish, using planner -> validator smoke before human approval in
   real operations, or a separate bounded detect -> enrich/rescore -> metric
   orchestration design; more same-shape Red reproductions are lower priority.
+- `ops:gecko:bounded-flow:guide` is now implemented as a non-executor guide
+  for the bounded operator flow. It accepts `--mint <MINT>` plus optional
+  planner guards, returns JSON with `mode="non_executor_guide"`,
+  `willExecute=false`, `executor="human"`, `rawJsonFreeRequired=true`,
+  `steps`, `forbidden`, and `notes`, and prints command strings / stage order
+  only. The stage order is `baseline -> planner -> validator -> human_gate ->
+  red_execution -> report_confirmation -> docs_record`; every step has
+  `willExecute=false`, and `red_execution` is only a placeholder for a
+  separate human-approved Red task. The guide does not run existing CLI
+  commands, planner, validator, `nextRedCommand`, `--write`, `--watch`, tmux,
+  DB / Prisma / network, Telegram, systemd, scheduler / queue, unbounded watch,
+  default checkpoint, multi-mint work, or silent retry. The guide smoke passed
+  as a read-only CLI check after sandbox IPC required an escalated read-only
+  run, with planner / validator command strings visible and no Red command
+  execution. That work did not write DB / Token / Metric rows, did not send
+  Telegram, and did not start watch / tmux / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
