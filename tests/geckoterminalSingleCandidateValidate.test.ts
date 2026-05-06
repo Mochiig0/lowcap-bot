@@ -66,6 +66,34 @@ function tmuxSideEffectSpec(): Record<string, unknown> {
   };
 }
 
+function enrichSideEffectSpec(): Record<string, unknown> {
+  return {
+    metricWriteMax: 0,
+    tokenWrite: true,
+    tokenWriteMax: 1,
+    telegramSend: false,
+    tmux: false,
+    tmuxSession: null,
+    checkpointWrite: false,
+    systemd: false,
+    multiMint: false,
+  };
+}
+
+function metricSideEffectSpec(): Record<string, unknown> {
+  return {
+    metricWriteMax: 1,
+    tokenWrite: false,
+    tokenWriteMax: 0,
+    telegramSend: false,
+    tmux: false,
+    tmuxSession: null,
+    checkpointWrite: false,
+    systemd: false,
+    multiMint: false,
+  };
+}
+
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "lowcap-gecko-validate-test-"));
 
@@ -215,6 +243,44 @@ test("geckoterminal single candidate validator", async (t) => {
     assert.equal(output.approvalReady, true);
   });
 
+  await t.test("accepts a gecko_enrich_rescore_single_mint planner output", async () => {
+    const output = await validateJson(
+      plannerOutput({
+        currentStage: "mint_only_without_metrics",
+        nextStage: "enrich_write",
+        nextRedCommand:
+          "pnpm -s token:enrich-rescore:geckoterminal -- --mint ValidatePlannerMint11111111111111111111111111 --write",
+        nextRedCommandKind: "gecko_enrich_rescore_single_mint",
+        sideEffectUpperBoundSpec: enrichSideEffectSpec(),
+      }),
+    );
+
+    assert.equal(output.status, "ok");
+    assert.equal(output.approvalReady, true);
+    assert.equal(output.canProceedToHumanGate, true);
+    assert.equal(output.nextRedCommandKind, "gecko_enrich_rescore_single_mint");
+    assert.equal(output.checks.sideEffectWithinBounds, true);
+  });
+
+  await t.test("accepts a gecko_metric_snapshot_single_mint planner output", async () => {
+    const output = await validateJson(
+      plannerOutput({
+        currentStage: "partial_without_metrics",
+        nextStage: "metric_write",
+        nextRedCommand:
+          "pnpm -s metric:snapshot:geckoterminal -- --mint ValidatePlannerMint11111111111111111111111111 --write",
+        nextRedCommandKind: "gecko_metric_snapshot_single_mint",
+        sideEffectUpperBoundSpec: metricSideEffectSpec(),
+      }),
+    );
+
+    assert.equal(output.status, "ok");
+    assert.equal(output.approvalReady, true);
+    assert.equal(output.canProceedToHumanGate, true);
+    assert.equal(output.nextRedCommandKind, "gecko_metric_snapshot_single_mint");
+    assert.equal(output.checks.sideEffectWithinBounds, true);
+  });
+
   await t.test("stops when nextRedCommand is null", async () => {
     await assertStops(
       plannerOutput({
@@ -222,6 +288,15 @@ test("geckoterminal single candidate validator", async (t) => {
         nextRedCommandKind: null,
       }),
       "nextRedCommand is missing",
+    );
+  });
+
+  await t.test("stops when nextRedCommandKind is unknown", async () => {
+    await assertStops(
+      plannerOutput({
+        nextRedCommandKind: "unknown_kind",
+      }),
+      "nextRedCommandKind is unknown or missing",
     );
   });
 
@@ -253,6 +328,30 @@ test("geckoterminal single candidate validator", async (t) => {
       }),
       "currentStage=manual_review_required must stop",
     );
+  });
+
+  await t.test("stops on missing stages", async (t2) => {
+    await t2.test("missing_token", async () => {
+      await assertStops(
+        plannerOutput({
+          status: "stop",
+          currentStage: "missing_token",
+          nextRedCommand: null,
+        }),
+        "currentStage=missing_token must stop",
+      );
+    });
+
+    await t2.test("missing_mint_arg", async () => {
+      await assertStops(
+        plannerOutput({
+          status: "stop",
+          currentStage: "missing_mint_arg",
+          nextRedCommand: null,
+        }),
+        "currentStage=missing_mint_arg must stop",
+      );
+    });
   });
 
   await t.test("stops when approval metadata is inconsistent", async (t2) => {
@@ -291,6 +390,18 @@ test("geckoterminal single candidate validator", async (t) => {
           sideEffectUpperBoundSpec: {
             ...tmuxSideEffectSpec(),
             metricWriteMax: 2,
+          },
+        }),
+        "sideEffectUpperBoundSpec is outside validator bounds",
+      );
+    });
+
+    await t2.test("tokenWriteMax > 1", async () => {
+      await assertStops(
+        plannerOutput({
+          sideEffectUpperBoundSpec: {
+            ...tmuxSideEffectSpec(),
+            tokenWriteMax: 2,
           },
         }),
         "sideEffectUpperBoundSpec is outside validator bounds",
@@ -406,6 +517,23 @@ test("geckoterminal single candidate validator", async (t) => {
     assert.equal(output.checks.rawJsonFree, false);
     assert.equal(output.nextRedCommand, null);
     assert.equal(result.stdout.includes("TELEGRAM_BOT_TOKEN"), false);
+  });
+
+  await t.test("stops and does not echo command when raw payload marker is present", async () => {
+    const result = await runValidator(
+      [],
+      `${JSON.stringify(
+        plannerOutput({
+          readOnlyCommands: ["raw payload body was withheld"],
+        }),
+      )}\n`,
+    );
+    const output = parseOutput(result);
+
+    assert.equal(output.status, "stop");
+    assert.equal(output.checks.rawJsonFree, false);
+    assert.equal(output.nextRedCommand, null);
+    assert.equal(result.stdout.includes("raw payload"), false);
   });
 
   await t.test("stops on invalid JSON", async () => {
