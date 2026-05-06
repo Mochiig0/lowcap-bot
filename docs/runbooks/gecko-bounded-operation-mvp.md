@@ -469,6 +469,13 @@ Implementation and smoke status:
   `1780ce3 feat: add planner stop condition codes`. These are standard
   machine-readable checklist codes for Red approval preflight, not active
   errors; `currentStage` and `reason` remain the actual stop-state fields.
+- `ops:gecko:single-candidate:validate` is implemented by
+  `09b0853 feat: add planner output validator`. It validates planner output
+  JSON from `--plannerJson <FILE>` or stdin and returns `approvalReady`,
+  `canProceedToHumanGate`, and per-field `checks`. It is read-only and
+  non-executing: it does not run the planner, execute `nextRedCommand`, start
+  tmux, attach `--write`, connect to DB / Prisma / network, send Telegram, or
+  touch systemd / scheduler / queue / unbounded watch behavior.
 - Real-DB read-only smoke has passed for these stages:
   - `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`:
     `currentStage=two_or_more_metrics`,
@@ -554,6 +561,20 @@ stage is known:
 pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT> --expectedMetadataStatus <EXPECTED_STATUS> --expectedStage <EXPECTED_STAGE>
 ```
 
+For machine-readable validation before asking for Red approval, save or pipe
+that planner JSON into the validator:
+
+```bash
+pnpm -s ops:gecko:single-candidate:plan -- --mint <MINT> --expectedMetricsCount <EXPECTED_COUNT> --expectedMetadataStatus <EXPECTED_STATUS> --expectedStage <EXPECTED_STAGE> > /tmp/lowcap-planner.json
+pnpm -s ops:gecko:single-candidate:validate -- --plannerJson /tmp/lowcap-planner.json
+```
+
+stdin is also accepted:
+
+```bash
+cat /tmp/lowcap-planner.json | pnpm -s ops:gecko:single-candidate:validate
+```
+
 Allowed `--expectedStage` values are:
 
 - `mint_only_without_metrics`
@@ -570,19 +591,43 @@ not normal operator-intended stages.
    `nextRedCommand`, `nextRedCommandKind`, `requiresHumanApproval`,
    `executor`, `willExecute`, `sideEffectUpperBound`,
    `sideEffectUpperBoundSpec`, `stopConditions`, and `stopConditionCodes`.
-5. Confirm the planner output does not expose a Metric `rawJson` field, raw
+5. Run `ops:gecko:single-candidate:validate` against the saved planner JSON.
+   Move to a separate Red approval request only when `approvalReady=true` and
+   `canProceedToHumanGate=true`.
+6. Confirm the planner output does not expose a Metric `rawJson` field, raw
    payload body, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
    `TELEGRAM_CHAT_ID`. The `rawJsonFreeRequired` flag and stop-condition wording
    are specification text, not payload output.
-6. Do not execute `nextRedCommand` in the selection task. If a command is
+7. Do not execute `nextRedCommand` in the selection task. If a command is
    present, require `requiresHumanApproval=true`, `executor="human"`, and
    `willExecute=false`, then paste the exact command into the next
    human-approved Red task together with side-effect upper bound and stop
    conditions.
-7. If `nextRedCommand=null`, do not move to Red. Treat the result as report
+8. If `nextRedCommand=null`, do not move to Red. Treat the result as report
    confirmation or stop; the safety metadata should be
    `nextRedCommandKind=null`, `requiresHumanApproval=false`,
    `executor="none"`, and `willExecute=false`.
+
+Validator `ok` requirements:
+
+- planner `status=ok`.
+- Red-stage output with a non-empty `nextRedCommand` and known
+  `nextRedCommandKind`.
+- `requiresHumanApproval=true`, `executor="human"`, and `willExecute=false`.
+- `sideEffectUpperBoundSpec` remains within the single-mint bounds.
+- required `stopConditionCodes` are present.
+- output is rawJson-free and has no secret/env marker.
+
+Validator stop cases include:
+
+- invalid JSON, no input, or both stdin and `--plannerJson`.
+- `nextRedCommand=null`.
+- planner stop, `guard_mismatch`, `invalid_args`, `manual_review_required`, or
+  missing-token / missing-mint stages.
+- approval metadata mismatch, unknown kind, side-effect upper-bound expansion,
+  required code gaps, or rawJson / secret marker detection.
+- if rawJson or a secret/env marker is detected, the validator stops and does
+  not reprint `nextRedCommand`.
 
 Candidate interpretation:
 

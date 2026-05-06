@@ -392,6 +392,26 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `rawjson_output_risk`, and rawJson-free output. That smoke did not write DB /
   Token / Metric rows, did not send Telegram, did not execute a Red command,
   and did not start watch / tmux / systemd.
+- `ops:gecko:single-candidate:validate` is now implemented as a read-only
+  planner output validator. It accepts `--plannerJson <FILE>` or stdin JSON,
+  checks only the planner output JSON, and returns `approvalReady` plus
+  `canProceedToHumanGate` with per-field `checks`. It does not run the planner,
+  execute `nextRedCommand`, start tmux, attach `--write`, connect to DB /
+  Prisma / network, send Telegram, or touch systemd / scheduler / queue /
+  unbounded watch behavior. It returns `approvalReady=true` only when planner
+  `status=ok`, a known `nextRedCommandKind` and non-empty `nextRedCommand` are
+  present, `requiresHumanApproval=true`, `executor="human"`,
+  `willExecute=false`, `sideEffectUpperBoundSpec` is within bounds, required
+  `stopConditionCodes` are present, and the JSON is rawJson-free with no
+  secret/env marker. It stops on no input, invalid JSON, both stdin and file
+  input, `nextRedCommand=null`, planner stop / guard / missing / manual-review
+  stages, approval metadata mismatch, side-effect upper-bound expansion,
+  required code gaps, or rawJson / secret marker detection. If rawJson or a
+  secret/env marker is detected, it stops and does not reprint
+  `nextRedCommand`. Fixture-based validator smoke confirmed
+  `approvalReady=true` / `canProceedToHumanGate=true` without executing the Red
+  command. That smoke did not write DB / Token / Metric rows, did not send
+  Telegram, and did not start watch / tmux / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
