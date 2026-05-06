@@ -452,6 +452,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   run, with planner / validator command strings visible and no Red command
   execution. That work did not write DB / Token / Metric rows, did not send
   Telegram, and did not start watch / tmux / systemd.
+- Milestone: `ops:gecko:bounded-flow:guide` now has implementation / tests /
+  docs consistency through the input shape, output shape, stage order,
+  non-executor boundary, and full forbidden list. The guide remains a one-mint
+  operator aid layered above planner -> validator -> human gate; it does not
+  execute existing CLI commands, planner, validator, or `nextRedCommand`. The
+  forbidden list is fixed in tests by full equality for all 13 entries:
+  existing CLI execution by guide, `nextRedCommand` execution, `--write`
+  execution, `--watch` execution, tmux start, Telegram send, systemd,
+  scheduler, queue, unbounded watch, default checkpoint, multi-mint, and silent
+  retry. `red_execution` remains a placeholder with no commands, and systemd /
+  scheduler / queue / unbounded watch / default checkpoint remain deferred.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline

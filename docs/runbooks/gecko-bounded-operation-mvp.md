@@ -790,6 +790,31 @@ systemd, scheduler / queue, unbounded watch, default checkpoint, multi-mint
 work, or silent retry. It does not authorize systemd, unbounded watch,
 scheduler, queue worker, default checkpoint operation, or Telegram live send.
 
+Milestone: the guide contract is now consistent across implementation, tests,
+and docs for input shape, output shape, stage order, the non-executor boundary,
+and the full forbidden list. The forbidden list is fixed by test full equality
+in this order:
+
+1. `existing CLI execution by guide`
+2. `nextRedCommand execution`
+3. `--write execution`
+4. `--watch execution`
+5. `tmux start`
+6. `Telegram send`
+7. `systemd`
+8. `scheduler`
+9. `queue`
+10. `unbounded watch`
+11. `default checkpoint`
+12. `multi-mint`
+13. `silent retry`
+
+Next useful work is either a Green operator smoke / template pass for the guide
+or a separate preflight for bounded detect -> enrich/rescore -> metric
+orchestration. More same-shape Red reproductions are lower priority. Systemd,
+scheduler, queue worker, unbounded watch, and default checkpoint operation
+remain deferred.
+
 ### Triple-Guard Planner Gated Operation Milestone
 
 The current milestone is the strict planner-gated single-mint flow, not a broad
