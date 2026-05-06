@@ -332,7 +332,9 @@ Outputs:
 - machine-readable safety metadata for that command:
   `nextRedCommandKind`, `requiresHumanApproval`, `executor`, and
   `willExecute`.
-- expected side-effect upper bound for that Red command.
+- expected side-effect upper bound for that Red command, as both the existing
+  `sideEffectUpperBound` string and the machine-readable
+  `sideEffectUpperBoundSpec`.
 - required read-only confirmation commands.
 - stop conditions that apply before the command can be approved.
 - rawJson-free confirmation requirement for the following report step.
@@ -360,6 +362,30 @@ Safety metadata interpretation:
   or execute any `--write` command.
 - The existing `nextRedCommand` string / null field remains the
   backward-compatible command text field.
+- The existing `sideEffectUpperBound` string and `stopConditions` string array
+  remain backward-compatible fields. `stopConditionCodes` is not implemented
+  yet; keep it as a future candidate, not a current planner output field.
+
+`sideEffectUpperBoundSpec` shape:
+
+- `metricWriteMax`
+- `tokenWrite`
+- `tokenWriteMax`
+- `telegramSend`
+- `tmux`
+- `tmuxSession`
+- `checkpointWrite`
+- `systemd`
+- `multiMint`
+
+`sideEffectUpperBoundSpec` by `nextRedCommandKind`:
+
+| nextRedCommandKind | metricWriteMax | tokenWrite | tokenWriteMax | telegramSend | tmux | tmuxSession | checkpointWrite | systemd | multiMint |
+| --- | ---: | --- | ---: | --- | --- | --- | --- | --- | --- |
+| `null` | 0 | false | 0 | false | false | null | false | false | false |
+| `gecko_enrich_rescore_single_mint` | 0 | true | 1 | false | false | null | false | false | false |
+| `gecko_metric_snapshot_single_mint` | 1 | false | 0 | false | false | null | false | false | false |
+| `tmux_metric_single_mint` | 1 | false | 0 | false | true | `lowcap-gecko-metric-single` | false | false | false |
 
 Stage rules:
 
@@ -411,6 +437,10 @@ Implementation and smoke status:
   `requiresHumanApproval`, `executor`, and `willExecute`. The existing
   `nextRedCommand` string / null field remains the backward-compatible command
   text field.
+- The planner output also includes `sideEffectUpperBoundSpec` from
+  `a432580 feat: add planner side effect spec`. The existing
+  `sideEffectUpperBound` string and `stopConditions` string array remain
+  backward-compatible fields; `stopConditionCodes` is still unimplemented.
 - Real-DB read-only smoke has passed for these stages:
   - `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`:
     `currentStage=two_or_more_metrics`,
@@ -510,7 +540,8 @@ not normal operator-intended stages.
 
 4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
    `nextRedCommand`, `nextRedCommandKind`, `requiresHumanApproval`,
-   `executor`, `willExecute`, `sideEffectUpperBound`, and `stopConditions`.
+   `executor`, `willExecute`, `sideEffectUpperBound`,
+   `sideEffectUpperBoundSpec`, and `stopConditions`.
 5. Confirm the planner output does not expose a Metric `rawJson` field, raw
    payload body, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
    `TELEGRAM_CHAT_ID`. The `rawJsonFreeRequired` flag and stop-condition wording

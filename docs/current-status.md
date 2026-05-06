@@ -360,6 +360,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `executor="none"`, `willExecute=false`, and rawJson-free output. That smoke
   did not write DB / Token / Metric rows, did not send Telegram, and did not
   start watch / tmux / systemd.
+- The read-only planner output now also includes `sideEffectUpperBoundSpec`
+  while preserving the existing `sideEffectUpperBound` string,
+  `stopConditions`, and `nextRedCommand` fields. The spec makes the side-effect
+  upper bound machine-readable with `metricWriteMax`, `tokenWrite`,
+  `tokenWriteMax`, `telegramSend`, `tmux`, `tmuxSession`, `checkpointWrite`,
+  `systemd`, and `multiMint`. A real-DB read-only smoke on
+  `9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump` confirmed the no-Red-command
+  shape: `currentStage=two_or_more_metrics`, `nextRedCommand=null`,
+  `nextRedCommandKind=null`, `executor="none"`, `willExecute=false`,
+  `sideEffectUpperBoundSpec.metricWriteMax=0`, `tokenWrite=false`,
+  `telegramSend=false`, `tmux=false`, and rawJson-free output. That smoke did
+  not write DB / Token / Metric rows, did not send Telegram, and did not start
+  watch / tmux / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
