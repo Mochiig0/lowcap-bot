@@ -37,6 +37,21 @@ type RunResult = {
 };
 
 const TARGET_MINT = "GuideMint111111111111111111111111111111111";
+const EXPECTED_FORBIDDEN = [
+  "existing CLI execution by guide",
+  "nextRedCommand execution",
+  "--write execution",
+  "--watch execution",
+  "tmux start",
+  "Telegram send",
+  "systemd",
+  "scheduler",
+  "queue",
+  "unbounded watch",
+  "default checkpoint",
+  "multi-mint",
+  "silent retry",
+];
 
 async function runGuide(args: string[]): Promise<RunResult> {
   const dir = await mkdtemp(join(tmpdir(), "lowcap-gecko-guide-test-"));
@@ -204,18 +219,7 @@ test("geckoterminal bounded flow guide", async (t) => {
   await t.test("lists forbidden expansions", async () => {
     const output = parseOutput(await runGuide(["--mint", TARGET_MINT]));
 
-    for (const item of [
-      "Telegram send",
-      "systemd",
-      "scheduler",
-      "queue",
-      "unbounded watch",
-      "default checkpoint",
-      "multi-mint",
-      "silent retry",
-    ]) {
-      assert.equal(output.forbidden.includes(item), true, item);
-    }
+    assert.deepEqual(output.forbidden, EXPECTED_FORBIDDEN);
   });
 
   await t.test("does not expose rawJson in output", async () => {
