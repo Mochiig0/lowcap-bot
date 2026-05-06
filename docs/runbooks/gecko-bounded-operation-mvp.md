@@ -815,6 +815,95 @@ orchestration. More same-shape Red reproductions are lower priority. Systemd,
 scheduler, queue worker, unbounded watch, and default checkpoint operation
 remain deferred.
 
+### Red Approval Request Template
+
+After the guide, planner, and validator steps, use this copy-paste template for
+the upstream Red approval request. `approvalReady=true` and
+`canProceedToHumanGate=true` only mean the request may move to the human gate;
+they do not authorize automatic execution. Run the exact command only in a
+separate Red task after approval, and keep Red execution separate from docs
+commit / push.
+
+```text
+Red approval request: GeckoTerminal single-mint follow-up
+
+Repo state:
+- pwd: /home/mochi/projects/lowcap-bot
+- git status --short --branch: <STATUS>
+- HEAD: <SHA> <SUBJECT>
+- working tree clean: <true|false>
+
+Target mint:
+- mint: <MINT>
+
+Baseline:
+- metadataStatus: <mint_only|partial|enriched>
+- source: <SOURCE>
+- name / symbol: <NAME> / <SYMBOL>
+- scoreRank / scoreTotal: <RANK> / <TOTAL>
+- hardRejected: <true|false>
+- metricsCount: <N>
+- latestMetric: id=<ID|null>, source=<SOURCE|null>, observedAt=<ISO|null>
+- recentMetrics: <IDS_OR_SUMMARY>
+
+Planner result:
+- currentStage: <STAGE>
+- nextStage: <STAGE|null>
+- nextRedCommandKind: <KIND|null>
+- nextRedCommand: <EXACT_COMMAND|null>
+- requiresHumanApproval: <true|false>
+- executor: <human|none>
+- willExecute: false
+- sideEffectUpperBound: <TEXT|null>
+- sideEffectUpperBoundSpec: <JSON>
+- stopConditionCodes: <CODES>
+
+Validator result:
+- approvalReady: <true|false>
+- canProceedToHumanGate: <true|false>
+- checks: <JSON>
+
+rawJson-free / secret check:
+- rawJson field present: false
+- raw payload present: false
+- secret marker present: false
+
+Not executed in this request:
+- nextRedCommand: not executed
+- DB write: not executed
+- Metric write: not executed
+- Token write: not executed
+- Telegram send: not executed
+- watch: not executed
+- tmux: not started
+- systemd: not touched
+- checkpoint: not updated
+
+Red approval target:
+- exact command: <EXACT_COMMAND>
+
+Side-effect upper bound:
+- mint scope: exactly one mint, <MINT>
+- write scope: <nextRedCommandKind-specific bound, e.g. Metric append max 1 or Token write max 1>
+- Telegram / watch / systemd / scheduler / queue / default checkpoint: none
+
+Stop conditions:
+- git dirty
+- guard mismatch
+- selectedCount > 1
+- writtenCount > 1
+- errorCount > 0
+- rawJson / secret output
+- Telegram / ops / systemd / scheduler / queue expansion
+- unbounded watch / default checkpoint expansion
+```
+
+If `approvalReady=false`, `canProceedToHumanGate=false`, or
+`nextRedCommand=null`, do not request Red execution. If approval is granted,
+the follow-up Red task runs exactly one copied command and then stops for
+rawJson-free report confirmation. Record the passed result in a later Green
+docs-only task.
+
 ### Triple-Guard Planner Gated Operation Milestone
 
 The current milestone is the strict planner-gated single-mint flow, not a broad

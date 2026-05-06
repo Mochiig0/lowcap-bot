@@ -463,6 +463,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   scheduler, queue, unbounded watch, default checkpoint, multi-mint, and silent
   retry. `red_execution` remains a placeholder with no commands, and systemd /
   scheduler / queue / unbounded watch / default checkpoint remain deferred.
+- The Gecko bounded operation runbook now includes a Red approval request
+  template for the planner -> validator -> human gate flow. It collects repo
+  state, target mint, baseline, planner metadata, validator result, rawJson-free
+  / secret-marker checks, non-execution confirmations, exact command,
+  side-effect upper bound, and stop conditions. `approvalReady=true` /
+  `canProceedToHumanGate=true` only moves the flow to human approval; it is not
+  automatic execution. Red execution stays a separate exact-command task, and
+  docs commit / push stays a later Green docs-only follow-up. Systemd,
+  scheduler, queue, unbounded watch, and default checkpoint remain deferred.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
