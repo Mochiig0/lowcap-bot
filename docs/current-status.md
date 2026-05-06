@@ -373,6 +373,25 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `telegramSend=false`, `tmux=false`, and rawJson-free output. That smoke did
   not write DB / Token / Metric rows, did not send Telegram, and did not start
   watch / tmux / systemd.
+- The read-only planner output now also includes `stopConditionCodes` while
+  preserving the existing human-readable `stopConditions` string array. The
+  codes are a standard machine-readable checklist for Red approval preflight,
+  not an active error list; `currentStage` and `reason` remain the fields that
+  describe the actual stop state. The code set is
+  `mint_missing_or_ambiguous`, `guard_mismatch`, `invalid_args`,
+  `selected_count_gt_1`, `written_count_gt_1`, `error_count_gt_0`,
+  `rawjson_output_risk`, `secret_output_risk`,
+  `telegram_expansion_risk`, `ops_expansion_risk`,
+  `systemd_expansion_risk`, `scheduler_queue_expansion_risk`,
+  `unbounded_watch_expansion_risk`, `default_checkpoint_expansion_risk`, and
+  `git_dirty`. A real-DB read-only smoke on
+  `9zqkA49JLwKqZ94qRXRdxrdWppHspaksLa7F6imWpump` confirmed
+  `currentStage=two_or_more_metrics`, `nextRedCommand=null`,
+  `sideEffectUpperBoundSpec.metricWriteMax=0`, `stopConditionCodes` present
+  with common codes including `git_dirty`, `guard_mismatch`, and
+  `rawjson_output_risk`, and rawJson-free output. That smoke did not write DB /
+  Token / Metric rows, did not send Telegram, did not execute a Red command,
+  and did not start watch / tmux / systemd.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline

@@ -363,8 +363,14 @@ Safety metadata interpretation:
 - The existing `nextRedCommand` string / null field remains the
   backward-compatible command text field.
 - The existing `sideEffectUpperBound` string and `stopConditions` string array
-  remain backward-compatible fields. `stopConditionCodes` is not implemented
-  yet; keep it as a future candidate, not a current planner output field.
+  remain backward-compatible fields.
+- `sideEffectUpperBoundSpec` is the machine-readable upper bound for permitted
+  effects if the later human-approved Red command is run. `stopConditionCodes`
+  is the machine-readable standard checklist vocabulary to review before Red
+  approval.
+- `stopConditionCodes` is not an active error list. `currentStage` and `reason`
+  describe the actual stop state; `stopConditions` remains the human-readable
+  checklist text.
 
 `sideEffectUpperBoundSpec` shape:
 
@@ -386,6 +392,24 @@ Safety metadata interpretation:
 | `gecko_enrich_rescore_single_mint` | 0 | true | 1 | false | false | null | false | false | false |
 | `gecko_metric_snapshot_single_mint` | 1 | false | 0 | false | false | null | false | false | false |
 | `tmux_metric_single_mint` | 1 | false | 0 | false | true | `lowcap-gecko-metric-single` | false | false | false |
+
+`stopConditionCodes` code set:
+
+- `mint_missing_or_ambiguous`
+- `guard_mismatch`
+- `invalid_args`
+- `selected_count_gt_1`
+- `written_count_gt_1`
+- `error_count_gt_0`
+- `rawjson_output_risk`
+- `secret_output_risk`
+- `telegram_expansion_risk`
+- `ops_expansion_risk`
+- `systemd_expansion_risk`
+- `scheduler_queue_expansion_risk`
+- `unbounded_watch_expansion_risk`
+- `default_checkpoint_expansion_risk`
+- `git_dirty`
 
 Stage rules:
 
@@ -440,7 +464,11 @@ Implementation and smoke status:
 - The planner output also includes `sideEffectUpperBoundSpec` from
   `a432580 feat: add planner side effect spec`. The existing
   `sideEffectUpperBound` string and `stopConditions` string array remain
-  backward-compatible fields; `stopConditionCodes` is still unimplemented.
+  backward-compatible fields.
+- The planner output also includes `stopConditionCodes` from
+  `1780ce3 feat: add planner stop condition codes`. These are standard
+  machine-readable checklist codes for Red approval preflight, not active
+  errors; `currentStage` and `reason` remain the actual stop-state fields.
 - Real-DB read-only smoke has passed for these stages:
   - `3Gy57Za9VFEMhQsxPZniSjTgNffiXafFAL8juachpump`:
     `currentStage=two_or_more_metrics`,
@@ -541,7 +569,7 @@ not normal operator-intended stages.
 4. Check `currentStage`, `nextStage`, `guards`, `readOnlyCommands`,
    `nextRedCommand`, `nextRedCommandKind`, `requiresHumanApproval`,
    `executor`, `willExecute`, `sideEffectUpperBound`,
-   `sideEffectUpperBoundSpec`, and `stopConditions`.
+   `sideEffectUpperBoundSpec`, `stopConditions`, and `stopConditionCodes`.
 5. Confirm the planner output does not expose a Metric `rawJson` field, raw
    payload body, `.env`, `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, or
    `TELEGRAM_CHAT_ID`. The `rawJsonFreeRequired` flag and stop-condition wording
