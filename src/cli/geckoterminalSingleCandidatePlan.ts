@@ -29,6 +29,24 @@ const COMMON_STOP_CONDITIONS = [
   "git status dirty",
 ];
 
+const COMMON_STOP_CONDITION_CODES = [
+  "mint_missing_or_ambiguous",
+  "guard_mismatch",
+  "invalid_args",
+  "selected_count_gt_1",
+  "written_count_gt_1",
+  "error_count_gt_0",
+  "rawjson_output_risk",
+  "secret_output_risk",
+  "telegram_expansion_risk",
+  "ops_expansion_risk",
+  "systemd_expansion_risk",
+  "scheduler_queue_expansion_risk",
+  "unbounded_watch_expansion_risk",
+  "default_checkpoint_expansion_risk",
+  "git_dirty",
+] as const;
+
 type PlanStatus = "ok" | "stop";
 type NextRedCommandKind =
   | "gecko_enrich_rescore_single_mint"
@@ -36,6 +54,7 @@ type NextRedCommandKind =
   | "tmux_metric_single_mint"
   | null;
 type PlanExecutor = "human" | "none";
+type StopConditionCode = (typeof COMMON_STOP_CONDITION_CODES)[number];
 
 type SideEffectUpperBoundSpec = {
   metricWriteMax: number;
@@ -82,6 +101,7 @@ type PlanOutput = {
   sideEffectUpperBound: string | null;
   sideEffectUpperBoundSpec: SideEffectUpperBoundSpec;
   stopConditions: string[];
+  stopConditionCodes: StopConditionCode[];
   rawJsonFreeRequired: true;
 };
 
@@ -314,6 +334,7 @@ function stopOutput(
     ...noRedCommandSafety(),
     sideEffectUpperBound: null,
     stopConditions: COMMON_STOP_CONDITIONS,
+    stopConditionCodes: [...COMMON_STOP_CONDITION_CODES],
     rawJsonFreeRequired: true,
     ...overrides,
   };
@@ -393,6 +414,7 @@ function baseOutput(token: {
     recentMetrics,
     readOnlyCommands: readOnlyCommands(token.mint),
     stopConditions: COMMON_STOP_CONDITIONS,
+    stopConditionCodes: [...COMMON_STOP_CONDITION_CODES],
     rawJsonFreeRequired: true,
   };
 }

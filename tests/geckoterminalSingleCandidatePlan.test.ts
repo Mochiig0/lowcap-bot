@@ -29,6 +29,22 @@ type NextRedCommandKind =
   | "gecko_metric_snapshot_single_mint"
   | "tmux_metric_single_mint"
   | null;
+type StopConditionCode =
+  | "mint_missing_or_ambiguous"
+  | "guard_mismatch"
+  | "invalid_args"
+  | "selected_count_gt_1"
+  | "written_count_gt_1"
+  | "error_count_gt_0"
+  | "rawjson_output_risk"
+  | "secret_output_risk"
+  | "telegram_expansion_risk"
+  | "ops_expansion_risk"
+  | "systemd_expansion_risk"
+  | "scheduler_queue_expansion_risk"
+  | "unbounded_watch_expansion_risk"
+  | "default_checkpoint_expansion_risk"
+  | "git_dirty";
 
 type SideEffectUpperBoundSpec = {
   metricWriteMax: number;
@@ -89,6 +105,7 @@ type PlannerOutput = {
   sideEffectUpperBound: string | null;
   sideEffectUpperBoundSpec: SideEffectUpperBoundSpec;
   stopConditions: string[];
+  stopConditionCodes: StopConditionCode[];
   rawJsonFreeRequired: true;
 };
 
@@ -329,6 +346,39 @@ function expectedSideEffectUpperBoundSpec(
   return base;
 }
 
+function expectedStopConditions(): string[] {
+  return [
+    "mint is missing or ambiguous",
+    "expected metadataStatus / metricsCount guard mismatch",
+    "selectedCount or writtenCount would exceed 1",
+    "errorCount > 0",
+    "rawJson / secret / env output risk",
+    "Telegram / ops / systemd / scheduler / queue expansion risk",
+    "unbounded watch / default checkpoint expansion risk",
+    "git status dirty",
+  ];
+}
+
+function expectedStopConditionCodes(): StopConditionCode[] {
+  return [
+    "mint_missing_or_ambiguous",
+    "guard_mismatch",
+    "invalid_args",
+    "selected_count_gt_1",
+    "written_count_gt_1",
+    "error_count_gt_0",
+    "rawjson_output_risk",
+    "secret_output_risk",
+    "telegram_expansion_risk",
+    "ops_expansion_risk",
+    "systemd_expansion_risk",
+    "scheduler_queue_expansion_risk",
+    "unbounded_watch_expansion_risk",
+    "default_checkpoint_expansion_risk",
+    "git_dirty",
+  ];
+}
+
 function assertNoRedCommandSafety(output: PlannerOutput): void {
   assert.equal(output.nextRedCommand, null);
   assert.equal(output.nextRedCommandKind, null);
@@ -339,6 +389,8 @@ function assertNoRedCommandSafety(output: PlannerOutput): void {
     output.sideEffectUpperBoundSpec,
     expectedSideEffectUpperBoundSpec(null),
   );
+  assert.deepEqual(output.stopConditions, expectedStopConditions());
+  assert.deepEqual(output.stopConditionCodes, expectedStopConditionCodes());
 }
 
 function assertRedCommandSafety(
@@ -354,6 +406,8 @@ function assertRedCommandSafety(
     output.sideEffectUpperBoundSpec,
     expectedSideEffectUpperBoundSpec(kind),
   );
+  assert.deepEqual(output.stopConditions, expectedStopConditions());
+  assert.deepEqual(output.stopConditionCodes, expectedStopConditionCodes());
 }
 
 test("geckoterminal single candidate planner", async (t) => {
