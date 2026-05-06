@@ -342,11 +342,24 @@ Safety metadata interpretation:
 - When `nextRedCommand` is present, `nextRedCommandKind` identifies the command
   family, `requiresHumanApproval=true`, `executor="human"`, and
   `willExecute=false`.
+- The non-null `nextRedCommandKind` literals are:
+  - `gecko_enrich_rescore_single_mint`: candidate to run
+    `token:enrich-rescore:geckoterminal -- --mint <MINT> --write` after the
+    human gate.
+  - `gecko_metric_snapshot_single_mint`: candidate to run
+    `metric:snapshot:geckoterminal -- --mint <MINT> --write` after the human
+    gate.
+  - `tmux_metric_single_mint`: candidate to run the
+    `lowcap-gecko-metric-single` tmux single-run command after the human gate.
 - When `nextRedCommand=null`, `nextRedCommandKind=null`,
   `requiresHumanApproval=false`, `executor="none"`, and
   `willExecute=false`.
 - `nextRedCommandKind` is a machine-readable label, not an executor. The
-  planner still only prints command text for a later human-approved Red task.
+  planner remains read-only / non-executing and still only prints command text
+  for a later human-approved Red task. It does not run Red commands, start tmux,
+  or execute any `--write` command.
+- The existing `nextRedCommand` string / null field remains the
+  backward-compatible command text field.
 
 Stage rules:
 

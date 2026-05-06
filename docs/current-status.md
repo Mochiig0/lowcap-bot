@@ -343,7 +343,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - The read-only planner output now includes machine-readable safety metadata
   fields while preserving the existing `nextRedCommand` string / null field:
   `nextRedCommandKind`, `requiresHumanApproval`, `executor`, and
-  `willExecute`. When a Red command is present, the planner marks it as
+  `willExecute`. The runbook now lists the three non-null
+  `nextRedCommandKind` literals for strict implementation / test / docs
+  consistency checks: `gecko_enrich_rescore_single_mint`,
+  `gecko_metric_snapshot_single_mint`, and `tmux_metric_single_mint`. When a
+  Red command is present, the planner marks it as
   `requiresHumanApproval=true`, `executor="human"`, and
   `willExecute=false`; when no Red command is present, it returns
   `nextRedCommandKind=null`, `requiresHumanApproval=false`,
