@@ -1124,6 +1124,44 @@ tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/proj
   result rawJson-free. Token fields were unchanged, Telegram / detect / watch /
   enrich / ops / systemd / checkpoint operations were not invoked, and the Red
   execution remained separate from the docs commit / push.
+- The first bounded orchestration Red record after
+  `ops:gecko:bounded-flow:guide` was then confirmed for
+  `9eSNHMiLdKtud379HEk73ug7DhVdqRXR5MgFZanzpump`. Its baseline was
+  `partial / Magic Internet Money / MIM / C / 0 / hardRejected=false`,
+  source `geckoterminal.new_pools`, `metricsCount=1`, and latestMetric
+  `id=1005` at `observedAt=2026-04-24T16:51:33.585Z` with source
+  `geckoterminal.token_snapshot`. The bounded-flow guide returned
+  `status=ok`, `mode=non_executor_guide`, all steps `willExecute=false`, and
+  `red_execution` as a placeholder. The triple-guard planner returned
+  `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`,
+  `nextRedCommandKind=tmux_metric_single_mint`,
+  `requiresHumanApproval=true`, `executor=human`, and `willExecute=false`;
+  the validator returned `approvalReady=true` and
+  `canProceedToHumanGate=true`. These approvals did not auto-run anything.
+  After the separate human gate, exactly one copied Red command ran as a
+  separate task:
+
+```bash
+tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --mint 9eSNHMiLdKtud379HEk73ug7DhVdqRXR5MgFZanzpump --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"
+```
+
+- The run naturally exited as a no-`--watch` single-run with no tmux server
+  remaining, created / updated `/tmp/lowcap-gecko-metric-single.log`, reported
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+  `writtenCount=1`, and appended exactly one Metric: `id=1233` at
+  `observedAt=2026-05-07T14:18:35.735Z`, source
+  `geckoterminal.token_snapshot`, `volume24h=0`.
+- The latest rawJson-free safe presence was `priceUsdPresent=false`,
+  `fdvUsdPresent=false`, `reserveUsdPresent=true`, and
+  `topPoolPresent=false`; these false values are observed snapshot
+  availability, not a failed Red gate. `metricsCount` moved from 1 to 2 with
+  `recentMetrics` `1233 -> 1005`; `metrics:report -- --mint ... --limit 2`
+  and `token:compare` confirmed the result rawJson-free. Token fields were
+  unchanged as `partial / Magic Internet Money / MIM / C / 0 /
+  hardRejected=false`, Telegram / detect / watch / enrich / ops / systemd /
+  checkpoint operations were not invoked, and this docs record remains a later
+  Green follow-up separate from the Red execution.
 
 Planner stop conditions:
 

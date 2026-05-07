@@ -181,6 +181,32 @@ Telegram / detect / watch / enrich / ops / systemd / checkpoint operations were
 not invoked. This remains a strict single-mint no-`--watch` flow and does not
 change the separate batch/watch bounded procedure.
 
+Bounded-orchestration reproduced result: with target mint
+`9eSNHMiLdKtud379HEk73ug7DhVdqRXR5MgFZanzpump`, the bounded-flow guide first
+returned `mode=non_executor_guide`, all steps `willExecute=false`, and
+`red_execution` as a placeholder. The triple-guard planner returned
+`currentStage=partial_with_one_metric`,
+`nextStage=second_metric_write_or_tmux_single`, and
+`nextRedCommandKind=tmux_metric_single_mint`; the validator returned
+`approvalReady=true` and `canProceedToHumanGate=true`. After the separate
+human-approved Red task, exactly one copied `lowcap-gecko-metric-single`
+command naturally exited as a no-`--watch` single-run, left no tmux server
+running, created / updated `/tmp/lowcap-gecko-metric-single.log`, reported
+`selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+`writtenCount=1`, and appended Metric `id=1233` at
+`observedAt=2026-05-07T14:18:35.735Z` with source
+`geckoterminal.token_snapshot` and `volume24h=0`. The latest rawJson-free safe
+presence was `priceUsdPresent=false`, `fdvUsdPresent=false`,
+`reserveUsdPresent=true`, and `topPoolPresent=false`; these values are
+observed availability, not a failed append. The target moved `metricsCount`
+from 1 to 2 with previous Metric `id=1005`; `metrics:report -- --mint ...
+--limit 2` and `token:compare -- --mint ...` confirmed `1233 -> 1005`
+rawJson-free. Token fields stayed `partial / Magic Internet Money / MIM / C /
+0 / hardRejected=false`, and Telegram / detect / watch / enrich / ops /
+systemd / checkpoint operations were not invoked. This remains a strict
+single-mint no-`--watch` flow and does not change the separate batch/watch
+bounded procedure.
+
 Confirmed bounded batch/watch tmux command:
 
 ```bash

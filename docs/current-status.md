@@ -556,6 +556,36 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   and `token:compare` confirmed the result rawJson-free. Token fields remained
   unchanged, and Telegram / detect / watch / enrich / ops / systemd /
   checkpoint operations were not invoked.
+- The bounded orchestration Red path has now passed once after
+  `ops:gecko:bounded-flow:guide` plus triple-guard planner / validator
+  preflight. Target `9eSNHMiLdKtud379HEk73ug7DhVdqRXR5MgFZanzpump` had
+  baseline `partial / Magic Internet Money / MIM / C / 0 /
+  hardRejected=false`, source `geckoterminal.new_pools`, `metricsCount=1`, and
+  latestMetric `id=1005` at `observedAt=2026-04-24T16:51:33.585Z` with source
+  `geckoterminal.token_snapshot`. The guide returned
+  `mode=non_executor_guide`, all steps `willExecute=false`, and
+  `red_execution` as a placeholder. The planner returned
+  `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`,
+  `nextRedCommandKind=tmux_metric_single_mint`,
+  `requiresHumanApproval=true`, `executor=human`, and `willExecute=false`.
+  The validator returned `approvalReady=true` and
+  `canProceedToHumanGate=true` with checks passing. After the separate human
+  gate, exactly one copied `lowcap-gecko-metric-single` command ran as a
+  separate Red task, naturally exited as a no-`--watch` single-run, reported
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+  `writtenCount=1`, and appended Metric `id=1233` at
+  `observedAt=2026-05-07T14:18:35.735Z` with source
+  `geckoterminal.token_snapshot` and `volume24h=0`. The latest rawJson-free
+  safe presence was `priceUsdPresent=false`, `fdvUsdPresent=false`,
+  `reserveUsdPresent=true`, and `topPoolPresent=false`; these false values are
+  snapshot availability observations, not failed Red gates. The mint moved
+  `metricsCount` from 1 to 2 with `recentMetrics` `1233 -> 1005`;
+  `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed the
+  result rawJson-free. Token fields stayed `partial / Magic Internet Money /
+  MIM / geckoterminal.new_pools / C / 0 / hardRejected=false`, and Telegram /
+  detect / watch / enrich / ops / systemd / checkpoint operations were not
+  invoked.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a
@@ -566,11 +596,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   That Red path is bounded to one target mint, `writtenCount=1`, at most one
   `geckoterminal.token_snapshot` Metric append, `metricsCount` moving from 1
   to 2, rawJson-free report confirmation, and no Token field update. The
-  latest safe-presence false values observed on `9zqk...pump` and
-  `H2RJi...pump` are availability observations in the saved snapshot, not
-  failed writes. At this point, adding more same-shape Red reproductions has
-  lower value than documenting the milestone and moving to the next safety /
-  orchestration design question.
+  latest safe-presence false values observed on `9zqk...pump`,
+  `H2RJi...pump`, and `9eSNH...pump` are availability observations in the saved
+  snapshot, not failed writes. This milestone still does not promote systemd,
+  scheduler / queue, unbounded watch, default checkpoint use, Telegram live
+  send, or automatic Red execution.
 - Remaining planner / bounded-operation gaps are still explicit: a real-DB
   `partial_without_metrics` planner smoke is unconfirmed; default-checkpoint
   detect watch, long-running / unbounded watch, restart-oriented operation,
