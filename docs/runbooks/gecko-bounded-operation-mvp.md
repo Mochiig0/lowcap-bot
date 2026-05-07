@@ -239,10 +239,11 @@ preflight and explicit Red approval.
 
 ## Next Phase: Bounded Human-Triggered Orchestration Design
 
-The next design step is a minimal wrapper / operator command that sequences the
-already-confirmed CLIs for one mint while keeping every mutating stage gated by
-human approval. This is a design target only until implemented and separately
-preflighted.
+The next design step is a bounded operator procedure specification for the
+already-confirmed CLIs. This is not an implemented executor wrapper, scheduler,
+queue, service, or automatic runner. It is a design boundary for handling one
+mint and one stage at a time while keeping every mutating stage behind a human
+gate and a separate Red exact-command task.
 
 Target flow:
 
@@ -259,6 +260,54 @@ Target flow:
 7. `metrics:report` and `token:compare` confirm the saved Metric state
    rawJson-free.
 8. docs record the completed stage before moving on.
+
+### Bounded Orchestration Design Boundary
+
+This section fixes the next-phase orchestration boundary as docs-only design,
+not completed automation. The purpose is to keep
+detect -> enrich/rescore -> metric snapshot usable as a bounded, human-gated
+operator flow without turning guide / planner / validator into executors.
+
+Core principles:
+
+- One target mint only.
+- One stage at a time.
+- Guide, planner, and validator are non-executors.
+- Red commands are printed as exact command strings only by non-executor tools.
+- Red execution happens only in a separate Red task and runs exactly one
+  approved command.
+- Red execution and docs commit / push remain separate tasks.
+- Output must remain rawJson-free and must not expose secrets or environment
+  contents.
+- Telegram live send is not part of this orchestration boundary.
+- systemd, scheduler, queue, unbounded watch, and default checkpoint operation
+  are not part of this boundary.
+- Do not expand this flow to simultaneous multi-mint processing.
+- Do not perform silent retry; failed stages stop for operator review.
+
+Stage boundaries:
+
+| Stage | Classification | Purpose | Allowed shape | Side-effect upper bound | Not included |
+| --- | --- | --- | --- | --- | --- |
+| detect bounded | Red | Create at most one candidate mint | `/tmp` checkpoint, `--pumpOnly`, `--limit 1`, `--maxIterations 1`; never the default checkpoint | live fetch, `/tmp` log/checkpoint update, mint-only Token write max 1 | enrich, Metric write, Telegram, systemd, unbounded watch |
+| baseline | Green read-only | Confirm pre-stage state | `token:compare`, `token:show`, `metrics:report` | none | writes, watch, checkpoint update |
+| enrich/rescore dry-run | Green | Preview one mint | `pnpm -s token:enrich-rescore:geckoterminal -- --mint <MINT>` | none | Token write, Metric write, Telegram |
+| enrich/rescore write | Red | Enrich/rescore one mint | `pnpm -s token:enrich-rescore:geckoterminal -- --mint <MINT> --write` | target mint Token enrich/rescore max 1; expect `notifySentCount=0`; Metric write 0 | Metric append, Telegram live send, multi-mint write |
+| metric snapshot dry-run | Green | Preview one Metric candidate | `pnpm -s metric:snapshot:geckoterminal -- --mint <MINT>` | none | Metric write, Token write, Telegram |
+| metric snapshot write | Red | Append one Metric | `pnpm -s metric:snapshot:geckoterminal -- --mint <MINT> --write` | target mint Metric append max 1 | Token field update, Telegram, multi-mint write |
+| tmux single-mint metric | Red | Run one Metric snapshot in tmux when isolation is useful | `lowcap-gecko-metric-single`, one `--mint`, no `--watch` | one tmux single-run, `/tmp/lowcap-gecko-metric-single.log`, Metric append max 1 | watch, systemd, scheduler, queue |
+| planner / validator / guide | Green read-only | Select, validate, and display stage order / command text | planner prints `nextRedCommand`; validator checks planner JSON and returns `approvalReady` / `canProceedToHumanGate`; bounded-flow guide shows stage order with `red_execution` placeholder | none | existing CLI execution, Red command execution, tmux, `--write`, `--watch` |
+| report confirmation | Green read-only | Confirm saved state | `metrics:report -- --mint <MINT> --limit 2`, `token:compare -- --mint <MINT>` | none | writes, rawJson output |
+| docs record | Green docs-only | Record the completed Red result in a later task | docs update, commit, push | docs text only | Red execution in the same task |
+
+Baseline and report confirmation must check the fields needed for safe
+handoff: `metadataStatus`, `metricsCount`, latestMetric, `hardRejected`, Token
+field changes, and rawJson-free output.
+
+`approvalReady=true` and `canProceedToHumanGate=true` only mean the planner JSON
+is suitable to present to a human gate. They do not authorize automatic
+execution, do not make the validator an executor, and do not allow the guide or
+planner to run existing CLIs, `nextRedCommand`, tmux, or any `--write` command.
 
 Semi-automation may cover:
 

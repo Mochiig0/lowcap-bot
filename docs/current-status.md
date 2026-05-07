@@ -472,6 +472,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   automatic execution. Red execution stays a separate exact-command task, and
   docs commit / push stays a later Green docs-only follow-up. Systemd,
   scheduler, queue, unbounded watch, and default checkpoint remain deferred.
+- The bounded operation runbook now also fixes the next-phase bounded
+  orchestration design boundary for detect -> enrich/rescore -> metric
+  snapshot. This is docs-only specification work, not an implemented executor
+  wrapper or automatic runner. The boundary keeps the flow to one mint and one
+  stage at a time: bounded detect is Red and limited to `/tmp` checkpoint,
+  `--pumpOnly`, `--limit 1`, explicit `--maxIterations`, and at most one
+  mint-only Token; baseline and report confirmation remain Green read-only;
+  enrich/rescore and metric snapshot dry-runs remain Green; their `--write`
+  forms remain separate Red exact-command tasks; strict
+  `lowcap-gecko-metric-single` remains Red, no-`--watch`, and one Metric max.
+  Guide, planner, and validator remain non-executors that can display stage
+  order, command strings, `approvalReady`, and `canProceedToHumanGate`, but
+  they do not run existing CLIs, `nextRedCommand`, tmux, `--write`, `--watch`,
+  DB / Token / Metric writes, network mutation, Telegram, systemd, scheduler,
+  queue, unbounded watch, default checkpoint, multi-mint work, or silent retry.
+  Red execution and docs commit / push remain separate tasks.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
