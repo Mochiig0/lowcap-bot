@@ -6,13 +6,66 @@ const ALLOWED_STAGES = new Set([
   "two_or_more_metrics",
   "manual_review_required",
 ]);
+const ALLOWED_INTENTS = new Set([
+  "second_metric_snapshot",
+  "first_metric_snapshot",
+  "enrich_rescore",
+]);
+
+type Intent =
+  | "second_metric_snapshot"
+  | "first_metric_snapshot"
+  | "enrich_rescore";
+
+type IntentConfig = {
+  expectedMetricsCount: number;
+  expectedMetadataStatus: string;
+  expectedStage: string;
+  redDescription: string;
+  note: string;
+};
+
+const INTENT_CONFIG: Record<Intent, IntentConfig> = {
+  second_metric_snapshot: {
+    expectedMetricsCount: 1,
+    expectedMetadataStatus: "partial",
+    expectedStage: "partial_with_one_metric",
+    redDescription:
+      "Prepare a human-gated second Metric snapshot approval; run exact planner nextRedCommand in a separate Red task only.",
+    note:
+      "intent=second_metric_snapshot expects partial metadata with one existing metric and prepares a human-gated second metric snapshot approval flow.",
+  },
+  first_metric_snapshot: {
+    expectedMetricsCount: 0,
+    expectedMetadataStatus: "partial",
+    expectedStage: "partial_without_metrics",
+    redDescription:
+      "Prepare a human-gated first Metric snapshot approval; run exact planner nextRedCommand in a separate Red task only.",
+    note:
+      "intent=first_metric_snapshot expects partial metadata with zero metrics and prepares a human-gated first metric snapshot approval flow.",
+  },
+  enrich_rescore: {
+    expectedMetricsCount: 0,
+    expectedMetadataStatus: "mint_only",
+    expectedStage: "mint_only_without_metrics",
+    redDescription:
+      "Prepare a human-gated enrich/rescore approval; run exact planner nextRedCommand in a separate Red task only.",
+    note:
+      "intent=enrich_rescore expects a mint-only token with zero metrics and prepares a human-gated enrich/rescore approval flow.",
+  },
+};
 
 type Args = {
   mint?: string;
+  intent?: Intent;
   expectedMetricsCount?: number;
   expectedMetadataStatus?: string;
   expectedStage?: string;
   error?: string;
+};
+
+type ResolvedArgs = Omit<Args, "intent"> & {
+  intent: Intent | null;
 };
 
 type GuideStep = {
@@ -32,6 +85,10 @@ type GuideOutput = {
   willExecute: false;
   executor: "human";
   rawJsonFreeRequired: true;
+  intent: Intent | null;
+  expectedMetricsCount: number | null;
+  expectedMetadataStatus: string | null;
+  expectedStage: string | null;
   steps: GuideStep[];
   forbidden: string[];
   notes: string[];
@@ -48,6 +105,7 @@ function parseArgs(argv: string[]): Args {
 
     if (
       key !== "--mint" &&
+      key !== "--intent" &&
       key !== "--expectedMetricsCount" &&
       key !== "--expectedMetadataStatus" &&
       key !== "--expectedStage"
@@ -64,6 +122,18 @@ function parseArgs(argv: string[]): Args {
         return { error: "invalid_args: duplicate --mint" };
       }
       out.mint = value;
+      i += 1;
+      continue;
+    }
+
+    if (key === "--intent") {
+      if (out.intent !== undefined) {
+        return { error: "invalid_args: duplicate --intent" };
+      }
+      if (!ALLOWED_INTENTS.has(value)) {
+        return { error: `invalid_args: invalid intent ${value}` };
+      }
+      out.intent = value as Intent;
       i += 1;
       continue;
     }
@@ -108,6 +178,56 @@ function parseArgs(argv: string[]): Args {
   return out;
 }
 
+function applyIntentDefaults(args: Args): { args: ResolvedArgs; error?: string } {
+  if (args.intent === undefined) {
+    return { args: { ...args, intent: null } };
+  }
+
+  const config = INTENT_CONFIG[args.intent];
+
+  if (
+    args.expectedMetricsCount !== undefined &&
+    args.expectedMetricsCount !== config.expectedMetricsCount
+  ) {
+    return {
+      args: { ...args, intent: args.intent },
+      error: `intent conflict: ${args.intent} expects expectedMetricsCount ${config.expectedMetricsCount}, received ${args.expectedMetricsCount}`,
+    };
+  }
+
+  if (
+    args.expectedMetadataStatus !== undefined &&
+    args.expectedMetadataStatus !== config.expectedMetadataStatus
+  ) {
+    return {
+      args: { ...args, intent: args.intent },
+      error: `intent conflict: ${args.intent} expects expectedMetadataStatus ${config.expectedMetadataStatus}, received ${args.expectedMetadataStatus}`,
+    };
+  }
+
+  if (
+    args.expectedStage !== undefined &&
+    args.expectedStage !== config.expectedStage
+  ) {
+    return {
+      args: { ...args, intent: args.intent },
+      error: `intent conflict: ${args.intent} expects expectedStage ${config.expectedStage}, received ${args.expectedStage}`,
+    };
+  }
+
+  return {
+    args: {
+      ...args,
+      intent: args.intent,
+      expectedMetricsCount:
+        args.expectedMetricsCount ?? config.expectedMetricsCount,
+      expectedMetadataStatus:
+        args.expectedMetadataStatus ?? config.expectedMetadataStatus,
+      expectedStage: args.expectedStage ?? config.expectedStage,
+    },
+  };
+}
+
 function forbidden(): string[] {
   return [
     "existing CLI execution by guide",
@@ -126,15 +246,21 @@ function forbidden(): string[] {
   ];
 }
 
-function notes(): string[] {
-  return [
+function notes(args: ResolvedArgs): string[] {
+  const out = [
     "This guide prints command strings only.",
     "Planner and validator must be run by the operator.",
     "Red execution requires a separate human-approved Red task.",
   ];
+
+  if (args.intent !== null) {
+    out.push(INTENT_CONFIG[args.intent].note);
+  }
+
+  return out;
 }
 
-function plannerCommand(args: Args & { mint: string }): string {
+function plannerCommand(args: ResolvedArgs & { mint: string }): string {
   const parts = [
     "pnpm -s ops:gecko:single-candidate:plan --",
     "--mint",
@@ -154,7 +280,15 @@ function plannerCommand(args: Args & { mint: string }): string {
   return `${parts.join(" ")} > /tmp/lowcap-planner.json`;
 }
 
-function buildSteps(args: Args & { mint: string }): GuideStep[] {
+function redExecutionDescription(args: ResolvedArgs): string {
+  if (args.intent === null) {
+    return "Run exact planner nextRedCommand in a separate Red task only.";
+  }
+
+  return INTENT_CONFIG[args.intent].redDescription;
+}
+
+function buildSteps(args: ResolvedArgs & { mint: string }): GuideStep[] {
   return [
     {
       order: 1,
@@ -194,8 +328,7 @@ function buildSteps(args: Args & { mint: string }): GuideStep[] {
       order: 5,
       stage: "red_execution",
       kind: "red_placeholder",
-      description:
-        "Run exact planner nextRedCommand in a separate Red task only.",
+      description: redExecutionDescription(args),
       willExecute: false,
     },
     {
@@ -219,7 +352,12 @@ function buildSteps(args: Args & { mint: string }): GuideStep[] {
   ];
 }
 
-function outputBase(status: "ok" | "stop", reason: string, mint: string | null): GuideOutput {
+function outputBase(
+  status: "ok" | "stop",
+  reason: string,
+  mint: string | null,
+  args: ResolvedArgs,
+): GuideOutput {
   return {
     status,
     reason,
@@ -228,24 +366,49 @@ function outputBase(status: "ok" | "stop", reason: string, mint: string | null):
     willExecute: false,
     executor: "human",
     rawJsonFreeRequired: true,
+    intent: args.intent,
+    expectedMetricsCount: args.expectedMetricsCount ?? null,
+    expectedMetadataStatus: args.expectedMetadataStatus ?? null,
+    expectedStage: args.expectedStage ?? null,
     steps: [],
     forbidden: forbidden(),
-    notes: notes(),
+    notes: notes(args),
   };
 }
 
 function buildOutput(args: Args): GuideOutput {
+  const resolved = applyIntentDefaults(args);
+
   if (args.error !== undefined) {
-    return outputBase("stop", args.error, args.mint ?? null);
+    return outputBase("stop", args.error, args.mint ?? null, resolved.args);
   }
 
-  if (args.mint === undefined) {
-    return outputBase("stop", "missing mint: provide --mint <MINT>", null);
+  if (resolved.error !== undefined) {
+    return outputBase(
+      "stop",
+      resolved.error,
+      args.mint ?? null,
+      resolved.args,
+    );
+  }
+
+  if (resolved.args.mint === undefined) {
+    return outputBase(
+      "stop",
+      "missing mint: provide --mint <MINT>",
+      null,
+      resolved.args,
+    );
   }
 
   return {
-    ...outputBase("ok", "bounded flow guide generated; no commands executed", args.mint),
-    steps: buildSteps({ ...args, mint: args.mint }),
+    ...outputBase(
+      "ok",
+      "bounded flow guide generated; no commands executed",
+      resolved.args.mint,
+      resolved.args,
+    ),
+    steps: buildSteps({ ...resolved.args, mint: resolved.args.mint }),
   };
 }
 

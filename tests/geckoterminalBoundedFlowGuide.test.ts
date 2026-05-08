@@ -25,6 +25,10 @@ type GuideOutput = {
   willExecute: boolean;
   executor: string;
   rawJsonFreeRequired: boolean;
+  intent: string | null;
+  expectedMetricsCount: number | null;
+  expectedMetadataStatus: string | null;
+  expectedStage: string | null;
   steps: GuideStep[];
   forbidden: string[];
   notes: string[];
@@ -103,6 +107,14 @@ function allCommands(output: GuideOutput): string[] {
   return output.steps.flatMap((step) => step.commands ?? []);
 }
 
+function plannerCommand(output: GuideOutput): string {
+  return output.steps.find((step) => step.stage === "planner")?.commands?.[0] ?? "";
+}
+
+function redExecutionStep(output: GuideOutput): GuideStep | undefined {
+  return output.steps.find((step) => step.stage === "red_execution");
+}
+
 test("geckoterminal bounded flow guide", async (t) => {
   await t.test("requires --mint", async () => {
     const result = await runGuide([]);
@@ -126,6 +138,10 @@ test("geckoterminal bounded flow guide", async (t) => {
     assert.equal(output.willExecute, false);
     assert.equal(output.executor, "human");
     assert.equal(output.rawJsonFreeRequired, true);
+    assert.equal(output.intent, null);
+    assert.equal(output.expectedMetricsCount, null);
+    assert.equal(output.expectedMetadataStatus, null);
+    assert.equal(output.expectedStage, null);
     assert.deepEqual(
       output.steps.map((step) => step.stage),
       [
@@ -143,6 +159,122 @@ test("geckoterminal bounded flow guide", async (t) => {
       [1, 2, 3, 4, 5, 6, 7],
     );
     assert.equal(output.steps.every((step) => step.willExecute === false), true);
+  });
+
+  await t.test("adds defaults for second_metric_snapshot intent", async () => {
+    const output = parseOutput(
+      await runGuide(["--mint", TARGET_MINT, "--intent", "second_metric_snapshot"]),
+    );
+    const command = plannerCommand(output);
+    const red = redExecutionStep(output);
+
+    assert.equal(output.status, "ok");
+    assert.equal(output.intent, "second_metric_snapshot");
+    assert.equal(output.expectedMetricsCount, 1);
+    assert.equal(output.expectedMetadataStatus, "partial");
+    assert.equal(output.expectedStage, "partial_with_one_metric");
+    assert.match(command, /--expectedMetricsCount 1/);
+    assert.match(command, /--expectedMetadataStatus partial/);
+    assert.match(command, /--expectedStage partial_with_one_metric/);
+    assert.match(red?.description ?? "", /second Metric snapshot approval/);
+    assert.equal(output.steps.every((step) => step.willExecute === false), true);
+  });
+
+  await t.test("adds defaults for first_metric_snapshot intent", async () => {
+    const output = parseOutput(
+      await runGuide(["--mint", TARGET_MINT, "--intent", "first_metric_snapshot"]),
+    );
+    const command = plannerCommand(output);
+
+    assert.equal(output.status, "ok");
+    assert.equal(output.intent, "first_metric_snapshot");
+    assert.equal(output.expectedMetricsCount, 0);
+    assert.equal(output.expectedMetadataStatus, "partial");
+    assert.equal(output.expectedStage, "partial_without_metrics");
+    assert.match(command, /--expectedMetricsCount 0/);
+    assert.match(command, /--expectedMetadataStatus partial/);
+    assert.match(command, /--expectedStage partial_without_metrics/);
+  });
+
+  await t.test("adds defaults for enrich_rescore intent", async () => {
+    const output = parseOutput(
+      await runGuide(["--mint", TARGET_MINT, "--intent", "enrich_rescore"]),
+    );
+    const command = plannerCommand(output);
+
+    assert.equal(output.status, "ok");
+    assert.equal(output.intent, "enrich_rescore");
+    assert.equal(output.expectedMetricsCount, 0);
+    assert.equal(output.expectedMetadataStatus, "mint_only");
+    assert.equal(output.expectedStage, "mint_only_without_metrics");
+    assert.match(command, /--expectedMetricsCount 0/);
+    assert.match(command, /--expectedMetadataStatus mint_only/);
+    assert.match(command, /--expectedStage mint_only_without_metrics/);
+  });
+
+  await t.test("accepts explicit guards that match intent defaults", async () => {
+    const output = parseOutput(
+      await runGuide([
+        "--mint",
+        TARGET_MINT,
+        "--intent",
+        "second_metric_snapshot",
+        "--expectedMetricsCount",
+        "1",
+        "--expectedMetadataStatus",
+        "partial",
+        "--expectedStage",
+        "partial_with_one_metric",
+      ]),
+    );
+
+    assert.equal(output.status, "ok");
+    assert.equal(output.intent, "second_metric_snapshot");
+    assert.equal(output.expectedMetricsCount, 1);
+    assert.equal(output.expectedMetadataStatus, "partial");
+    assert.equal(output.expectedStage, "partial_with_one_metric");
+  });
+
+  await t.test("rejects explicit guards that conflict with intent defaults", async () => {
+    const result = await runGuide([
+      "--mint",
+      TARGET_MINT,
+      "--intent",
+      "second_metric_snapshot",
+      "--expectedMetricsCount",
+      "0",
+    ]);
+    const output = parseOutput(result);
+
+    assert.equal(result.code, 1);
+    assert.equal(output.status, "stop");
+    assert.match(output.reason, /intent conflict/);
+    assert.equal(output.willExecute, false);
+  });
+
+  await t.test("rejects invalid intent", async () => {
+    const output = parseOutput(
+      await runGuide(["--mint", TARGET_MINT, "--intent", "unknown"]),
+    );
+
+    assert.equal(output.status, "stop");
+    assert.match(output.reason, /invalid intent/);
+  });
+
+  await t.test("rejects duplicate intent", async () => {
+    const output = parseOutput(
+      await runGuide([
+        "--mint",
+        TARGET_MINT,
+        "--intent",
+        "second_metric_snapshot",
+        "--intent",
+        "first_metric_snapshot",
+      ]),
+    );
+
+    assert.equal(output.status, "stop");
+    assert.match(output.reason, /duplicate --intent/);
   });
 
   await t.test("includes the expected command strings without executing Red steps", async () => {
@@ -183,6 +315,10 @@ test("geckoterminal bounded flow guide", async (t) => {
     const command = planner?.commands?.[0] ?? "";
 
     assert.equal(output.status, "ok");
+    assert.equal(output.intent, null);
+    assert.equal(output.expectedMetricsCount, 1);
+    assert.equal(output.expectedMetadataStatus, "partial");
+    assert.equal(output.expectedStage, "partial_with_one_metric");
     assert.match(command, /--expectedMetricsCount 1/);
     assert.match(command, /--expectedMetadataStatus partial/);
     assert.match(command, /--expectedStage partial_with_one_metric/);
@@ -222,8 +358,32 @@ test("geckoterminal bounded flow guide", async (t) => {
     assert.deepEqual(output.forbidden, EXPECTED_FORBIDDEN);
   });
 
+  await t.test("keeps red_execution as a placeholder for intents", async () => {
+    const output = parseOutput(
+      await runGuide(["--mint", TARGET_MINT, "--intent", "second_metric_snapshot"]),
+    );
+    const commands = allCommands(output);
+    const red = redExecutionStep(output);
+
+    assert.equal(red?.kind, "red_placeholder");
+    assert.equal(red?.commands, undefined);
+    assert.equal(commands.some((command) => command.includes("tmux new-session")), false);
+    assert.equal(commands.some((command) => command.includes("--write")), false);
+  });
+
   await t.test("does not expose rawJson in output", async () => {
     const result = await runGuide(["--mint", TARGET_MINT]);
+
+    assert.equal(result.stdout.includes('"rawJson":'), false);
+  });
+
+  await t.test("does not expose rawJson in intent output", async () => {
+    const result = await runGuide([
+      "--mint",
+      TARGET_MINT,
+      "--intent",
+      "second_metric_snapshot",
+    ]);
 
     assert.equal(result.stdout.includes('"rawJson":'), false);
   });
