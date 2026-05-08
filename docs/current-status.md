@@ -488,21 +488,28 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   DB / Token / Metric writes, network mutation, Telegram, systemd, scheduler,
   queue, unbounded watch, default checkpoint, multi-mint work, or silent retry.
   Red execution and docs commit / push remain separate tasks.
-- The bounded operation runbook now also fixes a docs-only design candidate for
-  future bounded-flow guide stage intents. `--intent` is not implemented yet;
-  the proposed initial values are `second_metric_snapshot`,
-  `first_metric_snapshot`, and `enrich_rescore`. The intent design keeps
-  `ops:gecko:bounded-flow:guide` as a non-executor guide: it may specialize
-  guard defaults, notes, and the `red_execution` placeholder description, but
+- `ops:gecko:bounded-flow:guide --intent` is now implemented and covered by
+  `pnpm exec tsc --noEmit`, `pnpm smoke`, and `pnpm test` in
+  `856d0c8 feat: add bounded flow guide intents`. The allowed initial values
+  are `second_metric_snapshot`, `first_metric_snapshot`, and
+  `enrich_rescore`; they only specialize guard defaults, notes, and the
+  `red_execution` placeholder description. The guide remains a non-executor:
   it must not execute existing CLIs, planner, validator, `nextRedCommand`,
   `--write`, `--watch`, tmux, DB / Token / Metric writes, Telegram, systemd,
   scheduler / queue, unbounded watch, default checkpoint, multi-mint work, or
-  silent retry. The existing stage order remains
+  silent retry. Explicit guard values that conflict with an intent default now
+  return `status=stop` with an `intent conflict` reason and
+  `willExecute=false`. The existing stage order remains
   `baseline -> planner -> validator -> human_gate -> red_execution ->
-  report_confirmation -> docs_record`, the existing output shape is preserved,
-  candidate output additions are limited to `intent`, `expectedMetricsCount`,
-  `expectedMetadataStatus`, and `expectedStage`, and the 13-item forbidden list
-  stays unchanged. This is not an executor wrapper and does not promote
+  report_confirmation -> docs_record`, the output shape now includes `intent`,
+  `expectedMetricsCount`, `expectedMetadataStatus`, and `expectedStage`, and
+  the 13-item forbidden list stays unchanged. The guide smoke with
+  `--intent second_metric_snapshot` returned `status=ok`, applied the three
+  guard defaults in the planner command string, kept all steps
+  `willExecute=false`, and kept `red_execution` as a placeholder with no
+  concrete tmux command. The implementation and guide smoke did not run Red
+  commands, planner, validator, DB / Token / Metric writes, Telegram, watch,
+  tmux, or systemd. This is not an executor wrapper and does not promote
   systemd, scheduler / queue, unbounded watch, default checkpoint use, Telegram
   live send, or automatic Red execution.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
