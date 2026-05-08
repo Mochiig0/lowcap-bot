@@ -1280,6 +1280,47 @@ tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/proj
   hardRejected=false`, Telegram / detect / watch / enrich / ops / systemd /
   checkpoint operations were not invoked, and this docs record remains a later
   Green follow-up separate from the Red execution.
+- The first `--intent second_metric_snapshot` bounded-flow guide Red record was
+  then confirmed for
+  `GvQqdiqq8TccXMz9BYCdx7EhXWbAxH4pezktC1oYpump`. Its baseline was
+  `partial / highest in the room / HIGHEST / C / 0 / hardRejected=false`,
+  source `geckoterminal.new_pools`, `metricsCount=1`, latestMetric `id=688`
+  with source `geckoterminal.token_snapshot`, and
+  `observedAt=2026-04-21T14:00:50.063Z`; the baseline safe summary had price /
+  fdv / reserve / topPool present. The bounded-flow guide returned
+  `status=ok`, `intent=second_metric_snapshot`, `expectedMetricsCount=1`,
+  `expectedMetadataStatus=partial`, `expectedStage=partial_with_one_metric`,
+  all steps `willExecute=false`, and `red_execution` as a placeholder with no
+  concrete tmux command. The planner returned
+  `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`,
+  `nextRedCommandKind=tmux_metric_single_mint`,
+  `requiresHumanApproval=true`, `executor=human`, and `willExecute=false`; the
+  validator returned `approvalReady=true` and `canProceedToHumanGate=true`.
+  These approvals did not auto-run anything. After the separate human gate,
+  exactly one copied Red command ran as a separate task:
+
+```bash
+tmux new-session -d -s lowcap-gecko-metric-single "bash -lc 'cd /home/mochi/projects/lowcap-bot && pnpm -s metric:snapshot:geckoterminal -- --mint GvQqdiqq8TccXMz9BYCdx7EhXWbAxH4pezktC1oYpump --write > /tmp/lowcap-gecko-metric-single.log 2>&1'"
+```
+
+- The run naturally exited as a no-`--watch` single-run with no tmux server
+  remaining, created / updated `/tmp/lowcap-gecko-metric-single.log`, reported
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+  `writtenCount=1`, and appended exactly one Metric: `id=1243` at
+  `observedAt=2026-05-08T13:46:44.319Z`, source
+  `geckoterminal.token_snapshot`, `volume24h=0`.
+- The latest rawJson-free safe presence was `priceUsdPresent=true`,
+  `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+  `topPoolPresent=true`. `metricsCount` moved from 1 to 2 with
+  `recentMetrics` `1243 -> 688`; `metrics:report -- --mint ... --limit 2` and
+  `token:compare` confirmed the result rawJson-free. Token fields were
+  unchanged as `partial / highest in the room / HIGHEST / C / 0 /
+  hardRejected=false`; enrich/rescore, Telegram, detect / watch, ops,
+  systemd, checkpoint updates, additional tmux runs, and other mint processing
+  were not invoked. This docs record remains a later Green follow-up separate
+  from the Red execution, and systemd / scheduler / queue / unbounded watch /
+  default checkpoint operation remain deferred.
 
 Planner stop conditions:
 

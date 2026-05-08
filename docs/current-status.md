@@ -621,6 +621,38 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   MIM / geckoterminal.new_pools / C / 0 / hardRejected=false`, and Telegram /
   detect / watch / enrich / ops / systemd / checkpoint operations were not
   invoked.
+- The bounded-flow guide `--intent second_metric_snapshot` approval path has
+  now also passed for
+  `GvQqdiqq8TccXMz9BYCdx7EhXWbAxH4pezktC1oYpump`. Baseline was
+  `partial / highest in the room / HIGHEST / C / 0 / hardRejected=false`,
+  source `geckoterminal.new_pools`, `metricsCount=1`, and latestMetric
+  `id=688` at `observedAt=2026-04-21T14:00:50.063Z` with source
+  `geckoterminal.token_snapshot`; baseline safe presence was true for price /
+  fdv / reserve / topPool. The guide returned `status=ok`,
+  `intent=second_metric_snapshot`, `expectedMetricsCount=1`,
+  `expectedMetadataStatus=partial`, `expectedStage=partial_with_one_metric`,
+  all steps `willExecute=false`, and `red_execution` as a placeholder with no
+  concrete tmux command. The planner returned
+  `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`,
+  `nextRedCommandKind=tmux_metric_single_mint`,
+  `requiresHumanApproval=true`, `executor=human`, and `willExecute=false`;
+  the validator returned `approvalReady=true` and
+  `canProceedToHumanGate=true` with all checks passing. After the separate
+  human gate, exactly one copied `lowcap-gecko-metric-single` Red command ran
+  as a separate task, naturally exited as a no-`--watch` single-run, reported
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+  `writtenCount=1`, and appended Metric `id=1243` at
+  `observedAt=2026-05-08T13:46:44.319Z` with source
+  `geckoterminal.token_snapshot` and `volume24h=0`. The latest rawJson-free
+  safe presence was `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, and `topPoolPresent=true`. The mint moved
+  `metricsCount` from 1 to 2 with `recentMetrics` `1243 -> 688`;
+  `metrics:report -- --mint ... --limit 2` and `token:compare` confirmed the
+  result rawJson-free. Token fields stayed `partial / highest in the room /
+  HIGHEST / geckoterminal.new_pools / C / 0 / hardRejected=false`, and
+  Telegram / detect / watch / enrich / ops / systemd / checkpoint operations
+  were not invoked.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a
