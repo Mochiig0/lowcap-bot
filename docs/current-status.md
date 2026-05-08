@@ -503,15 +503,23 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `baseline -> planner -> validator -> human_gate -> red_execution ->
   report_confirmation -> docs_record`, the output shape now includes `intent`,
   `expectedMetricsCount`, `expectedMetadataStatus`, and `expectedStage`, and
-  the 13-item forbidden list stays unchanged. The guide smoke with
-  `--intent second_metric_snapshot` returned `status=ok`, applied the three
-  guard defaults in the planner command string, kept all steps
-  `willExecute=false`, and kept `red_execution` as a placeholder with no
-  concrete tmux command. The implementation and guide smoke did not run Red
-  commands, planner, validator, DB / Token / Metric writes, Telegram, watch,
-  tmux, or systemd. This is not an executor wrapper and does not promote
-  systemd, scheduler / queue, unbounded watch, default checkpoint use, Telegram
-  live send, or automatic Red execution.
+  the 13-item forbidden list stays unchanged. Read-only guide smoke now passes
+  for all three intents on `9eSNHMiLdKtud379HEk73ug7DhVdqRXR5MgFZanzpump`:
+  `second_metric_snapshot` applied `expectedMetricsCount=1`,
+  `expectedMetadataStatus=partial`, and
+  `expectedStage=partial_with_one_metric`; `first_metric_snapshot` applied
+  `0`, `partial`, and `partial_without_metrics`; `enrich_rescore` applied
+  `0`, `mint_only`, and `mint_only_without_metrics`. Each smoke returned
+  `status=ok`, `mode="non_executor_guide"`, top-level `willExecute=false`,
+  `executor="human"`, `rawJsonFreeRequired=true`, all steps
+  `willExecute=false`, the same stage order, the fixed 13-item forbidden list,
+  and `red_execution` as a placeholder with no commands and no concrete tmux
+  command; the exact `"rawJson":` field was absent. The implementation and
+  guide smoke did not run Red commands, planner, validator, DB / Token /
+  Metric writes, Telegram, watch, tmux, systemd, or checkpoint updates. This
+  is not an executor wrapper and does not promote systemd, scheduler / queue,
+  unbounded watch, default checkpoint use, Telegram live send, or automatic Red
+  execution.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline

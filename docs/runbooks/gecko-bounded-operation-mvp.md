@@ -882,6 +882,19 @@ Allowed intent values are limited to these three single-mint operator flows:
 | `first_metric_snapshot` | `metadataStatus=partial`, `metricsCount=0`, `expectedStage=partial_without_metrics` | `--expectedMetricsCount 0 --expectedMetadataStatus partial --expectedStage partial_without_metrics` | `gecko_metric_snapshot_single_mint` | Guide the first Metric snapshot Red approval. |
 | `enrich_rescore` | `metadataStatus=mint_only`, `metricsCount=0`, `expectedStage=mint_only_without_metrics` | `--expectedMetricsCount 0 --expectedMetadataStatus mint_only --expectedStage mint_only_without_metrics` | `gecko_enrich_rescore_single_mint` | Guide the enrich/rescore Red approval. |
 
+Read-only guide smoke confirmed all three intents with
+`9eSNHMiLdKtud379HEk73ug7DhVdqRXR5MgFZanzpump`: `second_metric_snapshot`,
+`first_metric_snapshot`, and `enrich_rescore` each returned `status=ok`,
+`mode="non_executor_guide"`, top-level `willExecute=false`,
+`executor="human"`, `rawJsonFreeRequired=true`, all steps
+`willExecute=false`, the unchanged stage order, `red_execution` as a
+placeholder with no commands and no concrete tmux command, and the 13-item
+forbidden list; the exact `"rawJson":` field was absent. The planner command
+string included the three default guards for each intent. The smoke did not
+execute planner, validator,
+`nextRedCommand`, Red commands, `--write`, `--watch`, DB / Token / Metric
+writes, Telegram, tmux, systemd, or checkpoint updates.
+
 When an intent is supplied, the guide fills missing guard values with that
 intent's defaults. If an explicit `--expectedMetricsCount`,
 `--expectedMetadataStatus`, or `--expectedStage` conflicts with the selected
