@@ -994,14 +994,15 @@ yet:
 
 - `first_metric_snapshot`: wait for a real `partial + metricsCount=0`
   candidate. The latest read-only check for
-  `partial + hasMetrics=false` returned `filteredCount=0` and `items=[]`.
-  When such a candidate appears, run a Green approval preflight before any Red
-  command.
+  `partial + hasMetrics=false` returned `count=143`, `filteredCount=0`, and
+  `items=[]`. When such a natural pump candidate appears and can be reduced to
+  one mint, run a Green approval preflight before any Red command.
 - `enrich_rescore`: wait for a natural `mint_only + metricsCount=0` pump
-  candidate. `mint_only` rows exist, but the latest read-only comparison was
-  dominated by SMOKE / synthetic-looking rows, and no natural pump mint was
-  found within the limit-2000 check. SMOKE and synthetic-looking rows are not
-  live market proof for this milestone.
+  candidate. `mint_only` rows exist (`filteredCount=200` in the limit-200
+  check), but the latest read-only comparison was dominated by SMOKE /
+  synthetic-looking rows, and no natural pump mint was found within the
+  limit-2000 check. SMOKE and synthetic-looking rows are not live market proof
+  for this milestone, and they are not approval preflight targets.
 
 This milestone still does not implement an executor wrapper or automatic Red
 execution. Guide, planner, and validator remain non-executors. Systemd,

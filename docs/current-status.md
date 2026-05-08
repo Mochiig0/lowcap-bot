@@ -659,13 +659,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   one Metric append, rawJson-free confirmation, and docs consistency. Adding
   another same-shape `second_metric_snapshot` Red reproduction is low priority
   unless a new observation has a specific reason. The next intent gates remain
-  narrower: read-only comparison found no current
-  `partial + hasMetrics=false` / `partial_without_metrics` candidates for
-  `first_metric_snapshot` (`filteredCount=0`, `items=[]`), while
-  `enrich_rescore` should wait for a natural `mint_only + metricsCount=0`
-  pump candidate. Existing `mint_only` rows are present, but the checked set
-  was dominated by SMOKE / synthetic-looking rows and no natural pump mint was
-  found within the read-only limit-2000 check. Systemd, scheduler / queue,
+  narrower: the latest read-only `partial + hasMetrics=false` report for
+  `first_metric_snapshot` returned `count=143`, `filteredCount=0`, and
+  `items=[]`, so no approval preflight target is selected. `enrich_rescore`
+  should wait for a natural `mint_only + metricsCount=0` pump candidate:
+  `mint_only` rows are present (`filteredCount=200` in the limit-200 check),
+  but the checked set was dominated by SMOKE / synthetic-looking rows and no
+  natural pump mint was found within the read-only limit-2000 check. SMOKE and
+  synthetic-looking rows are not live market candidates. Systemd, scheduler /
+  queue,
   unbounded watch, default checkpoint use, executor wrappers, and automatic Red
   execution remain deferred.
 - This is the current triple-guard planner gated operation milestone. The
