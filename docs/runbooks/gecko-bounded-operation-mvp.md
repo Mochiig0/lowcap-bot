@@ -947,6 +947,41 @@ This design does not promote executor wrappers, systemd, scheduler / queue,
 unbounded watch, default checkpoint use, Telegram live send, or automatic
 detect -> enrich/rescore -> Metric execution.
 
+#### Bounded-Flow Guide Intent Milestone
+
+The bounded-flow guide intent milestone is complete for guide-stage intent
+support. The completed scope is intentionally narrow:
+
+- `second_metric_snapshot`, `first_metric_snapshot`, and `enrich_rescore` are
+  the only supported intents.
+- Each intent has a fixed default guard set, and the generated planner command
+  string includes `--expectedMetricsCount`, `--expectedMetadataStatus`, and
+  `--expectedStage`.
+- The guide output includes `intent`, `expectedMetricsCount`,
+  `expectedMetadataStatus`, and `expectedStage`.
+- Top-level `willExecute=false` and all step-level `willExecute=false` remain
+  fixed.
+- `red_execution` remains a placeholder with no `commands` field and no
+  concrete tmux command.
+- The 13-item forbidden list is unchanged.
+- The exact `"rawJson":` field is absent from the guide output.
+
+This milestone is guide support, not an executor wrapper. The guide still does
+not execute existing CLIs, planner, validator, `nextRedCommand`, `--write`,
+`--watch`, tmux, DB / Prisma / network, Telegram, systemd, scheduler / queue,
+unbounded watch, default checkpoint, multi-mint work, or silent retry.
+
+Next minimal candidates:
+
+- Green: use `--intent second_metric_snapshot` in the next single-mint Red
+  approval preflight.
+- Green: review bounded orchestration stage intent usage after one more
+  operator flow.
+- Red: add another exact-command reproduction only when a new single-mint
+  observation is useful.
+- Hold: executor wrappers, systemd, scheduler / queue, unbounded watch, and
+  default checkpoint operation remain deferred.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for

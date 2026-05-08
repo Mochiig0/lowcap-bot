@@ -519,7 +519,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Metric writes, Telegram, watch, tmux, systemd, or checkpoint updates. This
   is not an executor wrapper and does not promote systemd, scheduler / queue,
   unbounded watch, default checkpoint use, Telegram live send, or automatic Red
-  execution.
+  execution. This marks the bounded-flow guide intent milestone as complete for
+  guide-stage intent support: implementation, tests, docs, and read-only smoke
+  now agree on the three intents, default guards, output shape, placeholder
+  `red_execution`, forbidden list, and rawJson-free output boundary.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline
