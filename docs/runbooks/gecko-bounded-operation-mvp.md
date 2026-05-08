@@ -1088,9 +1088,49 @@ Confirmed write result:
 - planner, validator, and post-check reports stayed rawJson-free and did not
   expose secret markers.
 
-This makes Ffn2 a possible future `first_metric_snapshot` intent approval
-preflight target because it is now `partial + metricsCount=0`. This docs task
-does not run that preflight.
+### First Metric Snapshot Candidate
+
+The same Ffn2 bounded-detect origin mint has now confirmed the
+`first_metric_snapshot` intent path as a bounded single-mint Metric write. The
+flow was guide -> planner -> validator -> human gate -> exactly one Red
+command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump --write
+```
+
+The guide used `--intent first_metric_snapshot` and remained
+`mode=non_executor_guide`; all steps had `willExecute=false`, and
+`red_execution` remained a placeholder. The planner returned
+`currentStage=partial_without_metrics`, `nextStage=metric_write`, and
+`nextRedCommandKind=gecko_metric_snapshot_single_mint`; the validator returned
+`approvalReady=true` plus `canProceedToHumanGate=true`. Those values were
+human-gate conditions only and did not execute the Red command.
+
+Confirmed Metric write result:
+
+- one target mint only: `selectedCount=1`, `okCount=1`, and `errorCount=0`.
+- one Metric append: `writtenCount=1`, Metric `id=1244`, source
+  `geckoterminal.token_snapshot`,
+  `observedAt=2026-05-08T23:11:09.976Z`, and `volume24h=0`.
+- safe summary: `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, and `topPoolPresent=true`.
+- Metric state moved from `metricsCount=0`, `latestMetric=null`, and
+  `metrics:report count=0` to `metricsCount=1`, latestMetric `id=1244`, and
+  `recentMetrics=1244`.
+- Token metadata and scoring fields did not change: `metadataStatus=partial`,
+  `name=Papu`, `symbol=PAPU`, `scoreRank=C`, `scoreTotal=0`,
+  `hardRejected=false`, and the enrich/rescore timestamps stayed
+  `2026-05-08T22:38:21.819Z` / `2026-05-08T22:38:21.830Z`.
+- Telegram, detect, watch, enrich/rescore, tmux, systemd, checkpoint updates,
+  scheduler / queue work, and additional Red commands were not invoked.
+- planner, validator, Red result, and post-check reports stayed rawJson-free
+  and did not expose secret markers.
+
+This completes the bounded detect -> enrich_rescore -> first_metric_snapshot
+human-gated path for Ffn2. It makes Ffn2 a possible future
+`second_metric_snapshot` intent approval target because it is now
+`partial + metricsCount=1`. This docs task does not run that preflight.
 
 ### Red Approval Request Template
 

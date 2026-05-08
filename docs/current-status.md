@@ -713,8 +713,33 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `metrics:report` stayed `count=0` / `items=[]`. Metric write, Telegram,
   detect, watch, tmux, systemd, and checkpoint updates were not invoked. The
   planner / validator / post-check output stayed rawJson-free and did not
-  expose secret markers. Ffn2 is now a possible `first_metric_snapshot` intent
-  approval preflight target, but that preflight has not been run.
+  expose secret markers.
+- The same Ffn2 candidate has now passed the `first_metric_snapshot` intent Red
+  gate. The read-only guide used `--intent first_metric_snapshot` and confirmed
+  `expectedMetricsCount=0`, `expectedMetadataStatus=partial`, and
+  `expectedStage=partial_without_metrics`; the planner returned
+  `currentStage=partial_without_metrics`, `nextStage=metric_write`, and
+  `nextRedCommandKind=gecko_metric_snapshot_single_mint`; and the validator
+  returned `approvalReady=true` plus `canProceedToHumanGate=true`. These were
+  human-gate conditions only. After the separate human gate, exactly one Red
+  command ran:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump --write`. It ran
+  `mode=single`, `dryRun=false`, `writeEnabled=true`, selected one mint,
+  reported `okCount=1`, `errorCount=0`, and `writtenCount=1`, and appended one
+  Metric only: `id=1244`, `source=geckoterminal.token_snapshot`,
+  `observedAt=2026-05-08T23:11:09.976Z`, and `volume24h=0`. The latest
+  safe summary is `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, and `topPoolPresent=true`. `metricsCount` moved
+  from `0` to `1`, latestMetric became `id=1244`, and `recentMetrics` is
+  `1244`. Token metadata / scoring fields stayed unchanged as `Papu` / `PAPU`,
+  `description=null`, `metadataStatus=partial`, `scoreRank=C`,
+  `scoreTotal=0`, `hardRejected=false`, and the same enrich/rescore
+  timestamps. Telegram, detect, watch, enrich/rescore, tmux, systemd, and
+  checkpoint updates were not invoked during the Metric step. The planner /
+  validator output, Red result, and post reports stayed rawJson-free and did
+  not expose secret markers. Ffn2 is now a possible future
+  `second_metric_snapshot` intent target, but that preflight has not been run.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

@@ -167,6 +167,16 @@ Operational boundary:
   `notifySent=0`. It did not append a Metric (`metricsCount=0`,
   `latestMetric=null`) and did not send Telegram, run detect/watch, start tmux,
   touch systemd, or update checkpoints during the enrich/rescore step.
+- Confirmed first single-mint Metric append for that same bounded-detect mint
+  as a later separate Red task: `Ffn2...pump` appended Metric `id=1244` with
+  source `geckoterminal.token_snapshot` at
+  `observedAt=2026-05-08T23:11:09.976Z`, moving `metricsCount` from 0 to 1
+  while preserving Token fields (`Papu` / `PAPU`, score `C` / `0`,
+  `hardRejected=false`). The Metric step did not send Telegram, run
+  detect/watch, run enrich/rescore, start tmux, touch systemd, or update any
+  checkpoint. This confirms the bounded-detect origin can reach first Metric
+  append without making unbounded watch, systemd, scheduler / queue, or default
+  checkpoint operation ready.
 - Confirmed foreground bounded detect watch wrapper gate:
   `LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60 bash scripts/run-geckoterminal-detect-watch.sh --pumpOnly --limit 1 --maxIterations 2`.
   The wrapper kept the checkpoint on `/tmp`, naturally exited after

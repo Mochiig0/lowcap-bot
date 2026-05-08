@@ -55,7 +55,7 @@ and one production Telegram ops live send for `metric_appended`:
   `metricPendingCount=0`, `pendingCount=0`, and `selectedCandidates=[]`.
 - the later bounded detect origin mint
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` has confirmed the
-  single-mint enrich/rescore step only: `token:enrich-rescore:geckoterminal
+  single-mint enrich/rescore step: `token:enrich-rescore:geckoterminal
   -- --mint ... --write` moved it from `mint_only` to `partial` with
   `name/symbol=Papu/PAPU`, `description=null`, `normalizedText=papu papu`,
   score `C` / `0`, and `hardRejected=false`. It reported
@@ -65,6 +65,18 @@ and one production Telegram ops live send for `metric_appended`:
   `metricsCount=0`, `latestMetric=null`, and `metrics:report` returned
   `count=0` / `items=[]`. Telegram, detect, watch, tmux, systemd, and
   checkpoint updates were not invoked during that enrich/rescore step.
+- the same bounded detect origin mint then confirmed the first single-mint
+  Metric append as a separate Red task through `first_metric_snapshot`:
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended exactly one
+  `geckoterminal.token_snapshot` Metric, `id=1244`, at
+  `observedAt=2026-05-08T23:11:09.976Z` with `volume24h=0` and
+  `priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+  `topPoolPresent=true`. This moved `metricsCount` from 0 to 1 and set
+  latestMetric / `recentMetrics` to `1244`. Token fields stayed
+  `partial / Papu / PAPU / C / 0 / hardRejected=false`, the enrich/rescore
+  timestamps stayed unchanged, and Telegram, detect, watch, enrich/rescore,
+  tmux, systemd, and checkpoint updates were not invoked during the Metric
+  step. `metrics:report` and `token:compare` confirmed the result rawJson-free.
 - a later same-mint manual one-shot loop for
   `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump` confirmed the direct
   detector / enrich-rescore / metric snapshot path without ops notification:
