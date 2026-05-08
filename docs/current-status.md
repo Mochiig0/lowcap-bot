@@ -488,6 +488,23 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   DB / Token / Metric writes, network mutation, Telegram, systemd, scheduler,
   queue, unbounded watch, default checkpoint, multi-mint work, or silent retry.
   Red execution and docs commit / push remain separate tasks.
+- The bounded operation runbook now also fixes a docs-only design candidate for
+  future bounded-flow guide stage intents. `--intent` is not implemented yet;
+  the proposed initial values are `second_metric_snapshot`,
+  `first_metric_snapshot`, and `enrich_rescore`. The intent design keeps
+  `ops:gecko:bounded-flow:guide` as a non-executor guide: it may specialize
+  guard defaults, notes, and the `red_execution` placeholder description, but
+  it must not execute existing CLIs, planner, validator, `nextRedCommand`,
+  `--write`, `--watch`, tmux, DB / Token / Metric writes, Telegram, systemd,
+  scheduler / queue, unbounded watch, default checkpoint, multi-mint work, or
+  silent retry. The existing stage order remains
+  `baseline -> planner -> validator -> human_gate -> red_execution ->
+  report_confirmation -> docs_record`, the existing output shape is preserved,
+  candidate output additions are limited to `intent`, `expectedMetricsCount`,
+  `expectedMetadataStatus`, and `expectedStage`, and the 13-item forbidden list
+  stays unchanged. This is not an executor wrapper and does not promote
+  systemd, scheduler / queue, unbounded watch, default checkpoint use, Telegram
+  live send, or automatic Red execution.
 - The guarded planner-gated single-mint Metric flow has now been exercised with
   `--expectedMetricsCount 1` before Red approval. Target
   `7G1KRX4PvHWgJStBrsp8CVKEoZEVF336HTz6kjncpump` had baseline

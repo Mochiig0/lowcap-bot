@@ -864,6 +864,73 @@ orchestration. More same-shape Red reproductions are lower priority. Systemd,
 scheduler, queue worker, unbounded watch, and default checkpoint operation
 remain deferred.
 
+### Bounded-Flow Guide Intent Design
+
+This is a docs-only design candidate for a future `--intent` option on
+`ops:gecko:bounded-flow:guide`. It is not implemented yet. The guide must
+remain `mode="non_executor_guide"`: it may display command strings, stage order,
+guard recommendations, notes, and a Red placeholder, but it must not execute
+existing CLIs, planner, validator, `nextRedCommand`, `--write`, `--watch`,
+tmux, DB / Prisma / network, Telegram, systemd, scheduler / queue, unbounded
+watch, default checkpoint, multi-mint work, or silent retry.
+
+Initial intent values should stay limited to these three single-mint operator
+flows:
+
+| intent | Target state | Recommended planner guards | Red candidate | Purpose |
+| --- | --- | --- | --- | --- |
+| `second_metric_snapshot` | `metadataStatus=partial`, `metricsCount=1`, `expectedStage=partial_with_one_metric` | `--expectedMetricsCount 1 --expectedMetadataStatus partial --expectedStage partial_with_one_metric` | `tmux_metric_single_mint` or single-mint metric snapshot write | Guide the second Metric snapshot Red approval. |
+| `first_metric_snapshot` | `metadataStatus=partial`, `metricsCount=0`, `expectedStage=partial_without_metrics` | `--expectedMetricsCount 0 --expectedMetadataStatus partial --expectedStage partial_without_metrics` | `gecko_metric_snapshot_single_mint` | Guide the first Metric snapshot Red approval. |
+| `enrich_rescore` | `metadataStatus=mint_only`, `metricsCount=0`, `expectedStage=mint_only_without_metrics` | `--expectedMetricsCount 0 --expectedMetadataStatus mint_only --expectedStage mint_only_without_metrics` | `gecko_enrich_rescore_single_mint` | Guide the enrich/rescore Red approval. |
+
+If implemented, `--intent` should keep the current output shape intact:
+`status`, `reason`, `mint`, `mode="non_executor_guide"`, top-level
+`willExecute=false`, `executor="human"`, `rawJsonFreeRequired=true`, `steps`,
+`forbidden`, and `notes`.
+
+Potential additional output fields, to be treated as implementation candidates
+only until shipped:
+
+- `intent`
+- `expectedMetricsCount`
+- `expectedMetadataStatus`
+- `expectedStage`
+
+The stage order should remain unchanged for the first implementation:
+
+1. `baseline`
+2. `planner`
+3. `validator`
+4. `human_gate`
+5. `red_execution`
+6. `report_confirmation`
+7. `docs_record`
+
+Intent should only specialize guard defaults, notes, and the
+`red_execution` placeholder description. It must not turn `red_execution` into
+an executable step, and `approvalReady=true` / `canProceedToHumanGate=true`
+must still only mean the operator may move to a separate human gate.
+
+The forbidden list must remain the same 13 items:
+
+1. `existing CLI execution by guide`
+2. `nextRedCommand execution`
+3. `--write execution`
+4. `--watch execution`
+5. `tmux start`
+6. `Telegram send`
+7. `systemd`
+8. `scheduler`
+9. `queue`
+10. `unbounded watch`
+11. `default checkpoint`
+12. `multi-mint`
+13. `silent retry`
+
+This design does not promote executor wrappers, systemd, scheduler / queue,
+unbounded watch, default checkpoint use, Telegram live send, or automatic
+detect -> enrich/rescore -> Metric execution.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for
