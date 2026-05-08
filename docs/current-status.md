@@ -653,6 +653,21 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   HIGHEST / geckoterminal.new_pools / C / 0 / hardRejected=false`, and
   Telegram / detect / watch / enrich / ops / systemd / checkpoint operations
   were not invoked.
+- The `second_metric_snapshot` intent is now complete as an operating
+  milestone: GvQ confirmed the `bounded-flow --intent second_metric_snapshot`
+  path through guide, planner, validator, human gate, exactly one Red command,
+  one Metric append, rawJson-free confirmation, and docs consistency. Adding
+  another same-shape `second_metric_snapshot` Red reproduction is low priority
+  unless a new observation has a specific reason. The next intent gates remain
+  narrower: read-only comparison found no current
+  `partial + hasMetrics=false` / `partial_without_metrics` candidates for
+  `first_metric_snapshot` (`filteredCount=0`, `items=[]`), while
+  `enrich_rescore` should wait for a natural `mint_only + metricsCount=0`
+  pump candidate. Existing `mint_only` rows are present, but the checked set
+  was dominated by SMOKE / synthetic-looking rows and no natural pump mint was
+  found within the read-only limit-2000 check. Systemd, scheduler / queue,
+  unbounded watch, default checkpoint use, executor wrappers, and automatic Red
+  execution remain deferred.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

@@ -971,16 +971,42 @@ not execute existing CLIs, planner, validator, `nextRedCommand`, `--write`,
 `--watch`, tmux, DB / Prisma / network, Telegram, systemd, scheduler / queue,
 unbounded watch, default checkpoint, multi-mint work, or silent retry.
 
-Next minimal candidates:
+#### Intent Milestone / Next-Phase Criteria
 
-- Green: use `--intent second_metric_snapshot` in the next single-mint Red
-  approval preflight.
-- Green: review bounded orchestration stage intent usage after one more
-  operator flow.
-- Red: add another exact-command reproduction only when a new single-mint
-  observation is useful.
-- Hold: executor wrappers, systemd, scheduler / queue, unbounded watch, and
-  default checkpoint operation remain deferred.
+The first live operating milestone for guide intents is complete for
+`second_metric_snapshot`:
+
+- supported intent: `second_metric_snapshot`.
+- confirmed example:
+  `GvQqdiqq8TccXMz9BYCdx7EhXWbAxH4pezktC1oYpump`.
+- confirmed path: bounded-flow guide with
+  `--intent second_metric_snapshot` -> planner -> validator -> human gate ->
+  exactly one copied Red command -> one Metric append -> docs record.
+- confirmed result: Metric `id=1243`, previous Metric `id=688`,
+  `metricsCount` 1 -> 2, rawJson-free report confirmation, and no Token field
+  update.
+- additional same-shape `second_metric_snapshot` Red reproductions are
+  optional and should only be added when a new single-mint observation has a
+  specific operating reason.
+
+The remaining guide intents are supported but not live-operating milestones
+yet:
+
+- `first_metric_snapshot`: wait for a real `partial + metricsCount=0`
+  candidate. The latest read-only check for
+  `partial + hasMetrics=false` returned `filteredCount=0` and `items=[]`.
+  When such a candidate appears, run a Green approval preflight before any Red
+  command.
+- `enrich_rescore`: wait for a natural `mint_only + metricsCount=0` pump
+  candidate. `mint_only` rows exist, but the latest read-only comparison was
+  dominated by SMOKE / synthetic-looking rows, and no natural pump mint was
+  found within the limit-2000 check. SMOKE and synthetic-looking rows are not
+  live market proof for this milestone.
+
+This milestone still does not implement an executor wrapper or automatic Red
+execution. Guide, planner, and validator remain non-executors. Systemd,
+scheduler / queue, unbounded watch, default checkpoint operation, Telegram
+live send, multi-mint execution, and silent retry remain deferred.
 
 ### Red Approval Request Template
 
