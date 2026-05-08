@@ -147,6 +147,19 @@ Operational boundary:
   H7zeAcM31GRu6EyhNt52qCrv9EYULaef2f5kKP1oU5AK`. The default checkpoint stayed
   uncreated / unused, and Telegram, Metric append, enrich, rescore, and ops
   catchup were not invoked. This was a bounded operation MVP rehearsal.
+- Confirmed candidate-waiting bounded detect write gate with a fresh `/tmp`
+  checkpoint:
+  `pnpm -s detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --watch --maxIterations 1 --checkpointFile /tmp/lowcap-gecko-detect-bounded.json --write`.
+  It ran one bounded cycle with `selectedCount=1`, `acceptedCount=1`,
+  `importedCount=1`, `existingCount=0`, `failedCount=0`, and
+  `skippedNonPumpCount=5`, and created mint-only Token
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` from Pump.fun. It updated
+  only `/tmp/lowcap-gecko-detect-bounded.json` to
+  `2026-05-08T22:04:05.000Z |
+  DWHNrAbt6bL3HuygDiBGBQY51ADxtyMreERS9JuBH3tT`; the default checkpoint stayed
+  uncreated / unused. Metric append, enrich/rescore, Telegram, tmux, systemd,
+  scheduler / queue, unbounded watch, and additional Red commands were not
+  invoked.
 - Confirmed foreground bounded detect watch wrapper gate:
   `LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60 bash scripts/run-geckoterminal-detect-watch.sh --pumpOnly --limit 1 --maxIterations 2`.
   The wrapper kept the checkpoint on `/tmp`, naturally exited after

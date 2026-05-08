@@ -1009,6 +1009,49 @@ execution. Guide, planner, and validator remain non-executors. Systemd,
 scheduler / queue, unbounded watch, default checkpoint operation, Telegram
 live send, multi-mint execution, and silent retry remain deferred.
 
+### Bounded Detect Candidate
+
+The candidate waiting state produced one fresh bounded detect write origin
+without changing the automation boundary. A read-only guard first used
+`detect:geckoterminal:new-pools -- --pumpOnly --limit 1` and confirmed a
+natural Pump.fun pump candidate. After the separate Red approval, exactly one
+command ran:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --pumpOnly --limit 1 --watch --maxIterations 1 --checkpointFile /tmp/lowcap-gecko-detect-bounded.json --write
+```
+
+Confirmed result:
+
+- bounded one-cycle watch write: `dryRun=false`, `writeEnabled=true`,
+  `watchEnabled=true`, `checkpointEnabled=true`, `cycleCount=1`, and
+  `maxIterations=1`.
+- single candidate counts: `selectedCount=1`, `acceptedCount=1`,
+  `importedCount=1`, `existingCount=0`, `failedCount=0`, and
+  `skippedNonPumpCount=5`.
+- created mint-only Token:
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, with
+  `source=geckoterminal.new_pools` and `dexName=Pump.fun`.
+- post-check state: `metadataStatus=mint_only`, `metricsCount=0`,
+  `latestMetric=null`, `name/symbol/description=null`,
+  `hardRejected=false`, `scoreRank=C`, `scoreTotal=0`, `enrichedAt=null`,
+  and `rescoredAt=null`.
+- checkpoint scope: created / updated only
+  `/tmp/lowcap-gecko-detect-bounded.json`, advanced to
+  `2026-05-08T22:04:05.000Z |
+  DWHNrAbt6bL3HuygDiBGBQY51ADxtyMreERS9JuBH3tT`.
+- default checkpoint remained uncreated / unused.
+- Metric write, Token enrich/rescore, Telegram, tmux, systemd, scheduler /
+  queue, watch continuation beyond `maxIterations=1`, and additional Red
+  commands were not invoked.
+- execution output and post-check reports stayed rawJson-free and did not
+  expose secret markers.
+
+This makes `Ffn2...pump` a possible future `enrich_rescore` intent approval
+preflight target. The guide / planner / validator steps and any Red
+enrich/rescore command are separate tasks; this detect record does not execute
+or imply automatic downstream work.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for
