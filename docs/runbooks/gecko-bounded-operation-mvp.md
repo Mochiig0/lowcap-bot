@@ -1052,6 +1052,46 @@ preflight target. The guide / planner / validator steps and any Red
 enrich/rescore command are separate tasks; this detect record does not execute
 or imply automatic downstream work.
 
+### Enrich Rescore Candidate
+
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` has now confirmed the
+`enrich_rescore` intent path as a bounded single-mint Token write. The flow was
+guide -> planner -> validator -> human gate -> exactly one Red command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --mint Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump --write
+```
+
+The guide remained `mode=non_executor_guide`, the planner returned
+`currentStage=mint_only_without_metrics`, `nextStage=enrich_write`, and
+`nextRedCommandKind=gecko_enrich_rescore_single_mint`, and the validator
+returned `approvalReady=true` plus `canProceedToHumanGate=true`. Those values
+were human-gate conditions only; they did not execute the Red command.
+
+Confirmed write result:
+
+- one target mint only: `selected=1`, `ok=1`, and `error=0`.
+- bounded Token writes: `enrichWritten=1`, `rescoreWritten=1`, and
+  `contextWritten=1`.
+- no notification send: `notifySent=0`, and `--notify` was not present.
+- Token fields moved from `mint_only` to `partial` with `name=Papu`,
+  `symbol=PAPU`, `description=null`, and `normalizedText=papu papu`.
+- review flags stayed false for website, X, Telegram, Metaplex, and
+  description; `linkCount=0`.
+- score stayed `C` / `0`, and `hardRejected=false`.
+- timestamps: `enrichedAt=2026-05-08T22:38:21.819Z` and
+  `rescoredAt=2026-05-08T22:38:21.830Z`.
+- Metric state did not change: `metricsCount=0`, `latestMetric=null`, and
+  `metrics:report` returned `count=0` / `items=[]`.
+- Metric write, Telegram, detect, watch, tmux, systemd, checkpoint updates,
+  scheduler / queue work, and additional Red commands were not invoked.
+- planner, validator, and post-check reports stayed rawJson-free and did not
+  expose secret markers.
+
+This makes Ffn2 a possible future `first_metric_snapshot` intent approval
+preflight target because it is now `partial + metricsCount=0`. This docs task
+does not run that preflight.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for

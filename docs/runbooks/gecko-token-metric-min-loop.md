@@ -53,6 +53,18 @@ and one production Telegram ops live send for `metric_appended`:
   `plannedTokenWrites=0`, `pendingCount=0`, and `selectedCandidates=[]`;
   Metric append dry-run reported `status=no_pending`, `plannedMetricAppends=0`,
   `metricPendingCount=0`, `pendingCount=0`, and `selectedCandidates=[]`.
+- the later bounded detect origin mint
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` has confirmed the
+  single-mint enrich/rescore step only: `token:enrich-rescore:geckoterminal
+  -- --mint ... --write` moved it from `mint_only` to `partial` with
+  `name/symbol=Papu/PAPU`, `description=null`, `normalizedText=papu papu`,
+  score `C` / `0`, and `hardRejected=false`. It reported
+  `enrichWritten=1`, `rescoreWritten=1`, `contextWritten=1`, and
+  `notifySent=0`, with `enrichedAt=2026-05-08T22:38:21.819Z` and
+  `rescoredAt=2026-05-08T22:38:21.830Z`. No Metric was written:
+  `metricsCount=0`, `latestMetric=null`, and `metrics:report` returned
+  `count=0` / `items=[]`. Telegram, detect, watch, tmux, systemd, and
+  checkpoint updates were not invoked during that enrich/rescore step.
 - a later same-mint manual one-shot loop for
   `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump` confirmed the direct
   detector / enrich-rescore / metric snapshot path without ops notification:
