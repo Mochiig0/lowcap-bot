@@ -791,6 +791,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   boundaries. The next phase is to fix those readiness decisions in docs and
   read-only design preflights, not to start systemd, queue workers, unbounded
   watch, automatic Red execution, or a Telegram live loop.
+- Executor-wrapper boundary is now the next design checkpoint, not an
+  implementation milestone. A non-executor wrapper / dry-run planner may only
+  assemble stage order, guards, side-effect bounds, stop conditions, approval
+  request text, and command strings. It must not execute existing CLIs, run Red
+  commands, write DB / Token / Metric rows, send Telegram, start tmux, update
+  checkpoints, or touch systemd / scheduler / queue / unbounded watch. A
+  bounded executor prototype remains deferred until default checkpoint,
+  restart / resume, retry / failure handling, duplicate prevention, log
+  retention, secret-free logging, Telegram loop policy, and multi-candidate
+  handling are fixed.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

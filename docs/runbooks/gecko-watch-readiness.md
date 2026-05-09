@@ -90,6 +90,16 @@ duplicate prevention across stages, log retention, secret-free logging,
 Telegram loop send / duplicate / cooldown policy, and the boundary between a
 single CLI runner and any scheduler / queue.
 
+Executor-wrapper readiness is also still a pre-watch gap. A non-executor
+wrapper / dry-run planner may prepare stage order, guards, side-effect bounds,
+stop conditions, approval text, and command strings, but must not execute CLIs,
+run Red commands, write DB / Token / Metric rows, send Telegram, start tmux, or
+update checkpoints. Bounded executor work, systemd, scheduler / queue,
+unbounded watch, default-checkpoint operation, and Telegram live-loop
+integration remain deferred until restart / resume, retry, duplicate
+prevention, log retention, secret-free logging, Telegram cooldown /
+failed-send handling, and multi-candidate policy are fixed.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

@@ -1272,6 +1272,49 @@ Recommended next order:
 5. systemd / scheduler / queue only after restart, retry, and checkpoint
    policy are fixed.
 
+### Executor Boundary / Wrapper Readiness
+
+The next wrapper step is a design boundary, not automatic execution. The current
+MVP can support a non-executor wrapper / dry-run planner that prepares the
+human gate, but it must preserve the same one-mint, one-stage, one-command
+operating unit.
+
+Allowed responsibilities for a non-executor wrapper / dry-run planner:
+
+- render stage order.
+- render expected guards.
+- render `sideEffectUpperBound` / `sideEffectUpperBoundSpec`.
+- render stop conditions.
+- generate the approval request.
+- generate the exact command string for the later Red task.
+
+Forbidden responsibilities for that wrapper:
+
+- execute existing CLIs.
+- execute `nextRedCommand` or any Red command.
+- write DB, Token, or Metric rows.
+- send Telegram.
+- start tmux.
+- update checkpoints.
+- touch systemd, scheduler / queue, or unbounded watch.
+
+A bounded executor prototype is a later milestone and is still unimplemented.
+Before it exists, the project must fix the default checkpoint policy, restart /
+resume policy, partial-success handling, retry / failure handling, duplicate
+prevention across Token and Metric writes, log retention, secret-free logging,
+Telegram send / duplicate / cooldown / failed-send policy, capture-only
+rehearsal, and multi-candidate handling. The prototype must not bypass the
+human gate, and it must not start as a multi-mint runner, queue worker, systemd
+service, or unbounded watch.
+
+Systemd, scheduler / queue, and unbounded watch are further downstream than a
+bounded executor prototype. Do not enter that layer until restart / recovery,
+duplicate prevention, checkpoint behavior, and secret-free logging are fixed.
+Existing Telegram checks do not make Telegram live-loop integration ready; the
+wrapper boundary excludes Telegram until send conditions, duplicate prevention,
+cooldown, failed-send handling, capture-only rehearsal, and secret-free logging
+are fixed.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for
