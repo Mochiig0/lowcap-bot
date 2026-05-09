@@ -1369,6 +1369,104 @@ integration, systemd, scheduler / queue, unbounded watch, default checkpoint
 operation, bounded executor prototype, and automatic Red execution remain
 deferred.
 
+### Authoritative State / Checkpoint Ordering / Restart-Resume Policy
+
+This policy is fixed for the current bounded human-gated scope. It is the
+restart / resume foundation before duplicate-prevention, retry, default
+checkpoint promotion, systemd, scheduler / queue, or unbounded watch work. It
+does not promote the default checkpoint and does not allow automatic resume.
+
+Authoritative state priority:
+
+1. DB state is the first confirmation target for Token and Metric outcomes,
+   including Token existence, `metadataStatus`, `metricsCount`, and latest
+   Metric. After Red, report confirmation must use DB-read CLIs.
+2. A checkpoint is only a detect cursor. It is not proof that Token or Metric
+   writes succeeded, and it must not be used alone to mark a mint imported.
+3. CLI output is the immediate execution result. Use counts such as
+   `selectedCount`, `writtenCount`, `errorCount`, `importedCount`, and
+   `existingCount` as evidence for the just-finished run, but prefer DB state
+   after restart.
+4. Docs record is an operator audit log, not runtime authoritative state. If
+   docs are stale, use DB reads to establish current state.
+5. Latest Metric is Metric-stage evidence. It does not replace the detect
+   checkpoint or Token state.
+
+Checkpoint-DB ordering failure policy:
+
+- If checkpoint advanced but DB write failed, do not treat checkpoint as
+  success proof. Confirm DB state, stop on mismatch, and return to human gate.
+  Do not continue through default checkpoint or unbounded watch.
+- If DB write succeeded but checkpoint update failed, use DB state as the first
+  confirmation target. On rerun, inspect `existingCount`, `metricsCount`, and
+  latest Metric before approving any next step. Do not roll back only the
+  checkpoint and auto-rerun.
+- If partial success appears, including `errorCount > 0`, `selectedCount > 1`,
+  `writtenCount > 1`, or `importedCount > 1` outside an approved bound, stop.
+  Do not continue to the next item or next stage automatically. Compare DB
+  state with CLI output and rebuild the approval through human gate.
+- If interrupted after write before report confirmation, do not rerun the Red
+  command first. Run read-only DB confirmation, then either complete report
+  confirmation if state matches or stop and return to human gate.
+- If interrupted after Red before docs record, do not rerun Red. Run read-only
+  DB confirmation; if state matches, proceed with a Green docs-only record. If
+  state mismatches, stop and return to human gate.
+
+Restart / resume policy:
+
+- After restart, start from DB state confirmation.
+- Treat checkpoint as cursor context only, not success proof.
+- Treat docs record as auxiliary operator log.
+- If CLI output or logs are missing, prefer DB reads over reconstructing state
+  from checkpoint or docs.
+- Maintain rawJson-free and secret-marker checks.
+- Any mismatch returns to human gate; automatic resume is not allowed.
+
+Restart confirmation command policy:
+
+```bash
+git status --short --branch
+git log --oneline -5
+pnpm -s token:compare -- --mint <MINT>
+pnpm -s token:show -- --mint <MINT>
+pnpm -s metrics:report -- --mint <MINT> --limit 2
+```
+
+Checkpoint-file inspection, when needed, must stay read-only. The default
+checkpoint is still not used for the bounded MVP.
+
+Stop conditions after restart:
+
+- git dirty state.
+- HEAD mismatch.
+- origin mismatch.
+- DB state mismatch.
+- checkpoint / DB mismatch.
+- `errorCount > 0`.
+- `selectedCount > 1`.
+- `writtenCount > 1`.
+- `importedCount > 1`.
+- latest Metric or `metricsCount` mismatch.
+- rawJson or secret-marker risk.
+- default checkpoint expansion risk.
+- unbounded watch expansion risk.
+- systemd, scheduler, or queue expansion risk.
+
+Relationship to remaining policy gaps:
+
+- Duplicate prevention and retry policy must build on this authoritative-state
+  policy. Token duplicate handling continues to use `Token.mint` uniqueness and
+  the existing-token path. Metric remains a time-series append lane; strict
+  Metric duplicate policy is a later gap.
+- Retry remains bounded by this restart / resume policy. Do not expand
+  automatic retry until duplicate handling and human-gate return conditions are
+  fixed.
+- Default checkpoint promotion is still a later task. Before using it,
+  restart / resume, duplicate prevention, retry, and log policy must be fixed.
+- This policy is only one readiness prerequisite. It does not make systemd,
+  scheduler / queue, unbounded watch, always-on operation, bounded executor
+  prototype, or automatic Red execution ready.
+
 Recommended next order:
 
 1. docs-only readiness gap fixed.

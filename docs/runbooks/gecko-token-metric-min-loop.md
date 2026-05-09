@@ -473,6 +473,12 @@ formatting for latestMetric safe summary fields.
 
 Use this flow when a single GeckoTerminal-origin pump mint should move from mint-only intake to one current `Metric` observation with explicit operator checkpoints.
 
+For restart or interruption recovery in the Metric stage, DB state is the first
+confirmation target. Use `metrics:report`, `token:compare`, and `token:show`
+before considering any rerun. Latest Metric and `metricsCount` confirm the
+Metric stage only; they are not detect-checkpoint substitutes, and strict
+Metric duplicate policy remains a later readiness gap.
+
 ## Preconditions
 
 - The repo is clean and on the expected branch.

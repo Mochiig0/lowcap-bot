@@ -573,13 +573,21 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   operator logs rather than runtime state, and latest Metric is Metric-stage
   evidence rather than a detect checkpoint substitute. The safe operating unit
   remains one mint, one stage, one human gate, and one exact command.
-- Restart / resume, partial-success handling, automatic retry, Metric strict
-  duplicate policy, multi-candidate ordering / per-item failure handling, log
-  retention, secret-free journal policy, and Telegram loop send / duplicate /
-  cooldown / failed-send handling remain unresolved gates. Systemd, scheduler
-  / queue, unbounded watch, default checkpoint operation, bounded executor
-  prototype, and automatic Red execution remain deferred until those gates are
-  fixed.
+- Authoritative state / checkpoint-DB ordering / restart-resume policy is now
+  fixed for the bounded human-gated scope. DB state is the first restart
+  confirmation target; checkpoint remains only a detect cursor; CLI output is
+  the immediate execution result; docs record is an operator audit log; latest
+  Metric is Metric-stage evidence. If checkpoint and DB disagree, if a write
+  was interrupted before report confirmation, or if Red finished before docs
+  record, do not rerun Red automatically: inspect read-only DB reports and
+  return to human gate on any mismatch.
+- Automatic retry, Metric strict duplicate policy, multi-candidate ordering /
+  per-item failure handling, log retention, secret-free journal policy, and
+  Telegram loop send / duplicate / cooldown / failed-send handling remain
+  unresolved gates. Default checkpoint operation is still unpromoted. Systemd,
+  scheduler / queue, unbounded watch, always-on operation, bounded executor
+  prototype, and automatic Red execution remain deferred until the remaining
+  gates are fixed.
 - The read-only consistency check for `c6ee95e` passed across the docs. The
   checkpoint policy, authoritative state policy, restart / resume gaps, Token
   and Metric duplicate-prevention gaps, retry / failure gaps, multi-candidate

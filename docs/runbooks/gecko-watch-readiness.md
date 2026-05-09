@@ -133,6 +133,17 @@ Telegram live-loop policy, or multi-candidate handling, and does not make
 systemd, scheduler / queue, unbounded watch, always-on operation, automatic Red
 execution, or bounded executor prototype ready.
 
+Authoritative state / checkpoint-DB ordering / restart-resume policy is now
+fixed for bounded human-gated operation: restart confirmation starts from DB
+read CLIs, checkpoint is cursor context only, docs record is an operator log,
+and latest Metric is Metric-stage evidence. If checkpoint / DB state, CLI
+counts, latest Metric, or `metricsCount` disagree after restart, stop and
+return to human gate; do not automatically resume or rerun Red. This does not
+promote the default checkpoint and does not make watch readiness complete.
+Retry, duplicate prevention, log retention, Telegram loop policy, and
+multi-candidate handling remain unresolved before systemd, scheduler / queue,
+or unbounded watch.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

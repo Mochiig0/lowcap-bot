@@ -12,6 +12,12 @@ for the metric snapshot lane in this environment. It is suitable for bounded
 confirmation and short operation, while `systemd`, unbounded watch, and
 restart-oriented operation remain separate later gates.
 
+If a tmux single-run is interrupted after the write path may have run, do not
+rerun the Red command first. Confirm DB state with read-only Metric / Token
+reports, treat the tmux log as auxiliary evidence, and return to human gate on
+any mismatch. This keeps DB state as the authoritative Metric-stage source and
+does not make tmux logs, systemd, or unbounded watch authoritative.
+
 There are two bounded tmux shapes:
 
 - strict single-mint single-run: one target mint, no `--watch`, one tmux
