@@ -16,6 +16,13 @@ append, and rawJson-free report confirmation, use
 This minimum-loop document remains the evidence log for individual mint
 progression and Metric time-series confirmation.
 
+For records copied from this minimum loop, keep only safe summaries: statuses,
+counts, mint / Metric ids, sources, `observedAt`, `metricsCount`, latest Metric
+and `recentMetrics` summaries, and rawJson-free safe summary booleans. Do not
+paste raw logs, raw payloads, raw stdout / stderr, exact `"rawJson":` fields,
+`.env`, Telegram credentials, database URLs, raw env, or secret-bearing command
+args.
+
 ## Confirmed Status
 
 As of the successful ops-path checks, the full operator-visible Token to Metric

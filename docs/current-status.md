@@ -616,12 +616,27 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   watch, always-on operation, automatic Red execution, or bounded executor
   work ready. The future first create/update of the default checkpoint requires
   a separate bounded Red approval with an explicit side-effect upper bound.
-- Multi-candidate ordering / per-item failure handling, log retention,
-  secret-free journal policy, and Telegram loop send / duplicate / cooldown /
-  failed-send handling remain unresolved gates. Default checkpoint operation is
-  still unpromoted. Systemd, scheduler / queue, unbounded watch, always-on
-  operation, bounded executor prototype, and automatic Red execution remain
-  deferred until the remaining gates are fixed.
+- Log / secret-free policy is now fixed as docs-only policy for the bounded
+  human-gated scope. Operator records may include safe summaries such as
+  `status`, `reason`, count fields, mint / Metric ids, sources, observed
+  timestamps, checkpoint path / source / cursor summaries, and rawJson-free
+  safe-summary booleans. Operator records, Telegram output, pasted reports,
+  tmux summaries, and future journal excerpts must not include `.env`
+  contents, `DATABASE_URL`, Telegram bot tokens or chat ids, raw env, raw
+  stdout / stderr blobs, full command args that may contain secrets, exact
+  `"rawJson":` payloads, raw API response bodies, raw payloads, metadata raw
+  objects, or any line / blob with a secret marker. `/tmp` logs remain
+  auxiliary evidence and should be summarized rather than pasted raw. This
+  policy is a readiness gate for systemd, default checkpoint promotion, and
+  Telegram live-loop work, but log redaction implementation, systemd journal
+  readiness, default checkpoint operation, Telegram live-loop integration, and
+  retention / rotation implementation remain unimplemented or deferred.
+- Multi-candidate ordering / per-item failure handling, log retention /
+  rotation implementation, systemd journal readiness, and Telegram loop send /
+  duplicate / cooldown / failed-send handling remain unresolved gates. Default
+  checkpoint operation is still unpromoted. Systemd, scheduler / queue,
+  unbounded watch, always-on operation, bounded executor prototype, and
+  automatic Red execution remain deferred until the remaining gates are fixed.
 - The read-only consistency check for `c6ee95e` passed across the docs. The
   checkpoint policy, authoritative state policy, restart / resume gaps, Token
   and Metric duplicate-prevention gaps, retry / failure gaps, multi-candidate

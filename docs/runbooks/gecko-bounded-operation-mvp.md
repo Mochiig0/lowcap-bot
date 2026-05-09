@@ -1330,11 +1330,14 @@ Retry / failure policy:
   read-only reports, and rebuild the next approval through `bounded-flow:plan`,
   planner, validator, and human gate.
 
-Log and secret-free policy gaps:
+Log and secret-free policy:
 
 - Keep rawJson-free reports and secret-marker checks.
-- `/tmp` log retention / rotation is not fixed.
-- Journal / systemd log fields are not fixed.
+- Use the Log / Secret-Free Policy below for pasted reports, docs records,
+  tmux summaries, Telegram summaries, checkpoint summaries, and future journal
+  excerpts.
+- `/tmp` log retention / rotation implementation is not fixed.
+- Journal / systemd readiness is not fixed.
 - Do not paste `.env`, Telegram tokens, chat ids, raw env, raw stdout, raw
   stderr, or full command args that could contain secrets.
 
@@ -1352,7 +1355,8 @@ Systemd / scheduler / queue / unbounded watch gate:
 - retry / failure policy fixed.
 - duplicate-prevention enforcement and queue idempotency fixed for Token,
   Metric, and multi-candidate execution.
-- log retention and secret-free logging fixed.
+- log / secret-free paste policy fixed, plus log retention / rotation and
+  journal readiness fixed for the target runtime.
 - Telegram loop policy fixed.
 - multi-candidate ordering, count bounds, and per-item failure handling fixed.
 
@@ -1477,6 +1481,127 @@ Relationship to systemd / queue / unbounded watch:
 - Keep those paths on hold until restart, duplicate, retry, log, Telegram,
   multi-candidate, idempotency, and recovery policies are all satisfied in the
   intended runtime scope.
+
+### Log / Secret-Free Policy
+
+This is a docs-only policy for operator-visible output. It fixes what may be
+summarized in docs, pasted reports, tmux summaries, Telegram summaries,
+checkpoint summaries, and future journal excerpts. It does not implement
+redaction, retention, rotation, systemd, default checkpoint operation, or
+Telegram live-loop integration.
+
+Safe-to-log fields:
+
+- `status`.
+- `reason`.
+- `blockedBy`.
+- `stopConditionCodes`.
+- `selectedCount`.
+- `writtenCount`.
+- `importedCount`.
+- `existingCount`.
+- `errorCount`.
+- `failedCount`.
+- `okCount`.
+- mint.
+- `metricId`.
+- source.
+- `observedAt`.
+- `metricsCount`.
+- latest Metric id / source / `observedAt`.
+- `rateLimited`.
+- `cooldownSeconds`.
+- `maxIterations`.
+- `limit`.
+- `pumpOnly`.
+- checkpoint safe summary: path, source, cursor timestamp / pool address,
+  existence, and mtime.
+- rawJson-free safe summary booleans.
+
+Never-log fields:
+
+- `.env` contents.
+- `DATABASE_URL`.
+- `TELEGRAM_BOT_TOKEN`.
+- `TELEGRAM_CHAT_ID`.
+- Telegram API URL containing a bot token.
+- raw env / `process.env`.
+- raw stdout blobs.
+- raw stderr blobs.
+- full command args when secrets or env values may appear.
+- exact `"rawJson":` payload.
+- raw API response body.
+- raw payload.
+- metadata raw object.
+- any line or blob containing a secret marker.
+
+Marker check / stop condition:
+
+- If an exact `"rawJson":` field, raw payload marker, or secret marker appears,
+  do not paste that line or blob.
+- If a marker appears in a candidate report, stop before Red, docs record,
+  Telegram live send, default checkpoint promotion, or systemd promotion.
+- Return to human gate with a safe reason such as `unsafe marker detected`.
+- `rawJsonFreeRequired` and `rawjson_output_risk` are safe checklist codes.
+  The unsafe material is the raw field, raw payload, or secret-bearing output.
+
+`/tmp` log policy:
+
+- `/tmp` logs are auxiliary evidence for bounded runs.
+- Do not paste raw logs wholesale.
+- Prefer extracted safe summaries.
+- If a small excerpt is needed, keep it to the minimum tail or grep result
+  needed for counts / status and run the marker check before pasting.
+- Retention, rotation, maximum size, and deletion timing are not implemented
+  or fixed for runtime automation.
+- Re-evaluate retention, rotation, and log level before systemd or unbounded
+  watch.
+
+Systemd journal policy:
+
+- Assume systemd journal will retain stdout and stderr.
+- Do not paste raw `journalctl` output wholesale.
+- Journal excerpts used in docs must be limited to safe-to-log fields.
+- Service env, `.env`, Telegram credentials, `DATABASE_URL`, raw env, and full
+  secret-bearing args must not appear in journal or docs.
+- This policy does not make systemd ready; journal redaction / retention
+  implementation remains a later gate.
+
+Telegram output handling:
+
+- Safe Telegram send summaries are limited to fields such as `status`,
+  `errorCode`, `sentCount`, trigger, mint, and `metricId`.
+- Never log Telegram response bodies, request paths containing bot tokens,
+  bot tokens, or chat ids.
+- Capture-only records and live sends are separate boundaries.
+- Duplicate notification prevention, failed-send retry, Telegram cooldown, and
+  live-loop integration remain later policy / implementation gaps.
+
+Checkpoint file output handling:
+
+- Checkpoint files are not expected to contain secrets, but do not paste raw
+  checkpoint files by default.
+- Use a safe summary: path, source, cursor, existence, and mtime.
+- Always state that a checkpoint is a detect cursor, not write success proof.
+- Keep marker checks before default checkpoint promotion.
+
+Docs record / report paste rule:
+
+- Docs records should contain safe summaries only.
+- Do not paste raw stdout / stderr, raw API responses, full JSON blobs,
+  secret-bearing lines, or raw payloads.
+- If output safety is uncertain, omit the output and record the stop reason
+  with a safe marker such as `unsafe marker detected`.
+
+Relationship to future work:
+
+- This policy is a gate for systemd, default checkpoint promotion, and
+  Telegram live-loop work.
+- It does not make systemd ready, default checkpoint operation ready, Telegram
+  live-loop ready, or unbounded watch ready.
+- Log redaction implementation, journal retention / rotation implementation,
+  Telegram failed-send handling, and automated secret scanning remain future
+  Yellow or Red-adjacent tasks depending on scope.
 
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal

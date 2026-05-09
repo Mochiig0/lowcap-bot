@@ -25,6 +25,14 @@ ambiguous write result: run DB read confirmation first and do not start another
 tmux Red command until a new human gate approves it.
 Cooldown does not make tmux retry automatic. The operator-level Red retry max
 is automatic `0`; another tmux command is a separate human-approved Red gate.
+The tmux `/tmp` log is auxiliary evidence, not an operator report by itself.
+Do not paste raw tmux logs, raw stdout / stderr, exact `"rawJson":` payloads,
+raw API responses, `.env`, Telegram credentials, database URLs, raw env, or
+secret-bearing command args. Extract only safe summaries such as status,
+counts, mint / Metric ids, source, `observedAt`, `metricsCount`, latest Metric
+fields, and rawJson-free safe summary booleans. Retention / rotation for tmux
+logs remains a later runtime policy gate and does not make systemd journal
+readiness complete.
 
 There are two bounded tmux shapes:
 

@@ -175,6 +175,18 @@ make checkpoint state write success proof and does not make systemd,
 scheduler / queue, unbounded watch, always-on operation, automatic Red
 execution, or bounded executor work ready.
 
+Log / secret-free policy is now fixed at the docs level, but watch readiness
+is still incomplete. Operator records, pasted reports, tmux summaries,
+Telegram summaries, checkpoint summaries, and future journal excerpts must use
+safe summaries only. Do not paste raw stdout / stderr, raw logs, raw API
+responses, exact `"rawJson":` payloads, `.env`, `DATABASE_URL`, Telegram
+credentials, raw env, full secret-bearing command args, or any line / blob with
+a secret marker. `/tmp` logs remain auxiliary evidence and should be summarized
+rather than pasted raw. Future systemd journal output needs redaction,
+retention / rotation, and field policy implementation before start; this policy
+does not make systemd, unbounded watch, default checkpoint operation, or
+Telegram live-loop integration ready.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the
