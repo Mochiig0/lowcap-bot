@@ -1532,6 +1532,20 @@ execution. Automatic Red execution, executor wrapper, always-on operation,
 systemd, scheduler / queue, unbounded watch, default checkpoint operation, and
 Telegram live-loop integration remain outside this flow.
 
+Consistency check note: `3388751` passed read-only docs consistency for this
+operator flow. The docs agree on the order `bounded-flow:plan` ->
+`bounded-flow:guide` -> `single-candidate:plan` ->
+`single-candidate:validate` -> human gate -> Red exact command, and on the role
+split: `plan` provides the skeleton / checklist / command strings, `guide`
+shows the intent-specific stage order, planner reads DB state and selects
+`currentStage` / `nextRedCommand`, validator checks `approvalReady` /
+`canProceedToHumanGate`, the human gate is not automatic execution, and Red
+execution is a separate exact-command task. This check did not promote
+`bounded-flow:plan` into an executor and did not change the hold on automatic
+Red execution, executor wrapper, always-on operation, systemd, scheduler /
+queue, unbounded watch, default checkpoint operation, or Telegram live-loop
+integration.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`
