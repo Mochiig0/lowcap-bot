@@ -1490,6 +1490,48 @@ with `redExecution.placeholder=true` and `exactCommand=null`; stop output has
 wrapper-specific, and the CLI remains a non-executor planning aid rather than
 an executor wrapper or automatic Red runner.
 
+### Bounded-flow Plan Operator Flow
+
+Use `ops:gecko:bounded-flow:plan` as the first operator-facing packet, not as
+an executor. The recommended human-gated order is:
+
+1. `ops:gecko:bounded-flow:plan`
+2. `ops:gecko:bounded-flow:guide`
+3. `ops:gecko:single-candidate:plan`
+4. `ops:gecko:single-candidate:validate`
+5. human gate
+6. Red exact command in a separate Red task
+
+Responsibilities:
+
+- `bounded-flow:plan`: builds the operator-facing skeleton with command
+  strings, `approvalRequest.requiredFields`, `sideEffectUpperBoundSpec`,
+  `stopConditionCodes`, `forbidden`, and the stage order. It does not read DB
+  state, so `currentStage=null` and `nextStage=null`. It does not print an
+  `exactCommand` and does not run existing CLIs, guide, planner, validator,
+  `nextRedCommand`, or any Red command.
+- `bounded-flow:guide`: displays the intent-specific stage order and command
+  guide as `mode=non_executor_guide`. It is for operator review and does not
+  build the approval skeleton or execute commands.
+- `single-candidate:plan`: reads the actual DB state for the mint, determines
+  `currentStage`, `nextStage`, `nextRedCommand`, `nextRedCommandKind`, and the
+  side-effect upper bound, while keeping `willExecute=false`.
+- `single-candidate:validate`: validates the saved planner JSON and returns
+  `approvalReady` / `canProceedToHumanGate`. If unsafe rawJson / secret markers
+  are detected, it does not reprint `nextRedCommand`.
+- `human gate`: confirms that validator approval is present. This is still not
+  automatic execution; `approvalReady=true` and `canProceedToHumanGate=true`
+  only mean the operator may prepare a separate Red approval request.
+- `Red exact command`: runs only after the human gate in a separate Red task,
+  and only as the exact command copied from the approved planner / validator
+  path.
+
+This flow keeps `bounded-flow:plan` as a non-executor wrapper / planning aid.
+Do not make it run guide, planner, validator, `nextRedCommand`, or Red
+execution. Automatic Red execution, executor wrapper, always-on operation,
+systemd, scheduler / queue, unbounded watch, default checkpoint operation, and
+Telegram live-loop integration remain outside this flow.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`

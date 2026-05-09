@@ -520,6 +520,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   command, and `bounded-flow:plan` remains a non-executor planning aid. Automatic
   Red execution, executor wrapper, always-on operation, systemd, scheduler /
   queue, unbounded watch, and default checkpoint operation remain deferred.
+- The operator flow for `ops:gecko:bounded-flow:plan` is now fixed as
+  docs-only guidance: run `bounded-flow:plan` first to assemble the operator
+  packet / approval skeleton / checklist, then run `bounded-flow:guide` to
+  review the intent-specific stage order, then run
+  `single-candidate:plan` for the actual DB-backed `currentStage`,
+  `nextStage`, `nextRedCommand`, and `sideEffectUpperBoundSpec`, then run
+  `single-candidate:validate` to check `approvalReady` and
+  `canProceedToHumanGate`, then stop at the human gate. A Red exact command is
+  executed only later in a separate Red task after approval, and only as one
+  exact command. `bounded-flow:plan` does not execute the guide, planner,
+  validator, `nextRedCommand`, or any Red command, and it remains
+  `mode=non_executor_wrapper` rather than an executor wrapper.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and
