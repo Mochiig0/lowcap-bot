@@ -1315,6 +1315,202 @@ wrapper boundary excludes Telegram until send conditions, duplicate prevention,
 cooldown, failed-send handling, capture-only rehearsal, and secret-free logging
 are fixed.
 
+### Non-Executor Wrapper / Dry-Run Planner Design
+
+This section is a docs-only design target for a possible next Yellow task. No
+wrapper CLI is implemented here. The purpose is to prepare the operator-facing
+human gate, not to build a bounded executor.
+
+Initial scope:
+
+- one mint.
+- one stage.
+- one human gate.
+- one exact Red command string for a later separate Red task.
+- rawJson-free confirmation requirements.
+- docs record after any approved Red task.
+- no multi-mint runner, queue, or automatic execution.
+
+Candidate input shape for a future implementation:
+
+```json
+{
+  "mint": "<MINT>",
+  "intent": "enrich_rescore | first_metric_snapshot | second_metric_snapshot",
+  "expectedMetricsCount": 0,
+  "expectedMetadataStatus": "mint_only | partial",
+  "expectedStage": "mint_only_without_metrics | partial_without_metrics | partial_with_one_metric",
+  "operatorMode": "human_gated"
+}
+```
+
+`detect write` is not part of the initial wrapper scope because checkpoint,
+restart, and resume policy are still unresolved. The first implementation
+candidate should stay aligned with the already supported intents:
+`enrich_rescore`, `first_metric_snapshot`, and `second_metric_snapshot`.
+
+Candidate output shape for a future implementation:
+
+```json
+{
+  "status": "ok | stop",
+  "reason": "<human-readable reason>",
+  "mode": "non_executor_wrapper",
+  "willExecute": false,
+  "executor": "human",
+  "mint": "<MINT>",
+  "intent": "<INTENT>",
+  "currentStage": "<STAGE>",
+  "nextStage": "<NEXT_STAGE>",
+  "stageOrder": [
+    "baseline",
+    "guide",
+    "planner",
+    "validator",
+    "human_gate",
+    "red_execution",
+    "report_confirmation",
+    "docs_record"
+  ],
+  "commands": {
+    "baseline": ["..."],
+    "guide": "...",
+    "planner": "...",
+    "validator": "...",
+    "redExecution": {
+      "placeholder": true,
+      "exactCommand": null
+    },
+    "reportConfirmation": ["..."]
+  },
+  "approvalRequest": {
+    "requiredFields": [
+      "repo_state",
+      "baseline",
+      "guide_result",
+      "planner_result",
+      "validator_result",
+      "exact_red_command",
+      "side_effect_upper_bound",
+      "stop_conditions",
+      "rawjson_free_confirmation",
+      "not_executed_list"
+    ]
+  },
+  "sideEffectUpperBoundSpec": {
+    "metricWriteMax": 0,
+    "tokenWrite": false,
+    "tokenWriteMax": 0,
+    "telegramSend": false,
+    "tmux": false,
+    "tmuxSession": null,
+    "checkpointWrite": false,
+    "systemd": false,
+    "multiMint": false
+  },
+  "stopConditionCodes": ["..."],
+  "forbidden": ["..."],
+  "rawJsonFreeRequired": true
+}
+```
+
+All command fields are strings for operator review only. The wrapper must not
+execute `guide`, `planner`, `validator`, `nextRedCommand`, or any existing CLI.
+`redExecution` stays a placeholder, and `willExecute=false` is mandatory.
+The actual exact Red command belongs only in the human-gate approval request
+and a later separate Red task.
+
+Checklist-style `stopConditionCodes` should include at least:
+
+- `git_dirty`
+- `head_mismatch`
+- `origin_mismatch`
+- `mint_missing_or_ambiguous`
+- `intent_missing_or_invalid`
+- `guard_mismatch`
+- `metadata_status_mismatch`
+- `metrics_count_mismatch`
+- `expected_stage_mismatch`
+- `planner_status_not_ok`
+- `validator_not_approval_ready`
+- `next_red_command_missing`
+- `next_red_command_kind_mismatch`
+- `side_effect_bound_exceeded`
+- `selected_count_gt_1`
+- `written_count_gt_1`
+- `error_count_gt_0`
+- `rawjson_output_risk`
+- `secret_output_risk`
+- `telegram_expansion_risk`
+- `ops_expansion_risk`
+- `systemd_expansion_risk`
+- `scheduler_queue_expansion_risk`
+- `unbounded_watch_expansion_risk`
+- `default_checkpoint_expansion_risk`
+- `multi_mint_expansion_risk`
+
+These codes are a human-gate checklist, not an active error list. Actual stop
+state is represented by `status=stop` and `reason`.
+
+Wrapper-specific forbidden list:
+
+- existing CLI execution by wrapper.
+- planner execution by wrapper.
+- validator execution by wrapper.
+- `nextRedCommand` execution.
+- Red command execution.
+- `--write` execution.
+- `--watch` execution.
+- tmux start.
+- Telegram send.
+- systemd.
+- scheduler.
+- queue.
+- unbounded watch.
+- default checkpoint.
+- multi-mint.
+- silent retry.
+
+The current bounded-flow guide has a narrower historical forbidden list. Any
+extra wrapper items above are wrapper-specific expansion candidates for a
+future design; they are not implemented behavior.
+
+Intent-specific initial `sideEffectUpperBoundSpec` candidates:
+
+`enrich_rescore`:
+
+- `metricWriteMax=0`
+- `tokenWrite=true`
+- `tokenWriteMax=1`
+- `telegramSend=false`
+- `tmux=false`
+- `checkpointWrite=false`
+- `systemd=false`
+- `multiMint=false`
+
+`first_metric_snapshot`:
+
+- `metricWriteMax=1`
+- `tokenWrite=false`
+- `tokenWriteMax=0`
+- `telegramSend=false`
+- `tmux=false`
+- `checkpointWrite=false`
+- `systemd=false`
+- `multiMint=false`
+
+`second_metric_snapshot`:
+
+- `metricWriteMax=1`
+- `tokenWrite=false`
+- `tokenWriteMax=0`
+- `telegramSend=false`
+- `tmux=true`
+- `tmuxSession=lowcap-gecko-metric-single`
+- `checkpointWrite=false`
+- `systemd=false`
+- `multiMint=false`
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for

@@ -801,6 +801,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   restart / resume, retry / failure handling, duplicate prevention, log
   retention, secret-free logging, Telegram loop policy, and multi-candidate
   handling are fixed.
+- The non-executor wrapper / dry-run planner plan shape is now fixed as
+  docs-only design, not implemented behavior. Its initial candidate input is
+  one mint, one supported intent (`enrich_rescore`, `first_metric_snapshot`, or
+  `second_metric_snapshot`), expected guards, expected stage, and
+  `operatorMode=human_gated`; its output remains `mode=non_executor_wrapper`,
+  `willExecute=false`, `executor=human`, command strings only,
+  `redExecution.placeholder=true`, `rawJsonFreeRequired=true`, a
+  human-gate approval request skeleton, side-effect upper bounds, checklist
+  `stopConditionCodes`, and a forbidden list. Automatic Red execution,
+  bounded executor prototype, always-on operation, systemd, scheduler / queue,
+  unbounded watch, default-checkpoint operation, and Telegram live loop remain
+  unimplemented / deferred.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

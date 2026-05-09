@@ -100,6 +100,14 @@ integration remain deferred until restart / resume, retry, duplicate
 prevention, log retention, secret-free logging, Telegram cooldown /
 failed-send handling, and multi-candidate policy are fixed.
 
+The candidate non-executor wrapper / dry-run planner output shape is a design
+artifact before executor work, not watch readiness. It can define input /
+output shapes, checklist-style stop condition codes, forbidden actions, and
+intent-specific side-effect bounds for operator review. It still must keep
+`willExecute=false`, keep Red execution as a placeholder, and leave all writes,
+tmux starts, checkpoint updates, Telegram sends, systemd, scheduler / queue,
+and unbounded watch outside the wrapper.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the
