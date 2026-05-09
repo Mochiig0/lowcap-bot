@@ -491,6 +491,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   the safer behavior because it prints no concrete tmux or `--write` command;
   `status` / `reason` carry the stop cause, while `stopConditionCodes` remains
   the human-gate checklist.
+- `1ae2fd4` fixed the `bounded-flow:plan` stop output safety in tests via
+  `assertStopOutputSafety`. Missing `--mint`, missing `--intent`, invalid /
+  duplicate `--intent`, invalid expected guard args, and intent-conflict stops
+  now explicitly assert `commands=null`, common non-executor fields,
+  `stopConditionCodes` / `forbidden`, rawJson-free output, and no
+  `exactCommand` or concrete tmux / Metric snapshot / enrich-rescore / detect
+  command. The `status=ok` path still keeps
+  `redExecution.placeholder=true` and `redExecution.exactCommand=null`.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and

@@ -1456,6 +1456,16 @@ the pre-human-gate checklist. The actual exact Red command belongs only in the
 human-gate approval request and a later separate Red task; this CLI does not
 print concrete tmux commands or `--write` Red commands in `redExecution`.
 
+Test coverage note: `1ae2fd4` fixes this stop output safety in
+`tests/geckoterminalBoundedFlowPlan.test.ts` via `assertStopOutputSafety`.
+Covered stop cases include missing `--mint`, missing `--intent`, invalid /
+duplicate `--intent`, invalid expected guard args, and intent-conflict stops.
+The assertion keeps `commands=null`, common non-executor fields,
+`stopConditionCodes` / `forbidden`, rawJson-free output, and no
+`exactCommand`, concrete tmux command, Metric snapshot command, enrich-rescore
+command, or detect command. The ok path remains unchanged:
+`commands.redExecution.placeholder=true` with `exactCommand=null`.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`
