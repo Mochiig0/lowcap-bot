@@ -126,6 +126,13 @@ checkpoint operation, systemd, scheduler / queue, unbounded watch, automatic
 Red execution, and bounded executor prototype on hold until those policies are
 fixed.
 
+The read-only consistency check for `c6ee95e` passed, but this is still only a
+watch-readiness gate record. It does not make the default checkpoint ready, does
+not resolve restart / resume, retry, duplicate prevention, log retention,
+Telegram live-loop policy, or multi-candidate handling, and does not make
+systemd, scheduler / queue, unbounded watch, always-on operation, automatic Red
+execution, or bounded executor prototype ready.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

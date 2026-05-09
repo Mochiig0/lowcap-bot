@@ -1356,6 +1356,19 @@ Do not proceed to systemd, scheduler / queue, unbounded watch, default
 checkpoint operation, bounded executor prototype, or automatic Red execution
 while any item above is unresolved.
 
+Consistency check note: `c6ee95e` passed read-only docs consistency for this
+policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
+state, the default Gecko checkpoint remains unpromoted, DB state is the first
+confirmation target, a checkpoint is only a detect cursor, `existingCount`
+confirms an already stored Token, Metric snapshot is a time-series append lane,
+strict same `tokenId` / source / `observedAt` Metric duplicate policy is still
+unfixed, `errorCount > 0` does not authorize automatic continuation, and
+`selectedCount > 1` / `writtenCount > 1` remain stop conditions for current
+single-mint bounded flows. Multi-mint / queue execution, Telegram live-loop
+integration, systemd, scheduler / queue, unbounded watch, default checkpoint
+operation, bounded executor prototype, and automatic Red execution remain
+deferred.
+
 Recommended next order:
 
 1. docs-only readiness gap fixed.

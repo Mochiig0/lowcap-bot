@@ -580,6 +580,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   / queue, unbounded watch, default checkpoint operation, bounded executor
   prototype, and automatic Red execution remain deferred until those gates are
   fixed.
+- The read-only consistency check for `c6ee95e` passed across the docs. The
+  checkpoint policy, authoritative state policy, restart / resume gaps, Token
+  and Metric duplicate-prevention gaps, retry / failure gaps, multi-candidate
+  handling, log / secret-free gaps, and Telegram live-loop gaps are aligned.
+  The default checkpoint remains unpromoted, and systemd, scheduler / queue,
+  unbounded watch, always-on operation, automatic Red execution, and bounded
+  executor prototype remain on hold.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and
