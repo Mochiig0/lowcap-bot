@@ -1446,11 +1446,15 @@ All command fields are strings for operator review only. The wrapper does not
 execute `guide`, `planner`, `validator`, `nextRedCommand`, or any existing CLI.
 Because it performs no DB read, `currentStage` and `nextStage` are always
 `null`; stage selection remains the job of the separate read-only planner.
-`redExecution` stays a placeholder with `exactCommand=null`, and
-`willExecute=false` is mandatory. The actual exact Red command belongs only in
-the human-gate approval request and a later separate Red task; this CLI does
-not print concrete tmux commands or `--write` Red commands in
-`redExecution`.
+For `status=ok`, `commands` is present, `redExecution` stays a placeholder with
+`exactCommand=null`, and `willExecute=false` is mandatory. For `status=stop`,
+`commands=null`; `redExecution` and `exactCommand` are not output. This is the
+safe stop shape: no concrete tmux command, no `--write` Red command, and no
+human gate / Red execution path is printed. `status` and `reason` carry the
+stop cause, including intent-conflict stops, while `stopConditionCodes` remains
+the pre-human-gate checklist. The actual exact Red command belongs only in the
+human-gate approval request and a later separate Red task; this CLI does not
+print concrete tmux commands or `--write` Red commands in `redExecution`.
 
 Checklist-style `stopConditionCodes` should include at least:
 

@@ -486,6 +486,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   child-process / fs dependency, does not attach `--write` or `--watch`, does
   not start tmux, does not send Telegram, and does not touch checkpoints,
   systemd, scheduler / queue, unbounded watch, or default checkpoint operation.
+  When `status=stop`, the implementation returns `commands=null`; therefore
+  `redExecution` and `exactCommand` are not present at all. That stop output is
+  the safer behavior because it prints no concrete tmux or `--write` command;
+  `status` / `reason` carry the stop cause, while `stopConditionCodes` remains
+  the human-gate checklist.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and

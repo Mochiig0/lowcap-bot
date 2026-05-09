@@ -106,11 +106,13 @@ dry-run planner before executor work, not as watch readiness. It renders input
 intent-specific side-effect bounds, and approval-request fields for operator
 review. It keeps `mode=non_executor_wrapper`, `willExecute=false`,
 `executor=human`, `operatorMode=human_gated`, `currentStage=null`,
-`nextStage=null`, and `redExecution.exactCommand=null`. It does not execute
-existing CLIs, guide, planner, validator, `nextRedCommand`, or any Red command;
-all writes, tmux starts, checkpoint updates, Telegram sends, systemd,
-scheduler / queue, default-checkpoint operation, and unbounded watch remain
-outside the wrapper.
+`nextStage=null`, and, for `status=ok`, `redExecution.exactCommand=null`. For
+`status=stop`, it returns `commands=null`, so `redExecution` / `exactCommand`
+are not output; this is the safer stop behavior because no concrete command is
+printed. It does not execute existing CLIs, guide, planner, validator,
+`nextRedCommand`, or any Red command; all writes, tmux starts, checkpoint
+updates, Telegram sends, systemd, scheduler / queue, default-checkpoint
+operation, and unbounded watch remain outside the wrapper.
 
 Next phase choices:
 
