@@ -34,6 +34,7 @@
     "ops:gecko:single-candidate:plan": "tsx src/cli/geckoterminalSingleCandidatePlan.ts",
     "ops:gecko:single-candidate:validate": "tsx src/cli/geckoterminalSingleCandidateValidate.ts",
     "ops:gecko:bounded-flow:guide": "tsx src/cli/geckoterminalBoundedFlowGuide.ts",
+    "ops:gecko:bounded-flow:plan": "tsx src/cli/geckoterminalBoundedFlowPlan.ts",
     "review:queue:geckoterminal": "node --import tsx src/cli/geckoterminalReviewQueue.ts",
     "review:pending-shape:geckoterminal": "node --import tsx src/cli/geckoterminalPendingShape.ts",
     "review:manual-targets:geckoterminal": "node --import tsx src/cli/geckoterminalManualTargets.ts",
