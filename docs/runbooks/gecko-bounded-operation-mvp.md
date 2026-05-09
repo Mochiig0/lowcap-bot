@@ -1544,6 +1544,37 @@ Intent-specific `sideEffectUpperBoundSpec`:
 - `systemd=false`
 - `multiMint=false`
 
+Read-only smoke confirmation:
+
+- Target mint:
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`.
+- All three supported intents returned `status=ok`,
+  `mode=non_executor_wrapper`, `willExecute=false`, `executor=human`,
+  `operatorMode=human_gated`, `currentStage=null`, `nextStage=null`,
+  `redExecution.placeholder=true`, `redExecution.exactCommand=null`,
+  `stopConditionCodes`, `forbidden`, and `rawJsonFreeRequired=true`.
+- `enrich_rescore` returned default guards
+  `expectedMetricsCount=0`, `expectedMetadataStatus=mint_only`,
+  `expectedStage=mint_only_without_metrics`, with `tokenWrite=true`,
+  `tokenWriteMax=1`, `metricWriteMax=0`, and `tmux=false`.
+- `first_metric_snapshot` returned default guards
+  `expectedMetricsCount=0`, `expectedMetadataStatus=partial`,
+  `expectedStage=partial_without_metrics`, with `metricWriteMax=1`,
+  `tokenWrite=false`, and `tmux=false`.
+- `second_metric_snapshot` returned default guards
+  `expectedMetricsCount=1`, `expectedMetadataStatus=partial`,
+  `expectedStage=partial_with_one_metric`, with `metricWriteMax=1`,
+  `tokenWrite=false`, `tmux=true`, and
+  `tmuxSession=lowcap-gecko-metric-single`.
+- The smoke output kept `redExecution.exactCommand=null`, printed no concrete
+  tmux `new-session` command, printed no concrete `--write` Red command in
+  `redExecution`, and did not expose an exact `"rawJson":` field. The
+  `rawJsonFreeRequired=true` field is the expected specification marker.
+- The smoke did not execute existing CLIs, guide, planner, validator,
+  `nextRedCommand`, or any Red command. It did not write DB / Token / Metric
+  rows, send Telegram, run watch, start tmux, touch checkpoints, or touch
+  systemd / scheduler / queue / unbounded watch / default checkpoint behavior.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for

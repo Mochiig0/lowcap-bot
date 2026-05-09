@@ -486,6 +486,26 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   child-process / fs dependency, does not attach `--write` or `--watch`, does
   not start tmux, does not send Telegram, and does not touch checkpoints,
   systemd, scheduler / queue, unbounded watch, or default checkpoint operation.
+- Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
+  intents. `enrich_rescore`, `first_metric_snapshot`, and
+  `second_metric_snapshot` all returned `status=ok`,
+  `mode=non_executor_wrapper`, `willExecute=false`, `executor=human`,
+  `operatorMode=human_gated`, `currentStage=null`, `nextStage=null`,
+  `redExecution.placeholder=true`, `redExecution.exactCommand=null`,
+  `stopConditionCodes`, `forbidden`, and `rawJsonFreeRequired=true`; no exact
+  `"rawJson":` field was printed. The smoke confirmed the default guards and
+  side-effect bounds for each intent, including `tokenWrite=true /
+  tokenWriteMax=1 / metricWriteMax=0 / tmux=false` for `enrich_rescore`,
+  `metricWriteMax=1 / tokenWrite=false / tmux=false` for
+  `first_metric_snapshot`, and `metricWriteMax=1 / tokenWrite=false /
+  tmux=true / tmuxSession=lowcap-gecko-metric-single` for
+  `second_metric_snapshot`. It did not run existing CLIs, guide, planner,
+  validator, `nextRedCommand`, or any Red command, did not print a concrete
+  tmux new-session command or `--write` Red command in `redExecution`, and did
+  not write DB / Token / Metric rows, send Telegram, start tmux, touch
+  checkpoints, or touch systemd / scheduler / queue / unbounded watch /
+  default checkpoint operation.
 - The Gecko bounded operation runbook now includes a Red approval request
   template for the planner -> validator -> human gate flow. It collects repo
   state, target mint, baseline, planner metadata, validator result, rawJson-free
