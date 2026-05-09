@@ -631,12 +631,20 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Telegram live-loop work, but log redaction implementation, systemd journal
   readiness, default checkpoint operation, Telegram live-loop integration, and
   retention / rotation implementation remain unimplemented or deferred.
+- Telegram live loop policy is now fixed as docs-only policy. The initial live
+  send candidate is only `metric_appended`, after DB read confirmation,
+  capture-only rehearsal, safe marker checks, and a human gate. The initial
+  duplicate notification key is `mint + eventType + metricId`; events without
+  `metricId` stay capture-only. `token_completed` and `loop_complete` remain
+  capture-only, and Telegram failed-send retry, durable dedupe storage,
+  cooldown automation, queue idempotency, live-loop integration, and systemd
+  recovery remain unimplemented.
 - Multi-candidate ordering / per-item failure handling, log retention /
-  rotation implementation, systemd journal readiness, and Telegram loop send /
-  duplicate / cooldown / failed-send handling remain unresolved gates. Default
-  checkpoint operation is still unpromoted. Systemd, scheduler / queue,
-  unbounded watch, always-on operation, bounded executor prototype, and
-  automatic Red execution remain deferred until the remaining gates are fixed.
+  rotation implementation, systemd journal readiness, and Telegram runtime
+  implementation gaps remain unresolved gates. Default checkpoint operation is
+  still unpromoted. Systemd, scheduler / queue, unbounded watch, always-on
+  operation, bounded executor prototype, and automatic Red execution remain
+  deferred until the remaining gates are fixed.
 - The read-only consistency check for `c6ee95e` passed across the docs. The
   checkpoint policy, authoritative state policy, restart / resume gaps, Token
   and Metric duplicate-prevention gaps, retry / failure gaps, multi-candidate
@@ -985,23 +993,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   operator-approved shape: one mint, one stage, one human gate, one exact Red
   command, rawJson-free confirmation, and a docs record. It still requires a
   human gate for every write stage. Before any always-on work, the remaining
-  readiness gaps are default checkpoint policy, restart / resume policy,
-  multiple-candidate handling, retry / failure handling, duplicate prevention,
-  log retention, secret-free logging, Telegram loop send conditions, Telegram
-  duplicate prevention / cooldown, and clear systemd / scheduler / queue
-  boundaries. The next phase is to fix those readiness decisions in docs and
-  read-only design preflights, not to start systemd, queue workers, unbounded
-  watch, automatic Red execution, or a Telegram live loop.
+  readiness gaps are runtime implementation and operations gaps: default
+  checkpoint operation, multiple-candidate handling, log retention / rotation
+  implementation, Telegram durable dedupe / failed-send / cooldown runtime,
+  and clear systemd / scheduler / queue boundaries. The next phase is to keep
+  fixing those readiness decisions in docs and read-only design preflights, not
+  to start systemd, queue workers, unbounded watch, automatic Red execution, or
+  a Telegram live loop.
 - Executor-wrapper boundary is now the next design checkpoint, not an
   implementation milestone. A non-executor wrapper / dry-run planner may only
   assemble stage order, guards, side-effect bounds, stop conditions, approval
   request text, and command strings. It must not execute existing CLIs, run Red
   commands, write DB / Token / Metric rows, send Telegram, start tmux, update
   checkpoints, or touch systemd / scheduler / queue / unbounded watch. A
-  bounded executor prototype remains deferred until default checkpoint,
-  restart / resume, retry / failure handling, duplicate prevention, log
-  retention, secret-free logging, Telegram loop policy, and multi-candidate
-  handling are fixed.
+  bounded executor prototype remains deferred until default checkpoint
+  operation, restart / resume implementation, retry / failure implementation,
+  duplicate enforcement, log retention / rotation, secret-free logging
+  implementation, Telegram runtime dedupe / failed-send / cooldown handling,
+  and multi-candidate handling are fixed for the target runtime.
 - The non-executor wrapper / dry-run planner plan shape is now fixed as
   docs-only design, not implemented behavior. Its initial candidate input is
   one mint, one supported intent (`enrich_rescore`, `first_metric_snapshot`, or
@@ -1511,6 +1520,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
 - after the IPv4 `https.request` transport fix, `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080 --opsNotify --opsNotifyTrigger metric_appended --opsNotifyCaptureFile /tmp/lowcap-ops-notify-metric-send-capture.jsonl` has been manually confirmed for one production Telegram ops live send: the run appended exactly one Metric with `metricId=1116`, reported `writtenCount=1`, kept `tokenWriteExecutionResults=[]`, sent one `metric_appended` Telegram notification with `sentCount=1` and `status=sent`, and wrote capture-only `metric_appended` plus `loop_complete` records without secret/env/raw stdout/raw stderr/full-args style fields
 - `ops:catchup:gecko --opsNotify --opsNotifyTrigger <TRIGGER>` has the pre-send gate and safe result shape for exactly one selected ops notification trigger, and the production ops Telegram sender is connected behind that gate; `metric_appended` live send is confirmed once, while `token_completed` and `loop_complete` live sends are still unconfirmed
+- Telegram live loop policy keeps `metric_appended` as the only initial live-send candidate, using duplicate key `mint + eventType + metricId` after DB read confirmation, capture-only rehearsal, safe marker checks, and a human gate. `token_completed` and `loop_complete` remain capture-only until a later policy / Red approval changes their boundary.
 - `token_completed` and `loop_complete` now have injected-sender success tests for the selected-trigger send gate without production Telegram delivery, but the latest Red live-send preflight stopped at `no_candidate`: token-only dry-run returned `status=no_pending`, `plannedTokenWrites=0`, `pendingCount=0`, and `selectedCandidates=[]`; Metric append dry-run returned `status=no_pending`, `plannedMetricAppends=0`, `metricPendingCount=0`, `pendingCount=0`, and `selectedCandidates=[]`
 - previous ops Metric append runner failures are no longer current blockers: child-process `cli_error` / `parse_error` and stdout-empty behavior were fixed by the production runner startup and file-capture changes, and the later `fetch failed` case was isolated to environment-level DNS / network reachability rather than target-mint or runner parsing behavior
 - `ops:catchup:gecko` has not been promoted to scheduler, watch, systemd, multi-token write, multi-cycle write, or always-on operation

@@ -85,9 +85,10 @@ second Metric path as an end-to-end human-gated MVP example. This is not an
 always-on readiness signal. It proves the operator-approved unit of work: one
 mint, one stage, one human gate, one exact command, rawJson-free confirmation,
 and docs record. Before watch can become always-on, the remaining gaps are
-default checkpoint policy, restart / recovery policy, retry / failure handling,
-duplicate prevention across stages, log retention, secret-free logging,
-Telegram loop send / duplicate / cooldown policy, and the boundary between a
+default checkpoint operation, restart / recovery implementation, retry /
+failure implementation, duplicate-prevention enforcement across stages, log
+retention / rotation, secret-free logging implementation, Telegram runtime
+dedupe / failed-send / cooldown implementation, and the boundary between a
 single CLI runner and any scheduler / queue.
 
 Executor-wrapper readiness is also still a pre-watch gap. A non-executor
@@ -97,8 +98,9 @@ run Red commands, write DB / Token / Metric rows, send Telegram, start tmux, or
 update checkpoints. Bounded executor work, systemd, scheduler / queue,
 unbounded watch, default-checkpoint operation, and Telegram live-loop
 integration remain deferred until restart / resume, retry, duplicate
-prevention, log retention, secret-free logging, Telegram cooldown /
-failed-send handling, and multi-candidate policy are fixed.
+prevention, log retention, secret-free logging, Telegram runtime cooldown /
+failed-send handling, and multi-candidate policy are implemented or fixed for
+the target runtime.
 
 `ops:gecko:bounded-flow:plan` is now implemented as a non-executor wrapper /
 dry-run planner before executor work, not as watch readiness. It renders input
@@ -114,14 +116,14 @@ printed. It does not execute existing CLIs, guide, planner, validator,
 updates, Telegram sends, systemd, scheduler / queue, default-checkpoint
 operation, and unbounded watch remain outside the wrapper.
 
-Checkpoint / restart / duplicate-prevention policy is now the next watch gate.
+Checkpoint / restart / duplicate-prevention policy is now a watch gate.
 The confirmed `/tmp` checkpoint runs are bounded Red rehearsals, not default
 checkpoint readiness. DB state is the first confirmation target, while a
 checkpoint cursor is only a detect cursor and not proof that Token or Metric
 writes succeeded. Restart / resume after partial success, checkpoint/DB
 ordering failures, Metric strict duplicate enforcement, runtime retry
 automation, runtime retry max count implementation, cooldown automation, log
-retention, secret-free journal output, Telegram loop cooldown / duplicate /
+retention, secret-free journal output, Telegram runtime cooldown / duplicate /
 failed-send handling, and multi-candidate ordering remain unresolved. Keep
 default checkpoint operation, systemd, scheduler / queue, unbounded watch,
 automatic Red execution, and bounded executor prototype on hold until those
@@ -145,7 +147,7 @@ Duplicate prevention policy is now fixed at the docs level: Token dedupe uses
 mint / `Token.mint`, Metric snapshots remain time-series observations, and a
 strict Metric duplicate candidate is same `tokenId` / source / `observedAt`.
 Enforcement is still not implemented by DB constraint or pre-insert check, and
-retry, log retention, Telegram loop policy, queue idempotency, and
+retry, log retention, Telegram runtime integration, queue idempotency, and
 multi-candidate handling remain unresolved before systemd, scheduler / queue,
 or unbounded watch.
 
@@ -186,6 +188,15 @@ rather than pasted raw. Future systemd journal output needs redaction,
 retention / rotation, and field policy implementation before start; this policy
 does not make systemd, unbounded watch, default checkpoint operation, or
 Telegram live-loop integration ready.
+
+Telegram live loop policy is now fixed at the docs level, but watch readiness
+is still incomplete. The only initial live-send candidate is `metric_appended`
+after DB read confirmation, capture-only rehearsal, safe marker checks, and
+human gate. `token_completed` and `loop_complete` remain capture-only. Durable
+dedupe storage, failed-send retry, runtime cooldown automation, queue
+idempotency, systemd recovery, and live-loop integration are still
+unimplemented, so this does not make systemd, unbounded watch, or Telegram live
+loop ready.
 
 Next phase choices:
 

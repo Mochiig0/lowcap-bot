@@ -1240,21 +1240,22 @@ checkpoint operation.
 
 Readiness gaps before the next automation layer:
 
-- default checkpoint policy: when it may be used, how it is initialized, and
-  how to stop before accidental repo-local checkpoint mutation.
-- restart / resume policy: what state is authoritative after process exit,
-  partial success, rate limit, or operator interruption.
+- default checkpoint operation: the promotion gate is fixed, but the
+  repo-local checkpoint is still unpromoted.
+- restart / resume implementation: the operator policy is fixed, but runtime
+  recovery remains unimplemented.
 - multiple candidate handling: how selection, ordering, count limits, and
   same-cycle dedupe work before a runner can touch more than one mint.
-- retry / failure handling: which failures are retryable, how many retries are
-  allowed, and when a retry becomes a new human-gated task.
-- duplicate prevention: how Token and Metric uniqueness is checked across
-  detect, enrich/rescore, and snapshot stages.
-- log retention and secret-free logging: where logs live, how long they are
-  kept, and what must never be copied from stdout, stderr, journal, or capture
-  files.
-- Telegram loop policy: send conditions, duplicate prevention, cooldown,
-  failed-send handling, and capture-only rehearsal before live loop delivery.
+- retry / failure implementation: operator retry policy is fixed, but runtime
+  retry automation remains unimplemented.
+- duplicate prevention enforcement: Token policy is fixed and Metric strict
+  duplicate candidates are defined, but strict Metric enforcement is not
+  implemented.
+- log retention and secret-free runtime implementation: paste policy is fixed,
+  but retention / rotation and journal behavior are not implemented.
+- Telegram runtime implementation: docs policy is fixed, but durable dedupe
+  storage, failed-send retry, cooldown automation, capture-only consistency,
+  and live-loop integration remain unimplemented.
 - systemd unit design: restart mode, env policy, journal policy, stop command,
   and first-run bounded shape.
 - scheduler / queue boundary: what remains single-process CLI work, what a
@@ -1344,8 +1345,10 @@ Log and secret-free policy:
 Telegram live-loop policy:
 
 - Existing Telegram live-send confirmations do not make loop integration ready.
-- Send condition, duplicate prevention, cooldown, failed-send handling,
-  capture-only rehearsal, and secret-free output remain unresolved.
+- Telegram live loop policy is fixed at the docs level, but runtime
+  integration is still unimplemented.
+- The initial live-send candidate is only `metric_appended`; `token_completed`
+  and `loop_complete` remain capture-only.
 - Telegram live loop is excluded from the initial always-on / executor design.
 
 Systemd / scheduler / queue / unbounded watch gate:
@@ -1358,6 +1361,8 @@ Systemd / scheduler / queue / unbounded watch gate:
 - log / secret-free paste policy fixed, plus log retention / rotation and
   journal readiness fixed for the target runtime.
 - Telegram loop policy fixed.
+- Telegram duplicate notification storage, failed-send retry, cooldown
+  automation, capture-only consistency, and live-loop integration fixed.
 - multi-candidate ordering, count bounds, and per-item failure handling fixed.
 
 Do not proceed to systemd, scheduler / queue, unbounded watch, default
@@ -1602,6 +1607,103 @@ Relationship to future work:
 - Log redaction implementation, journal retention / rotation implementation,
   Telegram failed-send handling, and automated secret scanning remain future
   Yellow or Red-adjacent tasks depending on scope.
+
+### Telegram Live Loop Policy
+
+This is a docs-only policy for Telegram notification boundaries. It fixes the
+initial send conditions, duplicate key, cooldown meaning, failed-send handling,
+capture-only rehearsal, and safe message summary rules. It does not send
+Telegram, implement a live loop, implement durable dedupe, implement failed-send
+retry, start systemd, start a queue, use unbounded watch, or operate the default
+checkpoint.
+
+Initial send condition:
+
+- The only initial live-send candidate is `metric_appended`.
+- DB read confirmation must already show the expected one mint and one Metric.
+- `metricId` must exist.
+- `errorCount=0`, with no ambiguous write result.
+- Capture-only rehearsal for the same trigger and message shape must already
+  pass.
+- Secret-free and rawJson-free marker checks must pass.
+- Live send is allowed only after a human gate.
+- `token_completed` and `loop_complete` remain capture-only.
+
+Duplicate notification prevention:
+
+- The initial duplicate key is `mint + eventType + metricId`.
+- Events without `metricId` are not live-send candidates and stay capture-only.
+- The same duplicate key must not be sent twice.
+- Docs records are auxiliary operator logs. DB state and capture records are
+  the confirmation inputs for the current human-gated scope.
+- Durable dedupe storage, queue idempotency, and notification-key persistence
+  are not implemented. Fix them before queue or systemd work.
+
+Cooldown policy:
+
+- Telegram cooldown is separate from Red retry / cooldown policy.
+- It is not automatic retry.
+- Treat cooldown as same-key / same-mint / same-event suppression and
+  human-recheck timing only.
+- Initial policy is human-approved only, with no automatic resend.
+- Runtime cooldown automation is not implemented.
+
+Failed-send handling:
+
+- Use only safe summary fields such as `status`, `errorCode`, `sentCount`,
+  trigger, mint, and `metricId`.
+- Never log Telegram response body, request path, bot token, chat id, or a
+  token-containing URL.
+- Do not automatically retry failed sends.
+- Confirm DB state, record a safe failed-send summary, and return to human
+  gate.
+- Failed-send retry remains a later policy / implementation gap.
+
+Capture-only rehearsal:
+
+- Before live send, capture-only must be confirmed for the same trigger and
+  message shape.
+- Capture output is limited to safe summaries: trigger, mint, `metricId`, and
+  message preview.
+- If a secret marker or rawJson marker appears, do not live-send; return to
+  human gate.
+- Capture-only and live send remain separate boundaries.
+
+Message content / safe summary:
+
+- Use safe-to-log fields only: trigger, mint, name / symbol, score summary,
+  `hardRejected`, `metricsCount`, latest Metric id / source / `observedAt`,
+  `metricId`, source, and status.
+- Do not include raw payload, raw API response, exact `"rawJson"` payload,
+  secret-bearing output, bot token, chat id, or token-containing URL.
+- Avoid URL and raw metadata fields in the initial live message.
+
+Stage-specific Telegram policy:
+
+- Detect write: no live send; capture-only can be considered later.
+- `enrich_rescore`: `token_completed` remains capture-only; no live send yet.
+- Metric snapshot: `metric_appended` is the only initial live-send candidate.
+- Tmux single-run: not a Telegram lane; require a separate DB-confirmed gate
+  before any notification work.
+- Ops / catchup: keep existing preview / capture / gated-send boundaries.
+- Systemd loop: out of scope and unimplemented.
+
+Never include in this policy:
+
+- systemd / scheduler / queue / unbounded watch.
+- default checkpoint promotion.
+- automatic Red execution.
+- bounded executor prototype.
+- retry automation.
+- raw Telegram response body, token, chat id, or token-bearing request path.
+
+Relationship to future work:
+
+- This policy is one readiness prerequisite, not live-loop readiness.
+- Future work still includes durable duplicate notification storage,
+  failed-send retry policy / implementation, runtime cooldown automation,
+  queue idempotency, systemd recovery, and capture-only rehearsal consistency
+  checks.
 
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
@@ -2061,8 +2163,8 @@ A bounded executor prototype is a later milestone and is still unimplemented.
 Before it exists, the project must fix the default checkpoint policy, restart /
 resume policy, partial-success handling, retry / failure handling, duplicate
 prevention across Token and Metric writes, log retention, secret-free logging,
-Telegram send / duplicate / cooldown / failed-send policy, capture-only
-rehearsal, and multi-candidate handling. The prototype must not bypass the
+Telegram runtime dedupe / cooldown / failed-send implementation,
+capture-only consistency, and multi-candidate handling. The prototype must not bypass the
 human gate, and it must not start as a multi-mint runner, queue worker, systemd
 service, or unbounded watch.
 
@@ -2070,9 +2172,9 @@ Systemd, scheduler / queue, and unbounded watch are further downstream than a
 bounded executor prototype. Do not enter that layer until restart / recovery,
 duplicate prevention, checkpoint behavior, and secret-free logging are fixed.
 Existing Telegram checks do not make Telegram live-loop integration ready; the
-wrapper boundary excludes Telegram until send conditions, duplicate prevention,
-cooldown, failed-send handling, capture-only rehearsal, and secret-free logging
-are fixed.
+wrapper boundary excludes Telegram until the fixed docs policy is backed by
+runtime dedupe, failed-send handling, cooldown automation, capture-only
+consistency, and secret-free implementation in the intended runtime scope.
 
 ### Non-Executor Wrapper / Dry-Run Planner
 

@@ -55,6 +55,11 @@ and one production Telegram ops live send for `metric_appended`:
   stdout/raw stderr/full-args style fields.
 - `token_completed` and `loop_complete` have injected-sender selected-trigger
   success tests without production Telegram delivery.
+- Telegram live loop policy now keeps `metric_appended` as the only initial
+  live-send candidate after DB read confirmation, capture-only rehearsal,
+  safe marker checks, and human gate. `token_completed` and `loop_complete`
+  stay capture-only, and the loop / retry / dedupe / cooldown runtime remains
+  unimplemented.
 - the latest Red live-send preflight for `token_completed` / `loop_complete`
   stopped at `no_candidate`: token-only dry-run reported `status=no_pending`,
   `plannedTokenWrites=0`, `pendingCount=0`, and `selectedCandidates=[]`;
@@ -903,9 +908,9 @@ Do not run a Red Telegram live-send execution when the read-only preflight has
 no eligible candidate. Do not create a write target only to confirm a live send.
 When a future eligible candidate appears, first run the read-only preflight,
 then choose exactly one command, get explicit Red permission, and only then run
-that command once. Use `--opsNotifyTrigger token_completed` or
-`--opsNotifyTrigger loop_complete` to keep the selected production send to one
-trigger.
+that command once. The current policy keeps production live send limited to
+`--opsNotifyTrigger metric_appended`; `token_completed` and `loop_complete`
+remain capture-only.
 
 ## Phase Update Criteria
 
@@ -925,6 +930,10 @@ Use these markers:
   `status=sent`, the selected trigger is `metric_appended`, exactly one Metric
   row was appended, and capture-only JSONL records were written without
   secret/env/raw-output/full-args leakage.
+- Telegram live loop policy fixed: `metric_appended` is the only initial live
+  candidate, duplicate key is `mint + eventType + metricId`, and live send
+  still requires DB read confirmation, capture-only rehearsal, marker checks,
+  and human gate.
 
 Keep the phase unchanged when:
 
@@ -948,6 +957,8 @@ This loop does not yet include:
 - automatic retry or resume
 - `token_completed` Telegram ops live-send execution
 - `loop_complete` Telegram ops live-send execution
+- Telegram live loop integration, durable dedupe storage, failed-send retry, or
+  cooldown automation
 - generic multi-source adapter runtime
 
 ## Next Candidate Steps
@@ -955,8 +966,8 @@ This loop does not yet include:
 After this confirmed minimum loop, the next small operating steps are either:
 
 - run one more explicit Token to Metric loop to confirm repeatability
-- decide whether `token_completed` or `loop_complete` should get its own
-  bounded live-send confirmation
+- define the next docs-only runtime gate before any additional Telegram live
+  send category is approved
 
 ## Notes
 
