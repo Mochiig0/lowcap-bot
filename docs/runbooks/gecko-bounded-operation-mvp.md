@@ -2317,8 +2317,10 @@ Telegram failed-send retry:
 
 - Telegram sender failed status / error code and live-loop retry are separate
   concerns.
-- Send condition, duplicate prevention, cooldown, failed-send handling,
-  capture-only rehearsal, and secret-free output remain future policy work.
+- Send condition, capture-only rehearsal consistency, and log / secret-free
+  output policy are fixed at the docs level.
+- Durable notification dedupe storage, runtime integration, cooldown
+  automation, and failed-send handling / retry remain future work.
 - Telegram failed-send retry is outside this retry max count policy.
 
 Systemd / queue retry:
