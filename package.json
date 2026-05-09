@@ -47,6 +47,7 @@
     "tokens:compare-report": "tsx src/cli/tokensCompareReport.ts",
     "metric:show": "tsx src/cli/metricShow.ts",
     "metrics:report": "tsx src/cli/metricsReport.ts",
+    "notification:send": "node --import tsx src/cli/notificationLiveSend.ts",
     "smoke": "node --import tsx src/cli/smokeTest.ts",
     "test": "node --import tsx --test tests/*.test.ts"
   },
