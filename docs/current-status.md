@@ -506,6 +506,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `exactCommand=null`. The non-executor boundary remains intact: no existing
   CLI, guide, planner, validator, `nextRedCommand`, Red command, DB / Token /
   Metric write, Telegram, tmux, checkpoint, or systemd work is performed.
+- The read-only consistency check for `fa3ccac` also passed across the docs:
+  the `status=ok` / `status=stop` output semantics remain aligned, stop output
+  still uses `commands=null` with no `redExecution`, `exactCommand`, or concrete
+  command, and `bounded-flow:plan` remains a non-executor planning aid. Automatic
+  Red execution, executor wrapper, always-on operation, systemd, scheduler /
+  queue, unbounded watch, and default checkpoint operation remain unimplemented
+  or deferred.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and

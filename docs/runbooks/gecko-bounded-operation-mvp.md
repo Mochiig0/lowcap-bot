@@ -1474,6 +1474,14 @@ while `status=ok` keeps commands plus `redExecution.placeholder=true` and
 `forbidden` remains wrapper-specific, and the CLI remains a non-executor
 planning aid rather than an executor wrapper or automatic Red runner.
 
+Read-only recheck note: `fa3ccac` has also passed docs consistency for the same
+boundary. The docs agree that ok output includes commands with
+`redExecution.placeholder=true` and `exactCommand=null`, while stop output is
+`commands=null` with no `redExecution`, no `exactCommand`, and no concrete
+command. This recheck did not change the non-executor boundary and does not
+promote automatic Red execution, executor wrapper, always-on operation,
+systemd, scheduler / queue, unbounded watch, or default checkpoint operation.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`
