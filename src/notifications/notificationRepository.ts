@@ -157,6 +157,9 @@ export async function markNotificationSent(
       status: "sent",
       mode: "live_send",
       sentAt: input.sentAt ?? new Date(),
+      failedAt: null,
+      errorCode: null,
+      reason: null,
     },
   });
 }

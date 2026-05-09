@@ -13,6 +13,7 @@ type Args = {
   notificationKey: string;
   trigger: NotificationLiveSendTrigger;
   live: boolean;
+  retryFailed: boolean;
 };
 
 class CliUsageError extends Error {}
@@ -20,11 +21,12 @@ class CliUsageError extends Error {}
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm notification:send -- --notificationKey <KEY> --trigger metric_appended [--live]",
+    "pnpm notification:send -- --notificationKey <KEY> --trigger metric_appended [--live] [--retryFailed]",
     "",
     "Defaults:",
     "- dry-run lookup by default; sender is called only with explicit --live",
     "- only metric_appended is supported",
+    "- failed rows require explicit --retryFailed; sent rows are never resent",
   ].join("\n");
 }
 
@@ -49,6 +51,7 @@ export function parseNotificationLiveSendArgs(argv: string[]): Args {
   let notificationKey: string | null = null;
   let trigger: NotificationLiveSendTrigger | null = null;
   let live = false;
+  let retryFailed = false;
 
   for (let i = 0; i < normalizedArgv.length; i += 1) {
     const key = normalizedArgv[i];
@@ -59,6 +62,11 @@ export function parseNotificationLiveSendArgs(argv: string[]): Args {
 
     if (key === "--live") {
       live = true;
+      continue;
+    }
+
+    if (key === "--retryFailed") {
+      retryFailed = true;
       continue;
     }
 
@@ -88,6 +96,7 @@ export function parseNotificationLiveSendArgs(argv: string[]): Args {
     notificationKey,
     trigger,
     live,
+    retryFailed,
   };
 }
 
@@ -100,6 +109,7 @@ export async function runNotificationLiveSendCli(
     notificationKey: args.notificationKey,
     trigger: args.trigger,
     live: args.live,
+    retryFailed: args.retryFailed,
     sender: args.live ? sendOpsTelegramNotification : undefined,
   });
 

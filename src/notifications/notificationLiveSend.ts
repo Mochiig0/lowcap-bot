@@ -31,6 +31,7 @@ export type SendNotificationByKeyInput = {
   notificationKey: string;
   trigger: OpsNotificationTrigger;
   live: boolean;
+  retryFailed?: boolean;
   sender?: OpsNotificationSender;
 };
 
@@ -79,6 +80,8 @@ function normalizeSafeErrorCode(errorCode: string | null | undefined): string {
 export async function sendNotificationByKey(
   input: SendNotificationByKeyInput,
 ): Promise<NotificationLiveSendResult> {
+  const retryFailed = input.retryFailed ?? false;
+
   if (input.trigger !== "metric_appended") {
     return blocked({
       notificationKey: input.notificationKey,
@@ -132,7 +135,14 @@ export async function sendNotificationByKey(
     });
   }
 
-  if (notification.status !== "captured" || notification.mode !== "capture_only") {
+  if (retryFailed) {
+    if (notification.status !== "failed" || notification.mode !== "live_send") {
+      return blocked({
+        ...base,
+        blockedBy: ["notification_retry_not_failed"],
+      });
+    }
+  } else if (notification.status !== "captured" || notification.mode !== "capture_only") {
     return blocked({
       ...base,
       blockedBy: ["notification_not_captured"],
