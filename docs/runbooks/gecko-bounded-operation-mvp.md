@@ -1263,6 +1263,99 @@ Readiness gaps before the next automation layer:
   behavior, rate-limit behavior, and operator visibility before any unlimited
   loop.
 
+### Checkpoint / Restart / Duplicate-Prevention Policy
+
+This is a docs-only policy boundary for the current human-gated MVP. It does
+not promote default checkpoint operation, systemd, scheduler / queue, unbounded
+watch, automatic Red execution, or a bounded executor prototype.
+
+Checkpoint policy:
+
+- `/tmp` checkpoint files are for bounded Red runs and rehearsals only. They
+  isolate checkpoint movement from the repo-local default checkpoint and are
+  not systemd / always-on persistent state.
+- The default Gecko detect checkpoint remains
+  `data/checkpoints/geckoterminal-new-pools.json`. It is not promoted yet and
+  must not be used until initialization, restart, resume, failure, and log
+  policy are fixed.
+- `--checkpointFile` belongs to the `--watch --write` detect path. It is not a
+  dry-run guard and must not be introduced into a write approval unless the
+  checkpoint side effect is explicitly bounded.
+
+Authoritative state policy:
+
+- DB state is the first confirmation target for Token and Metric outcomes.
+- A checkpoint cursor is only a detect cursor. It is not proof that Token or
+  Metric writes succeeded.
+- Docs records are operator logs, not runtime authoritative state.
+- Latest Metric is Metric-stage evidence and does not replace the detect
+  checkpoint or Token state.
+
+Restart / resume gaps that still block always-on work:
+
+- checkpoint advanced but DB write failed.
+- DB write succeeded but checkpoint update failed.
+- partial success in a multi-item or multi-stage operation.
+- interruption after write but before report confirmation.
+- interruption after Red execution but before docs record.
+
+Until those cases have exact procedures, resume manually from read-only DB /
+report confirmation and return to `bounded-flow:plan` -> planner -> validator
+-> human gate for the next write.
+
+Duplicate-prevention policy:
+
+- Token duplicate prevention is currently backed by `Token.mint` uniqueness and
+  the mint importer's existing-token path. `existingCount` is not a failure by
+  itself; it means the candidate mapped to an already stored Token.
+- Metric snapshot is a time-series append lane. Repeated same-mint snapshots
+  are expected observations, not automatically duplicates.
+- Strict same `tokenId` / source / `observedAt` Metric duplicate policy is not
+  fixed. Until it is, use `--minGapMinutes`, `metricsCount` guards, latest
+  Metric confirmation, and human gate bounds.
+- Multi-mint or queue execution needs per-item duplicate policy, ordering, and
+  failure handling before it is allowed.
+
+Retry / failure policy:
+
+- `errorCount > 0` does not authorize automatic continuation.
+- `selectedCount > 1` or `writtenCount > 1` is a stop condition for current
+  single-mint bounded flows unless a separate approval explicitly raises the
+  bound.
+- Retry maximums, cooldowns, and human-gate return conditions are not fixed.
+- After a failed or partial run, the interim procedure is to stop, inspect
+  read-only reports, and rebuild the next approval through `bounded-flow:plan`,
+  planner, validator, and human gate.
+
+Log and secret-free policy gaps:
+
+- Keep rawJson-free reports and secret-marker checks.
+- `/tmp` log retention / rotation is not fixed.
+- Journal / systemd log fields are not fixed.
+- Do not paste `.env`, Telegram tokens, chat ids, raw env, raw stdout, raw
+  stderr, or full command args that could contain secrets.
+
+Telegram live-loop policy:
+
+- Existing Telegram live-send confirmations do not make loop integration ready.
+- Send condition, duplicate prevention, cooldown, failed-send handling,
+  capture-only rehearsal, and secret-free output remain unresolved.
+- Telegram live loop is excluded from the initial always-on / executor design.
+
+Systemd / scheduler / queue / unbounded watch gate:
+
+- default checkpoint policy fixed.
+- restart / resume policy fixed.
+- retry / failure policy fixed.
+- duplicate prevention fixed for Token, Metric, and multi-candidate execution.
+- log retention and secret-free logging fixed.
+- Telegram loop policy fixed.
+- multi-candidate ordering, count bounds, and per-item failure handling fixed.
+
+Do not proceed to systemd, scheduler / queue, unbounded watch, default
+checkpoint operation, bounded executor prototype, or automatic Red execution
+while any item above is unresolved.
+
 Recommended next order:
 
 1. docs-only readiness gap fixed.

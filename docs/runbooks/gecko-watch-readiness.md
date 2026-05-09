@@ -114,6 +114,18 @@ printed. It does not execute existing CLIs, guide, planner, validator,
 updates, Telegram sends, systemd, scheduler / queue, default-checkpoint
 operation, and unbounded watch remain outside the wrapper.
 
+Checkpoint / restart / duplicate-prevention policy is now the next watch gate.
+The confirmed `/tmp` checkpoint runs are bounded Red rehearsals, not default
+checkpoint readiness. DB state is the first confirmation target, while a
+checkpoint cursor is only a detect cursor and not proof that Token or Metric
+writes succeeded. Restart / resume after partial success, checkpoint/DB
+ordering failures, Metric strict duplicate policy, retry limits, log retention,
+secret-free journal output, Telegram loop cooldown / duplicate / failed-send
+handling, and multi-candidate ordering remain unresolved. Keep default
+checkpoint operation, systemd, scheduler / queue, unbounded watch, automatic
+Red execution, and bounded executor prototype on hold until those policies are
+fixed.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

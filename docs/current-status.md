@@ -564,6 +564,22 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   non-automatic execution boundary, and Red is a separate exact-command task.
   `bounded-flow:plan` remains a `non_executor_wrapper` planning aid and does
   not run guide, planner, validator, `nextRedCommand`, or Red.
+- The always-on readiness gap is now narrowed to checkpoint / restart /
+  duplicate-prevention / retry policy before any further automation. The
+  current policy keeps `/tmp` checkpoints for bounded Red runs only and keeps
+  the default Gecko checkpoint (`data/checkpoints/geckoterminal-new-pools.json`)
+  unpromoted. DB state is the first confirmation target, checkpoint cursors are
+  detect cursors rather than proof of Token / Metric success, docs records are
+  operator logs rather than runtime state, and latest Metric is Metric-stage
+  evidence rather than a detect checkpoint substitute. The safe operating unit
+  remains one mint, one stage, one human gate, and one exact command.
+- Restart / resume, partial-success handling, automatic retry, Metric strict
+  duplicate policy, multi-candidate ordering / per-item failure handling, log
+  retention, secret-free journal policy, and Telegram loop send / duplicate /
+  cooldown / failed-send handling remain unresolved gates. Systemd, scheduler
+  / queue, unbounded watch, default checkpoint operation, bounded executor
+  prototype, and automatic Red execution remain deferred until those gates are
+  fixed.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and
