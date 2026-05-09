@@ -219,6 +219,24 @@ function assertCommonNonExecutorOutput(output: PlanOutput): void {
   assert.equal(output.rawJsonFreeRequired, true);
 }
 
+function assertStopOutputSafety(result: RunResult, output: PlanOutput): void {
+  assert.equal(output.status, "stop");
+  assert.equal(output.commands, null);
+  assertCommonNonExecutorOutput(output);
+  assert.equal(result.stdout.includes('"rawJson":'), false);
+  assert.equal(result.stdout.includes('"exactCommand"'), false);
+  assert.equal(result.stdout.includes("tmux new-session"), false);
+  assert.equal(
+    result.stdout.includes("metric:snapshot:geckoterminal -- --mint"),
+    false,
+  );
+  assert.equal(
+    result.stdout.includes("token:enrich-rescore:geckoterminal -- --mint"),
+    false,
+  );
+  assert.equal(result.stdout.includes("detect:geckoterminal:new-pools"), false);
+}
+
 function assertCommands(output: PlanOutput, intent: string): void {
   assert.ok(output.commands);
   assert.ok(output.commands.baseline.some((command) => command.includes("token:compare")));
@@ -251,9 +269,8 @@ test("geckoterminal bounded flow non-executor plan", async (t) => {
     const output = parseOutput(result);
 
     assert.equal(result.code, 1);
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /missing mint/);
-    assert.equal(output.willExecute, false);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("stops when --intent is missing", async () => {
@@ -261,82 +278,76 @@ test("geckoterminal bounded flow non-executor plan", async (t) => {
     const output = parseOutput(result);
 
     assert.equal(result.code, 1);
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /missing intent/);
-    assert.equal(output.willExecute, false);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("stops on invalid --intent", async () => {
-    const output = parseOutput(
-      await runPlan(["--mint", TARGET_MINT, "--intent", "unknown"]),
-    );
+    const result = await runPlan(["--mint", TARGET_MINT, "--intent", "unknown"]);
+    const output = parseOutput(result);
 
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /invalid intent/);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("stops on duplicate --intent", async () => {
-    const output = parseOutput(
-      await runPlan([
-        "--mint",
-        TARGET_MINT,
-        "--intent",
-        "enrich_rescore",
-        "--intent",
-        "first_metric_snapshot",
-      ]),
-    );
+    const result = await runPlan([
+      "--mint",
+      TARGET_MINT,
+      "--intent",
+      "enrich_rescore",
+      "--intent",
+      "first_metric_snapshot",
+    ]);
+    const output = parseOutput(result);
 
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /duplicate --intent/);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("stops on invalid expectedMetricsCount", async () => {
-    const output = parseOutput(
-      await runPlan([
-        "--mint",
-        TARGET_MINT,
-        "--intent",
-        "first_metric_snapshot",
-        "--expectedMetricsCount",
-        "1.5",
-      ]),
-    );
+    const result = await runPlan([
+      "--mint",
+      TARGET_MINT,
+      "--intent",
+      "first_metric_snapshot",
+      "--expectedMetricsCount",
+      "1.5",
+    ]);
+    const output = parseOutput(result);
 
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /invalid expectedMetricsCount/);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("stops on invalid expectedMetadataStatus", async () => {
-    const output = parseOutput(
-      await runPlan([
-        "--mint",
-        TARGET_MINT,
-        "--intent",
-        "first_metric_snapshot",
-        "--expectedMetadataStatus",
-        "enriched",
-      ]),
-    );
+    const result = await runPlan([
+      "--mint",
+      TARGET_MINT,
+      "--intent",
+      "first_metric_snapshot",
+      "--expectedMetadataStatus",
+      "enriched",
+    ]);
+    const output = parseOutput(result);
 
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /invalid expectedMetadataStatus/);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("stops on invalid expectedStage", async () => {
-    const output = parseOutput(
-      await runPlan([
-        "--mint",
-        TARGET_MINT,
-        "--intent",
-        "first_metric_snapshot",
-        "--expectedStage",
-        "partial_with_two_metrics",
-      ]),
-    );
+    const result = await runPlan([
+      "--mint",
+      TARGET_MINT,
+      "--intent",
+      "first_metric_snapshot",
+      "--expectedStage",
+      "partial_with_two_metrics",
+    ]);
+    const output = parseOutput(result);
 
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /invalid expectedStage/);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("applies enrich_rescore defaults", async () => {
@@ -418,9 +429,8 @@ test("geckoterminal bounded flow non-executor plan", async (t) => {
     const output = parseOutput(result);
 
     assert.equal(result.code, 1);
-    assert.equal(output.status, "stop");
     assert.match(output.reason, /intent conflict/);
-    assert.equal(output.willExecute, false);
+    assertStopOutputSafety(result, output);
   });
 
   await t.test("keeps redExecution as a placeholder without exact command", async () => {
