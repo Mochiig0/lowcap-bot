@@ -2360,7 +2360,13 @@ temp-SQLite repository test. Commit `905d3ac` then connected the repository to
 `ops:catchup:gecko` capture-only output for `metric_appended` records only. It
 does not connect Telegram live send, sent / failed runtime marking,
 `token_completed` / `loop_complete` Notification writes, failed-send retry, or
-queue / systemd runtime.
+queue / systemd runtime. Commit `442cf8e` then added the
+`metric:snapshot:geckoterminal -- --mint <MINT> --write` single-mint
+Notification capture hook for `metric_appended` after a successful Metric
+create, with Metric create maximum 1, Notification create maximum 1, Token
+write 0, Telegram send 0, checkpoint write 0, and temp-SQLite test coverage
+without writing production `prisma/dev.db`. Batch / limit `metric:snapshot`
+Notification writes are still out of scope.
 
 Migration baseline policy:
 
@@ -2431,8 +2437,9 @@ Completed:
 Still excluded:
 
 - DB write integration test.
-- broader runtime Notification record write integration beyond
-  `metric_appended` capture-only.
+- broader runtime Notification record write integration beyond the
+  `metric_appended` capture-only hooks.
+- batch / limit mode Notification writes for `metric:snapshot:geckoterminal`.
 - `token_completed` / `loop_complete` Notification write integration.
 - Telegram live-send integration.
 - failed-send retry.

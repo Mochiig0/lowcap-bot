@@ -251,10 +251,15 @@ The initial key remains `mint + eventType + metricId` for `metric_appended`;
 `token_completed` and `loop_complete` remain capture-only. DB table creation /
 apply is now complete for `prisma/dev.db`, and the minimal Notification
 repository is implemented. The `metric_appended` capture-only Notification
-record write integration is now implemented for `ops:catchup:gecko`, but
-`token_completed` / `loop_complete` Notification writes, Telegram live-loop
-integration, queue idempotency, systemd recovery, default checkpoint operation,
-and unbounded watch remain unimplemented.
+record write integration is now implemented for `ops:catchup:gecko`, and the
+`metric:snapshot:geckoterminal -- --mint <MINT> --write` single-mint path now
+records one `metric_appended` Notification capture row after Metric create,
+with Metric create maximum 1, Notification create maximum 1, Token write 0,
+Telegram send 0, checkpoint write 0, and temp-SQLite test coverage without
+writing production `prisma/dev.db`. Batch / limit `metric:snapshot`
+Notification writes, `token_completed` / `loop_complete` Notification writes,
+Telegram live-loop integration, queue idempotency, systemd recovery, default
+checkpoint operation, and unbounded watch remain unimplemented.
 
 Notification schema / migration baseline policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. The first
@@ -269,10 +274,17 @@ Commit `905d3ac` connects it to `ops:catchup:gecko` capture-only output for
 `status=captured`, `mode=capture_only`, safe `messagePreview`, one
 Notification create maximum per run, duplicate-key count stability, and skip
 behavior for missing `mint` / `metricId` or multiple captured
-`metric_appended` records. `token_completed` / `loop_complete` Notification
-writes, queue idempotency, Telegram live-loop integration, sent / failed
-runtime marking, systemd recovery, default checkpoint operation, and unbounded
-watch remain unimplemented.
+`metric_appended` records. Commit `442cf8e` adds the
+`metric:snapshot:geckoterminal` single-mint Notification capture hook for
+`--mint <MINT> --write`, using key `${mint}:metric_appended:${metricId}`,
+`trigger=metric_appended`, `status=captured`, `mode=capture_only`,
+`source=metric:snapshot:geckoterminal`, safe `messagePreview`, and one
+Notification create maximum after Metric create; the focused test uses temp
+SQLite and does not write production `prisma/dev.db`, and batch / limit mode is
+still not a Notification write target. `token_completed` / `loop_complete`
+Notification writes, queue idempotency, Telegram live-loop integration, sent /
+failed runtime marking, systemd recovery, default checkpoint operation, and
+unbounded watch remain unimplemented.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the

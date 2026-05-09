@@ -645,8 +645,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Durable notification dedupe policy is fixed for the initial Telegram key
   `mint + eventType + metricId`; schema, DB table, minimal repository, and the
   `metric_appended` capture-only Notification record write integration now
-  exist, but broader runtime Notification record write integration remains
-  incomplete.
+  exist. Commit `442cf8e` also adds the
+  `metric:snapshot:geckoterminal -- --mint <MINT> --write` single-mint
+  Notification capture hook for `metric_appended`. Batch / limit
+  `metric:snapshot` Notification writes and broader runtime Notification
+  record write integration remain incomplete.
   Docs records remain audit logs, and capture records / DB state remain
   confirmation inputs rather than the queue runtime's dedupe store.
   Capture-only rehearsal consistency is now fixed as docs-only policy: capture
@@ -684,9 +687,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `status` / `mode`, and `sentAt` as the future sent proof. Migration apply /
   DB table creation for `Notification` is complete, and the
   `metric_appended` capture-only write integration is implemented. Durable
-  storage runtime beyond that narrow capture path, `token_completed` /
-  `loop_complete` writes, Telegram live-loop integration, queue idempotency,
-  and systemd recovery remain unimplemented.
+  storage runtime beyond the narrow `metric_appended` capture hooks,
+  `token_completed` / `loop_complete` writes, Telegram live-loop integration,
+  queue idempotency, and systemd recovery remain unimplemented.
 - Notification model / migration baseline policy is now fixed as docs-only
   policy. The repo currently has `prisma/schema.prisma`, `prisma/dev.db`, and
   formal migration files under `prisma/migrations`; the first Yellow schema cut
@@ -1608,6 +1611,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `metric:snapshot:geckoterminal --prioritizeRichPending` is an experimental default-off batch-only selection preference that keeps the existing recency order inside ties but pulls non-`mint_only` rows, then rows with stored `reviewFlagsJson`, then rows with positive `reviewFlagsCount` slightly earlier
 - `metric:snapshot:geckoterminal --pumpOnly` is batch-only narrowing for mint strings ending with `pump`, intended for trailing observation of the same fast-follow cohort while leaving `--mint` single-token execution unchanged
 - `metric:snapshot:geckoterminal --write` appends one `Metric` row per successful snapshot without mutating token fields
+- `metric:snapshot:geckoterminal -- --mint <MINT> --write` now records one
+  `metric_appended` Notification capture record after a successful single-mint
+  Metric create, using notification key `${mint}:metric_appended:${metricId}`,
+  `trigger=metric_appended`, `status=captured`, `mode=capture_only`,
+  `source=metric:snapshot:geckoterminal`, and safe `messagePreview`. This hook
+  is limited to single-mint mode with Metric create maximum 1, Notification
+  create maximum 1, Token write 0, Telegram send 0, and checkpoint write 0 per
+  run. It is covered by a temp-SQLite test and did not write to production
+  `prisma/dev.db`. Batch / limit mode Notification writes, Telegram live-loop
+  integration, sent / failed runtime marking, failed-send retry, queue /
+  systemd, default checkpoint operation, automatic Red execution, and
+  always-on bot operation remain unimplemented.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields

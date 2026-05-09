@@ -899,6 +899,14 @@ Write commands mutate data and require explicit current-turn permission:
 - `detect:geckoterminal:new-pools --write` creates or reuses one mint-only token through the mint-first boundary
 - `ops:catchup:gecko --write` performs one gated token-only write through `token:enrich-rescore:geckoterminal`
 - `metric:snapshot:geckoterminal --write` appends one `Metric` row for a successful snapshot
+- `metric:snapshot:geckoterminal -- --mint <MINT> --write` now records one
+  `metric_appended` Notification capture record after the successful
+  single-mint Metric create, using key `${mint}:metric_appended:${metricId}`,
+  `trigger=metric_appended`, `status=captured`, `mode=capture_only`,
+  `source=metric:snapshot:geckoterminal`, and safe `messagePreview`. The hook
+  is not enabled for batch / limit mode; its side-effect boundary is Metric
+  create maximum 1, Notification create maximum 1, Token write 0, Telegram send
+  0, and checkpoint write 0 per single-mint run.
 - `ops:catchup:gecko --write --metricAppend` delegates exactly one Metric append through the production runner only when the gated one-token, one-cycle Metric-only plan is eligible
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` appends ops notification preview records to a local JSONL file only; live Telegram send happens only when `--opsNotify` is also explicitly requested and the selected trigger passes the send gate
 
@@ -996,6 +1004,14 @@ Use these markers:
   `mode=capture_only`, safe `messagePreview`, one Notification create maximum
   per run, duplicate-key count stability, and skip behavior for missing
   `mint` / `metricId` or multiple captured `metric_appended` records.
+  Commit `442cf8e` also connects the single-mint
+  `metric:snapshot:geckoterminal -- --mint <MINT> --write` path to the same
+  capture-only Notification boundary after Metric create, with
+  `${mint}:metric_appended:${metricId}`, `trigger=metric_appended`,
+  `status=captured`, `mode=capture_only`, and
+  `source=metric:snapshot:geckoterminal`. Batch / limit mode Notification
+  writes remain out of scope. Its focused test uses temp SQLite and does not
+  write production `prisma/dev.db`.
   `token_completed` / `loop_complete` Notification writes, Telegram, sent /
   failed runtime marking, queue, scheduler, systemd, default checkpoint,
   automatic Red execution, and always-on bot operation remain unimplemented.
