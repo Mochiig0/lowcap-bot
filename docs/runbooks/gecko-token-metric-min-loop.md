@@ -1035,10 +1035,19 @@ Use these markers:
   `status=sent`, `mode=live_send`, and `sentAt`, marks failure as
   `status=failed`, `mode=live_send`, `failedAt`, and safe `errorCode` /
   `reason`, creates no Notification rows, and adds no Metric / Token writes.
-  Real Telegram live send and Red live-send rehearsal remain unexecuted.
-  `token_completed` / `loop_complete` Notification writes and live-send
-  marking, failed-send retry, queue, scheduler, systemd, default checkpoint,
-  automatic Red execution, and always-on bot operation remain unimplemented.
+  Commit `983b7e3` adds the notificationKey-specified live-send rehearsal path
+  and `pnpm notification:send`: dry-run is the default, `--live` is required
+  before any sender call, only `metric_appended` is supported, one existing row
+  is looked up by `notificationKey`, missing / already sent / non-captured rows
+  and missing `mint` / `metricId` are blocked, and success / failure updates at
+  most one row through the safe sent / failed marking APIs. It creates no
+  Notification rows, adds no Metric / Token writes, stores no Telegram response
+  body, request path, bot token, chat id, or env value, and is covered by
+  temp-SQLite mocked-sender tests. The notificationKey-specified real Telegram
+  live send and Red rehearsal remain unexecuted. `token_completed` /
+  `loop_complete` Notification writes and live-send marking, failed-send retry,
+  queue, scheduler, systemd, default checkpoint, automatic Red execution, and
+  always-on bot operation remain unimplemented.
 
 Keep the phase unchanged when:
 

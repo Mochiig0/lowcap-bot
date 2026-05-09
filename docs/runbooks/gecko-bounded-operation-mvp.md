@@ -2389,6 +2389,19 @@ safe `errorCode` / `reason`. It does not create Notification rows, does not add
 Metric / Token writes, does not store Telegram response bodies, request paths,
 bot tokens, chat ids, or env values, and does not execute real Telegram live
 send or Red live-send rehearsal.
+Commit `983b7e3` adds the notificationKey-specified live-send rehearsal path
+and `pnpm notification:send`. The CLI is default dry-run / no-send, requires
+explicit `--live` before any sender call, supports `metric_appended` only,
+looks up one existing Notification row by `notificationKey`, blocks missing
+rows, already `sent` rows, non-`captured` / non-`capture_only` rows, and
+missing `mint` / `metricId`, and then updates at most one row through
+`markNotificationSent` or `markNotificationFailed`. It creates no Notification
+rows, adds no Metric / Token writes, stores no Telegram response bodies,
+request paths, bot tokens, chat ids, or env values, and is covered by
+temp-SQLite mocked-sender tests. The notificationKey-specified real Telegram
+live send / Red rehearsal remains unexecuted, and failed-send retry, queue,
+scheduler, systemd, default checkpoint operation, automatic Red execution, and
+always-on operation remain unimplemented.
 
 Migration baseline policy:
 

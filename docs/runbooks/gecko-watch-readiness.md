@@ -309,6 +309,17 @@ keeps sender calls and Notification updates to at most one. `token_completed` /
 real Telegram live-loop execution, failed-send retry automation, systemd
 recovery, default checkpoint operation, and unbounded watch remain
 unimplemented.
+Commit `983b7e3` adds the notificationKey-specified live-send rehearsal path
+and `pnpm notification:send`. It is default dry-run / no-send, requires
+explicit `--live` for any sender call, supports `metric_appended` only, blocks
+missing rows, already `sent` rows, non-`captured` / non-`capture_only` rows,
+and missing `mint` / `metricId`, and updates at most one existing Notification
+row through the safe sent / failed marking APIs. Its tests use temp SQLite and
+mocked sender only; production `prisma/dev.db`, real Telegram, and `.env` are
+not used by the tests. The notificationKey-specified real Telegram Red
+rehearsal is still unexecuted, and retry, queue, scheduler, systemd, default
+checkpoint operation, automatic Red execution, and always-on operation remain
+unimplemented.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the

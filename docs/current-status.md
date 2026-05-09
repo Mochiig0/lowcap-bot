@@ -748,11 +748,23 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `markNotificationFailed` and sets `status=failed`, `mode=live_send`,
   `failedAt`, and safe `errorCode` / `reason`. It is covered by temp-SQLite
   mocked-sender tests, does not create Notification rows, and keeps sender
-  calls and Notification updates to at most one. `token_completed` /
-  `loop_complete` Notification writes and live-send marking, real Telegram live
-  send, Red live-send rehearsal, failed-send retry automation, queue,
-  scheduler, systemd, durable queue runtime, default checkpoint operation,
-  automatic Red execution, and always-on bot operation remain later work.
+  calls and Notification updates to at most one. Commit `983b7e3` adds the
+  notificationKey-specified live-send rehearsal path and `pnpm
+  notification:send`: the CLI is default dry-run / no-send, requires explicit
+  `--live` for a sender call, supports `metric_appended` only, looks up exactly
+  one existing Notification row by `notificationKey`, blocks missing rows,
+  already `sent` rows, non-`captured` / non-`capture_only` rows, and missing
+  `mint` / `metricId`, then uses `markNotificationSent` or
+  `markNotificationFailed` with safe `errorCode` / fixed safe `reason`. The
+  path creates no Notification rows, adds no Metric / Token writes, stores no
+  Telegram response bodies, request paths, bot tokens, chat ids, or env values,
+  and is covered by temp-SQLite mocked-sender tests that do not use production
+  `prisma/dev.db`, real Telegram, or `.env`. The notificationKey-specified real
+  Telegram live send / Red rehearsal remains unexecuted. `token_completed` /
+  `loop_complete` Notification writes and live-send marking, failed-send retry
+  automation, queue, scheduler, systemd, durable queue runtime, default
+  checkpoint operation, automatic Red execution, and always-on bot operation
+  remain later work.
 - Notification migration split policy is now fixed as docs-only policy.
   Read-only /tmp SQL preview confirmed
   `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /
@@ -1664,7 +1676,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   operation remain unimplemented. Commit `2d83b05` adds the
   `metric_appended` sent / failed marking path for an existing captured
   Notification row with mocked sender and temp-SQLite tests only; it does not
-  execute real Telegram live send or Red live-send rehearsal.
+  execute real Telegram live send or Red live-send rehearsal. Commit `983b7e3`
+  adds the notificationKey-specified `pnpm notification:send` rehearsal path:
+  dry-run is the default, `--live` is required for a sender call, only
+  `metric_appended` is supported, missing / already sent / non-captured rows
+  are blocked, and success / failure update at most one existing Notification
+  row through the safe sent / failed marking APIs. Its tests use temp SQLite and
+  mocked sender only; the notificationKey-specified real Telegram Red rehearsal
+  is still unexecuted.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
