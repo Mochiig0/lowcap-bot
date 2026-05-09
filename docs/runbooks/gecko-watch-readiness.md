@@ -148,6 +148,14 @@ retry, log retention, Telegram loop policy, queue idempotency, and
 multi-candidate handling remain unresolved before systemd, scheduler / queue,
 or unbounded watch.
 
+Retry / failure handling policy is now fixed at the operator-policy level:
+retry decisions start with DB read confirmation, ambiguous write results do not
+allow automatic retry, and `errorCount > 0`, `selectedCount > 1`,
+`writtenCount > 1`, or `importedCount > 1` returns the bounded flow to human
+gate. This is not watch readiness: retry automation, retry max counts,
+cooldown policy, queue idempotency, systemd recovery, Telegram failed-send
+retry, and bounded executor behavior remain unimplemented or unfixed.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

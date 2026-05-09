@@ -587,12 +587,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   expected behavior and defines a strict duplicate candidate as same
   `tokenId` / source / `observedAt`; strict Metric duplicate enforcement is
   still not implemented by DB constraint or pre-insert check.
-- Automatic retry, multi-candidate ordering / per-item failure handling, log
-  retention, secret-free journal policy, and Telegram loop send / duplicate /
-  cooldown / failed-send handling remain unresolved gates. Default checkpoint
-  operation is still unpromoted. Systemd, scheduler / queue, unbounded watch,
-  always-on operation, bounded executor prototype, and automatic Red execution
-  remain deferred until the remaining gates are fixed.
+- Retry / failure handling policy is now fixed as docs-only operator policy:
+  retry decisions use DB read confirmation, not checkpoint state; ambiguous
+  write results do not allow automatic retry; `errorCount > 0`,
+  `selectedCount > 1`, `writtenCount > 1`, and `importedCount > 1` stop the
+  current bounded flow and return to human gate. Retry automation, retry max
+  count, cooldown policy, queue idempotency, systemd recovery, and Telegram
+  failed-send retry remain unimplemented or unfixed.
+- Multi-candidate ordering / per-item failure handling, log retention,
+  secret-free journal policy, and Telegram loop send / duplicate / cooldown /
+  failed-send handling remain unresolved gates. Default checkpoint operation is
+  still unpromoted. Systemd, scheduler / queue, unbounded watch, always-on
+  operation, bounded executor prototype, and automatic Red execution remain
+  deferred until the remaining gates are fixed.
 - The read-only consistency check for `c6ee95e` passed across the docs. The
   checkpoint policy, authoritative state policy, restart / resume gaps, Token
   and Metric duplicate-prevention gaps, retry / failure gaps, multi-candidate

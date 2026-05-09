@@ -1553,6 +1553,118 @@ Not fixed by this policy:
 - systemd, scheduler / queue, unbounded watch, default checkpoint operation, or
   always-on operation.
 
+### Retry / Failure Handling Policy
+
+This is a docs-only operator policy for the bounded human-gated scope. It does
+not implement retry automation, retry max counts, cooldown policy, queue
+idempotency, systemd recovery, Telegram failed-send retry, a bounded executor
+prototype, or automatic Red execution.
+
+Basic policy:
+
+- Retry decisions prefer DB read confirmation over checkpoint state.
+- Ambiguous write results do not allow automatic retry.
+- `errorCount > 0` does not authorize automatic continuation.
+- `selectedCount > 1`, `writtenCount > 1`, or `importedCount > 1` is a stop
+  condition for current bounded flows unless a separate approval explicitly
+  raises the bound.
+- Any retry consideration must return through `bounded-flow:plan`, planner,
+  validator, and human gate.
+
+No-side-effect failure:
+
+- Failures before Red execution, including guide / planner / validator failure,
+  guard mismatch, marker check failure, or invalid approval shape, are treated
+  as no-write failures.
+- Do not run `nextRedCommand`; inspect `status` / `reason` and do not proceed
+  to human gate until the issue is resolved.
+- Dry-run failures with `writeEnabled=false` have no DB write; recheck input,
+  guard, and candidate instead of escalating to Red.
+
+Write-attempted failure:
+
+- After Red execution, `errorCount > 0` requires read-only DB confirmation via
+  `token:compare`, `token:show`, `metrics:report`, or the closest relevant
+  report CLI.
+- If DB state does not match the expected one-mint / one-stage outcome, stop
+  and return to human gate.
+- `selectedCount > 1`, `writtenCount > 1`, or `importedCount > 1` is outside
+  the current bounded flow and must not proceed to docs record or next stage
+  without a new approval.
+
+Partial success:
+
+- Mixed `okCount` / `errorCount` results are partial success and must not
+  continue automatically.
+- Confirm DB state first.
+- If the result exceeds the expected one-mint / one-stage bound, stop.
+- Do not move to the next item or next stage automatically.
+
+Ambiguous write result:
+
+- Missing CLI output / log, unknown tmux single-run exit, interrupted process,
+  or a network error where write outcome cannot be separated from fetch failure
+  is an ambiguous write result.
+- Do not rerun Red first.
+- Run DB read confirmation first.
+- If the operator cannot distinguish duplicate risk from failed write, stop and
+  return to human gate.
+
+Cooldown / retry count:
+
+- Retry max count is not fixed.
+- Existing fetch / watch cooldown behavior is implementation-local and is not
+  an operator-level retry policy.
+- Cooldown policy must be fixed before systemd, scheduler / queue, unbounded
+  watch, or default checkpoint operation.
+- Do not expand automatic retry at this stage.
+
+Stage-specific policy:
+
+- Detect write expects `importedCount <= 1`. `existingCount` is an existing
+  Token confirmation value, not a failure. `importedCount > 1` stops. A
+  checkpoint is not success proof.
+- `enrich_rescore` expects one selected mint, one ok result, zero errors, and
+  writes limited to the target mint. Keep notify sends out of the base bounded
+  retry path unless a separate Red approval allows them.
+- Metric snapshot expects `selectedCount=1`, `writtenCount=1`, and
+  `errorCount=0` for a write step. Confirm through `metricsCount`, latest
+  Metric, and `recentMetrics`. Repeated snapshots are observations when
+  `observedAt` differs; same `tokenId` / source / `observedAt` is the strict
+  duplicate candidate.
+
+Relationship to restart and duplicate policies:
+
+- Restart uses DB state as the first confirmation target.
+- Duplicate prevention uses mint / `Token.mint` for Token and same `tokenId` /
+  source / `observedAt` as the strict Metric duplicate candidate.
+- Retry decisions are based on DB read confirmation, not checkpoint state.
+
+Return to human gate when:
+
+- `errorCount > 0`.
+- `selectedCount > 1`.
+- `writtenCount > 1`.
+- `importedCount > 1`.
+- partial success.
+- ambiguous write result.
+- DB state mismatch.
+- checkpoint / DB mismatch.
+- duplicate decision cannot be made.
+- latest Metric or `metricsCount` mismatch.
+- rawJson or secret-marker risk.
+- Telegram, systemd, scheduler / queue, or unbounded expansion risk.
+
+Not fixed by this policy:
+
+- retry automation.
+- retry max count.
+- cooldown policy.
+- queue idempotency.
+- systemd recovery.
+- Telegram failed-send retry.
+- bounded executor prototype.
+
 Recommended next order:
 
 1. docs-only readiness gap fixed.

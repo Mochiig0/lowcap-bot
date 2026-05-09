@@ -20,6 +20,9 @@ does not make tmux logs, systemd, or unbounded watch authoritative.
 Before any rerun, also check for strict Metric duplicate risk: same `tokenId`,
 same source, and same `observedAt`. If that cannot be ruled out from read-only
 DB reports, stop and return to human gate; tmux does not make retry automatic.
+An unknown tmux exit, missing log, or unclear network/write outcome is an
+ambiguous write result: run DB read confirmation first and do not start another
+tmux Red command until a new human gate approves it.
 
 There are two bounded tmux shapes:
 

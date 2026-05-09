@@ -485,6 +485,13 @@ and same `observedAt`. The current schema does not enforce that strict
 candidate as unique, so use `metricsCount`, latest Metric, `recentMetrics`,
 `--minGapMinutes` where supported, and post-confirmation before any rerun.
 
+For Metric retry / failure handling, ambiguous write results do not permit an
+immediate rerun. If CLI output, tmux output, or network/write outcome is
+unclear, confirm DB state with `metrics:report`, `token:compare`, and
+`token:show` first. `errorCount > 0`, `writtenCount > 1`, latest Metric
+mismatch, or `metricsCount` mismatch returns to human gate; retry automation is
+not part of this loop.
+
 ## Preconditions
 
 - The repo is clean and on the expected branch.
