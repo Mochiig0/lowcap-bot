@@ -4,10 +4,12 @@ import { readFile } from "node:fs/promises";
 
 import { db } from "./db.js";
 import { buildSafeMetricSummary, type SafeMetricSummary } from "./metricSafeSummary.js";
+import { maybeCreateByNotificationKey } from "../notifications/notificationRepository.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const GECKOTERMINAL_NETWORK = "solana";
 const GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE = "geckoterminal.token_snapshot";
+const METRIC_SNAPSHOT_NOTIFICATION_SOURCE = "metric:snapshot:geckoterminal";
 const DEFAULT_GECKOTERMINAL_TOKEN_API_URL =
   `https://api.geckoterminal.com/api/v2/networks/${GECKOTERMINAL_NETWORK}/tokens`;
 const DEFAULT_LIMIT = 20;
@@ -627,6 +629,25 @@ function isPumpMint(mint: string): boolean {
   return mint.endsWith("pump");
 }
 
+function buildMetricAppendedNotificationKey(mint: string, metricId: number): string {
+  return `${mint}:metric_appended:${metricId}`;
+}
+
+function buildMetricAppendedMessagePreview(input: {
+  mint: string;
+  metricId: number;
+  source: string;
+}): string {
+  return [
+    "eventType=metric_appended",
+    `mint=${input.mint}`,
+    `metricId=${input.metricId}`,
+    `source=${input.source}`,
+    "status=captured",
+    "trigger=metric_appended",
+  ].join(" ");
+}
+
 async function selectTokens(args: MetricSnapshotArgs): Promise<{
   mode: "single" | "recent_batch";
   selectedTokens: SelectedToken[];
@@ -909,6 +930,23 @@ async function processToken(
         },
       });
       metricId = created.id;
+
+      if (args.mint) {
+        await maybeCreateByNotificationKey(db, {
+          notificationKey: buildMetricAppendedNotificationKey(token.mint, metricId),
+          eventType: "metric_appended",
+          mint: token.mint,
+          tokenId: token.id,
+          metricId,
+          trigger: "metric_appended",
+          messagePreview: buildMetricAppendedMessagePreview({
+            mint: token.mint,
+            metricId,
+            source: args.source,
+          }),
+          source: METRIC_SNAPSHOT_NOTIFICATION_SOURCE,
+        });
+      }
     }
 
     return {

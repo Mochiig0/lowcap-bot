@@ -410,6 +410,61 @@ async function readMetrics(
   }
 }
 
+async function readNotifications(
+  databaseUrl: string,
+  mint: string,
+): Promise<
+  Array<{
+    notificationKey: string;
+    eventType: string;
+    mint: string;
+    tokenId: number | null;
+    metricId: number | null;
+    trigger: string;
+    status: string;
+    mode: string;
+    messagePreview: string;
+    rawJsonFree: boolean;
+    secretFree: boolean;
+    source: string | null;
+  }>
+> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    return await db.notification.findMany({
+      where: {
+        mint,
+      },
+      select: {
+        notificationKey: true,
+        eventType: true,
+        mint: true,
+        tokenId: true,
+        metricId: true,
+        trigger: true,
+        status: true,
+        mode: true,
+        messagePreview: true,
+        rawJsonFree: true,
+        secretFree: true,
+        source: true,
+      },
+      orderBy: {
+        id: "asc",
+      },
+    });
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 async function readMetricRawJson(databaseUrl: string, mint: string): Promise<unknown> {
   const db = new PrismaClient({
     datasources: {
@@ -542,10 +597,42 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
         reserveUsdPresent: true,
         topPoolPresent: true,
       });
-      assert.equal(typeof parsed.items[0]?.writeSummary.metricId, "number");
+      const metricId = parsed.items[0]?.writeSummary.metricId;
+      assert.equal(typeof metricId, "number");
       assert.equal(result.stdout.includes("rawJson"), false);
       assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
       assert.equal(result.stdout.includes("metric_snapshot_pool"), false);
+
+      const notifications = await readNotifications(databaseUrl, mint);
+      assert.equal(notifications.length, 1);
+      assert.equal(
+        notifications[0]?.notificationKey,
+        `${mint}:metric_appended:${metricId}`,
+      );
+      assert.equal(notifications[0]?.eventType, "metric_appended");
+      assert.equal(notifications[0]?.mint, mint);
+      assert.equal(notifications[0]?.tokenId, 1);
+      assert.equal(notifications[0]?.metricId, metricId);
+      assert.equal(notifications[0]?.trigger, "metric_appended");
+      assert.equal(notifications[0]?.status, "captured");
+      assert.equal(notifications[0]?.mode, "capture_only");
+      assert.equal(notifications[0]?.rawJsonFree, true);
+      assert.equal(notifications[0]?.secretFree, true);
+      assert.equal(notifications[0]?.source, "metric:snapshot:geckoterminal");
+      assert.equal(
+        notifications[0]?.messagePreview,
+        [
+          "eventType=metric_appended",
+          `mint=${mint}`,
+          `metricId=${metricId}`,
+          "source=geckoterminal.token_snapshot",
+          "status=captured",
+          "trigger=metric_appended",
+        ].join(" "),
+      );
+      assert.equal(notifications[0]?.messagePreview.includes("rawJson"), false);
+      assert.equal(notifications[0]?.messagePreview.includes("Metric Snapshot Token"), false);
+      assert.equal(notifications[0]?.messagePreview.includes("metric_snapshot_pool"), false);
 
       const savedRawJson = readRecord(await readMetricRawJson(databaseUrl, mint));
       const savedToken = readRecord(savedRawJson?.token);
