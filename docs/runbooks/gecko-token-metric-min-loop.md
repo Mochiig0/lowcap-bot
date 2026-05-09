@@ -951,6 +951,10 @@ Use these markers:
   `loop_complete` remain capture-only. Durable storage, Prisma model /
   migration, queue idempotency, failed-send retry, and Telegram live-loop
   integration are still not implemented.
+- Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
+  on the same notification key blocks resend, and any `metric_appended` resend
+  still requires DB confirmation, capture-only pass, marker checks, human gate,
+  and separate Red approval. Automatic failed-send retry remains unimplemented.
 
 Keep the phase unchanged when:
 

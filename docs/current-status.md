@@ -661,6 +661,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   live-send result with `sentAt` is treated as sent. Prisma model / migration,
   durable storage implementation, failed-send retry, Telegram live-loop
   integration, queue idempotency, and systemd recovery remain unimplemented.
+- Failed-send / resend policy is now fixed as docs-only policy. `failed` is not
+  `sent`, previous `sent` on the same notification key blocks resend, and any
+  resend requires DB read confirmation, capture-only rehearsal, secret-free /
+  rawJson-free marker checks, a human gate, and a separate Red approval.
+  Failed-send retry automation remains unimplemented.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

@@ -1657,7 +1657,8 @@ Failed-send handling:
 - Do not automatically retry failed sends.
 - Confirm DB state, record a safe failed-send summary, and return to human
   gate.
-- Failed-send retry remains a later policy / implementation gap.
+- Failed-send retry automation remains a later implementation gap; use the
+  failed-send / resend policy below for the human-gated resend boundary.
 
 Capture-only rehearsal:
 
@@ -2081,6 +2082,137 @@ Not fixed / future work:
 - Telegram live-loop integration.
 - systemd recovery.
 
+### Failed-Send / Resend Policy
+
+This is a docs-only policy for failed Telegram notification outcomes and later
+human-approved resend decisions. It does not send Telegram, implement
+failed-send retry automation, add a Prisma model, create a migration, start a
+queue / systemd service, or change runtime code.
+
+Failed vs sent boundary:
+
+- `sent` means a human-gated live send succeeded.
+- In future storage, only a state with `sentAt` is sent proof.
+- `failed` is not equivalent to `sent`.
+- `failed` is not previous sent proof.
+- Failed history is resend-decision evidence.
+- `captured` is rehearsal evidence, not sent.
+- `skipped` and `blocked` are safe reasons that no live send occurred.
+
+Resend allowed conditions:
+
+- Resend is not automatic.
+- The same notification key has no previous `sent`.
+- DB read confirmation passes.
+- Capture-only rehearsal passes.
+- The same notification key's current state has been checked.
+- The previous failed safe summary has been reviewed.
+- `errorCode` / reason stays within safe-to-log fields.
+- Secret-free and rawJson-free marker checks pass.
+- A human gate approves a separate Red task.
+- The Red exact command is one command in that separate task.
+
+Resend blocked conditions:
+
+- A previous `sent` exists for the notification key.
+- `notificationKey` is missing.
+- `metric_appended` is missing `metricId`.
+- DB state and capture content mismatch.
+- The previous failure reason is unknown.
+- The safe `errorCode` is missing or cannot support the decision.
+- Telegram response body would be needed as evidence.
+- Duplicate-key judgment cannot be made.
+- rawJson or secret marker risk appears.
+- Telegram token, chat id, or request path exposure risk appears.
+- `token_completed` or `loop_complete` is being treated as live-send ready.
+- The flow expands into queue, systemd, or automatic retry.
+
+Failed-send storage fields:
+
+- `notificationKey`.
+- `eventType`.
+- `mint`.
+- nullable `metricId`.
+- `status=failed`.
+- `mode=live_send`.
+- `errorCode`.
+- safe-summary reason.
+- `failedAt`.
+- `rawJsonFree`.
+- `secretFree`.
+- `source`.
+- `createdAt` / `updatedAt`.
+
+Never store for failed-send:
+
+- Telegram response body.
+- request path.
+- bot token.
+- chat id.
+- token-containing URL.
+- raw API response.
+- raw payload.
+- exact rawJson payload.
+- raw stdout / stderr.
+- `.env`.
+- raw env / `process.env`.
+- `DATABASE_URL`.
+- any line or blob with a secret marker.
+
+Notification-key lifecycle:
+
+- Keep `notificationKey` as the durable identity.
+- If `notificationKey` is unique, the lifecycle must allow `failed` to move to
+  `sent` after a later human-approved resend.
+- Do not treat `failed` as `sent`.
+- Do not resend a key that already has previous `sent`.
+- Be careful with `status` in a unique key; including it can weaken duplicate
+  prevention for an already-sent key.
+- Resend approval may be represented as same-key state transition metadata or
+  explicit approval metadata in a later implementation.
+- This task does not add a Prisma schema change or migration.
+
+Capture-only / DB confirmation relationship:
+
+- Capture-only pass is required before resend.
+- Capture records are not sent proof.
+- DB state, capture content, `metricId`, `notificationKey`, and safe message
+  preview must align before resend.
+- Capture-only pass alone does not authorize resend.
+
+Queue / systemd / retry boundary:
+
+- Failed-send policy is one queue pre-gate.
+- This policy does not make queue, systemd, or live loop ready.
+- Queue retry, systemd recovery, and Telegram failed-send retry automation
+  remain future work.
+- The current boundary is human-approved only.
+
+Stop and return to human gate when:
+
+- failed-send retry is becoming automatic.
+- a key with previous `sent` is being resent.
+- previous failed safe summary is missing.
+- `errorCode` / reason is not a safe summary.
+- Telegram response body would be required.
+- `notificationKey` is missing.
+- `metricId` is missing.
+- DB state and capture content mismatch.
+- duplicate-key judgment cannot be made.
+- rawJson or secret marker risk appears.
+- Telegram token, chat id, or request path exposure risk appears.
+- queue, systemd, scheduler, or unbounded expansion risk appears.
+
+Not fixed / future work:
+
+- failed-send retry automation.
+- Prisma Notification model.
+- migration.
+- durable notification dedupe storage implementation.
+- Telegram live-loop integration.
+- queue idempotency.
+- systemd recovery.
+
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
 state, the default Gecko checkpoint remains unpromoted, DB state is the first
@@ -2449,8 +2581,8 @@ Telegram failed-send retry:
   concerns.
 - Send condition, capture-only rehearsal consistency, and log / secret-free
   output policy are fixed at the docs level.
-- Durable notification dedupe storage, runtime integration, cooldown
-  automation, and failed-send handling / retry remain future work.
+- Durable notification dedupe storage implementation, runtime integration,
+  cooldown automation, and failed-send retry automation remain future work.
 - Telegram failed-send retry is outside this retry max count policy.
 
 Systemd / queue retry:

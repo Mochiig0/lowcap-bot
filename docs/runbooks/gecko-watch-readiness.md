@@ -230,6 +230,15 @@ implementation, queue idempotency, failed-send retry, Telegram live-loop
 integration, systemd recovery, default checkpoint operation, and unbounded
 watch remain unimplemented.
 
+Failed-send / resend policy is now fixed at the docs level, but watch
+readiness and systemd readiness are still incomplete. `failed` is not `sent`,
+and a previous `sent` on the same notification key blocks resend. Any resend
+requires DB read confirmation, capture-only rehearsal, safe failed-send summary
+review, secret-free / rawJson-free marker checks, a human gate, and a separate
+Red approval. Failed-send retry automation, durable storage implementation,
+queue idempotency, Telegram live-loop integration, systemd recovery, default
+checkpoint operation, and unbounded watch remain unimplemented.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the
