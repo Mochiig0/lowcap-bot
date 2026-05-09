@@ -250,6 +250,18 @@ migration, durable storage implementation, capture-only write integration,
 Telegram live-loop integration, queue idempotency, systemd recovery, default
 checkpoint operation, and unbounded watch remain unimplemented.
 
+Notification schema / migration baseline policy is now fixed at the docs level,
+but watch readiness and systemd readiness are still incomplete. The repo has no
+`prisma/migrations` directory yet, so the first Yellow must protect existing
+`prisma/dev.db`, inspect schema diff and migration SQL, and stop if changes
+extend beyond adding Notification or touch existing `Dev` / `Token` / `Metric`
+models unexpectedly. The first Yellow scope is limited to schema, migration
+strategy / SQL review, Prisma validate / generate, TypeScript check, and
+schema-level verification. Durable storage implementation, repository code,
+capture-only write integration, queue idempotency, Telegram live-loop
+integration, systemd recovery, default checkpoint operation, and unbounded
+watch remain unimplemented.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

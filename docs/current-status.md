@@ -678,6 +678,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   capture-only write integration, Telegram live-loop integration, queue
   idempotency, and systemd recovery remain unimplemented. The next Yellow
   candidate is a Prisma model / migration preflight, not implementation.
+- Notification model / migration baseline policy is now fixed as docs-only
+  policy. The repo currently has `prisma/schema.prisma` and `prisma/dev.db` but
+  no `prisma/migrations`; the first Yellow implementation must protect the
+  existing DB, inspect migration SQL, and stop if the diff reaches beyond
+  adding `Notification` or changes existing `Dev` / `Token` / `Metric` models.
+  The first Yellow scope is limited to Notification schema, migration strategy /
+  SQL review, `prisma validate`, `prisma generate`, `tsc`, and schema-level
+  verification. Prisma schema change, migration creation, generate, and DB write
+  were not run in this docs-only task. Repository code, capture-only write
+  integration, Telegram live send, queue, and systemd remain later work.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

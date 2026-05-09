@@ -961,6 +961,11 @@ Use these markers:
   the only initial live candidate, and keep `token_completed` /
   `loop_complete` capture-only. Prisma model / migration, durable storage, and
   capture-only write integration remain unimplemented.
+- Notification schema / migration baseline policy fixed: the first Yellow is
+  limited to schema, migration strategy / SQL review, Prisma validate /
+  generate, TypeScript check, and schema-level verification. It does not include
+  DB write integration, capture-only write integration, Telegram live send,
+  queue, or systemd.
 
 Keep the phase unchanged when:
 

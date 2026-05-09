@@ -2334,6 +2334,99 @@ Not fixed / future work:
 - queue idempotency.
 - systemd recovery.
 
+### Notification Schema / Migration Baseline Policy
+
+This is a docs-only policy for the first Yellow Notification schema task. It
+does not change the Prisma schema, create a migration, run `prisma generate`,
+write DB rows, implement a Notification model, execute capture-only, send
+Telegram, or start queue / systemd runtime.
+
+Migration baseline policy:
+
+- `prisma/migrations` is currently absent.
+- `prisma/schema.prisma` and `prisma/dev.db` already exist, so treat migration
+  baseline / drift carefully before adding Notification storage.
+- The first Yellow must prioritize not breaking the existing DB.
+- When creating the migration, inspect schema diff and migration SQL before
+  proceeding.
+- Stop if the diff includes anything beyond adding the Notification model and
+  its intended indexes / constraints.
+- Stop if existing `Dev`, `Token`, or `Metric` models receive unintended
+  changes.
+- Do not use force reset, `db reset`, or destructive migration.
+- Do not write to a production-equivalent DB.
+
+First Yellow scope:
+
+Include:
+
+- add a `Notification` model to `prisma/schema.prisma`.
+- confirm migration strategy.
+- inspect migration SQL.
+- run Prisma validate.
+- run Prisma generate.
+- run TypeScript check.
+- add schema-level verification.
+
+Exclude:
+
+- Notification repository.
+- DB write integration test.
+- capture-only write integration.
+- Telegram live-send integration.
+- failed-send retry.
+- queue idempotency.
+- systemd recovery.
+- durable queue runtime.
+- default checkpoint operation.
+
+Notification model design for first Yellow:
+
+- model name: `Notification`.
+- `notificationKey @unique` is the first candidate.
+- `status` is initially a String candidate.
+- `mode` is initially a String candidate.
+- `mint` is a denormalized field.
+- `tokenId` is nullable.
+- `metricId` is nullable.
+- `messagePreview` stores safe summary only.
+- `rawJsonFree` and `secretFree` are booleans.
+- never-store fields stay out of the schema.
+
+Schema-level test policy:
+
+- verify the Notification model exists in the Prisma schema.
+- verify `notificationKey` is unique.
+- verify never-store fields are absent:
+  - Telegram response body.
+  - request path.
+  - bot token.
+  - chat id.
+  - token-containing URL.
+  - raw API response.
+  - raw payload.
+  - exact rawJson payload.
+  - raw stdout / stderr.
+  - `.env`.
+  - `DATABASE_URL`.
+  - `process.env`.
+- verify `status`, `mode`, timestamps, and nullable relation candidates match
+  the policy.
+- keep tests focused on schema / source inspection; do not include DB write
+  integration in the first Yellow.
+
+Yellow stop conditions:
+
+- migration diff expands beyond Notification addition.
+- existing models receive unintended changes.
+- destructive migration is required.
+- `db reset` or force reset is required.
+- production DB write is required.
+- a never-store field is about to be added.
+- Prisma enum introduces unnecessary complexity for the first model cut.
+- work expands into repository, capture-only, or Telegram integration.
+- work expands into queue or systemd.
+
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
 state, the default Gecko checkpoint remains unpromoted, DB state is the first
