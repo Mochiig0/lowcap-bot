@@ -1702,8 +1702,7 @@ Relationship to future work:
 - This policy is one readiness prerequisite, not live-loop readiness.
 - Future work still includes durable duplicate notification storage,
   failed-send retry policy / implementation, runtime cooldown automation,
-  queue idempotency, systemd recovery, and capture-only rehearsal consistency
-  checks.
+  queue idempotency, systemd recovery, and capture-only runtime integration.
 
 ### Multi-Candidate / Queue Pre-Gate Policy
 
@@ -1821,7 +1820,7 @@ Stop conditions before queue:
 - retry / cooldown behavior is not fixed for queue runtime.
 - checkpoint / DB mismatch appears.
 - Telegram dedupe is not fixed for the intended runtime.
-- capture-only rehearsal consistency is not fixed.
+- capture-only runtime integration is not fixed.
 - raw log or secret-free policy is violated.
 - multi-mint expansion risk.
 - systemd, scheduler, or unbounded watch expansion risk.
