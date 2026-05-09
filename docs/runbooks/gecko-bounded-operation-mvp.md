@@ -1466,6 +1466,14 @@ The assertion keeps `commands=null`, common non-executor fields,
 command, or detect command. The ok path remains unchanged:
 `commands.redExecution.placeholder=true` with `exactCommand=null`.
 
+Consistency check note: `ba8792b` has been checked against docs,
+implementation, and tests. The three sources agree that `status=stop` means
+`commands=null`, no `redExecution`, no `exactCommand`, and no concrete command,
+while `status=ok` keeps commands plus `redExecution.placeholder=true` and
+`exactCommand=null`. `stopConditionCodes` remains a human-gate checklist,
+`forbidden` remains wrapper-specific, and the CLI remains a non-executor
+planning aid rather than an executor wrapper or automatic Red runner.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`

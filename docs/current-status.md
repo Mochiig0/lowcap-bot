@@ -499,6 +499,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `exactCommand` or concrete tmux / Metric snapshot / enrich-rescore / detect
   command. The `status=ok` path still keeps
   `redExecution.placeholder=true` and `redExecution.exactCommand=null`.
+- The follow-up consistency check for `ba8792b` passed across docs,
+  implementation, and tests: `status=stop` uses `commands=null` and emits no
+  `redExecution`, `exactCommand`, or concrete command, while `status=ok` still
+  emits commands with `redExecution.placeholder=true` and
+  `exactCommand=null`. The non-executor boundary remains intact: no existing
+  CLI, guide, planner, validator, `nextRedCommand`, Red command, DB / Token /
+  Metric write, Telegram, tmux, checkpoint, or systemd work is performed.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and
