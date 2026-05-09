@@ -100,13 +100,17 @@ integration remain deferred until restart / resume, retry, duplicate
 prevention, log retention, secret-free logging, Telegram cooldown /
 failed-send handling, and multi-candidate policy are fixed.
 
-The candidate non-executor wrapper / dry-run planner output shape is a design
-artifact before executor work, not watch readiness. It can define input /
-output shapes, checklist-style stop condition codes, forbidden actions, and
-intent-specific side-effect bounds for operator review. It still must keep
-`willExecute=false`, keep Red execution as a placeholder, and leave all writes,
-tmux starts, checkpoint updates, Telegram sends, systemd, scheduler / queue,
-and unbounded watch outside the wrapper.
+`ops:gecko:bounded-flow:plan` is now implemented as a non-executor wrapper /
+dry-run planner before executor work, not as watch readiness. It renders input
+/ output shapes, checklist-style stop condition codes, forbidden actions,
+intent-specific side-effect bounds, and approval-request fields for operator
+review. It keeps `mode=non_executor_wrapper`, `willExecute=false`,
+`executor=human`, `operatorMode=human_gated`, `currentStage=null`,
+`nextStage=null`, and `redExecution.exactCommand=null`. It does not execute
+existing CLIs, guide, planner, validator, `nextRedCommand`, or any Red command;
+all writes, tmux starts, checkpoint updates, Telegram sends, systemd,
+scheduler / queue, default-checkpoint operation, and unbounded watch remain
+outside the wrapper.
 
 Next phase choices:
 

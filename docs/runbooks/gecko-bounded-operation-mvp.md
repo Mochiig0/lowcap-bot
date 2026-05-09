@@ -1286,7 +1286,9 @@ Allowed responsibilities for a non-executor wrapper / dry-run planner:
 - render `sideEffectUpperBound` / `sideEffectUpperBoundSpec`.
 - render stop conditions.
 - generate the approval request.
-- generate the exact command string for the later Red task.
+- generate review command strings for baseline, guide, planner, validator, and
+  report confirmation.
+- keep Red execution as a placeholder with `exactCommand=null`.
 
 Forbidden responsibilities for that wrapper:
 
@@ -1315,23 +1317,33 @@ wrapper boundary excludes Telegram until send conditions, duplicate prevention,
 cooldown, failed-send handling, capture-only rehearsal, and secret-free logging
 are fixed.
 
-### Non-Executor Wrapper / Dry-Run Planner Design
+### Non-Executor Wrapper / Dry-Run Planner
 
-This section is a docs-only design target for a possible next Yellow task. No
-wrapper CLI is implemented here. The purpose is to prepare the operator-facing
-human gate, not to build a bounded executor.
+`ops:gecko:bounded-flow:plan` is implemented as the non-executor wrapper /
+dry-run planner CLI for this shape:
+
+```bash
+pnpm -s ops:gecko:bounded-flow:plan -- --mint <MINT> --intent <INTENT>
+```
+
+The purpose is to prepare the operator-facing human gate, not to build a
+bounded executor. It does not execute existing CLIs, guide, planner, validator,
+`nextRedCommand`, or any Red command. It does not connect to DB / Prisma /
+network, use child-process execution, read or write files, attach `--write` or
+`--watch`, start tmux, send Telegram, update checkpoints, or touch systemd /
+scheduler / queue / unbounded watch behavior.
 
 Initial scope:
 
 - one mint.
 - one stage.
 - one human gate.
-- one exact Red command string for a later separate Red task.
+- one later exact Red command, supplied outside this CLI after human gate.
 - rawJson-free confirmation requirements.
 - docs record after any approved Red task.
 - no multi-mint runner, queue, or automatic execution.
 
-Candidate input shape for a future implementation:
+Implemented input shape:
 
 ```json
 {
@@ -1345,11 +1357,23 @@ Candidate input shape for a future implementation:
 ```
 
 `detect write` is not part of the initial wrapper scope because checkpoint,
-restart, and resume policy are still unresolved. The first implementation
-candidate should stay aligned with the already supported intents:
-`enrich_rescore`, `first_metric_snapshot`, and `second_metric_snapshot`.
+restart, and resume policy are still unresolved. The implemented intent set is
+limited to `enrich_rescore`, `first_metric_snapshot`, and
+`second_metric_snapshot`.
 
-Candidate output shape for a future implementation:
+Default guard values:
+
+| intent | expectedMetricsCount | expectedMetadataStatus | expectedStage |
+| --- | ---: | --- | --- |
+| `enrich_rescore` | 0 | `mint_only` | `mint_only_without_metrics` |
+| `first_metric_snapshot` | 0 | `partial` | `partial_without_metrics` |
+| `second_metric_snapshot` | 1 | `partial` | `partial_with_one_metric` |
+
+If an explicit guard conflicts with the intent default, the CLI returns
+`status=stop`, includes `intent conflict` in `reason`, and keeps
+`willExecute=false`.
+
+Implemented output shape:
 
 ```json
 {
@@ -1360,8 +1384,12 @@ Candidate output shape for a future implementation:
   "executor": "human",
   "mint": "<MINT>",
   "intent": "<INTENT>",
-  "currentStage": "<STAGE>",
-  "nextStage": "<NEXT_STAGE>",
+  "operatorMode": "human_gated",
+  "expectedMetricsCount": 0,
+  "expectedMetadataStatus": "mint_only | partial",
+  "expectedStage": "mint_only_without_metrics | partial_without_metrics | partial_with_one_metric",
+  "currentStage": null,
+  "nextStage": null,
   "stageOrder": [
     "baseline",
     "guide",
@@ -1414,11 +1442,15 @@ Candidate output shape for a future implementation:
 }
 ```
 
-All command fields are strings for operator review only. The wrapper must not
+All command fields are strings for operator review only. The wrapper does not
 execute `guide`, `planner`, `validator`, `nextRedCommand`, or any existing CLI.
-`redExecution` stays a placeholder, and `willExecute=false` is mandatory.
-The actual exact Red command belongs only in the human-gate approval request
-and a later separate Red task.
+Because it performs no DB read, `currentStage` and `nextStage` are always
+`null`; stage selection remains the job of the separate read-only planner.
+`redExecution` stays a placeholder with `exactCommand=null`, and
+`willExecute=false` is mandatory. The actual exact Red command belongs only in
+the human-gate approval request and a later separate Red task; this CLI does
+not print concrete tmux commands or `--write` Red commands in
+`redExecution`.
 
 Checklist-style `stopConditionCodes` should include at least:
 
@@ -1471,11 +1503,12 @@ Wrapper-specific forbidden list:
 - multi-mint.
 - silent retry.
 
-The current bounded-flow guide has a narrower historical forbidden list. Any
-extra wrapper items above are wrapper-specific expansion candidates for a
-future design; they are not implemented behavior.
+The current bounded-flow guide has a narrower historical forbidden list. The
+larger list above is implemented by `ops:gecko:bounded-flow:plan` as the
+wrapper-specific forbidden checklist; it does not mean the wrapper performs or
+authorizes any of those actions.
 
-Intent-specific initial `sideEffectUpperBoundSpec` candidates:
+Intent-specific `sideEffectUpperBoundSpec`:
 
 `enrich_rescore`:
 

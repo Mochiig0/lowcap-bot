@@ -63,6 +63,10 @@ pnpm ops:catchup:gecko -- [--pumpOnly] [--limit <N>] [--maxCycles <N>] [--sinceM
 ```
 
 ```bash
+pnpm ops:gecko:bounded-flow:plan -- --mint <MINT> --intent <enrich_rescore|first_metric_snapshot|second_metric_snapshot> [--expectedMetricsCount <N>] [--expectedMetadataStatus <STATUS>] [--expectedStage <STAGE>]
+```
+
+```bash
 pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]
 ```
 
@@ -463,6 +467,25 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   scheduler, queue, unbounded watch, default checkpoint, multi-mint, and silent
   retry. `red_execution` remains a placeholder with no commands, and systemd /
   scheduler / queue / unbounded watch / default checkpoint remain deferred.
+- `ops:gecko:bounded-flow:plan` is now implemented as the non-executor wrapper
+  / dry-run planner CLI for the already documented plan shape. It accepts one
+  mint plus one intent (`enrich_rescore`, `first_metric_snapshot`, or
+  `second_metric_snapshot`) and optional expected guards, then renders the
+  operator-facing checklist JSON with `mode=non_executor_wrapper`,
+  `willExecute=false`, `executor=human`, `operatorMode=human_gated`,
+  `currentStage=null`, `nextStage=null`, `redExecution.placeholder=true`,
+  `redExecution.exactCommand=null`, `sideEffectUpperBoundSpec`,
+  `stopConditionCodes`, `forbidden`, and `rawJsonFreeRequired=true`. The
+  default guards are `0 / mint_only / mint_only_without_metrics` for
+  `enrich_rescore`, `0 / partial / partial_without_metrics` for
+  `first_metric_snapshot`, and `1 / partial / partial_with_one_metric` for
+  `second_metric_snapshot`; explicit guard conflicts stop with an intent
+  conflict. This CLI only assembles command strings and the approval request
+  skeleton. It does not run existing CLIs, guide, planner, validator,
+  `nextRedCommand`, or any Red command; it has no DB / Prisma / network /
+  child-process / fs dependency, does not attach `--write` or `--watch`, does
+  not start tmux, does not send Telegram, and does not touch checkpoints,
+  systemd, scheduler / queue, unbounded watch, or default checkpoint operation.
 - The Gecko bounded operation runbook now includes a Red approval request
   template for the planner -> validator -> human gate flow. It collects repo
   state, target mint, baseline, planner metadata, validator result, rawJson-free
