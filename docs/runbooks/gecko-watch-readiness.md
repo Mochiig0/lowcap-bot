@@ -219,6 +219,17 @@ remain capture-only. Durable dedupe storage, Telegram live-loop integration,
 queue idempotency, scheduler, systemd, default checkpoint operation, and
 unbounded watch remain unimplemented.
 
+Durable notification dedupe storage policy is now fixed at the docs level, but
+watch readiness and systemd readiness are still incomplete. The initial
+durable notification identity is the `metric_appended` key `mint + eventType +
+metricId`; `token_completed` and `loop_complete` remain capture-only. Future
+storage must distinguish capture-only from live send and `captured`, `sent`,
+`failed`, `skipped`, and `blocked` states, with only a human-gated live send
+with `sentAt` treated as sent. Prisma model / migration, durable storage
+implementation, queue idempotency, failed-send retry, Telegram live-loop
+integration, systemd recovery, default checkpoint operation, and unbounded
+watch remain unimplemented.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

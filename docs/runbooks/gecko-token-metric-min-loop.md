@@ -945,6 +945,12 @@ Use these markers:
   duplicate key, safe message preview, and no rawJson / raw payload / secret
   marker. Capture-only pass alone does not complete durable dedupe, and
   `token_completed` / `loop_complete` remain capture-only.
+- Durable notification dedupe storage policy fixed: the initial
+  `metric_appended` notification key is `mint + eventType + metricId`, and
+  only events with `metricId` are initial live candidates. `token_completed` /
+  `loop_complete` remain capture-only. Durable storage, Prisma model /
+  migration, queue idempotency, failed-send retry, and Telegram live-loop
+  integration are still not implemented.
 
 Keep the phase unchanged when:
 

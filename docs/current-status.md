@@ -652,6 +652,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   duplicate key, safe message preview, marker check pass, and DB read
   confirmation alignment. Capture-only pass alone still does not complete
   durable dedupe.
+- Durable notification dedupe storage policy is now fixed as docs-only policy.
+  The initial durable identity is the `metric_appended` notification key
+  `mint + eventType + metricId`; `token_completed` and `loop_complete` remain
+  capture-only because they do not have the initial `metricId` key. Future
+  storage must distinguish `capture_only` from `live_send`, and `captured`,
+  `sent`, `failed`, `skipped`, and `blocked` states; only a human-gated
+  live-send result with `sentAt` is treated as sent. Prisma model / migration,
+  durable storage implementation, failed-send retry, Telegram live-loop
+  integration, queue idempotency, and systemd recovery remain unimplemented.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

@@ -1942,13 +1942,144 @@ Return to human gate when:
 Not fixed / future work:
 
 - Telegram live-loop integration.
-- durable notification dedupe storage.
+- durable notification dedupe storage implementation.
 - failed-send retry.
 - cooldown automation.
 - queue idempotency.
 - systemd recovery.
 - capture-only command execution for this policy.
 - Telegram live send for this policy.
+
+### Durable Notification Dedupe Storage Policy
+
+This is a docs-only policy for the future durable Telegram notification
+dedupe store. It does not add a Prisma model, create a migration, implement
+storage, run capture-only, send Telegram, start queue / systemd, or change
+runtime code.
+
+Responsibilities:
+
+- Prevent double live send for the same notification key.
+- Distinguish capture-only rehearsal from live send.
+- Distinguish `captured`, `sent`, `failed`, `skipped`, and `blocked`.
+- Treat only human-gated live send as `sent`.
+- Provide duplicate-decision evidence, not retry automation.
+- Do not treat docs records or capture records alone as durable dedupe state.
+
+Notification key:
+
+- Initial live-send event: `metric_appended` only.
+- Initial notification key: mint + event type + `metricId`.
+- `token_completed` and `loop_complete` have no initial `metricId` key, so
+  they remain capture-only and are not initial live-send events.
+- Future key candidates include mint + event type + stage and mint + event
+  type + `observedAt`, but they are not initial live dedupe keys.
+
+Status / mode boundary:
+
+- Status candidates: `captured`, `sent`, `failed`, `skipped`, and `blocked`.
+- Mode candidates: `capture_only` and `live_send`.
+- Capture-only pass is not `sent`.
+- `captured` is rehearsal evidence.
+- Only a row / state with `sentAt` is live-send proof.
+- `failed` is not equivalent to `sent`.
+- Resend after `failed` requires DB confirmation and a separate human gate; it
+  is not automatic retry.
+- `skipped` and `blocked` record safe reasons for no live send.
+
+Future storage fields:
+
+- `notificationKey`.
+- `eventType`.
+- `mint`.
+- nullable `metricId`.
+- `trigger`.
+- `status`.
+- `mode`.
+- safe-summary `messagePreview`.
+- nullable `capturedAt`.
+- nullable `sentAt`.
+- nullable `failedAt`.
+- nullable `errorCode`.
+- nullable `reason`.
+- `rawJsonFree`.
+- `secretFree`.
+- `source`.
+- `createdAt`.
+- `updatedAt`.
+
+Never store:
+
+- Telegram response body.
+- bot token.
+- chat id.
+- token-containing URL.
+- raw API response.
+- raw payload.
+- exact rawJson payload.
+- raw stdout.
+- raw stderr.
+- `.env`.
+- `DATABASE_URL`.
+- `process.env`.
+- any line or blob with a secret marker.
+
+Unique constraint / idempotency candidates:
+
+- Treat `notificationKey` as the durable identity in the initial policy.
+- Strongly consider a unique `notificationKey` for the first implementation.
+- Do not include `status` in the unique identity without a clear reason; doing
+  so can weaken duplicate prevention for a key that was already sent.
+- Prefer modeling capture-only and live-send as one notification-key lifecycle.
+- This task does not add a Prisma schema change or migration.
+
+Capture-only relationship:
+
+- Capture-only pass is a live-send precondition.
+- Capture-only pass alone does not complete durable dedupe.
+- Capture records can be confirmation material, but they are not proof of
+  `sent`.
+- Before live send, compare the capture record, DB state, notification key,
+  `metricId`, event type, and safe-summary message preview.
+
+Failed-send relationship:
+
+- `failed` status and `errorCode` are safe-summary storage candidates.
+- Telegram response body is never stored.
+- Do not automatically retry failed sends.
+- Resending a failed key requires DB confirmation and a human gate.
+- Failed-send retry automation remains a later gap.
+
+Queue / systemd relationship:
+
+- Durable notification dedupe storage is one queue pre-gate.
+- This policy does not make queue, systemd, live loop, scheduler, or unbounded
+  watch ready.
+- Queue idempotency, ordering, item-level retry, and systemd recovery remain
+  later work.
+
+Stop before live send or queue when:
+
+- `notificationKey` is missing.
+- `metric_appended` is missing `metricId`.
+- `token_completed` or `loop_complete` is being treated as live-send ready.
+- duplicate-key judgment cannot be made.
+- durable dedupe state is unavailable when required.
+- capture record and DB state mismatch.
+- failed-send retry is being automated.
+- rawJson or secret marker risk appears.
+- Telegram token, chat id, or response body would be stored.
+- queue, systemd, scheduler, or unbounded expansion risk appears.
+
+Not fixed / future work:
+
+- Prisma Notification model.
+- migration.
+- durable notification dedupe storage implementation.
+- queue idempotency.
+- failed-send retry.
+- Telegram live-loop integration.
+- systemd recovery.
 
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
