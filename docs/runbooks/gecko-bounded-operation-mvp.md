@@ -1665,6 +1665,115 @@ Not fixed by this policy:
 - Telegram failed-send retry.
 - bounded executor prototype.
 
+### Cooldown / Retry Max Count Policy
+
+This is a docs-only operator policy. It does not implement retry automation,
+queue idempotency, systemd recovery, default checkpoint operation, Telegram
+failed-send retry, a bounded executor prototype, or automatic Red execution.
+
+Retry categories:
+
+- no-side-effect fetch retry.
+- write-attempted retry.
+- ambiguous write retry.
+- Telegram failed-send retry.
+- systemd / queue retry.
+
+No-side-effect fetch retry:
+
+- Fetch-only retry before any write is separate from write-attempted retry.
+- The existing `detect:geckoterminal:new-pools` watch behavior that retries one
+  fetch-only 429 / timeout-like failure is implementation-local fetch retry.
+- A retry is no-side-effect only when no DB / Token / Metric write has
+  happened.
+- If fetch retry fails, do not move to Red. Inspect status / reason /
+  candidate state and return to the operator flow.
+
+Write-attempted retry:
+
+- Automatic retry after a Red exact command is not allowed.
+- Operator-level Red retry max is automatic `0`.
+- `errorCount > 0`, `selectedCount > 1`, `writtenCount > 1`, or
+  `importedCount > 1` is not a retry trigger; it is a stop condition.
+- Run DB read confirmation first.
+- If a rerun is still needed, return to human gate and treat it as a separate
+  Red approval.
+
+Ambiguous write result:
+
+- Missing CLI output / log, unknown tmux exit, interrupted process, or network
+  error where fetch failure and write outcome cannot be separated is ambiguous.
+- Automatic retry is not allowed.
+- Do not rerun the Red command first.
+- Run DB read confirmation first.
+- If duplicate vs failed write cannot be decided, stop and return to human
+  gate.
+
+Cooldown policy:
+
+- Operator-level cooldown is not automatic retry.
+- Cooldown is only a waiting hint for re-check timing or human-gate timing.
+- Cooldown seconds and retry counts are not used as runtime automation.
+- Existing watch / wrapper cooldown sleeps are implementation-local and do not
+  change the operator-level retry max.
+- Re-evaluate cooldown policy before systemd, scheduler / queue, unbounded
+  watch, or default checkpoint operation.
+
+Telegram failed-send retry:
+
+- Telegram sender failed status / error code and live-loop retry are separate
+  concerns.
+- Send condition, duplicate prevention, cooldown, failed-send handling,
+  capture-only rehearsal, and secret-free output remain future policy work.
+- Telegram failed-send retry is outside this retry max count policy.
+
+Systemd / queue retry:
+
+- Systemd restart retry and queue retry remain deferred.
+- Queue idempotency, default checkpoint behavior, multi-candidate failure
+  handling, and duplicate-prevention enforcement are not fixed enough for
+  service-level retry.
+- Do not design automatic service restart as a way to rerun Red commands.
+
+Stage-specific policy:
+
+- Detect separates fetch-only retry from detect write retry. `importedCount >
+  1` stops, `existingCount` is not a failure, and checkpoint state is not the
+  retry authority.
+- `enrich_rescore` expects `selected=1`, `ok=1`, `error=0`, target-mint-only
+  writes, and `notifySent=0` unless a separate Red approval allows notify.
+  Errors require DB read confirmation and human gate.
+- Metric snapshot expects `selectedCount=1`, `writtenCount=1`, and
+  `errorCount=0`. Ambiguous results require `metrics:report` / `token:compare`
+  before any rerun, and same-observedAt strict duplicate risk stops.
+- Tmux single-run does not become retry automation. If tmux exit / log /
+  outcome is unclear, inspect `/tmp` log plus DB read confirmation and return
+  to human gate before any new tmux Red command.
+
+Return to human gate when:
+
+- `errorCount > 0`.
+- `selectedCount > 1`.
+- `writtenCount > 1`.
+- `importedCount > 1`.
+- partial success.
+- ambiguous write result.
+- DB state mismatch.
+- checkpoint / DB mismatch.
+- duplicate decision cannot be made.
+- latest Metric or `metricsCount` mismatch.
+- rawJson or secret-marker risk.
+- Telegram, systemd, scheduler / queue, or unbounded expansion risk.
+
+Not fixed by this policy:
+
+- retry automation.
+- runtime retry max count implementation.
+- queue idempotency.
+- systemd recovery.
+- Telegram failed-send retry.
+- bounded executor prototype.
+
 Recommended next order:
 
 1. docs-only readiness gap fixed.

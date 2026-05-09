@@ -156,6 +156,13 @@ gate. This is not watch readiness: retry automation, retry max counts,
 cooldown policy, queue idempotency, systemd recovery, Telegram failed-send
 retry, and bounded executor behavior remain unimplemented or unfixed.
 
+Cooldown / retry max count policy is now fixed at the operator-policy level:
+Red retry max is automatic `0`, Red reruns are human-approved only, and
+cooldown is a re-check / human-gate timing hint rather than automatic retry.
+Existing watch / wrapper cooldown sleeps are implementation-local and must not
+be read as systemd, scheduler / queue, unbounded watch, default checkpoint, or
+retry automation readiness.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

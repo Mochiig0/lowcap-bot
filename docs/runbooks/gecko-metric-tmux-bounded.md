@@ -23,6 +23,8 @@ DB reports, stop and return to human gate; tmux does not make retry automatic.
 An unknown tmux exit, missing log, or unclear network/write outcome is an
 ambiguous write result: run DB read confirmation first and do not start another
 tmux Red command until a new human gate approves it.
+Cooldown does not make tmux retry automatic. The operator-level Red retry max
+is automatic `0`; another tmux command is a separate human-approved Red gate.
 
 There are two bounded tmux shapes:
 

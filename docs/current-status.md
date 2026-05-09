@@ -594,6 +594,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   current bounded flow and return to human gate. Retry automation, retry max
   count, cooldown policy, queue idempotency, systemd recovery, and Telegram
   failed-send retry remain unimplemented or unfixed.
+- Cooldown / retry max count policy is now fixed as docs-only operator policy.
+  Operator-level Red retry max is automatic `0`: Red exact commands are never
+  retried automatically, and any rerun requires a new human-approved Red gate.
+  Cooldown is only a re-check / human-gate timing hint, not automatic retry.
+  Existing watch / wrapper cooldown sleeps remain implementation-local and do
+  not promote retry automation. Telegram failed-send retry, queue idempotency,
+  systemd recovery, unbounded watch, and default checkpoint operation remain
+  unresolved or deferred.
 - Multi-candidate ordering / per-item failure handling, log retention,
   secret-free journal policy, and Telegram loop send / duplicate / cooldown /
   failed-send handling remain unresolved gates. Default checkpoint operation is

@@ -492,6 +492,11 @@ unclear, confirm DB state with `metrics:report`, `token:compare`, and
 mismatch, or `metricsCount` mismatch returns to human gate; retry automation is
 not part of this loop.
 
+For cooldown / retry max count, Metric Red retry max is automatic `0`.
+Cooldown is only a timing hint for re-check / human gate, not permission to
+rerun `metric:snapshot:geckoterminal --write`. Same-observedAt strict duplicate
+risk stops until DB read confirmation and a new human-approved Red gate.
+
 ## Preconditions
 
 - The repo is clean and on the expected branch.
