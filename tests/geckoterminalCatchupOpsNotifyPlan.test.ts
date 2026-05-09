@@ -58,6 +58,38 @@ async function withTempNotificationDb<T>(
   }
 }
 
+async function seedCapturedMetricAppendedNotification(input: {
+  client: PrismaClient;
+  mint: string;
+  metricId: number;
+  status?: "captured" | "sent" | "failed";
+}): Promise<void> {
+  await input.client.notification.create({
+    data: {
+      notificationKey: `${input.mint}:metric_appended:${input.metricId}`,
+      eventType: "metric_appended",
+      mint: input.mint,
+      metricId: input.metricId,
+      trigger: "metric_appended",
+      status: input.status ?? "captured",
+      mode: input.status === "sent" || input.status === "failed" ? "live_send" : "capture_only",
+      messagePreview: [
+        "[Lowcap Ops] Gecko metric appended",
+        `mint: ${input.mint}`,
+        `metricId: ${input.metricId}`,
+        "source: geckoterminal.token_snapshot",
+        "status: metric_appended",
+      ].join("\n"),
+      capturedAt: new Date("2026-05-09T00:00:00.000Z"),
+      sentAt: input.status === "sent" ? new Date("2026-05-09T00:01:00.000Z") : null,
+      failedAt: input.status === "failed" ? new Date("2026-05-09T00:01:00.000Z") : null,
+      rawJsonFree: true,
+      secretFree: true,
+      source: "ops:catchup:gecko",
+    },
+  });
+}
+
 test("gecko catchup dry-run includes send-disabled ops notification preview", () => {
   const now = new Date("2026-04-29T00:00:00.000Z");
   const output = buildGeckoCatchupSupervisorPlan(
@@ -725,25 +757,269 @@ test("ops notification send waits for selected trigger capture confirmation", as
     "ops_notify_capture_not_confirmed",
   ]);
 
-  const sent = await sendOpsNotifyPlan(
-    {
-      ...outputWithPreview,
-      opsNotifyPlan: {
-        ...outputWithPreview.opsNotifyPlan,
-        captureResults: [
-          {
-            trigger: "metric_appended",
-            mint: preview.mint,
-            metricId: preview.metricId,
-            status: "captured",
-            blockedBy: [],
-          },
-        ],
+  await withTempNotificationDb(async ({ client }) => {
+    assert.ok(preview.mint);
+    assert.ok(preview.metricId);
+    await seedCapturedMetricAppendedNotification({
+      client,
+      mint: preview.mint,
+      metricId: preview.metricId,
+    });
+
+    const sent = await sendOpsNotifyPlan(
+      {
+        ...outputWithPreview,
+        opsNotifyPlan: {
+          ...outputWithPreview.opsNotifyPlan,
+          captureResults: [
+            {
+              trigger: "metric_appended",
+              mint: preview.mint,
+              metricId: preview.metricId,
+              status: "captured",
+              blockedBy: [],
+            },
+          ],
+        },
       },
-    },
-    { opsNotifySender: sender },
-  );
-  assert.equal(senderCalls.length, 1);
-  assert.equal(sent.opsNotifyPlan.sentCount, 1);
-  assert.equal(sent.opsNotifyPlan.sendResults[0]?.status, "sent");
+      {
+        opsNotifySender: sender,
+        notificationClient: client,
+      },
+    );
+
+    assert.equal(senderCalls.length, 1);
+    assert.equal(sent.opsNotifyPlan.sentCount, 1);
+    assert.equal(sent.opsNotifyPlan.sendResults[0]?.status, "sent");
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey: `${preview.mint}:metric_appended:${preview.metricId}`,
+      },
+    });
+    assert.equal(notification?.status, "sent");
+    assert.equal(notification?.mode, "live_send");
+    assert.ok(notification?.sentAt);
+    assert.equal(await client.notification.count(), 1);
+  });
+});
+
+test("ops notification send marks metric_appended send failures safely", async () => {
+  await withTempNotificationDb(async ({ client }) => {
+    const now = new Date("2026-04-29T00:00:00.000Z");
+    const mint = "OpsNotifyFailedMark111111111111111111111pump";
+    const metricId = 2221;
+    const preview = buildOpsNotificationPreview({
+      trigger: "metric_appended",
+      mint,
+      metricId,
+      metricSource: "geckoterminal.token_snapshot",
+    });
+    await seedCapturedMetricAppendedNotification({ client, mint, metricId });
+    const baseOutput = buildGeckoCatchupSupervisorPlan(
+      parseGeckoCatchupSupervisorArgs([
+        "--opsNotify",
+        "--opsNotifyTrigger",
+        "metric_appended",
+        "--opsNotifyCaptureFile",
+        "/tmp/lowcap-ops-notify.jsonl",
+      ]),
+      [],
+      new Date(now.getTime() - 60_000),
+    );
+    const senderCalls: OpsNotificationSenderInput[] = [];
+
+    const output = await sendOpsNotifyPlan(
+      {
+        ...baseOutput,
+        opsNotifyPlan: {
+          ...baseOutput.opsNotifyPlan,
+          notificationPreviews: [preview],
+          previewCount: 1,
+          wouldNotifyCount: 1,
+          captureResults: [
+            {
+              trigger: "metric_appended",
+              mint,
+              metricId,
+              status: "captured",
+              blockedBy: [],
+            },
+          ],
+        },
+      },
+      {
+        opsNotifySender: async (input) => {
+          senderCalls.push(input);
+          return {
+            status: "failed",
+            errorCode: "telegram_response_not_ok",
+          };
+        },
+        notificationClient: client,
+      },
+    );
+
+    assert.equal(senderCalls.length, 1);
+    assert.equal(output.opsNotifyPlan.sentCount, 0);
+    assert.equal(output.opsNotifyPlan.sendResults[0]?.status, "failed");
+    assert.equal(output.opsNotifyPlan.sendResults[0]?.errorCode, "telegram_response_not_ok");
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey: `${mint}:metric_appended:${metricId}`,
+      },
+    });
+    assert.equal(notification?.status, "failed");
+    assert.equal(notification?.mode, "live_send");
+    assert.ok(notification?.failedAt);
+    assert.equal(notification?.sentAt, null);
+    assert.equal(notification?.errorCode, "telegram_response_not_ok");
+    assert.equal(notification?.reason, "ops_notify_send_failed");
+    assert.equal(await client.notification.count(), 1);
+
+    const serialized = JSON.stringify(notification);
+    assert.equal(serialized.includes("telegram response body"), false);
+    assert.equal(serialized.includes("botToken"), false);
+    assert.equal(serialized.includes("chatId"), false);
+    assert.equal(serialized.includes("DATABASE_URL"), false);
+    assert.equal(serialized.includes("TELEGRAM_BOT_TOKEN"), false);
+    assert.equal(serialized.includes("TELEGRAM_CHAT_ID"), false);
+  });
+});
+
+test("ops notification send blocks already-sent metric_appended notifications", async () => {
+  await withTempNotificationDb(async ({ client }) => {
+    const now = new Date("2026-04-29T00:00:00.000Z");
+    const mint = "OpsNotifyAlreadySent11111111111111111111pump";
+    const metricId = 2222;
+    const preview = buildOpsNotificationPreview({
+      trigger: "metric_appended",
+      mint,
+      metricId,
+      metricSource: "geckoterminal.token_snapshot",
+    });
+    await seedCapturedMetricAppendedNotification({
+      client,
+      mint,
+      metricId,
+      status: "sent",
+    });
+    const baseOutput = buildGeckoCatchupSupervisorPlan(
+      parseGeckoCatchupSupervisorArgs([
+        "--opsNotify",
+        "--opsNotifyTrigger",
+        "metric_appended",
+        "--opsNotifyCaptureFile",
+        "/tmp/lowcap-ops-notify.jsonl",
+      ]),
+      [],
+      new Date(now.getTime() - 60_000),
+    );
+    const senderCalls: OpsNotificationSenderInput[] = [];
+
+    const output = await sendOpsNotifyPlan(
+      {
+        ...baseOutput,
+        opsNotifyPlan: {
+          ...baseOutput.opsNotifyPlan,
+          notificationPreviews: [preview],
+          previewCount: 1,
+          wouldNotifyCount: 1,
+          captureResults: [
+            {
+              trigger: "metric_appended",
+              mint,
+              metricId,
+              status: "captured",
+              blockedBy: [],
+            },
+          ],
+        },
+      },
+      {
+        opsNotifySender: async (input) => {
+          senderCalls.push(input);
+          return { status: "sent" };
+        },
+        notificationClient: client,
+      },
+    );
+
+    assert.equal(senderCalls.length, 0);
+    assert.equal(output.opsNotifyPlan.sentCount, 0);
+    assert.deepEqual(output.opsNotifyPlan.sendResults[0]?.blockedBy, [
+      "notification_already_sent",
+    ]);
+    assert.equal(await client.notification.count(), 1);
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey: `${mint}:metric_appended:${metricId}`,
+      },
+    });
+    assert.equal(notification?.status, "sent");
+    assert.equal(notification?.mode, "live_send");
+  });
+});
+
+test("ops notification send blocks missing metric_appended notification records", async () => {
+  await withTempNotificationDb(async ({ client }) => {
+    const now = new Date("2026-04-29T00:00:00.000Z");
+    const mint = "OpsNotifyMissingRecord1111111111111111111pump";
+    const metricId = 2223;
+    const preview = buildOpsNotificationPreview({
+      trigger: "metric_appended",
+      mint,
+      metricId,
+      metricSource: "geckoterminal.token_snapshot",
+    });
+    const baseOutput = buildGeckoCatchupSupervisorPlan(
+      parseGeckoCatchupSupervisorArgs([
+        "--opsNotify",
+        "--opsNotifyTrigger",
+        "metric_appended",
+        "--opsNotifyCaptureFile",
+        "/tmp/lowcap-ops-notify.jsonl",
+      ]),
+      [],
+      new Date(now.getTime() - 60_000),
+    );
+    const senderCalls: OpsNotificationSenderInput[] = [];
+
+    const output = await sendOpsNotifyPlan(
+      {
+        ...baseOutput,
+        opsNotifyPlan: {
+          ...baseOutput.opsNotifyPlan,
+          notificationPreviews: [preview],
+          previewCount: 1,
+          wouldNotifyCount: 1,
+          captureResults: [
+            {
+              trigger: "metric_appended",
+              mint,
+              metricId,
+              status: "captured",
+              blockedBy: [],
+            },
+          ],
+        },
+      },
+      {
+        opsNotifySender: async (input) => {
+          senderCalls.push(input);
+          return { status: "sent" };
+        },
+        notificationClient: client,
+      },
+    );
+
+    assert.equal(senderCalls.length, 0);
+    assert.equal(output.opsNotifyPlan.sentCount, 0);
+    assert.deepEqual(output.opsNotifyPlan.sendResults[0]?.blockedBy, [
+      "notification_record_missing",
+    ]);
+    assert.equal(await client.notification.count(), 0);
+  });
 });
