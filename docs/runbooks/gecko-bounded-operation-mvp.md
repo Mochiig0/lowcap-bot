@@ -2366,7 +2366,18 @@ Notification capture hook for `metric_appended` after a successful Metric
 create, with Metric create maximum 1, Notification create maximum 1, Token
 write 0, Telegram send 0, checkpoint write 0, and temp-SQLite test coverage
 without writing production `prisma/dev.db`. Batch / limit `metric:snapshot`
-Notification writes are still out of scope.
+Notification writes are still out of scope. The first production Red rehearsal
+for this hook succeeded on
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup
+`/tmp/lowcap-dev.db.before-metric-snapshot-notification-20260509T135724Z.bak`:
+Token count stayed `1107 -> 1107`, Metric count moved `191 -> 192`,
+Notification count moved `0 -> 1`, Metric `1264` was created for token
+`5043`, and Notification `1` used key
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264` with
+`eventType=metric_appended`, `trigger=metric_appended`, `status=captured`,
+`mode=capture_only`, `source=metric:snapshot:geckoterminal`,
+`rawJsonFree=true`, and `secretFree=true`. Rollback was not needed and restore
+was not executed.
 
 Migration baseline policy:
 

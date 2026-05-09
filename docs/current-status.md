@@ -649,7 +649,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `metric:snapshot:geckoterminal -- --mint <MINT> --write` single-mint
   Notification capture hook for `metric_appended`. Batch / limit
   `metric:snapshot` Notification writes and broader runtime Notification
-  record write integration remain incomplete.
+  record write integration remain incomplete. The first production Red
+  rehearsal for this hook succeeded on
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`: backup
+  `/tmp/lowcap-dev.db.before-metric-snapshot-notification-20260509T135724Z.bak`
+  was created, Token count stayed `1107 -> 1107`, Metric count moved
+  `191 -> 192`, Notification count moved `0 -> 1`, Metric `1264` was created
+  for token `5043`, and Notification `1` used
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264` with
+  `eventType=metric_appended`, `trigger=metric_appended`, `status=captured`,
+  `mode=capture_only`, `source=metric:snapshot:geckoterminal`,
+  `rawJsonFree=true`, and `secretFree=true`. Rollback was not needed and
+  restore was not executed.
   Docs records remain audit logs, and capture records / DB state remain
   confirmation inputs rather than the queue runtime's dedupe store.
   Capture-only rehearsal consistency is now fixed as docs-only policy: capture
@@ -1619,10 +1630,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   is limited to single-mint mode with Metric create maximum 1, Notification
   create maximum 1, Token write 0, Telegram send 0, and checkpoint write 0 per
   run. It is covered by a temp-SQLite test and did not write to production
-  `prisma/dev.db`. Batch / limit mode Notification writes, Telegram live-loop
-  integration, sent / failed runtime marking, failed-send retry, queue /
-  systemd, default checkpoint operation, automatic Red execution, and
-  always-on bot operation remain unimplemented.
+  `prisma/dev.db`. First production Red rehearsal succeeded for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` with backup
+  `/tmp/lowcap-dev.db.before-metric-snapshot-notification-20260509T135724Z.bak`,
+  Token count unchanged (`1107 -> 1107`), Metric count `191 -> 192`,
+  Notification count `0 -> 1`, Metric `1264`, and Notification key
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`;
+  `Notification_notificationKey_key` remained present, rollback was not
+  needed, and restore was not executed. Batch / limit mode Notification writes,
+  Telegram live-loop integration, sent / failed runtime marking, failed-send
+  retry, queue / systemd, default checkpoint operation, automatic Red
+  execution, and always-on bot operation remain unimplemented.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields

@@ -256,10 +256,18 @@ record write integration is now implemented for `ops:catchup:gecko`, and the
 records one `metric_appended` Notification capture row after Metric create,
 with Metric create maximum 1, Notification create maximum 1, Token write 0,
 Telegram send 0, checkpoint write 0, and temp-SQLite test coverage without
-writing production `prisma/dev.db`. Batch / limit `metric:snapshot`
-Notification writes, `token_completed` / `loop_complete` Notification writes,
-Telegram live-loop integration, queue idempotency, systemd recovery, default
-checkpoint operation, and unbounded watch remain unimplemented.
+writing production `prisma/dev.db`. The first production Red rehearsal for this
+hook succeeded on `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`: backup
+`/tmp/lowcap-dev.db.before-metric-snapshot-notification-20260509T135724Z.bak`
+was created, Token count stayed `1107 -> 1107`, Metric count moved
+`191 -> 192`, Notification count moved `0 -> 1`, Metric `1264` and
+Notification `1` were created, and the Notification key was
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`.
+Rollback was not needed and restore was not executed. Batch / limit
+`metric:snapshot` Notification writes, `token_completed` / `loop_complete`
+Notification writes, Telegram live-loop integration, queue idempotency, systemd
+recovery, default checkpoint operation, and unbounded watch remain
+unimplemented.
 
 Notification schema / migration baseline policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. The first
@@ -281,10 +289,17 @@ behavior for missing `mint` / `metricId` or multiple captured
 `source=metric:snapshot:geckoterminal`, safe `messagePreview`, and one
 Notification create maximum after Metric create; the focused test uses temp
 SQLite and does not write production `prisma/dev.db`, and batch / limit mode is
-still not a Notification write target. `token_completed` / `loop_complete`
-Notification writes, queue idempotency, Telegram live-loop integration, sent /
-failed runtime marking, systemd recovery, default checkpoint operation, and
-unbounded watch remain unimplemented.
+still not a Notification write target. Its first production Red rehearsal
+created Metric `1264` for token `5043` and Notification `1` with
+`eventType=metric_appended`, `trigger=metric_appended`, `status=captured`,
+`mode=capture_only`, `source=metric:snapshot:geckoterminal`,
+`rawJsonFree=true`, and `secretFree=true`; Token count was unchanged
+(`1107 -> 1107`), Metric count moved `191 -> 192`, Notification count moved
+`0 -> 1`, and `Notification_notificationKey_key` remained present.
+`token_completed` / `loop_complete` Notification writes, queue idempotency,
+Telegram live-loop integration, sent / failed runtime marking, systemd
+recovery, default checkpoint operation, and unbounded watch remain
+unimplemented.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the

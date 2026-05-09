@@ -906,7 +906,18 @@ Write commands mutate data and require explicit current-turn permission:
   `source=metric:snapshot:geckoterminal`, and safe `messagePreview`. The hook
   is not enabled for batch / limit mode; its side-effect boundary is Metric
   create maximum 1, Notification create maximum 1, Token write 0, Telegram send
-  0, and checkpoint write 0 per single-mint run.
+  0, and checkpoint write 0 per single-mint run. The first production Red
+  rehearsal succeeded for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`: backup
+  `/tmp/lowcap-dev.db.before-metric-snapshot-notification-20260509T135724Z.bak`
+  was created, Token count stayed `1107 -> 1107`, Metric count moved
+  `191 -> 192`, Notification count moved `0 -> 1`, Metric `1264` was created
+  for token `5043`, and Notification `1` used key
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264` with
+  `eventType=metric_appended`, `trigger=metric_appended`, `status=captured`,
+  `mode=capture_only`, `source=metric:snapshot:geckoterminal`,
+  `rawJsonFree=true`, and `secretFree=true`; rollback was not needed and
+  restore was not executed.
 - `ops:catchup:gecko --write --metricAppend` delegates exactly one Metric append through the production runner only when the gated one-token, one-cycle Metric-only plan is eligible
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` appends ops notification preview records to a local JSONL file only; live Telegram send happens only when `--opsNotify` is also explicitly requested and the selected trigger passes the send gate
 
@@ -1011,7 +1022,13 @@ Use these markers:
   `status=captured`, `mode=capture_only`, and
   `source=metric:snapshot:geckoterminal`. Batch / limit mode Notification
   writes remain out of scope. Its focused test uses temp SQLite and does not
-  write production `prisma/dev.db`.
+  write production `prisma/dev.db`. The first production Red rehearsal for this
+  hook created Metric `1264` and Notification `1` for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, with Token count unchanged
+  (`1107 -> 1107`), Metric count `191 -> 192`, Notification count `0 -> 1`,
+  notification key
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`, and
+  `Notification_notificationKey_key` present.
   `token_completed` / `loop_complete` Notification writes, Telegram, sent /
   failed runtime marking, queue, scheduler, systemd, default checkpoint,
   automatic Red execution, and always-on bot operation remain unimplemented.
