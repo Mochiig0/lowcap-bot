@@ -1323,7 +1323,9 @@ Retry / failure policy:
 - `selectedCount > 1` or `writtenCount > 1` is a stop condition for current
   single-mint bounded flows unless a separate approval explicitly raises the
   bound.
-- Retry maximums, cooldowns, and human-gate return conditions are not fixed.
+- Operator-level retry / cooldown and human-gate return conditions are fixed
+  for bounded manual operation; runtime retry max count implementation and
+  cooldown automation remain unresolved.
 - After a failed or partial run, the interim procedure is to stop, inspect
   read-only reports, and rebuild the next approval through `bounded-flow:plan`,
   planner, validator, and human gate.
@@ -1612,11 +1614,12 @@ Ambiguous write result:
 
 Cooldown / retry count:
 
-- Retry max count is not fixed.
+- Operator-level Red retry max is automatic `0`.
 - Existing fetch / watch cooldown behavior is implementation-local and is not
   an operator-level retry policy.
-- Cooldown policy must be fixed before systemd, scheduler / queue, unbounded
-  watch, or default checkpoint operation.
+- Runtime retry max count implementation and cooldown automation must remain
+  unresolved until systemd, scheduler / queue, unbounded watch, or default
+  checkpoint operation are separately approved.
 - Do not expand automatic retry at this stage.
 
 Stage-specific policy:
@@ -1658,8 +1661,8 @@ Return to human gate when:
 Not fixed by this policy:
 
 - retry automation.
-- retry max count.
-- cooldown policy.
+- runtime retry max count implementation.
+- cooldown automation.
 - queue idempotency.
 - systemd recovery.
 - Telegram failed-send retry.

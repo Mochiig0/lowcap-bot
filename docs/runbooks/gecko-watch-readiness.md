@@ -119,7 +119,8 @@ The confirmed `/tmp` checkpoint runs are bounded Red rehearsals, not default
 checkpoint readiness. DB state is the first confirmation target, while a
 checkpoint cursor is only a detect cursor and not proof that Token or Metric
 writes succeeded. Restart / resume after partial success, checkpoint/DB
-ordering failures, Metric strict duplicate enforcement, retry limits, log
+ordering failures, Metric strict duplicate enforcement, runtime retry
+automation, runtime retry max count implementation, cooldown automation, log
 retention, secret-free journal output, Telegram loop cooldown / duplicate /
 failed-send handling, and multi-candidate ordering remain unresolved. Keep
 default checkpoint operation, systemd, scheduler / queue, unbounded watch,
@@ -153,8 +154,9 @@ retry decisions start with DB read confirmation, ambiguous write results do not
 allow automatic retry, and `errorCount > 0`, `selectedCount > 1`,
 `writtenCount > 1`, or `importedCount > 1` returns the bounded flow to human
 gate. This is not watch readiness: retry automation, retry max counts,
-cooldown policy, queue idempotency, systemd recovery, Telegram failed-send
-retry, and bounded executor behavior remain unimplemented or unfixed.
+runtime retry max count implementation, cooldown automation, queue
+idempotency, systemd recovery, Telegram failed-send retry, and bounded
+executor behavior remain unimplemented or unfixed.
 
 Cooldown / retry max count policy is now fixed at the operator-policy level:
 Red retry max is automatic `0`, Red reruns are human-approved only, and

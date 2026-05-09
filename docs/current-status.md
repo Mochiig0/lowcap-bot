@@ -591,9 +591,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   retry decisions use DB read confirmation, not checkpoint state; ambiguous
   write results do not allow automatic retry; `errorCount > 0`,
   `selectedCount > 1`, `writtenCount > 1`, and `importedCount > 1` stop the
-  current bounded flow and return to human gate. Retry automation, retry max
-  count, cooldown policy, queue idempotency, systemd recovery, and Telegram
-  failed-send retry remain unimplemented or unfixed.
+  current bounded flow and return to human gate. Retry automation, runtime
+  retry max count implementation, cooldown automation, queue idempotency,
+  systemd recovery, and Telegram failed-send retry remain unimplemented or
+  unfixed.
 - Cooldown / retry max count policy is now fixed as docs-only operator policy.
   Operator-level Red retry max is automatic `0`: Red exact commands are never
   retried automatically, and any rerun requires a new human-approved Red gate.
