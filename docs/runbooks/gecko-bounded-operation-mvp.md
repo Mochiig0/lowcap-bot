@@ -1559,6 +1559,21 @@ a non-executor planning aid and does not promote automatic Red execution,
 executor wrapper, always-on operation, systemd, scheduler / queue, unbounded
 watch, default checkpoint operation, or Telegram live-loop integration.
 
+Verified follow-up note: `b9abee6` also passed read-only docs consistency for
+the operator flow. The docs still agree on
+`bounded-flow:plan` -> `bounded-flow:guide` ->
+`single-candidate:plan` -> `single-candidate:validate` -> human gate -> Red
+exact command. The role split remains unchanged: `plan` builds the operator
+packet / approval skeleton / checklist with command strings and required
+fields, `guide` reviews the intent-specific stage order, planner performs
+DB-backed stage / `nextRedCommand` selection, validator checks `approvalReady`
+/ `canProceedToHumanGate`, the human gate is not automatic execution, and Red
+is a separate exact-command task. This keeps `bounded-flow:plan` as a
+non-executor planning aid that does not run guide, planner, validator,
+`nextRedCommand`, or Red, and it leaves automatic Red execution, executor
+wrapper, always-on operation, systemd, scheduler / queue, unbounded watch,
+default checkpoint operation, and Telegram live-loop integration deferred.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`
