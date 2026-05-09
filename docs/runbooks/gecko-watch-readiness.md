@@ -225,10 +225,10 @@ durable notification identity is the `metric_appended` key `mint + eventType +
 metricId`; `token_completed` and `loop_complete` remain capture-only. Future
 storage must distinguish capture-only from live send and `captured`, `sent`,
 `failed`, `skipped`, and `blocked` states, with only a human-gated live send
-with `sentAt` treated as sent. DB table creation / apply / write, durable
-storage implementation, queue idempotency, failed-send retry, Telegram
-live-loop integration, systemd recovery, default checkpoint operation, and
-unbounded watch remain unimplemented.
+with `sentAt` treated as sent. Notification DB table creation is complete, but
+repository / runtime Notification record writes, queue idempotency,
+failed-send retry, Telegram live-loop integration, systemd recovery, default
+checkpoint operation, and unbounded watch remain unimplemented.
 
 Failed-send / resend policy is now fixed at the docs level, but watch
 readiness and systemd readiness are still incomplete. `failed` is not `sent`,
@@ -246,32 +246,35 @@ is the first model-name candidate; future storage is responsible for
 failed-send / resend evidence, while staying separate from queue idempotency.
 The initial key remains `mint + eventType + metricId` for `metric_appended`;
 `token_completed` and `loop_complete` remain capture-only. DB table creation /
-apply / write, durable storage implementation, capture-only write
-integration, Telegram live-loop integration, queue idempotency, systemd
-recovery, default checkpoint operation, and unbounded watch remain
-unimplemented.
+apply is now complete for `prisma/dev.db`, but durable storage runtime,
+capture-only write integration, Telegram live-loop integration, queue
+idempotency, systemd recovery, default checkpoint operation, and unbounded
+watch remain unimplemented.
 
 Notification schema / migration baseline policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. The first
 Yellow schema cut added `Notification`, schema-level inspection test coverage,
 and `/tmp/add_notification.sql` SQL preview without changing existing `Dev` /
 `Token` / `Metric` models. Formal migration files now exist under
-`prisma/migrations`, but DB table creation / apply, durable storage
-implementation, repository code, capture-only write integration, queue
-idempotency, Telegram live-loop integration, systemd recovery, default
-checkpoint operation, and unbounded watch remain unimplemented. The next gate
-is deciding DB application / table creation without reset or destructive
-migration.
+`prisma/migrations`, and the Red DB apply created the `Notification` table in
+`prisma/dev.db` without reset or destructive migration. Durable storage
+runtime, repository code, capture-only write integration, queue idempotency,
+Telegram live-loop integration, systemd recovery, default checkpoint operation,
+and unbounded watch remain unimplemented.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the
 baseline SQL contains only existing `Dev` / `Token` / `Metric` table, index,
 and FK creation, while the add-notification-only SQL contains only the
 `Notification` table and `Notification_notificationKey_key` unique index.
-Formal migration files are now created, but not applied. Applying migrations or
-creating the DB table in `prisma/dev.db` is a separate Red task with explicit
-target DB, backup, rollback, and verification. Do not treat this as queue,
-systemd, default checkpoint, Telegram live-loop, or durable storage readiness.
+Formal migration files are now created and applied to `prisma/dev.db` through
+the explicit Red DB task. Backup exists at
+`/tmp/lowcap-dev.db.before-notification-20260509T111516Z.bak`; `_prisma_migrations`
+has records for `20260509000100_baseline_existing_schema` and
+`20260509000200_add_notification`; `Notification` count is 0; existing counts
+stayed unchanged (`Dev=0`, `Token=1107`, `Metric=191`). Do not treat this as
+queue, systemd, default checkpoint, Telegram live-loop, or runtime durable
+storage readiness.
 
 Next phase choices:
 

@@ -2034,8 +2034,8 @@ Unique constraint / idempotency candidates:
   so can weaken duplicate prevention for a key that was already sent.
 - Prefer modeling capture-only and live-send as one notification-key lifecycle.
 - The first schema cut now has the `notificationKey` identity in the Prisma
-  schema, and formal migration files now exist, but no DB table creation /
-  apply has happened.
+  schema, formal migration files now exist, and the Red DB apply created the
+  `Notification` table in `prisma/dev.db`.
 
 Capture-only relationship:
 
@@ -2077,8 +2077,8 @@ Stop before live send or queue when:
 
 Not fixed / future work:
 
-- DB table creation / apply / write.
-- durable notification dedupe storage implementation.
+- repository / runtime Notification record writes.
+- durable notification dedupe storage runtime.
 - queue idempotency.
 - failed-send retry.
 - Telegram live-loop integration.
@@ -2088,9 +2088,9 @@ Not fixed / future work:
 
 This is the policy for failed Telegram notification outcomes and later
 human-approved resend decisions. The first schema cut now provides a
-`Notification` model for future storage, but it does not send Telegram,
-implement failed-send retry automation, apply a migration, create the DB table,
-start a queue / systemd service, or change runtime code.
+`Notification` model and the Red DB apply created the `Notification` table, but
+runtime code still does not write notification records, send Telegram,
+implement failed-send retry automation, or start a queue / systemd service.
 
 Failed vs sent boundary:
 
@@ -2174,8 +2174,8 @@ Notification-key lifecycle:
 - Resend approval may be represented as same-key state transition metadata or
   explicit approval metadata in a later implementation.
 - The first schema cut now has the same-key lifecycle candidate in Prisma
-  schema, and formal migration files now exist, but no DB table creation /
-  apply has happened.
+  schema, formal migration files now exist, and the Red DB apply created the
+  `Notification` table in `prisma/dev.db`.
 
 Capture-only / DB confirmation relationship:
 
@@ -2211,8 +2211,8 @@ Stop and return to human gate when:
 Not fixed / future work:
 
 - failed-send retry automation.
-- DB table creation / apply / write.
-- durable notification dedupe storage implementation.
+- repository / runtime Notification record writes.
+- durable notification dedupe storage runtime.
 - Telegram live-loop integration.
 - queue idempotency.
 - systemd recovery.
@@ -2333,8 +2333,8 @@ Migration pre-risks:
 
 Not fixed / future work:
 
-- DB table creation / apply / write.
-- durable storage implementation.
+- repository / runtime Notification record writes.
+- durable storage runtime.
 - capture-only write integration.
 - Telegram live-loop integration.
 - queue idempotency.
@@ -2348,9 +2348,10 @@ migration-file cut. The first schema cut added `Notification` to
 schema-level verification, run `prisma validate`, run `prisma generate`, run
 TypeScript check, and previewed SQL at `/tmp/add_notification.sql`. The later
 migration-file cut added the baseline and add-notification formal migration
-files under `prisma/migrations`. These cuts do not apply migrations, write DB
-rows, implement repository/runtime storage, execute capture-only, send
-Telegram, or start queue / systemd runtime.
+files under `prisma/migrations`. The Red DB apply then resolved the baseline
+migration as applied and deployed the add-notification migration to
+`prisma/dev.db`. These cuts do not implement repository/runtime storage,
+execute capture-only, send Telegram, or start queue / systemd runtime.
 
 Migration baseline policy:
 
@@ -2388,18 +2389,23 @@ Recommended formal migration split:
 2. Add-notification migration: add only the `Notification` table and
    `Notification_notificationKey_key` unique index.
 
-This split is now present as formal migration files. It is not applied to
-`prisma/dev.db` yet.
+This split is now present as formal migration files and has been applied to
+`prisma/dev.db` through the explicit Red DB application task.
 
 Existing DB application boundary:
 
-- Applying migrations or creating the `Notification` table in `prisma/dev.db`
-  is a separate Red task.
-- That Red task must name the target DB, backup plan, rollback plan, and
-  verification plan.
-- Do not run `prisma migrate dev`, `prisma migrate deploy`,
-  `prisma migrate resolve`, or `prisma db push` as part of this docs-only
-  policy.
+- The Red DB application task is complete for `prisma/dev.db`.
+- Backup exists at
+  `/tmp/lowcap-dev.db.before-notification-20260509T111516Z.bak`.
+- `20260509000100_baseline_existing_schema` is recorded as applied.
+- `20260509000200_add_notification` is deployed.
+- `_prisma_migrations` exists with both migration records.
+- `Notification` table exists with `Notification_notificationKey_key`.
+- `Notification` count is 0.
+- Existing counts stayed unchanged: `Dev=0`, `Token=1107`, `Metric=191`.
+- `prisma/dev.db` is not dirty in git status.
+- Do not run `prisma migrate dev`, `prisma db push`, reset, or destructive
+  migration for this state.
 
 First Yellow scope:
 

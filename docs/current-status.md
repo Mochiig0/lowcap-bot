@@ -658,10 +658,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   capture-only because they do not have the initial `metricId` key. Future
   storage must distinguish `capture_only` from `live_send`, and `captured`,
   `sent`, `failed`, `skipped`, and `blocked` states; only a human-gated
-  live-send result with `sentAt` is treated as sent. DB table creation / apply
-  / write, durable storage implementation, failed-send retry, Telegram
-  live-loop integration, queue idempotency, and systemd recovery remain
-  unimplemented.
+  live-send result with `sentAt` is treated as sent. The Notification DB table
+  now exists in `prisma/dev.db`, but repository / runtime Notification record
+  writes, failed-send retry, Telegram live-loop integration, queue idempotency,
+  and systemd recovery remain unimplemented.
 - Failed-send / resend policy is now fixed as docs-only policy. `failed` is not
   `sent`, previous `sent` on the same notification key blocks resend, and any
   resend requires DB read confirmation, capture-only rehearsal, secret-free /
@@ -675,18 +675,21 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `Notification` uses `notificationKey` as the durable identity,
   `mint + eventType + metricId` as the initial `metric_appended` key,
   nullable scalar `tokenId` / `metricId` fields without Prisma relations, String
-  `status` / `mode`, and `sentAt` as the future sent proof. DB table creation
-  / apply / write, durable storage implementation, capture-only write
-  integration, Telegram live-loop integration, queue idempotency, and systemd
-  recovery remain unimplemented.
+  `status` / `mode`, and `sentAt` as the future sent proof. Migration apply /
+  DB table creation for `Notification` is complete, but durable storage runtime,
+  capture-only write integration, Telegram live-loop integration, queue
+  idempotency, and systemd recovery remain unimplemented.
 - Notification model / migration baseline policy is now fixed as docs-only
   policy. The repo currently has `prisma/schema.prisma`, `prisma/dev.db`, and
   formal migration files under `prisma/migrations`; the first Yellow schema cut
   added `Notification`, schema-level inspection test coverage, and a
   `/tmp/add_notification.sql` SQL preview. `prisma validate`, `prisma generate`,
-  `tsc`, and the schema-level test passed during that Yellow. DB table
-  creation / apply, `prisma migrate dev`, `prisma migrate deploy`,
-  `prisma migrate resolve`, `prisma db push`, DB write, repository code,
+  `tsc`, and the schema-level test passed during that Yellow. The Red DB apply
+  created `/tmp/lowcap-dev.db.before-notification-20260509T111516Z.bak`,
+  resolved `20260509000100_baseline_existing_schema` as applied, deployed
+  `20260509000200_add_notification`, created the `Notification` table,
+  created `Notification_notificationKey_key`, and left `Notification` count at
+  0 with `Dev=0`, `Token=1107`, and `Metric=191`. Repository code,
   capture-only write integration, Telegram live send, queue, and systemd remain
   later work.
 - Notification migration split policy is now fixed as docs-only policy.
@@ -698,11 +701,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   without `Dev` / `Token` / `Metric` drop / alter / create and without
   destructive migration. The formal migration split has now been created as a
   baseline existing schema migration plus an add-notification-only migration.
-  Applying anything to existing `prisma/dev.db`, including DB table creation,
-  is a separate Red task that must name the target DB, backup, rollback, and
-  verification plan.
-  `migrate resolve`, `migrate deploy`, `migrate dev`, and `db push` remain
-  unrun.
+  The Red apply to existing `prisma/dev.db` is complete: `_prisma_migrations`
+  exists with records for `20260509000100_baseline_existing_schema` and
+  `20260509000200_add_notification`; `prisma/dev.db` is not dirty in git
+  status. `migrate dev` and `db push` remain unrun, and reset / destructive
+  migration remain disallowed.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

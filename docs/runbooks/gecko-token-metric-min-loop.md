@@ -948,9 +948,10 @@ Use these markers:
 - Durable notification dedupe storage policy fixed: the initial
   `metric_appended` notification key is `mint + eventType + metricId`, and
   only events with `metricId` are initial live candidates. `token_completed` /
-  `loop_complete` remain capture-only. DB table creation / apply / write,
-  durable storage, queue idempotency, failed-send retry, and Telegram
-  live-loop integration are still not implemented.
+  `loop_complete` remain capture-only. Notification DB table creation is now
+  complete with `Notification` count 0, but repository / runtime Notification
+  record writes, queue idempotency, failed-send retry, and Telegram live-loop
+  integration are still not implemented.
 - Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
   on the same notification key blocks resend, and any `metric_appended` resend
   still requires DB confirmation, capture-only pass, marker checks, human gate,
@@ -960,8 +961,8 @@ Use these markers:
   initial `metric_appended` key, keeps `metricId`-bearing `metric_appended` as
   the only initial live candidate, and keeps `token_completed` /
   `loop_complete` capture-only. Formal migration files now exist, while DB
-  table creation / apply, durable storage, and capture-only write integration
-  remain unimplemented.
+  table creation / apply is now complete for `prisma/dev.db`; durable storage
+  runtime and capture-only write integration remain unimplemented.
 - Notification schema / migration baseline policy fixed: the first Yellow
   schema cut added the model, schema-level inspection test, and
   `/tmp/add_notification.sql` SQL preview, with Prisma validate / generate,
@@ -972,9 +973,12 @@ Use these markers:
   contains only existing `Dev` / `Token` / `Metric` creation, while
   `/tmp/lowcap-add-notification-only.sql` contains only the `Notification`
   table and `Notification_notificationKey_key` unique index. Formal migration
-  files are now created under `prisma/migrations`, DB table creation / DB write
-  is still unrun, and applying anything to `prisma/dev.db` is a separate Red
-  task with explicit target DB, backup, rollback, and verification.
+  files are now created under `prisma/migrations`, and the Red DB apply to
+  `prisma/dev.db` completed with backup
+  `/tmp/lowcap-dev.db.before-notification-20260509T111516Z.bak`, both
+  `_prisma_migrations` records, `Notification` table / unique index present,
+  `Notification=0`, and existing counts unchanged (`Dev=0`, `Token=1107`,
+  `Metric=191`).
 
 Keep the phase unchanged when:
 
