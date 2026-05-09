@@ -976,7 +976,11 @@ Use these markers:
 - Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
   on the same notification key blocks resend, and any `metric_appended` resend
   still requires DB confirmation, capture-only pass, marker checks, human gate,
-  and separate Red approval. Automatic failed-send retry remains unimplemented.
+  and separate Red approval. Commit `a5d1575` adds the manual
+  `notification:send --retryFailed` path for a notificationKey-specified
+  `failed` / `live_send` `metric_appended` row only; `--retryFailed` is
+  required, and `sent` rows remain blocked from resend. Automatic failed-send
+  retry remains unimplemented.
 - Notification model boundary / lifecycle policy fixed: `Notification` is now
   present in `prisma/schema.prisma`, uses `mint + eventType + metricId` for the
   initial `metric_appended` key, keeps `metricId`-bearing `metric_appended` as
@@ -1055,10 +1059,21 @@ Use these markers:
   `sentAt=1778339880613`, `failedAt=null`, `errorCode=null`, `reason=null`,
   `rawJsonFree=1`, and `secretFree=1`. Telegram response body, bot token, chat
   id, and env markers were not stored; rollback was unnecessary and restore was
-  not executed. `token_completed` / `loop_complete` Notification writes and
-  live-send marking, failed-send retry, queue, scheduler, systemd, default
-  checkpoint, automatic Red execution, and always-on bot operation remain
-  unimplemented.
+  not executed. Commit `a5d1575` adds manual retry to `notification:send` via
+  explicit `--retryFailed`: without that flag, `failed` / `live_send` rows are
+  blocked; with it, only one notificationKey-specified `metric_appended`
+  `failed` / `live_send` row can be retried. Retry success sets
+  `status=sent`, `mode=live_send`, and `sentAt`, and clears `failedAt`,
+  `errorCode`, and `reason`; retry failure sets `status=failed`,
+  `mode=live_send`, `failedAt`, safe `errorCode`, and fixed safe
+  `reason=ops_notify_send_failed`. It creates no Notification rows, adds no
+  Metric / Token writes, stores no response body / bot token / chat id / env,
+  and is covered by temp-SQLite mocked-sender tests. The real Telegram retry
+  Red rehearsal, automatic retry, retry queue, `retryCount` / `nextRetryAt` /
+  cooldown automation, sent row resend, `token_completed` / `loop_complete`
+  retry, queue, scheduler, systemd, default checkpoint, automatic Red
+  execution, unbounded watch, and always-on bot operation remain unimplemented
+  / unexecuted.
 
 Keep the phase unchanged when:
 

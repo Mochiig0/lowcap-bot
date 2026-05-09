@@ -692,15 +692,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   implemented, and `ops:catchup:gecko` now records the selected
   `metric_appended` capture-only Notification row. The `metric_appended`
   sent / failed marking path is implemented with mocked sender and temp-SQLite
-  coverage only; real Telegram live send and Red live-send rehearsal remain
-  unexecuted. `token_completed` / `loop_complete` Notification writes,
-  failed-send retry, Telegram live-loop integration, queue idempotency, and
-  systemd recovery remain unimplemented.
-- Failed-send / resend policy is now fixed as docs-only policy. `failed` is not
-  `sent`, previous `sent` on the same notification key blocks resend, and any
-  resend requires DB read confirmation, capture-only rehearsal, secret-free /
-  rawJson-free marker checks, a human gate, and a separate Red approval.
-  Failed-send retry automation remains unimplemented.
+  coverage; the notificationKey-specified real Telegram live-send rehearsal for
+  one `metric_appended` row is complete. `token_completed` / `loop_complete`
+  Notification writes, automatic failed-send retry, Telegram live-loop
+  integration, queue idempotency, and systemd recovery remain unimplemented.
+- Failed-send / resend policy is now fixed as docs-only policy, and commit
+  `a5d1575` implements the manual retry path for `notification:send`. `failed`
+  is not `sent`, previous `sent` on the same notification key blocks resend,
+  and `--retryFailed` is required before a `failed` / `live_send` row can be
+  retried. Sent row resend remains prohibited even with `--retryFailed`.
+  Automatic failed-send retry remains unimplemented.
 - Notification model boundary / lifecycle policy is now fixed as docs-only
   policy, and the first schema cut is now present in `prisma/schema.prisma`.
   The model responsibility remains durable notification dedupe, capture-only /
@@ -774,10 +775,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `errorCode=null`, `reason=null`, `rawJsonFree=1`, and `secretFree=1`.
   Telegram response body, bot token, chat id, and env markers were not stored;
   rollback was unnecessary and restore was not executed. `token_completed` /
-  `loop_complete` Notification writes and live-send marking, failed-send retry
-  automation, queue, scheduler, systemd, durable queue runtime, default
-  checkpoint operation, automatic Red execution, and always-on bot operation
-  remain later work.
+  `loop_complete` Notification writes and live-send marking remain later work.
+  Commit `a5d1575` adds the manual retry path to `notification:send`:
+  `--retryFailed` is required, only a `failed` / `live_send`
+  `metric_appended` row selected by `notificationKey` is eligible, and a
+  `sent` row is still blocked from resend. Retry success calls
+  `markNotificationSent`, sets `status=sent`, `mode=live_send`, and `sentAt`,
+  and clears `failedAt`, `errorCode`, and `reason`; retry failure calls
+  `markNotificationFailed`, keeps `status=failed`, `mode=live_send`, sets
+  `failedAt`, safe `errorCode`, and fixed safe
+  `reason=ops_notify_send_failed`. It creates no Notification rows, adds no
+  Metric / Token writes, keeps Telegram sender calls and Notification updates
+  to at most one, stores no Telegram response body, bot token, chat id, or env,
+  and is covered by temp-SQLite mocked-sender tests without production
+  `prisma/dev.db`. The real Telegram retry Red rehearsal, automatic retry,
+  retry queue, `retryCount` / `nextRetryAt` / cooldown automation, sent row
+  resend, queue, scheduler, systemd, durable queue runtime, default checkpoint
+  operation, automatic Red execution, unbounded watch, and always-on bot
+  operation remain unimplemented / unexecuted.
 - Notification migration split policy is now fixed as docs-only policy.
   Read-only /tmp SQL preview confirmed
   `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /

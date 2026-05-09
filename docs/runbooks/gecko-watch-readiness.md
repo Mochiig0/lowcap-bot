@@ -234,13 +234,16 @@ watch remain unimplemented.
 
 Failed-send / resend policy is now fixed at the docs level, but watch
 readiness and systemd readiness are still incomplete. `failed` is not `sent`,
-and a previous `sent` on the same notification key blocks resend. Any resend
-requires DB read confirmation, capture-only rehearsal, safe failed-send summary
-review, secret-free / rawJson-free marker checks, a human gate, and a separate
-Red approval. Failed-send retry automation, sent / failed runtime marking,
-broader Notification writes beyond `metric_appended` capture-only, queue
-idempotency, Telegram live-loop integration, systemd recovery, default
-checkpoint operation, and unbounded watch remain unimplemented.
+and a previous `sent` on the same notification key blocks resend. Commit
+`a5d1575` adds the manual retry path for `notification:send`: explicit
+`--retryFailed` is required, only one notificationKey-specified
+`metric_appended` `failed` / `live_send` row is retry-eligible, and sent row
+resend remains prohibited. Retry success clears `failedAt`, `errorCode`, and
+`reason`; retry failure may store only safe `errorCode` and fixed safe reason.
+Automatic failed-send retry, retry queue, cooldown automation, broader
+Notification writes beyond `metric_appended`, queue idempotency, systemd
+recovery, default checkpoint operation, and unbounded watch remain
+unimplemented.
 
 Notification model boundary / lifecycle policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. `Notification`
@@ -327,9 +330,25 @@ was created; dry-run returned `status=ready`, `senderCalled=false`,
 `Token=1107`, `Metric=192`, and `Notification=1`; and the existing row now has
 `status=sent`, `mode=live_send`, `sentAt=1778339880613`, `rawJsonFree=1`, and
 `secretFree=1`. Telegram response body, bot token, chat id, and env markers
-were not stored; rollback was unnecessary and restore was not executed. Retry,
-queue, scheduler, systemd, default checkpoint operation, automatic Red
-execution, always-on operation, and unbounded watch remain unimplemented.
+were not stored; rollback was unnecessary and restore was not executed.
+Automatic retry, queue, scheduler, systemd, default checkpoint operation,
+automatic Red execution, always-on operation, and unbounded watch remain
+unimplemented.
+Commit `a5d1575` adds `--retryFailed` for manual retry of one
+notificationKey-specified `metric_appended` `failed` / `live_send` row. Without
+`--retryFailed`, failed rows remain blocked; with it, sender calls and
+Notification updates remain bounded to at most one. Success marks
+`status=sent`, `mode=live_send`, and `sentAt`, and clears `failedAt`,
+`errorCode`, and `reason`; failure keeps `status=failed`, `mode=live_send`,
+sets `failedAt`, safe `errorCode`, and fixed safe
+`reason=ops_notify_send_failed`. It is covered by temp-SQLite mocked-sender
+tests, does not use production `prisma/dev.db`, and does not store Telegram
+response body, bot token, chat id, or env. The real Telegram retry Red
+rehearsal, automatic retry, retry queue, `retryCount` / `nextRetryAt` /
+cooldown automation, sent row resend, `token_completed` / `loop_complete`
+retry, queue, scheduler, systemd, default checkpoint operation, automatic Red
+execution, always-on operation, and unbounded watch remain unimplemented /
+unexecuted.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the

@@ -1657,8 +1657,11 @@ Failed-send handling:
 - Do not automatically retry failed sends.
 - Confirm DB state, record a safe failed-send summary, and return to human
   gate.
-- Failed-send retry automation remains a later implementation gap; use the
-  failed-send / resend policy below for the human-gated resend boundary.
+- Commit `a5d1575` adds a manual retry path for
+  `notification:send --retryFailed`, limited to one notificationKey-specified
+  `metric_appended` `failed` / `live_send` row. Failed-send retry automation
+  remains a later implementation gap; use the failed-send / resend policy below
+  for the human-gated boundary.
 
 Capture-only rehearsal:
 
@@ -2053,7 +2056,11 @@ Failed-send relationship:
 - `failed` status and `errorCode` are safe-summary storage candidates.
 - Telegram response body is never stored.
 - Do not automatically retry failed sends.
-- Resending a failed key requires DB confirmation and a human gate.
+- Manual retry of a failed key requires DB confirmation, a human gate, and the
+  explicit `--retryFailed` flag. Retry success must clear `failedAt`,
+  `errorCode`, and `reason`; retry failure may store only safe `errorCode` and
+  fixed safe reason.
+- Sent row resend remains prohibited.
 - Failed-send retry automation remains a later gap.
 
 Queue / systemd relationship:
@@ -2411,9 +2418,23 @@ Notification row was updated, and the row now has `status=sent`,
 `mode=live_send`, `sentAt=1778339880613`, `failedAt=null`, `errorCode=null`,
 `reason=null`, `rawJsonFree=1`, and `secretFree=1`. Telegram response body,
 bot token, chat id, and env markers were not stored; rollback was unnecessary
-and restore was not executed. Failed-send retry, queue, scheduler, systemd,
-default checkpoint operation, automatic Red execution, and always-on operation
-remain unimplemented.
+and restore was not executed. Automatic failed-send retry, queue, scheduler,
+systemd, default checkpoint operation, automatic Red execution, and always-on
+operation remain unimplemented.
+Commit `a5d1575` adds the manual retry path for `notification:send`: explicit
+`--retryFailed` is required, only a `failed` / `live_send` `metric_appended`
+row selected by `notificationKey` is retry-eligible, and sent row resend is
+still blocked. Retry success calls `markNotificationSent`, sets `status=sent`,
+`mode=live_send`, and `sentAt`, and clears `failedAt`, `errorCode`, and
+`reason`; retry failure calls `markNotificationFailed`, sets `status=failed`,
+`mode=live_send`, `failedAt`, safe `errorCode`, and fixed safe
+`reason=ops_notify_send_failed`. It creates no Notification rows, adds no
+Metric / Token writes, stores no Telegram response body, bot token, chat id, or
+env, and is covered by temp-SQLite mocked-sender tests. The real Telegram retry
+Red rehearsal, automatic retry, retry queue, `retryCount` / `nextRetryAt` /
+cooldown automation, `token_completed` / `loop_complete` retry, queue,
+scheduler, systemd, default checkpoint operation, automatic Red execution,
+unbounded watch, and always-on operation remain unimplemented / unexecuted.
 
 Migration baseline policy:
 
