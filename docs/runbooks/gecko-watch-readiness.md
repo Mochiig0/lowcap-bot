@@ -119,12 +119,12 @@ The confirmed `/tmp` checkpoint runs are bounded Red rehearsals, not default
 checkpoint readiness. DB state is the first confirmation target, while a
 checkpoint cursor is only a detect cursor and not proof that Token or Metric
 writes succeeded. Restart / resume after partial success, checkpoint/DB
-ordering failures, Metric strict duplicate policy, retry limits, log retention,
-secret-free journal output, Telegram loop cooldown / duplicate / failed-send
-handling, and multi-candidate ordering remain unresolved. Keep default
-checkpoint operation, systemd, scheduler / queue, unbounded watch, automatic
-Red execution, and bounded executor prototype on hold until those policies are
-fixed.
+ordering failures, Metric strict duplicate enforcement, retry limits, log
+retention, secret-free journal output, Telegram loop cooldown / duplicate /
+failed-send handling, and multi-candidate ordering remain unresolved. Keep
+default checkpoint operation, systemd, scheduler / queue, unbounded watch,
+automatic Red execution, and bounded executor prototype on hold until those
+policies are fixed.
 
 The read-only consistency check for `c6ee95e` passed, but this is still only a
 watch-readiness gate record. It does not make the default checkpoint ready, does
@@ -140,7 +140,11 @@ and latest Metric is Metric-stage evidence. If checkpoint / DB state, CLI
 counts, latest Metric, or `metricsCount` disagree after restart, stop and
 return to human gate; do not automatically resume or rerun Red. This does not
 promote the default checkpoint and does not make watch readiness complete.
-Retry, duplicate prevention, log retention, Telegram loop policy, and
+Duplicate prevention policy is now fixed at the docs level: Token dedupe uses
+mint / `Token.mint`, Metric snapshots remain time-series observations, and a
+strict Metric duplicate candidate is same `tokenId` / source / `observedAt`.
+Enforcement is still not implemented by DB constraint or pre-insert check, and
+retry, log retention, Telegram loop policy, queue idempotency, and
 multi-candidate handling remain unresolved before systemd, scheduler / queue,
 or unbounded watch.
 

@@ -581,13 +581,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   was interrupted before report confirmation, or if Red finished before docs
   record, do not rerun Red automatically: inspect read-only DB reports and
   return to human gate on any mismatch.
-- Automatic retry, Metric strict duplicate policy, multi-candidate ordering /
-  per-item failure handling, log retention, secret-free journal policy, and
-  Telegram loop send / duplicate / cooldown / failed-send handling remain
-  unresolved gates. Default checkpoint operation is still unpromoted. Systemd,
-  scheduler / queue, unbounded watch, always-on operation, bounded executor
-  prototype, and automatic Red execution remain deferred until the remaining
-  gates are fixed.
+- Duplicate prevention policy is now fixed as docs-only policy. Token duplicate
+  handling uses mint as the first key and the existing `Token.mint` unique /
+  existing-token path. Metric duplicate policy keeps time-series append as the
+  expected behavior and defines a strict duplicate candidate as same
+  `tokenId` / source / `observedAt`; strict Metric duplicate enforcement is
+  still not implemented by DB constraint or pre-insert check.
+- Automatic retry, multi-candidate ordering / per-item failure handling, log
+  retention, secret-free journal policy, and Telegram loop send / duplicate /
+  cooldown / failed-send handling remain unresolved gates. Default checkpoint
+  operation is still unpromoted. Systemd, scheduler / queue, unbounded watch,
+  always-on operation, bounded executor prototype, and automatic Red execution
+  remain deferred until the remaining gates are fixed.
 - The read-only consistency check for `c6ee95e` passed across the docs. The
   checkpoint policy, authoritative state policy, restart / resume gaps, Token
   and Metric duplicate-prevention gaps, retry / failure gaps, multi-candidate

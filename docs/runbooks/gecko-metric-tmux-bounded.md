@@ -17,6 +17,9 @@ rerun the Red command first. Confirm DB state with read-only Metric / Token
 reports, treat the tmux log as auxiliary evidence, and return to human gate on
 any mismatch. This keeps DB state as the authoritative Metric-stage source and
 does not make tmux logs, systemd, or unbounded watch authoritative.
+Before any rerun, also check for strict Metric duplicate risk: same `tokenId`,
+same source, and same `observedAt`. If that cannot be ruled out from read-only
+DB reports, stop and return to human gate; tmux does not make retry automatic.
 
 There are two bounded tmux shapes:
 

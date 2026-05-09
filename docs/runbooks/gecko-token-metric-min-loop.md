@@ -476,8 +476,14 @@ Use this flow when a single GeckoTerminal-origin pump mint should move from mint
 For restart or interruption recovery in the Metric stage, DB state is the first
 confirmation target. Use `metrics:report`, `token:compare`, and `token:show`
 before considering any rerun. Latest Metric and `metricsCount` confirm the
-Metric stage only; they are not detect-checkpoint substitutes, and strict
-Metric duplicate policy remains a later readiness gap.
+Metric stage only; they are not detect-checkpoint substitutes.
+
+Metric duplicate policy is docs-fixed but not enforcement-fixed: repeated
+same-mint snapshots with different `observedAt` values are time-series
+observations, while a strict duplicate candidate is same `tokenId`, same source,
+and same `observedAt`. The current schema does not enforce that strict
+candidate as unique, so use `metricsCount`, latest Metric, `recentMetrics`,
+`--minGapMinutes` where supported, and post-confirmation before any rerun.
 
 ## Preconditions
 

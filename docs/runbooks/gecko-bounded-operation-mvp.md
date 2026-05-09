@@ -1310,9 +1310,10 @@ Duplicate-prevention policy:
   itself; it means the candidate mapped to an already stored Token.
 - Metric snapshot is a time-series append lane. Repeated same-mint snapshots
   are expected observations, not automatically duplicates.
-- Strict same `tokenId` / source / `observedAt` Metric duplicate policy is not
-  fixed. Until it is, use `--minGapMinutes`, `metricsCount` guards, latest
-  Metric confirmation, and human gate bounds.
+- Strict same `tokenId` / source / `observedAt` is now the docs-level Metric
+  duplicate candidate definition. Enforcement is not implemented yet; until it
+  is, use `--minGapMinutes`, `metricsCount` guards, latest Metric
+  confirmation, and human gate bounds.
 - Multi-mint or queue execution needs per-item duplicate policy, ordering, and
   failure handling before it is allowed.
 
@@ -1347,7 +1348,8 @@ Systemd / scheduler / queue / unbounded watch gate:
 - default checkpoint policy fixed.
 - restart / resume policy fixed.
 - retry / failure policy fixed.
-- duplicate prevention fixed for Token, Metric, and multi-candidate execution.
+- duplicate-prevention enforcement and queue idempotency fixed for Token,
+  Metric, and multi-candidate execution.
 - log retention and secret-free logging fixed.
 - Telegram loop policy fixed.
 - multi-candidate ordering, count bounds, and per-item failure handling fixed.
@@ -1361,13 +1363,13 @@ policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
 state, the default Gecko checkpoint remains unpromoted, DB state is the first
 confirmation target, a checkpoint is only a detect cursor, `existingCount`
 confirms an already stored Token, Metric snapshot is a time-series append lane,
-strict same `tokenId` / source / `observedAt` Metric duplicate policy is still
-unfixed, `errorCount > 0` does not authorize automatic continuation, and
-`selectedCount > 1` / `writtenCount > 1` remain stop conditions for current
-single-mint bounded flows. Multi-mint / queue execution, Telegram live-loop
-integration, systemd, scheduler / queue, unbounded watch, default checkpoint
-operation, bounded executor prototype, and automatic Red execution remain
-deferred.
+strict same `tokenId` / source / `observedAt` Metric duplicate policy was still
+unfixed at that checkpoint, `errorCount > 0` does not authorize automatic
+continuation, and `selectedCount > 1` / `writtenCount > 1` remain stop
+conditions for current single-mint bounded flows. Multi-mint / queue execution,
+Telegram live-loop integration, systemd, scheduler / queue, unbounded watch,
+default checkpoint operation, bounded executor prototype, and automatic Red
+execution remain deferred.
 
 ### Authoritative State / Checkpoint Ordering / Restart-Resume Policy
 
@@ -1457,7 +1459,7 @@ Relationship to remaining policy gaps:
 - Duplicate prevention and retry policy must build on this authoritative-state
   policy. Token duplicate handling continues to use `Token.mint` uniqueness and
   the existing-token path. Metric remains a time-series append lane; strict
-  Metric duplicate policy is a later gap.
+  Metric duplicate enforcement is a later implementation gap.
 - Retry remains bounded by this restart / resume policy. Do not expand
   automatic retry until duplicate handling and human-gate return conditions are
   fixed.
@@ -1466,6 +1468,90 @@ Relationship to remaining policy gaps:
 - This policy is only one readiness prerequisite. It does not make systemd,
   scheduler / queue, unbounded watch, always-on operation, bounded executor
   prototype, or automatic Red execution ready.
+
+### Duplicate Prevention Policy
+
+This is a docs-only policy boundary. It fixes the duplicate-prevention
+decision rules for the bounded human-gated scope, but it does not add a Prisma
+unique constraint, migration, pre-insert dedupe implementation, retry
+automation, queue idempotency, systemd, scheduler / queue, unbounded watch, or
+default checkpoint operation.
+
+Token duplicate policy:
+
+- Token duplicate detection uses mint as the first key.
+- `Token.mint` uniqueness is the current DB-schema foundation.
+- When detect / import sees an existing Token for the same mint, treat it as
+  `existingCount`. This is not a failure, does not increment `importedCount`,
+  and must not recreate the Token.
+- After restart or retry consideration, confirm Token existence through DB
+  reads first. Do not infer Token creation from checkpoint alone.
+
+Metric duplicate policy:
+
+- Metric snapshot is a time-series append lane.
+- Multiple snapshots for the same mint are expected observations when
+  `observedAt` differs.
+- A strict Metric duplicate candidate is same `tokenId`, same source, and same
+  `observedAt`.
+- The current Prisma schema has `@@index([tokenId, observedAt])`, not a unique
+  constraint, so strict duplicates are not prevented by DB constraint.
+- Before always-on, queue, or multi-candidate execution, pick one enforcement
+  path: a pre-insert check for same `tokenId` / source / `observedAt`, or a
+  Prisma schema / migration adding an appropriate unique constraint. This task
+  does neither.
+
+Bounded-flow duplicate control:
+
+- Use `expectedMetricsCount` guards, latest Metric / `recentMetrics`
+  confirmation, `--minGapMinutes` where supported, human gate, `writtenCount <=
+  1`, and `metrics:report -- --mint <MINT> --limit 2` post-confirmation.
+- Do not immediately rerun the same Red command after retry or interruption.
+- If interrupted after a possible Metric write, run `metrics:report`,
+  `token:compare`, and `token:show` first. If the expected Metric exists, do
+  not rerun. If it does not exist, still return to human gate instead of
+  automatic retry.
+
+Retry / restart relationship:
+
+- Use the authoritative restart policy: DB state is the first confirmation
+  target.
+- Retry decisions prefer DB read confirmation over checkpoint state.
+- If CLI output is missing, confirm Token / Metric / latest Metric /
+  `metricsCount` from DB reads.
+- If the operator cannot distinguish duplicate risk from failed write, stop and
+  return to human gate.
+
+Multi-candidate / queue gate:
+
+- Before multi-mint, scheduler, queue, or systemd work, fix per-mint Token
+  dedupe, per-Metric strict duplicate enforcement, per-item failure handling,
+  retry max count, cooldown, ordering, and idempotency-key behavior.
+- If these are not fixed, do not proceed to queue, systemd, default checkpoint,
+  or unbounded watch.
+
+Duplicate stop conditions:
+
+- same `tokenId` / source / `observedAt` duplicate risk.
+- `metricsCount` mismatch.
+- latest Metric mismatch.
+- `writtenCount > 1`.
+- `importedCount > 1`.
+- ambiguous `existingCount` / `importedCount` interpretation.
+- checkpoint / DB mismatch.
+- retry after ambiguous write result.
+- duplicate decision cannot be made from DB reads.
+- multi-mint expansion risk.
+
+Not fixed by this policy:
+
+- strict Metric duplicate enforcement.
+- Prisma unique constraint or migration.
+- pre-insert dedupe implementation.
+- retry automation.
+- queue idempotency.
+- systemd, scheduler / queue, unbounded watch, default checkpoint operation, or
+  always-on operation.
 
 Recommended next order:
 
