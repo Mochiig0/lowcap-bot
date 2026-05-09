@@ -934,6 +934,11 @@ Use these markers:
   candidate, duplicate key is `mint + eventType + metricId`, and live send
   still requires DB read confirmation, capture-only rehearsal, marker checks,
   and human gate.
+- Queue pre-gate policy fixed: the `metric_appended` notification key remains
+  `mint + eventType + metricId`, only events with `metricId` are initial live
+  candidates, and `token_completed` / `loop_complete` remain capture-only.
+  Durable dedupe storage, queue idempotency, and capture-only consistency are
+  still not implemented.
 
 Keep the phase unchanged when:
 
@@ -959,6 +964,8 @@ This loop does not yet include:
 - `loop_complete` Telegram ops live-send execution
 - Telegram live loop integration, durable dedupe storage, failed-send retry, or
   cooldown automation
+- queue idempotency, per-item failure handling, or durable notification dedupe
+  storage
 - generic multi-source adapter runtime
 
 ## Next Candidate Steps

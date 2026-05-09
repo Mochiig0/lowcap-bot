@@ -198,6 +198,16 @@ idempotency, systemd recovery, and live-loop integration are still
 unimplemented, so this does not make systemd, unbounded watch, or Telegram live
 loop ready.
 
+Multi-candidate / queue pre-gate policy is now fixed at the docs level, but
+watch readiness is still incomplete. The safe unit remains one mint, one stage,
+one human gate, one exact Red command, rawJson-free / secret-free confirmation,
+and docs record. Durable notification dedupe policy uses `mint + eventType +
+metricId` for the initial `metric_appended` key, but durable storage,
+queue idempotency, per-item failure handling, ordering, queue persistence,
+systemd recovery, default checkpoint operation, and unbounded watch remain
+unimplemented. This is separate from default checkpoint promotion and does not
+make scheduler / queue / systemd ready.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

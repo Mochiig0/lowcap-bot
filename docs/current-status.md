@@ -639,6 +639,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   capture-only, and Telegram failed-send retry, durable dedupe storage,
   cooldown automation, queue idempotency, live-loop integration, and systemd
   recovery remain unimplemented.
+- Multi-candidate / queue pre-gate policy is now fixed as docs-only policy.
+  The current safe unit remains one mint, one stage, one human gate, one exact
+  Red command, rawJson-free / secret-free confirmation, and a docs record.
+  Durable notification dedupe policy is fixed for the initial Telegram key
+  `mint + eventType + metricId`, but durable dedupe storage is not
+  implemented; docs records remain audit logs, and capture records / DB state
+  remain confirmation inputs rather than the queue runtime's dedupe store.
+  Capture-only rehearsal consistency remains the next policy gap.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

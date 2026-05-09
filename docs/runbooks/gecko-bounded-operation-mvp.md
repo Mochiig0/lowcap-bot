@@ -1705,6 +1705,139 @@ Relationship to future work:
   queue idempotency, systemd recovery, and capture-only rehearsal consistency
   checks.
 
+### Multi-Candidate / Queue Pre-Gate Policy
+
+This is a docs-only pre-gate policy. It defines what must be true before the
+bounded Gecko flow can expand from one operator-approved item into
+multi-candidate, queue, scheduler, systemd, or unbounded watch work. It does
+not implement a queue, scheduler, systemd unit, durable worker, durable
+notification dedupe storage, Telegram live loop, default checkpoint operation,
+or any new write behavior.
+
+Current safe unit:
+
+- one mint.
+- one stage.
+- one human gate.
+- one exact Red command.
+- rawJson-free / secret-free confirmation.
+- docs record.
+- multi-mint, queue, scheduler, and systemd execution remain unapproved.
+
+Queue pre-gate:
+
+Before queue or multi-candidate execution, these policies must be fixed for the
+target runtime:
+
+- per-mint Token dedupe.
+- per-Metric strict duplicate policy and enforcement.
+- durable notification dedupe.
+- capture-only rehearsal consistency.
+- per-item failure handling.
+- retry max count / cooldown.
+- item ordering.
+- idempotency key.
+- queue persistence.
+- restart / resume.
+- checkpoint / DB mismatch handling.
+- log / secret-free policy.
+- Telegram capture / live boundary.
+
+Durable notification dedupe policy:
+
+- The initial live candidate remains `metric_appended`.
+- The initial notification key is `mint + eventType + metricId`.
+- Events without `metricId` are not live-send candidates.
+- `token_completed` and `loop_complete` remain capture-only.
+- The same key must not be sent twice.
+- Durable storage is not implemented.
+- Docs record is an auxiliary audit log, not durable dedupe state.
+- Capture record and DB state are confirmation inputs, not the queue runtime's
+  canonical dedupe store.
+- Before queue work, separately fix durable dedupe storage and the
+  idempotency-key behavior.
+
+Capture-only rehearsal relationship:
+
+- Capture-only is required before live send.
+- Capture-only pass alone does not complete durable dedupe.
+- Capture output is limited to safe summaries: trigger, mint, `metricId`, and
+  message preview.
+- If rawJson or secret markers appear, do not proceed to live send.
+- Capture-only consistency is the next fixed-policy candidate after durable
+  notification dedupe.
+
+Per-item failure handling:
+
+- Queue work needs item-level `success`, `failure`, `skipped`, `duplicate`,
+  and `retry-blocked` states before implementation.
+- `errorCount > 0`, partial success, and ambiguous write result are item-level
+  stop conditions.
+- Do not automatically move to the next item or next stage.
+- Return to human gate when the current item cannot be classified safely.
+
+Ordering / idempotency:
+
+- Queue item ordering is not fixed.
+- Discovery order, `createdAt`, `detectedAt`, priority score, and manual
+  operator selection remain candidates.
+- Idempotency keys are not implemented.
+- Initial idempotency-key candidates are:
+  - Token stage: mint + stage.
+  - Metric stage: mint + stage + expected metrics count.
+  - Notification stage: mint + event type + `metricId`.
+
+Retry / cooldown relationship:
+
+- Operator-level Red retry max remains automatic `0`.
+- Queue retry is not implemented.
+- Cooldown automation is not implemented.
+- Before queue worker work, separately fix item-level retry max and cooldown
+  semantics.
+
+Checkpoint / restart relationship:
+
+- After restart, DB state remains the first confirmation target.
+- A checkpoint remains a detect cursor, not success proof.
+- DB / checkpoint mismatch does not allow queue auto-resume.
+- Default checkpoint operation has not started.
+- Queue, scheduler, and systemd need item-level restart / resume policy before
+  implementation.
+
+Telegram policy relationship:
+
+- `metric_appended` remains the only initial live candidate.
+- `token_completed` and `loop_complete` remain capture-only.
+- Failed-send retry is not implemented.
+- Do not turn Telegram into a live loop until durable notification dedupe and
+  capture-only rehearsal consistency are fixed for the target runtime.
+
+Stop conditions before queue:
+
+- duplicate decision cannot be made.
+- per-item failure handling is not fixed.
+- ordering is not fixed.
+- idempotency key is not fixed.
+- retry / cooldown behavior is not fixed for queue runtime.
+- checkpoint / DB mismatch appears.
+- Telegram dedupe is not fixed for the intended runtime.
+- capture-only rehearsal consistency is not fixed.
+- raw log or secret-free policy is violated.
+- multi-mint expansion risk.
+- systemd, scheduler, or unbounded watch expansion risk.
+
+Not fixed / future work:
+
+- durable queue runtime.
+- durable notification dedupe storage.
+- queue idempotency.
+- scheduler.
+- systemd.
+- unbounded watch.
+- default checkpoint operation.
+- Telegram live loop integration.
+- capture-only consistency.
+
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
 state, the default Gecko checkpoint remains unpromoted, DB state is the first
@@ -2215,9 +2348,10 @@ Implemented input shape:
 }
 ```
 
-`detect write` is not part of the initial wrapper scope because checkpoint,
-restart, and resume policy are still unresolved. The implemented intent set is
-limited to `enrich_rescore`, `first_metric_snapshot`, and
+`detect write` is not part of the initial wrapper scope because default
+checkpoint operation, queue/runtime restart implementation, and detect cursor
+side effects remain outside this wrapper boundary. The implemented intent set
+is limited to `enrich_rescore`, `first_metric_snapshot`, and
 `second_metric_snapshot`.
 
 Default guard values:
