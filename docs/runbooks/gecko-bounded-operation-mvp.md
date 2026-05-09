@@ -2358,9 +2358,9 @@ migration as applied and deployed the add-notification migration to
 `prisma/dev.db`. A later Yellow added the minimal Notification repository and
 temp-SQLite repository test. Commit `905d3ac` then connected the repository to
 `ops:catchup:gecko` capture-only output for `metric_appended` records only. It
-does not connect Telegram live send, sent / failed runtime marking,
-`token_completed` / `loop_complete` Notification writes, failed-send retry, or
-queue / systemd runtime. Commit `442cf8e` then added the
+does not connect Telegram live send, `token_completed` / `loop_complete`
+Notification writes, failed-send retry, or queue / systemd runtime. Commit
+`442cf8e` then added the
 `metric:snapshot:geckoterminal -- --mint <MINT> --write` single-mint
 Notification capture hook for `metric_appended` after a successful Metric
 create, with Metric create maximum 1, Notification create maximum 1, Token
@@ -2378,6 +2378,17 @@ Notification count moved `0 -> 1`, Metric `1264` was created for token
 `mode=capture_only`, `source=metric:snapshot:geckoterminal`,
 `rawJsonFree=true`, and `secretFree=true`. Rollback was not needed and restore
 was not executed.
+Commit `2d83b05` adds the `metric_appended` sent / failed marking path for an
+existing captured Notification row using mocked sender and temp-SQLite tests.
+It builds the same `${mint}:metric_appended:${metricId}` key, calls the sender
+only when the row exists and is `captured` / `capture_only`, blocks missing
+rows, already `sent` rows, and non-captured rows, and updates at most one row.
+Mocked sender success marks `status=sent`, `mode=live_send`, and `sentAt`;
+mocked sender failure marks `status=failed`, `mode=live_send`, `failedAt`, and
+safe `errorCode` / `reason`. It does not create Notification rows, does not add
+Metric / Token writes, does not store Telegram response bodies, request paths,
+bot tokens, chat ids, or env values, and does not execute real Telegram live
+send or Red live-send rehearsal.
 
 Migration baseline policy:
 

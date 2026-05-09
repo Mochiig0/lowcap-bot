@@ -264,10 +264,15 @@ was created, Token count stayed `1107 -> 1107`, Metric count moved
 Notification `1` were created, and the Notification key was
 `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`.
 Rollback was not needed and restore was not executed. Batch / limit
-`metric:snapshot` Notification writes, `token_completed` / `loop_complete`
-Notification writes, Telegram live-loop integration, queue idempotency, systemd
-recovery, default checkpoint operation, and unbounded watch remain
-unimplemented.
+`metric:snapshot` Notification writes and `token_completed` / `loop_complete`
+Notification writes remain unimplemented. Commit `2d83b05` adds the
+`metric_appended` sent / failed marking path for an existing captured
+Notification row with mocked sender and temp-SQLite tests, setting
+`status=sent`, `mode=live_send`, and `sentAt` on success or `status=failed`,
+`mode=live_send`, `failedAt`, and safe `errorCode` / `reason` on failure. Real
+Telegram live send and Red live-send rehearsal remain unexecuted, and queue
+idempotency, systemd recovery, default checkpoint operation, and unbounded
+watch remain unimplemented.
 
 Notification schema / migration baseline policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. The first
@@ -296,8 +301,12 @@ created Metric `1264` for token `5043` and Notification `1` with
 `rawJsonFree=true`, and `secretFree=true`; Token count was unchanged
 (`1107 -> 1107`), Metric count moved `191 -> 192`, Notification count moved
 `0 -> 1`, and `Notification_notificationKey_key` remained present.
-`token_completed` / `loop_complete` Notification writes, queue idempotency,
-Telegram live-loop integration, sent / failed runtime marking, systemd
+Commit `2d83b05` adds mocked-sender coverage for the `metric_appended` sent /
+failed marking path without real Telegram live send: it updates only an
+existing `captured` / `capture_only` row, never creates a Notification row, and
+keeps sender calls and Notification updates to at most one. `token_completed` /
+`loop_complete` Notification writes and live-send marking, queue idempotency,
+real Telegram live-loop execution, failed-send retry automation, systemd
 recovery, default checkpoint operation, and unbounded watch remain
 unimplemented.
 

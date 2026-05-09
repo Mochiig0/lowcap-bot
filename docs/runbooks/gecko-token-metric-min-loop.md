@@ -1029,8 +1029,15 @@ Use these markers:
   notification key
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`, and
   `Notification_notificationKey_key` present.
-  `token_completed` / `loop_complete` Notification writes, Telegram, sent /
-  failed runtime marking, queue, scheduler, systemd, default checkpoint,
+  Commit `2d83b05` adds the `metric_appended` sent / failed marking path for an
+  existing captured Notification row with mocked sender and temp-SQLite tests:
+  it calls the sender only for `captured` / `capture_only`, marks success as
+  `status=sent`, `mode=live_send`, and `sentAt`, marks failure as
+  `status=failed`, `mode=live_send`, `failedAt`, and safe `errorCode` /
+  `reason`, creates no Notification rows, and adds no Metric / Token writes.
+  Real Telegram live send and Red live-send rehearsal remain unexecuted.
+  `token_completed` / `loop_complete` Notification writes and live-send
+  marking, failed-send retry, queue, scheduler, systemd, default checkpoint,
   automatic Red execution, and always-on bot operation remain unimplemented.
 
 Keep the phase unchanged when:
@@ -1056,7 +1063,8 @@ This loop does not yet include:
 - `token_completed` Telegram ops live-send execution
 - `loop_complete` Telegram ops live-send execution
 - Telegram live loop integration, runtime Notification record write
-  integration, failed-send retry, or cooldown automation
+  integration beyond the narrow implemented capture and mocked marking paths,
+  real Telegram live send, failed-send retry, or cooldown automation
 - queue idempotency, per-item failure handling, or durable notification dedupe
   runtime integration
 - generic multi-source adapter runtime
