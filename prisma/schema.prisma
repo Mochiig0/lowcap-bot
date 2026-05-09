@@ -73,3 +73,26 @@ model Metric {
 
   @@index([tokenId, observedAt])
 }
+
+model Notification {
+  id              Int       @id @default(autoincrement())
+  notificationKey String    @unique
+  eventType       String
+  mint            String
+  tokenId         Int?
+  metricId        Int?
+  trigger         String
+  status          String
+  mode            String
+  messagePreview  String
+  capturedAt      DateTime?
+  sentAt          DateTime?
+  failedAt        DateTime?
+  errorCode       String?
+  reason          String?
+  rawJsonFree     Boolean
+  secretFree      Boolean
+  source          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
