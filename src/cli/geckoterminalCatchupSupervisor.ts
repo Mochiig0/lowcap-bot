@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import type { PrismaClient } from "@prisma/client";
 import { pathToFileURL } from "node:url";
 
 import { db } from "./db.js";
@@ -33,6 +34,7 @@ import {
   type OpsNotificationSender,
 } from "../notify/opsNotificationSendGate.js";
 import { sendOpsTelegramNotification } from "../notify/opsTelegramSender.js";
+import { maybeCreateByNotificationKey } from "../notifications/notificationRepository.js";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 
 const DEFAULT_LIMIT = 2;
@@ -61,6 +63,7 @@ export type GeckoCatchupSupervisorDeps = {
   tokenWriteRunner?: GeckoTokenWriteCommandRunner;
   metricAppendRunner?: GeckoMetricAppendCommandRunner;
   opsNotifySender?: OpsNotificationSender;
+  notificationClient?: Pick<PrismaClient, "notification">;
 };
 
 type GeckoTokenWriteRunnerDecisionPlan = {
@@ -305,9 +308,20 @@ type OpsNotifyPlan = {
   captureFile: string | null;
   capturedCount: number;
   captureResults: OpsNotificationCaptureResult[];
+  notificationRecordWriteCount: number;
+  notificationRecordResults: OpsNotificationRecordResult[];
   previewCount: number;
   wouldNotifyCount: number;
   notificationPreviews: OpsNotificationPreview[];
+};
+
+type OpsNotificationRecordResult = {
+  trigger: OpsNotificationTrigger;
+  mint: string | null;
+  metricId: number | null;
+  notificationKey: string | null;
+  status: "created" | "existing" | "skipped";
+  blockedBy: string[];
 };
 
 type TokenWritePostCheckResult = {
@@ -1530,6 +1544,8 @@ function buildOpsNotifyPlan(output: Omit<GeckoCatchupSupervisorOutput, "opsNotif
     captureFile: output.selection.opsNotifyCaptureFile,
     capturedCount: 0,
     captureResults: [],
+    notificationRecordWriteCount: 0,
+    notificationRecordResults: [],
     previewCount: previews.length,
     wouldNotifyCount: previews.filter((preview) => preview.wouldNotify).length,
     notificationPreviews: previews,
@@ -1568,31 +1584,191 @@ async function captureOpsNotifyPlan(
   };
 }
 
+function buildMetricAppendedNotificationKey(input: {
+  mint: string;
+  metricId: number;
+}): string {
+  return `${input.mint}:metric_appended:${input.metricId}`;
+}
+
+function findMetricAppendedPreview(input: {
+  previews: OpsNotificationPreview[];
+  mint: string;
+  metricId: number;
+}): OpsNotificationPreview | null {
+  return input.previews.find(
+    (preview) =>
+      preview.trigger === "metric_appended" &&
+      preview.mint === input.mint &&
+      preview.metricId === input.metricId &&
+      preview.wouldNotify &&
+      preview.messagePreview !== null,
+  ) ?? null;
+}
+
+async function recordCapturedMetricAppendedNotification(
+  output: GeckoCatchupSupervisorOutput,
+  deps: GeckoCatchupSupervisorDeps,
+): Promise<GeckoCatchupSupervisorOutput> {
+  if (
+    deps.notificationClient === undefined ||
+    !output.opsNotifyPlan.captureRequested ||
+    output.opsNotifyPlan.sendRequested
+  ) {
+    return output;
+  }
+
+  const capturedMetricResults = output.opsNotifyPlan.captureResults.filter(
+    (result) =>
+      result.trigger === "metric_appended" &&
+      result.status === "captured" &&
+      result.blockedBy.length === 0,
+  );
+
+  if (capturedMetricResults.length === 0) {
+    return output;
+  }
+
+  if (capturedMetricResults.length > 1) {
+    return {
+      ...output,
+      opsNotifyPlan: {
+        ...output.opsNotifyPlan,
+        notificationRecordResults: [
+          ...output.opsNotifyPlan.notificationRecordResults,
+          {
+            trigger: "metric_appended",
+            mint: null,
+            metricId: null,
+            notificationKey: null,
+            status: "skipped",
+            blockedBy: ["metric_appended_capture_not_single"],
+          },
+        ],
+      },
+    };
+  }
+
+  const [captureResult] = capturedMetricResults;
+  const blockedBy = [
+    ...(captureResult.mint === null ? ["mint_missing"] : []),
+    ...(captureResult.metricId === null ? ["metric_id_missing"] : []),
+  ];
+
+  if (blockedBy.length > 0 || captureResult.mint === null || captureResult.metricId === null) {
+    return {
+      ...output,
+      opsNotifyPlan: {
+        ...output.opsNotifyPlan,
+        notificationRecordResults: [
+          ...output.opsNotifyPlan.notificationRecordResults,
+          {
+            trigger: "metric_appended",
+            mint: captureResult.mint,
+            metricId: captureResult.metricId,
+            notificationKey: null,
+            status: "skipped",
+            blockedBy,
+          },
+        ],
+      },
+    };
+  }
+
+  const preview = findMetricAppendedPreview({
+    previews: output.opsNotifyPlan.notificationPreviews,
+    mint: captureResult.mint,
+    metricId: captureResult.metricId,
+  });
+  if (preview === null || preview.messagePreview === null) {
+    return {
+      ...output,
+      opsNotifyPlan: {
+        ...output.opsNotifyPlan,
+        notificationRecordResults: [
+          ...output.opsNotifyPlan.notificationRecordResults,
+          {
+            trigger: "metric_appended",
+            mint: captureResult.mint,
+            metricId: captureResult.metricId,
+            notificationKey: null,
+            status: "skipped",
+            blockedBy: ["message_preview_unavailable"],
+          },
+        ],
+      },
+    };
+  }
+
+  const notificationKey = buildMetricAppendedNotificationKey({
+    mint: captureResult.mint,
+    metricId: captureResult.metricId,
+  });
+  const candidate = output.selectedCandidates.find(
+    (selectedCandidate) => selectedCandidate.mint === captureResult.mint,
+  );
+  const result = await maybeCreateByNotificationKey(deps.notificationClient, {
+    notificationKey,
+    eventType: "metric_appended",
+    mint: captureResult.mint,
+    tokenId: candidate?.id ?? null,
+    metricId: captureResult.metricId,
+    trigger: preview.trigger,
+    messagePreview: preview.messagePreview,
+    source: "ops:catchup:gecko",
+  });
+
+  return {
+    ...output,
+    opsNotifyPlan: {
+      ...output.opsNotifyPlan,
+      notificationRecordWriteCount:
+        output.opsNotifyPlan.notificationRecordWriteCount + (result.created ? 1 : 0),
+      notificationRecordResults: [
+        ...output.opsNotifyPlan.notificationRecordResults,
+        {
+          trigger: "metric_appended",
+          mint: captureResult.mint,
+          metricId: captureResult.metricId,
+          notificationKey,
+          status: result.created ? "created" : "existing",
+          blockedBy: [],
+        },
+      ],
+    },
+  };
+}
+
 export async function sendOpsNotifyPlan(
   output: GeckoCatchupSupervisorOutput,
   deps: GeckoCatchupSupervisorDeps = {},
 ): Promise<GeckoCatchupSupervisorOutput> {
+  const notificationRecordOutput = await recordCapturedMetricAppendedNotification(
+    output,
+    deps,
+  );
+
   if (
-    output.opsNotifyPlan.sendRequested &&
-    output.opsNotifyPlan.captureRequested &&
-    output.opsNotifyPlan.selectedTrigger !== null
+    notificationRecordOutput.opsNotifyPlan.sendRequested &&
+    notificationRecordOutput.opsNotifyPlan.captureRequested &&
+    notificationRecordOutput.opsNotifyPlan.selectedTrigger !== null
   ) {
-    const selectedCaptureResults = output.opsNotifyPlan.captureResults.filter(
-      (result) => result.trigger === output.opsNotifyPlan.selectedTrigger,
+    const selectedCaptureResults = notificationRecordOutput.opsNotifyPlan.captureResults.filter(
+      (result) => result.trigger === notificationRecordOutput.opsNotifyPlan.selectedTrigger,
     );
     if (
       selectedCaptureResults.length !== 1 ||
       selectedCaptureResults[0]?.status !== "captured"
     ) {
       return {
-        ...output,
+        ...notificationRecordOutput,
         opsNotifyPlan: {
-          ...output.opsNotifyPlan,
+          ...notificationRecordOutput.opsNotifyPlan,
           sendSupported: deps.opsNotifySender !== undefined,
           sentCount: 0,
           sendResults: [
             {
-              trigger: output.opsNotifyPlan.selectedTrigger,
+              trigger: notificationRecordOutput.opsNotifyPlan.selectedTrigger,
               mint: selectedCaptureResults[0]?.mint ?? null,
               metricId: selectedCaptureResults[0]?.metricId ?? null,
               status: "blocked",
@@ -1606,16 +1782,16 @@ export async function sendOpsNotifyPlan(
   }
 
   const sendResult = await sendSelectedOpsNotificationPreview({
-    sendRequested: output.opsNotifyPlan.sendRequested,
-    trigger: output.opsNotifyPlan.selectedTrigger,
-    previews: output.opsNotifyPlan.notificationPreviews,
+    sendRequested: notificationRecordOutput.opsNotifyPlan.sendRequested,
+    trigger: notificationRecordOutput.opsNotifyPlan.selectedTrigger,
+    previews: notificationRecordOutput.opsNotifyPlan.notificationPreviews,
     sender: deps.opsNotifySender,
   });
 
   return {
-    ...output,
+    ...notificationRecordOutput,
     opsNotifyPlan: {
-      ...output.opsNotifyPlan,
+      ...notificationRecordOutput.opsNotifyPlan,
       sendSupported: sendResult.sendSupported,
       sentCount: sendResult.sentCount,
       sendResults: sendResult.results,
@@ -1997,6 +2173,7 @@ export function buildGeckoCatchupSupervisorCliDeps(): GeckoCatchupSupervisorDeps
     tokenWriteRunner: runGeckoTokenWriteCommandWithNodeExecFile,
     metricAppendRunner: runGeckoMetricAppendCommandWithNodeExecFile,
     opsNotifySender: sendOpsTelegramNotification,
+    notificationClient: db,
   };
 }
 

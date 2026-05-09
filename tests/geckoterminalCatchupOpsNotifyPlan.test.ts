@@ -1,5 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+
+import { PrismaClient } from "@prisma/client";
 
 import {
   buildGeckoCatchupSupervisorPlan,
@@ -15,6 +22,41 @@ import {
 import { sendOpsTelegramNotification } from "../src/notify/opsTelegramSender.ts";
 
 const GECKO_SOURCE = "geckoterminal.new_pools";
+const execFileAsync = promisify(execFile);
+
+async function withTempNotificationDb<T>(
+  fn: (ctx: { client: PrismaClient }) => Promise<T>,
+): Promise<T> {
+  const dir = await mkdtemp(join(tmpdir(), "lowcap-ops-notification-db-"));
+  const databaseUrl = `file:${join(dir, "ops-notification.db")}`;
+
+  await execFileAsync(
+    "bash",
+    ["-lc", "pnpm exec prisma db push --skip-generate"],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        DATABASE_URL: databaseUrl,
+      },
+    },
+  );
+
+  const client = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    return await fn({ client });
+  } finally {
+    await client.$disconnect();
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
 test("gecko catchup dry-run includes send-disabled ops notification preview", () => {
   const now = new Date("2026-04-29T00:00:00.000Z");
@@ -135,6 +177,161 @@ test("gecko catchup parses explicit ops notification send gate args", () => {
       ]),
     /Invalid --opsNotifyTrigger: unexpected/,
   );
+});
+
+test("ops notification capture-only records one metric_appended Notification row", async () => {
+  await withTempNotificationDb(async ({ client }) => {
+    const now = new Date("2026-04-29T00:00:00.000Z");
+    const mint = "OpsNotifyRecordMetric111111111111111111111pump";
+    const metricId = 1115;
+    const preview = buildOpsNotificationPreview({
+      trigger: "metric_appended",
+      mint,
+      metricId,
+      metricSource: "geckoterminal.token_snapshot",
+    });
+    const baseOutput = buildGeckoCatchupSupervisorPlan(
+      parseGeckoCatchupSupervisorArgs([
+        "--opsNotifyCaptureFile",
+        "/tmp/lowcap-ops-notify.jsonl",
+      ]),
+      [],
+      new Date(now.getTime() - 60_000),
+    );
+    const outputWithCapture = {
+      ...baseOutput,
+      opsNotifyPlan: {
+        ...baseOutput.opsNotifyPlan,
+        notificationPreviews: [preview],
+        previewCount: 1,
+        wouldNotifyCount: 1,
+        capturedCount: 1,
+        captureResults: [
+          {
+            trigger: "metric_appended" as const,
+            mint,
+            metricId,
+            status: "captured" as const,
+            blockedBy: [],
+          },
+        ],
+      },
+    };
+
+    const first = await sendOpsNotifyPlan(outputWithCapture, {
+      notificationClient: client,
+    });
+
+    assert.equal(first.opsNotifyPlan.sentCount, 0);
+    assert.deepEqual(first.opsNotifyPlan.sendResults, []);
+    assert.equal(first.opsNotifyPlan.notificationRecordWriteCount, 1);
+    assert.deepEqual(first.opsNotifyPlan.notificationRecordResults, [
+      {
+        trigger: "metric_appended",
+        mint,
+        metricId,
+        notificationKey: `${mint}:metric_appended:${metricId}`,
+        status: "created",
+        blockedBy: [],
+      },
+    ]);
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey: `${mint}:metric_appended:${metricId}`,
+      },
+    });
+    assert.ok(notification);
+    assert.equal(notification.eventType, "metric_appended");
+    assert.equal(notification.trigger, "metric_appended");
+    assert.equal(notification.status, "captured");
+    assert.equal(notification.mode, "capture_only");
+    assert.equal(notification.mint, mint);
+    assert.equal(notification.metricId, metricId);
+    assert.equal(notification.tokenId, null);
+    assert.match(notification.messagePreview, /metricId: 1115/);
+    assert.equal(notification.rawJsonFree, true);
+    assert.equal(notification.secretFree, true);
+    assert.equal(notification.source, "ops:catchup:gecko");
+    assert.equal(await client.notification.count(), 1);
+
+    const second = await sendOpsNotifyPlan(outputWithCapture, {
+      notificationClient: client,
+    });
+
+    assert.equal(second.opsNotifyPlan.notificationRecordWriteCount, 0);
+    assert.equal(second.opsNotifyPlan.notificationRecordResults[0]?.status, "existing");
+    assert.equal(await client.notification.count(), 1);
+  });
+});
+
+test("ops notification capture-only does not record token_completed or loop_complete", async () => {
+  await withTempNotificationDb(async ({ client }) => {
+    const now = new Date("2026-04-29T00:00:00.000Z");
+    const mint = "OpsNotifyRecordSkip1111111111111111111111pump";
+    const previews = [
+      buildOpsNotificationPreview({
+        trigger: "token_completed",
+        mint,
+        tokenName: "Record Skip",
+        tokenSymbol: "SKIP",
+      }),
+      buildOpsNotificationPreview({
+        trigger: "loop_complete",
+        mint,
+        metricId: 1116,
+        plannedTokenWrites: 0,
+        plannedMetricAppends: 0,
+        metricPendingCount: 0,
+        latestMetricMissingCount: 0,
+        nextRecommendedAction: "no_action",
+      }),
+    ];
+    const baseOutput = buildGeckoCatchupSupervisorPlan(
+      parseGeckoCatchupSupervisorArgs([
+        "--opsNotifyCaptureFile",
+        "/tmp/lowcap-ops-notify.jsonl",
+      ]),
+      [],
+      new Date(now.getTime() - 60_000),
+    );
+
+    const output = await sendOpsNotifyPlan(
+      {
+        ...baseOutput,
+        opsNotifyPlan: {
+          ...baseOutput.opsNotifyPlan,
+          notificationPreviews: previews,
+          previewCount: previews.length,
+          wouldNotifyCount: previews.length,
+          capturedCount: 2,
+          captureResults: [
+            {
+              trigger: "token_completed",
+              mint,
+              metricId: null,
+              status: "captured",
+              blockedBy: [],
+            },
+            {
+              trigger: "loop_complete",
+              mint,
+              metricId: 1116,
+              status: "captured",
+              blockedBy: [],
+            },
+          ],
+        },
+      },
+      {
+        notificationClient: client,
+      },
+    );
+
+    assert.equal(output.opsNotifyPlan.notificationRecordWriteCount, 0);
+    assert.deepEqual(output.opsNotifyPlan.notificationRecordResults, []);
+    assert.equal(await client.notification.count(), 0);
+  });
 });
 
 test("ops notification send gate sends exactly one selected trigger through injected sender", async () => {
