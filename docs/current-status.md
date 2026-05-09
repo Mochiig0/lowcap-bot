@@ -768,6 +768,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   checkpoint updates were not invoked during the Metric step. The planner /
   validator output, tmux log, Red result, and post reports stayed rawJson-free
   and did not expose secret markers.
+- Ffn2 is now the first documented end-to-end human-gated bounded path
+  milestone for the GeckoTerminal lane: bounded detect write created the
+  mint-only Token with only the `/tmp` checkpoint, `enrich_rescore` moved it
+  to `partial`, `first_metric_snapshot` appended Metric `1244`, and
+  `second_metric_snapshot` appended Metric `1245` through the strict
+  `lowcap-gecko-metric-single` tmux single-run. This milestone confirms the
+  stage contract and rawJson-free reporting across the path, not an executor
+  wrapper, automatic Red execution, always-on bot, systemd service, scheduler,
+  queue worker, unbounded watch, or default-checkpoint operation. Next options
+  are: reproduce the same path on the next natural pump candidate, summarize
+  remaining readiness gaps before always-on work, or keep systemd / scheduler /
+  queue work deferred.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

@@ -1183,6 +1183,41 @@ second Metric time-series observation for the mint and does not promote
 automatic Red execution, batch/watch operation, systemd, scheduler / queue, or
 default checkpoint use.
 
+### Ffn2 End-to-End Bounded Path Milestone
+
+Ffn2 is the first documented end-to-end human-gated bounded path milestone for
+this runbook. The confirmed sequence is intentionally stage-by-stage:
+
+1. bounded detect write: created the mint-only Token with the isolated
+   `/tmp/lowcap-gecko-detect-bounded.json` checkpoint and did not use the
+   default checkpoint or write Metrics.
+2. `enrich_rescore`: moved the Token from `mint_only` to `partial` as
+   `Papu` / `PAPU`, kept score `C` / `0` and `hardRejected=false`, wrote no
+   Metric, and sent no Telegram.
+3. `first_metric_snapshot`: appended non-tmux Metric `id=1244` at
+   `observedAt=2026-05-08T23:11:09.976Z`, moving `metricsCount` from 0 to 1
+   with no Token field update.
+4. `second_metric_snapshot`: appended tmux single-run Metric `id=1245` at
+   `observedAt=2026-05-08T23:53:30.002Z`, moving `metricsCount` from 1 to 2
+   with previous Metric `id=1244` preserved and no Token field update.
+5. rawJson-free confirmation and docs consistency check: planner, validator,
+   Red results, post reports, and docs records stayed free of Metric rawJson
+   fields and secret markers.
+
+The boundary remains human-gated. The guide / planner / validator CLIs are
+non-executors; `approvalReady=true` and `canProceedToHumanGate=true` are
+approval conditions only; each Red stage used exactly one approved command.
+The first Metric write was the foreground single-mint command, while the
+second Metric write was the strict `lowcap-gecko-metric-single` no-`--watch`
+tmux single-run. This milestone does not implement an executor wrapper,
+automatic Red execution, always-on operation, systemd, scheduler / queue,
+unbounded watch, or default-checkpoint operation.
+
+Reasonable next Green tasks are either to repeat the same path on the next
+natural pump candidate, or to write down the remaining readiness gaps before
+any always-on work. Systemd, scheduler / queue, unbounded watch, and default
+checkpoint use remain out of scope for this milestone.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for
