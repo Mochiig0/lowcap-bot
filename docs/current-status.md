@@ -658,35 +658,34 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   capture-only because they do not have the initial `metricId` key. Future
   storage must distinguish `capture_only` from `live_send`, and `captured`,
   `sent`, `failed`, `skipped`, and `blocked` states; only a human-gated
-  live-send result with `sentAt` is treated as sent. Prisma model / migration,
-  durable storage implementation, failed-send retry, Telegram live-loop
-  integration, queue idempotency, and systemd recovery remain unimplemented.
+  live-send result with `sentAt` is treated as sent. Formal migration, DB table
+  creation / write, durable storage implementation, failed-send retry, Telegram
+  live-loop integration, queue idempotency, and systemd recovery remain
+  unimplemented.
 - Failed-send / resend policy is now fixed as docs-only policy. `failed` is not
   `sent`, previous `sent` on the same notification key blocks resend, and any
   resend requires DB read confirmation, capture-only rehearsal, secret-free /
   rawJson-free marker checks, a human gate, and a separate Red approval.
   Failed-send retry automation remains unimplemented.
 - Notification model boundary / lifecycle policy is now fixed as docs-only
-  policy. The future model responsibility is durable notification dedupe,
-  capture-only / live-send lifecycle state, failed-send / resend evidence, and
-  Telegram live-loop readiness input; it remains separate from queue
-  idempotency. `Notification` is the first model-name candidate, with
-  `notificationKey` as the durable identity, `mint + eventType + metricId` as
-  the initial `metric_appended` key, nullable Token / Metric relations as
-  candidates, and `sentAt` as the future sent proof. Notification model,
-  Prisma schema change, migration, durable storage implementation,
-  capture-only write integration, Telegram live-loop integration, queue
-  idempotency, and systemd recovery remain unimplemented. The next Yellow
-  candidate is a Prisma model / migration preflight, not implementation.
+  policy, and the first schema cut is now present in `prisma/schema.prisma`.
+  The model responsibility remains durable notification dedupe, capture-only /
+  live-send lifecycle state, failed-send / resend evidence, and Telegram
+  live-loop readiness input; it remains separate from queue idempotency.
+  `Notification` uses `notificationKey` as the durable identity,
+  `mint + eventType + metricId` as the initial `metric_appended` key,
+  nullable scalar `tokenId` / `metricId` fields without Prisma relations, String
+  `status` / `mode`, and `sentAt` as the future sent proof. Formal migration,
+  DB table creation / write, durable storage implementation, capture-only write
+  integration, Telegram live-loop integration, queue idempotency, and systemd
+  recovery remain unimplemented.
 - Notification model / migration baseline policy is now fixed as docs-only
   policy. The repo currently has `prisma/schema.prisma` and `prisma/dev.db` but
-  no `prisma/migrations`; the first Yellow implementation must protect the
-  existing DB, inspect migration SQL, and stop if the diff reaches beyond
-  adding `Notification` or changes existing `Dev` / `Token` / `Metric` models.
-  The first Yellow scope is limited to Notification schema, migration strategy /
-  SQL review, `prisma validate`, `prisma generate`, `tsc`, and schema-level
-  verification. Prisma schema change, migration creation, generate, and DB write
-  were not run in this docs-only task. Repository code, capture-only write
+  no `prisma/migrations`; the first Yellow schema cut added `Notification`,
+  schema-level inspection test coverage, and a `/tmp/add_notification.sql` SQL
+  preview. `prisma validate`, `prisma generate`, `tsc`, and the schema-level
+  test passed during that Yellow. Formal migration creation, `prisma migrate
+  dev`, `prisma db push`, DB write, repository code, capture-only write
   integration, Telegram live send, queue, and systemd remain later work.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime

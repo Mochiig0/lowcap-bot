@@ -225,10 +225,10 @@ durable notification identity is the `metric_appended` key `mint + eventType +
 metricId`; `token_completed` and `loop_complete` remain capture-only. Future
 storage must distinguish capture-only from live send and `captured`, `sent`,
 `failed`, `skipped`, and `blocked` states, with only a human-gated live send
-with `sentAt` treated as sent. Prisma model / migration, durable storage
-implementation, queue idempotency, failed-send retry, Telegram live-loop
-integration, systemd recovery, default checkpoint operation, and unbounded
-watch remain unimplemented.
+with `sentAt` treated as sent. Formal migration, DB table creation / write,
+durable storage implementation, queue idempotency, failed-send retry, Telegram
+live-loop integration, systemd recovery, default checkpoint operation, and
+unbounded watch remain unimplemented.
 
 Failed-send / resend policy is now fixed at the docs level, but watch
 readiness and systemd readiness are still incomplete. `failed` is not `sent`,
@@ -245,22 +245,23 @@ is the first model-name candidate; future storage is responsible for
 `notificationKey` durable dedupe, capture-only / live-send lifecycle state, and
 failed-send / resend evidence, while staying separate from queue idempotency.
 The initial key remains `mint + eventType + metricId` for `metric_appended`;
-`token_completed` and `loop_complete` remain capture-only. Prisma model /
-migration, durable storage implementation, capture-only write integration,
-Telegram live-loop integration, queue idempotency, systemd recovery, default
-checkpoint operation, and unbounded watch remain unimplemented.
+`token_completed` and `loop_complete` remain capture-only. Formal migration,
+DB table creation / write, durable storage implementation, capture-only write
+integration, Telegram live-loop integration, queue idempotency, systemd
+recovery, default checkpoint operation, and unbounded watch remain
+unimplemented.
 
 Notification schema / migration baseline policy is now fixed at the docs level,
-but watch readiness and systemd readiness are still incomplete. The repo has no
-`prisma/migrations` directory yet, so the first Yellow must protect existing
-`prisma/dev.db`, inspect schema diff and migration SQL, and stop if changes
-extend beyond adding Notification or touch existing `Dev` / `Token` / `Metric`
-models unexpectedly. The first Yellow scope is limited to schema, migration
-strategy / SQL review, Prisma validate / generate, TypeScript check, and
-schema-level verification. Durable storage implementation, repository code,
-capture-only write integration, queue idempotency, Telegram live-loop
-integration, systemd recovery, default checkpoint operation, and unbounded
-watch remain unimplemented.
+but watch readiness and systemd readiness are still incomplete. The repo still
+has no `prisma/migrations` directory; the first Yellow schema cut added
+`Notification`, schema-level inspection test coverage, and
+`/tmp/add_notification.sql` SQL preview without changing existing `Dev` /
+`Token` / `Metric` models. Formal migration creation, DB table creation,
+durable storage implementation, repository code, capture-only write
+integration, queue idempotency, Telegram live-loop integration, systemd
+recovery, default checkpoint operation, and unbounded watch remain
+unimplemented. The next gate is deciding the migration baseline / DB table
+creation path without reset or destructive migration.
 
 Next phase choices:
 

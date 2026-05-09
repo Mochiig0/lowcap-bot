@@ -948,22 +948,23 @@ Use these markers:
 - Durable notification dedupe storage policy fixed: the initial
   `metric_appended` notification key is `mint + eventType + metricId`, and
   only events with `metricId` are initial live candidates. `token_completed` /
-  `loop_complete` remain capture-only. Durable storage, Prisma model /
-  migration, queue idempotency, failed-send retry, and Telegram live-loop
-  integration are still not implemented.
+  `loop_complete` remain capture-only. Formal migration, DB table creation /
+  write, durable storage, queue idempotency, failed-send retry, and Telegram
+  live-loop integration are still not implemented.
 - Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
   on the same notification key blocks resend, and any `metric_appended` resend
   still requires DB confirmation, capture-only pass, marker checks, human gate,
   and separate Red approval. Automatic failed-send retry remains unimplemented.
-- Notification model boundary / lifecycle policy fixed: future
-  `Notification` storage should use `mint + eventType + metricId` for the
-  initial `metric_appended` key, keep `metricId`-bearing `metric_appended` as
-  the only initial live candidate, and keep `token_completed` /
-  `loop_complete` capture-only. Prisma model / migration, durable storage, and
+- Notification model boundary / lifecycle policy fixed: `Notification` is now
+  present in `prisma/schema.prisma`, uses `mint + eventType + metricId` for the
+  initial `metric_appended` key, keeps `metricId`-bearing `metric_appended` as
+  the only initial live candidate, and keeps `token_completed` /
+  `loop_complete` capture-only. Formal migration, durable storage, and
   capture-only write integration remain unimplemented.
-- Notification schema / migration baseline policy fixed: the first Yellow is
-  limited to schema, migration strategy / SQL review, Prisma validate /
-  generate, TypeScript check, and schema-level verification. It does not include
+- Notification schema / migration baseline policy fixed: the first Yellow
+  schema cut added the model, schema-level inspection test, and
+  `/tmp/add_notification.sql` SQL preview, with Prisma validate / generate,
+  TypeScript check, and schema-level verification completed. It does not include
   DB write integration, capture-only write integration, Telegram live send,
   queue, or systemd.
 
