@@ -780,6 +780,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   are: reproduce the same path on the next natural pump candidate, summarize
   remaining readiness gaps before always-on work, or keep systemd / scheduler /
   queue work deferred.
+- The bounded operation MVP is now complete only for the single-candidate,
+  operator-approved shape: one mint, one stage, one human gate, one exact Red
+  command, rawJson-free confirmation, and a docs record. It still requires a
+  human gate for every write stage. Before any always-on work, the remaining
+  readiness gaps are default checkpoint policy, restart / resume policy,
+  multiple-candidate handling, retry / failure handling, duplicate prevention,
+  log retention, secret-free logging, Telegram loop send conditions, Telegram
+  duplicate prevention / cooldown, and clear systemd / scheduler / queue
+  boundaries. The next phase is to fix those readiness decisions in docs and
+  read-only design preflights, not to start systemd, queue workers, unbounded
+  watch, automatic Red execution, or a Telegram live loop.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

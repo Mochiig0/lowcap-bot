@@ -77,6 +77,18 @@ Still unconfirmed:
 - detect long-running or unbounded watch.
 - systemd start / enable and restart-oriented operation.
 - scheduler / queue worker / background automatic ingestion runtime.
+- automatic Red execution, executor wrapper, and Telegram live loop
+  integration.
+
+Ffn2 now confirms the bounded detect -> enrich/rescore -> first Metric ->
+second Metric path as an end-to-end human-gated MVP example. This is not an
+always-on readiness signal. It proves the operator-approved unit of work: one
+mint, one stage, one human gate, one exact command, rawJson-free confirmation,
+and docs record. Before watch can become always-on, the remaining gaps are
+default checkpoint policy, restart / recovery policy, retry / failure handling,
+duplicate prevention across stages, log retention, secret-free logging,
+Telegram loop send / duplicate / cooldown policy, and the boundary between a
+single CLI runner and any scheduler / queue.
 
 Next phase choices:
 

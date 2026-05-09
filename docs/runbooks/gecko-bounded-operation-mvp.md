@@ -1218,6 +1218,60 @@ natural pump candidate, or to write down the remaining readiness gaps before
 any always-on work. Systemd, scheduler / queue, unbounded watch, and default
 checkpoint use remain out of scope for this milestone.
 
+### MVP Reached / Readiness Gap
+
+The bounded MVP is reached for the single-candidate, human-approved operating
+unit only:
+
+- one mint.
+- one stage.
+- one human gate.
+- one exact Red command.
+- rawJson-free confirmation.
+- docs-only record after the Red task.
+
+Do not widen this milestone into automation. `approvalReady=true` is not an
+execution permit, guide / planner / validator are not executors, and the
+printed Red command must not be run by those CLIs. The current MVP proves that
+an operator can safely carry one candidate through the path; it does not prove
+automatic Red execution, an executor wrapper, always-on operation, Telegram
+loop delivery, systemd, scheduler / queue, unbounded watch, or default
+checkpoint operation.
+
+Readiness gaps before the next automation layer:
+
+- default checkpoint policy: when it may be used, how it is initialized, and
+  how to stop before accidental repo-local checkpoint mutation.
+- restart / resume policy: what state is authoritative after process exit,
+  partial success, rate limit, or operator interruption.
+- multiple candidate handling: how selection, ordering, count limits, and
+  same-cycle dedupe work before a runner can touch more than one mint.
+- retry / failure handling: which failures are retryable, how many retries are
+  allowed, and when a retry becomes a new human-gated task.
+- duplicate prevention: how Token and Metric uniqueness is checked across
+  detect, enrich/rescore, and snapshot stages.
+- log retention and secret-free logging: where logs live, how long they are
+  kept, and what must never be copied from stdout, stderr, journal, or capture
+  files.
+- Telegram loop policy: send conditions, duplicate prevention, cooldown,
+  failed-send handling, and capture-only rehearsal before live loop delivery.
+- systemd unit design: restart mode, env policy, journal policy, stop command,
+  and first-run bounded shape.
+- scheduler / queue boundary: what remains single-process CLI work, what a
+  queue would own, and what must stay human-gated.
+- unbounded watch safety: exact count limits, stop conditions, checkpoint
+  behavior, rate-limit behavior, and operator visibility before any unlimited
+  loop.
+
+Recommended next order:
+
+1. docs-only readiness gap fixed.
+2. read-only design preflight for an executor wrapper.
+3. non-executor wrapper / dry-run planner shape.
+4. bounded executor prototype only after human gate rules are fixed.
+5. systemd / scheduler / queue only after restart, retry, and checkpoint
+   policy are fixed.
+
 ### Red Approval Request Template
 
 After the guide, planner, and validator steps, use this copy-paste template for
