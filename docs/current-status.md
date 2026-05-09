@@ -646,7 +646,12 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `mint + eventType + metricId`, but durable dedupe storage is not
   implemented; docs records remain audit logs, and capture records / DB state
   remain confirmation inputs rather than the queue runtime's dedupe store.
-  Capture-only rehearsal consistency remains the next policy gap.
+  Capture-only rehearsal consistency is now fixed as docs-only policy: capture
+  is a rehearsal before live send, not a live send; pass requires the expected
+  trigger / event type / mint, a `metricId` for `metric_appended`, computable
+  duplicate key, safe message preview, marker check pass, and DB read
+  confirmation alignment. Capture-only pass alone still does not complete
+  durable dedupe.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

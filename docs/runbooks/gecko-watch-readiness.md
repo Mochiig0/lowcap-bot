@@ -208,6 +208,17 @@ systemd recovery, default checkpoint operation, and unbounded watch remain
 unimplemented. This is separate from default checkpoint promotion and does not
 make scheduler / queue / systemd ready.
 
+Capture-only rehearsal consistency policy is now fixed at the docs level, but
+watch readiness is still incomplete. Capture-only remains a rehearsal before
+live send, not a live send itself, and capture-only pass alone does not
+complete durable dedupe. `metric_appended` remains the only initial live-send
+candidate, and pass requires the expected trigger / event type / mint,
+`metricId`, computable duplicate key, safe message preview, marker check pass,
+and DB read confirmation alignment. `token_completed` and `loop_complete`
+remain capture-only. Durable dedupe storage, Telegram live-loop integration,
+queue idempotency, scheduler, systemd, default checkpoint operation, and
+unbounded watch remain unimplemented.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

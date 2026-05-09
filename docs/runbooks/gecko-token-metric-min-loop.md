@@ -937,8 +937,14 @@ Use these markers:
 - Queue pre-gate policy fixed: the `metric_appended` notification key remains
   `mint + eventType + metricId`, only events with `metricId` are initial live
   candidates, and `token_completed` / `loop_complete` remain capture-only.
-  Durable dedupe storage, queue idempotency, and capture-only consistency are
-  still not implemented.
+  Durable dedupe storage and queue idempotency are still not implemented.
+- Capture-only rehearsal consistency policy fixed: `metric_appended` is still
+  the only initial live candidate, but live send still requires capture-only
+  pass, DB read confirmation, marker checks, and human gate. Capture-only pass
+  requires the expected trigger / event type / mint, a `metricId`, computable
+  duplicate key, safe message preview, and no rawJson / raw payload / secret
+  marker. Capture-only pass alone does not complete durable dedupe, and
+  `token_completed` / `loop_complete` remain capture-only.
 
 Keep the phase unchanged when:
 

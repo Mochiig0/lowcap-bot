@@ -1254,8 +1254,8 @@ Readiness gaps before the next automation layer:
 - log retention and secret-free runtime implementation: paste policy is fixed,
   but retention / rotation and journal behavior are not implemented.
 - Telegram runtime implementation: docs policy is fixed, but durable dedupe
-  storage, failed-send retry, cooldown automation, capture-only consistency,
-  and live-loop integration remain unimplemented.
+  storage, failed-send retry, cooldown automation, capture-only runtime
+  integration, and live-loop integration remain unimplemented.
 - systemd unit design: restart mode, env policy, journal policy, stop command,
   and first-run bounded shape.
 - scheduler / queue boundary: what remains single-process CLI work, what a
@@ -1362,7 +1362,7 @@ Systemd / scheduler / queue / unbounded watch gate:
   journal readiness fixed for the target runtime.
 - Telegram loop policy fixed.
 - Telegram duplicate notification storage, failed-send retry, cooldown
-  automation, capture-only consistency, and live-loop integration fixed.
+  automation, capture-only runtime integration, and live-loop integration fixed.
 - multi-candidate ordering, count bounds, and per-item failure handling fixed.
 
 Do not proceed to systemd, scheduler / queue, unbounded watch, default
@@ -1764,8 +1764,8 @@ Capture-only rehearsal relationship:
 - Capture output is limited to safe summaries: trigger, mint, `metricId`, and
   message preview.
 - If rawJson or secret markers appear, do not proceed to live send.
-- Capture-only consistency is the next fixed-policy candidate after durable
-  notification dedupe.
+- Capture-only consistency is fixed by the policy below; runtime integration
+  and durable dedupe storage remain later work.
 
 Per-item failure handling:
 
@@ -1836,7 +1836,120 @@ Not fixed / future work:
 - unbounded watch.
 - default checkpoint operation.
 - Telegram live loop integration.
-- capture-only consistency.
+- capture-only runtime integration.
+
+### Capture-Only Rehearsal Consistency Policy
+
+This is a docs-only policy for the Telegram rehearsal gate before any later
+live send, queue worker, scheduler, systemd service, unbounded watch, or
+default checkpoint operation. It does not run capture-only commands, send
+Telegram messages, implement durable dedupe storage, or change runtime code.
+
+Position:
+
+- Capture-only is required before live send.
+- Capture-only and live send are separate boundaries.
+- Capture-only pass alone does not complete durable dedupe.
+- Capture records are rehearsal evidence.
+- Docs records are operator audit logs.
+- Neither capture records nor docs records are durable dedupe stores.
+
+Capture-only pass conditions:
+
+- `trigger` is expected.
+- `eventType` is expected.
+- `mint` matches the target mint.
+- For `metric_appended`, `metricId` is present.
+- The duplicate key can be computed:
+  - `metric_appended`: mint + event type + `metricId`.
+- The message preview stays within safe-summary fields.
+- No rawJson, raw payload, or secret marker is present.
+- The capture content does not conflict with DB read confirmation.
+- Fields required for the human gate are present.
+- The flow is not attempting to live-send `token_completed` or
+  `loop_complete`.
+
+Capture-only fail conditions:
+
+- `metric_appended` is missing `metricId`.
+- `token_completed` or `loop_complete` is being treated as live-send ready.
+- The duplicate key cannot be computed.
+- `eventType` or `trigger` is unknown.
+- The message preview contains rawJson, raw payload, or a secret marker.
+- DB state and capture content conflict.
+- `mint` does not match the target mint.
+- `metricsCount`, latest Metric, or `metricId` does not match expectation.
+- The output does not match the current count bound or stage.
+- The message preview exceeds safe-to-log fields.
+- Durable dedupe state is required but unavailable.
+
+Event policy:
+
+- `metric_appended` is the only initial live-send candidate, and only after
+  capture-only pass, DB read confirmation, marker checks, and human gate.
+- `token_completed` remains capture-only because it has no `metricId` key for
+  the initial live-send lane.
+- `loop_complete` remains capture-only because it has no `metricId` key for
+  the initial live-send lane.
+- Failed-send records may use only safe summaries such as status, error code,
+  and sent count. They do not authorize automatic retry.
+- Detect candidates are not initial live-send candidates.
+- Enrich / rescore results are not initial live-send candidates.
+- Systemd loops are out of scope and unimplemented.
+
+Message preview safe summary:
+
+- Allowed candidates: trigger, event type, mint, `metricId`, name / symbol,
+  score summary, `hardRejected`, `metricsCount`, latest Metric id / source /
+  observedAt, status / reason, sent count, and error code.
+- Avoid in the initial live message: URL, raw metadata, raw API response, raw
+  payload, exact rawJson, secrets, bot token, chat id, and token-bearing URL.
+- Preview should remain a short safe summary. Do not paste a long full message
+  or raw blob. If truncation is needed, treat it as a later implementation
+  detail; truncation automation is not implemented here.
+
+Duplicate key relationship:
+
+- The `metric_appended` duplicate key is mint + event type + `metricId`.
+- Capture-only pass requires the duplicate key to be computable.
+- The same key must not be sent twice.
+- Capture records are not durable dedupe stores.
+- Durable dedupe storage and runtime idempotency keys are not implemented and
+  remain later work.
+
+DB read confirmation relationship:
+
+- Compare capture content against DB state before live send.
+- If `metricId` does not match latest Metric, do not live send.
+- If `metricsCount` is not expected, do not live send.
+- If `mint` does not match the target, do not live send.
+- If DB read confirmation is unavailable, return to human gate.
+
+Return to human gate when:
+
+- capture-only fails.
+- marker check fails.
+- duplicate key is missing.
+- DB state mismatches capture content.
+- `metricId` is missing.
+- `eventType` is unknown.
+- message preview is unsafe.
+- `token_completed` or `loop_complete` is being attempted as live send.
+- durable dedupe state is unavailable.
+- rawJson or secret marker risk appears.
+- Telegram live-loop expansion risk appears.
+- queue, systemd, scheduler, or unbounded expansion risk appears.
+
+Not fixed / future work:
+
+- Telegram live-loop integration.
+- durable notification dedupe storage.
+- failed-send retry.
+- cooldown automation.
+- queue idempotency.
+- systemd recovery.
+- capture-only command execution for this policy.
+- Telegram live send for this policy.
 
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
@@ -2297,7 +2410,7 @@ Before it exists, the project must fix the default checkpoint policy, restart /
 resume policy, partial-success handling, retry / failure handling, duplicate
 prevention across Token and Metric writes, log retention, secret-free logging,
 Telegram runtime dedupe / cooldown / failed-send implementation,
-capture-only consistency, and multi-candidate handling. The prototype must not bypass the
+capture-only runtime integration, and multi-candidate handling. The prototype must not bypass the
 human gate, and it must not start as a multi-mint runner, queue worker, systemd
 service, or unbounded watch.
 
