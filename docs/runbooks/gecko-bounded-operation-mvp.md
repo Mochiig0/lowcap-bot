@@ -2365,6 +2365,36 @@ Migration baseline policy:
 - Do not use force reset, `db reset`, or destructive migration.
 - Do not write to a production-equivalent DB.
 
+Read-only SQL preview results:
+
+- `/tmp/lowcap-baseline-existing-schema.sql` contains only the existing
+  `Dev`, `Token`, and `Metric` `CREATE TABLE` statements plus their current
+  indexes and foreign keys.
+- The baseline SQL does not include `Notification`.
+- `/tmp/lowcap-add-notification-only.sql` contains only `CREATE TABLE
+  "Notification"` and `CREATE UNIQUE INDEX
+  "Notification_notificationKey_key"`.
+- The add-notification-only SQL does not include `Dev`, `Token`, or `Metric`
+  `DROP`, `ALTER`, or `CREATE`.
+- Preview showed no destructive migration.
+
+Recommended formal migration split:
+
+1. Baseline migration: represent the existing `Dev` / `Token` / `Metric`
+   schema and current indexes / foreign keys.
+2. Add-notification migration: add only the `Notification` table and
+   `Notification_notificationKey_key` unique index.
+
+Existing DB application boundary:
+
+- Applying migrations or creating the `Notification` table in `prisma/dev.db`
+  is a separate Red task.
+- That Red task must name the target DB, backup plan, rollback plan, and
+  verification plan.
+- Do not run `prisma migrate dev`, `prisma migrate deploy`,
+  `prisma migrate resolve`, or `prisma db push` as part of this docs-only
+  policy.
+
 First Yellow scope:
 
 Completed:

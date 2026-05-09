@@ -687,6 +687,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   test passed during that Yellow. Formal migration creation, `prisma migrate
   dev`, `prisma db push`, DB write, repository code, capture-only write
   integration, Telegram live send, queue, and systemd remain later work.
+- Notification migration split policy is now fixed as docs-only policy.
+  Read-only /tmp SQL preview confirmed
+  `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /
+  `Token` / `Metric` table, index, and FK creation, without `Notification`.
+  `/tmp/lowcap-add-notification-only.sql` contains only `CREATE TABLE
+  "Notification"` and `CREATE UNIQUE INDEX "Notification_notificationKey_key"`,
+  without `Dev` / `Token` / `Metric` drop / alter / create and without
+  destructive migration. The recommended formal migration split is baseline
+  existing schema first, then add-notification-only second. Applying anything
+  to existing `prisma/dev.db`, including DB table creation, is a separate Red
+  task that must name the target DB, backup, rollback, and verification plan.
+  `migrate resolve`, `migrate deploy`, `migrate dev`, and `db push` remain
+  unrun.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

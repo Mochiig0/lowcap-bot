@@ -263,6 +263,16 @@ recovery, default checkpoint operation, and unbounded watch remain
 unimplemented. The next gate is deciding the migration baseline / DB table
 creation path without reset or destructive migration.
 
+Notification migration split policy is now fixed at the docs level, but it is
+not watch readiness or systemd readiness. Read-only SQL preview confirmed the
+baseline SQL contains only existing `Dev` / `Token` / `Metric` table, index,
+and FK creation, while the add-notification-only SQL contains only the
+`Notification` table and `Notification_notificationKey_key` unique index.
+Formal migration files remain uncreated. Applying migrations or creating the
+DB table in `prisma/dev.db` is a separate Red task with explicit target DB,
+backup, rollback, and verification. Do not treat this as queue, systemd,
+default checkpoint, Telegram live-loop, or durable storage readiness.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

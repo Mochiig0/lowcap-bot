@@ -967,6 +967,13 @@ Use these markers:
   TypeScript check, and schema-level verification completed. It does not include
   DB write integration, capture-only write integration, Telegram live send,
   queue, or systemd.
+- Notification migration split policy fixed: `/tmp/lowcap-baseline-existing-schema.sql`
+  contains only existing `Dev` / `Token` / `Metric` creation, while
+  `/tmp/lowcap-add-notification-only.sql` contains only the `Notification`
+  table and `Notification_notificationKey_key` unique index. Formal migration
+  files are still uncreated, DB table creation / DB write is still unrun, and
+  applying anything to `prisma/dev.db` is a separate Red task with explicit
+  target DB, backup, rollback, and verification.
 
 Keep the phase unchanged when:
 
