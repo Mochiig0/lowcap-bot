@@ -1044,10 +1044,21 @@ Use these markers:
   Notification rows, adds no Metric / Token writes, stores no Telegram response
   body, request path, bot token, chat id, or env value, and is covered by
   temp-SQLite mocked-sender tests. The notificationKey-specified real Telegram
-  live send and Red rehearsal remain unexecuted. `token_completed` /
-  `loop_complete` Notification writes and live-send marking, failed-send retry,
-  queue, scheduler, systemd, default checkpoint, automatic Red execution, and
-  always-on bot operation remain unimplemented.
+  live-send Red rehearsal is now complete for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`: backup
+  `/tmp/lowcap-dev.db.before-notification-live-send-20260509T151757Z.bak` was
+  created, dry-run returned `status=ready`, `senderCalled=false`,
+  `sentCount=0`, and `updatedCount=0`, live send returned `status=sent`,
+  `senderCalled=true`, `sentCount=1`, and `updatedCount=1`, counts stayed
+  `Token=1107`, `Metric=192`, and `Notification=1`, and the existing
+  Notification row now has `status=sent`, `mode=live_send`,
+  `sentAt=1778339880613`, `failedAt=null`, `errorCode=null`, `reason=null`,
+  `rawJsonFree=1`, and `secretFree=1`. Telegram response body, bot token, chat
+  id, and env markers were not stored; rollback was unnecessary and restore was
+  not executed. `token_completed` / `loop_complete` Notification writes and
+  live-send marking, failed-send retry, queue, scheduler, systemd, default
+  checkpoint, automatic Red execution, and always-on bot operation remain
+  unimplemented.
 
 Keep the phase unchanged when:
 

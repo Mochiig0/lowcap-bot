@@ -317,9 +317,19 @@ and missing `mint` / `metricId`, and updates at most one existing Notification
 row through the safe sent / failed marking APIs. Its tests use temp SQLite and
 mocked sender only; production `prisma/dev.db`, real Telegram, and `.env` are
 not used by the tests. The notificationKey-specified real Telegram Red
-rehearsal is still unexecuted, and retry, queue, scheduler, systemd, default
-checkpoint operation, automatic Red execution, and always-on operation remain
-unimplemented.
+rehearsal is now complete for
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264` through
+`pnpm -s notification:send -- --notificationKey <KEY> --trigger metric_appended --live`.
+Backup `/tmp/lowcap-dev.db.before-notification-live-send-20260509T151757Z.bak`
+was created; dry-run returned `status=ready`, `senderCalled=false`,
+`sentCount=0`, and `updatedCount=0`; live send returned `status=sent`,
+`senderCalled=true`, `sentCount=1`, and `updatedCount=1`; counts stayed
+`Token=1107`, `Metric=192`, and `Notification=1`; and the existing row now has
+`status=sent`, `mode=live_send`, `sentAt=1778339880613`, `rawJsonFree=1`, and
+`secretFree=1`. Telegram response body, bot token, chat id, and env markers
+were not stored; rollback was unnecessary and restore was not executed. Retry,
+queue, scheduler, systemd, default checkpoint operation, automatic Red
+execution, always-on operation, and unbounded watch remain unimplemented.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the

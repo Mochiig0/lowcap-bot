@@ -2399,9 +2399,21 @@ missing `mint` / `metricId`, and then updates at most one row through
 rows, adds no Metric / Token writes, stores no Telegram response bodies,
 request paths, bot tokens, chat ids, or env values, and is covered by
 temp-SQLite mocked-sender tests. The notificationKey-specified real Telegram
-live send / Red rehearsal remains unexecuted, and failed-send retry, queue,
-scheduler, systemd, default checkpoint operation, automatic Red execution, and
-always-on operation remain unimplemented.
+live-send Red rehearsal is now complete for
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264` through
+`pnpm -s notification:send -- --notificationKey <KEY> --trigger metric_appended --live`.
+Backup `/tmp/lowcap-dev.db.before-notification-live-send-20260509T151757Z.bak`
+was created. The dry-run returned `status=ready`, `senderCalled=false`,
+`sentCount=0`, and `updatedCount=0`; the live command returned `status=sent`,
+`senderCalled=true`, `sentCount=1`, and `updatedCount=1`. Counts stayed
+unchanged (`Token=1107`, `Metric=192`, `Notification=1`), only the existing
+Notification row was updated, and the row now has `status=sent`,
+`mode=live_send`, `sentAt=1778339880613`, `failedAt=null`, `errorCode=null`,
+`reason=null`, `rawJsonFree=1`, and `secretFree=1`. Telegram response body,
+bot token, chat id, and env markers were not stored; rollback was unnecessary
+and restore was not executed. Failed-send retry, queue, scheduler, systemd,
+default checkpoint operation, automatic Red execution, and always-on operation
+remain unimplemented.
 
 Migration baseline policy:
 

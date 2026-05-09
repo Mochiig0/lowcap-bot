@@ -760,7 +760,20 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Telegram response bodies, request paths, bot tokens, chat ids, or env values,
   and is covered by temp-SQLite mocked-sender tests that do not use production
   `prisma/dev.db`, real Telegram, or `.env`. The notificationKey-specified real
-  Telegram live send / Red rehearsal remains unexecuted. `token_completed` /
+  Telegram Red rehearsal is now complete for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264` through
+  `pnpm -s notification:send -- --notificationKey <KEY> --trigger metric_appended --live`:
+  backup `/tmp/lowcap-dev.db.before-notification-live-send-20260509T151757Z.bak`
+  was created, dry-run returned `status=ready`, `senderCalled=false`,
+  `sentCount=0`, and `updatedCount=0`, live send returned `status=sent`,
+  `senderCalled=true`, `sentCount=1`, and `updatedCount=1`, and only the
+  existing Notification row was updated. Counts stayed `Token=1107`,
+  `Metric=192`, and `Notification=1`; the row now has
+  `eventType=metric_appended`, `trigger=metric_appended`, `status=sent`,
+  `mode=live_send`, `sentAt=1778339880613`, `failedAt=null`,
+  `errorCode=null`, `reason=null`, `rawJsonFree=1`, and `secretFree=1`.
+  Telegram response body, bot token, chat id, and env markers were not stored;
+  rollback was unnecessary and restore was not executed. `token_completed` /
   `loop_complete` Notification writes and live-send marking, failed-send retry
   automation, queue, scheduler, systemd, durable queue runtime, default
   checkpoint operation, automatic Red execution, and always-on bot operation
@@ -1682,8 +1695,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `metric_appended` is supported, missing / already sent / non-captured rows
   are blocked, and success / failure update at most one existing Notification
   row through the safe sent / failed marking APIs. Its tests use temp SQLite and
-  mocked sender only; the notificationKey-specified real Telegram Red rehearsal
-  is still unexecuted.
+  mocked sender only. The notificationKey-specified real Telegram Red rehearsal
+  then succeeded for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`:
+  dry-run stayed no-send (`status=ready`, `senderCalled=false`, `sentCount=0`,
+  `updatedCount=0`), live send reported `status=sent`, `senderCalled=true`,
+  `sentCount=1`, and `updatedCount=1`, counts stayed `Token=1107`,
+  `Metric=192`, and `Notification=1`, the existing row now has
+  `status=sent`, `mode=live_send`, and `sentAt=1778339880613`, and rollback
+  was not needed.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
