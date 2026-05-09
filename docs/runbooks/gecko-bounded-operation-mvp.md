@@ -1943,7 +1943,7 @@ Return to human gate when:
 Not fixed / future work:
 
 - Telegram live-loop integration.
-- durable notification dedupe storage implementation.
+- runtime Notification record write integration.
 - failed-send retry.
 - cooldown automation.
 - queue idempotency.
@@ -1953,11 +1953,12 @@ Not fixed / future work:
 
 ### Durable Notification Dedupe Storage Policy
 
-This is the policy for the future durable Telegram notification dedupe store.
-The first schema cut now provides a `Notification` model, and formal migration
-files now exist, but they have not been applied. This does not create the DB
-table, implement storage, run capture-only, send Telegram, start queue /
-systemd, or change runtime code.
+This is the policy for the durable Telegram notification dedupe store. The
+first schema cut now provides a `Notification` model, formal migration files
+exist, and the Red DB apply created the `Notification` table in
+`prisma/dev.db`. The minimal Notification repository is implemented, but this
+does not run capture-only, send Telegram, start queue / systemd, or connect
+runtime Notification record writes.
 
 Responsibilities:
 
@@ -2077,8 +2078,8 @@ Stop before live send or queue when:
 
 Not fixed / future work:
 
-- repository / runtime Notification record writes.
-- durable notification dedupe storage runtime.
+- runtime Notification record write integration.
+- capture-only write integration.
 - queue idempotency.
 - failed-send retry.
 - Telegram live-loop integration.
@@ -2211,8 +2212,8 @@ Stop and return to human gate when:
 Not fixed / future work:
 
 - failed-send retry automation.
-- repository / runtime Notification record writes.
-- durable notification dedupe storage runtime.
+- runtime Notification record write integration.
+- capture-only write integration.
 - Telegram live-loop integration.
 - queue idempotency.
 - systemd recovery.
@@ -2221,9 +2222,10 @@ Not fixed / future work:
 
 This policy defines the durable notification model boundary. The first schema
 cut now adds `Notification` to `prisma/schema.prisma` with scalar nullable
-`tokenId` / `metricId` fields and no Prisma relations or back relations. It does
-not apply migrations, write DB rows, implement repository/runtime storage,
-execute capture-only, send Telegram, or start queue / systemd / unbounded watch
+`tokenId` / `metricId` fields and no Prisma relations or back relations. The
+formal migrations are applied to `prisma/dev.db`, and the minimal repository is
+implemented. It still does not execute capture-only, send Telegram, write
+runtime Notification records, or start queue / systemd / unbounded watch
 runtime.
 
 Model responsibility:
@@ -2333,8 +2335,7 @@ Migration pre-risks:
 
 Not fixed / future work:
 
-- repository / runtime Notification record writes.
-- durable storage runtime.
+- runtime Notification record write integration.
 - capture-only write integration.
 - Telegram live-loop integration.
 - queue idempotency.
@@ -2350,8 +2351,10 @@ TypeScript check, and previewed SQL at `/tmp/add_notification.sql`. The later
 migration-file cut added the baseline and add-notification formal migration
 files under `prisma/migrations`. The Red DB apply then resolved the baseline
 migration as applied and deployed the add-notification migration to
-`prisma/dev.db`. These cuts do not implement repository/runtime storage,
-execute capture-only, send Telegram, or start queue / systemd runtime.
+`prisma/dev.db`. A later Yellow added the minimal Notification repository and
+temp-SQLite repository test. These cuts do not connect runtime Notification
+record writes, execute capture-only, send Telegram, or start queue / systemd
+runtime.
 
 Migration baseline policy:
 
@@ -2421,8 +2424,8 @@ Completed:
 
 Still excluded:
 
-- Notification repository.
 - DB write integration test.
+- runtime Notification record write integration.
 - capture-only write integration.
 - Telegram live-send integration.
 - failed-send retry.

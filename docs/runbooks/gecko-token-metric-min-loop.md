@@ -949,9 +949,10 @@ Use these markers:
   `metric_appended` notification key is `mint + eventType + metricId`, and
   only events with `metricId` are initial live candidates. `token_completed` /
   `loop_complete` remain capture-only. Notification DB table creation is now
-  complete with `Notification` count 0, but repository / runtime Notification
-  record writes, queue idempotency, failed-send retry, and Telegram live-loop
-  integration are still not implemented.
+  complete with `Notification` count 0, and the minimal Notification
+  repository is implemented. Runtime Notification record write integration,
+  queue idempotency, failed-send retry, and Telegram live-loop integration are
+  still not implemented.
 - Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
   on the same notification key blocks resend, and any `metric_appended` resend
   still requires DB confirmation, capture-only pass, marker checks, human gate,
@@ -961,8 +962,9 @@ Use these markers:
   initial `metric_appended` key, keeps `metricId`-bearing `metric_appended` as
   the only initial live candidate, and keeps `token_completed` /
   `loop_complete` capture-only. Formal migration files now exist, while DB
-  table creation / apply is now complete for `prisma/dev.db`; durable storage
-  runtime and capture-only write integration remain unimplemented.
+  table creation / apply is now complete for `prisma/dev.db`; the minimal
+  Notification repository is implemented, while runtime Notification record
+  write integration and capture-only write integration remain unimplemented.
 - Notification schema / migration baseline policy fixed: the first Yellow
   schema cut added the model, schema-level inspection test, and
   `/tmp/add_notification.sql` SQL preview, with Prisma validate / generate,
@@ -979,6 +981,15 @@ Use these markers:
   `_prisma_migrations` records, `Notification` table / unique index present,
   `Notification=0`, and existing counts unchanged (`Dev=0`, `Token=1107`,
   `Metric=191`).
+- Notification repository status recorded: `src/notifications/notificationRepository.ts`
+  implements `findNotificationByKey`, `createCapturedNotification`,
+  `maybeCreateByNotificationKey`, `markNotificationSent`, and
+  `markNotificationFailed` with PrismaClient / notification delegate injection,
+  explicit field mapping, and forbidden never-store key rejection.
+  `tests/notificationRepository.test.ts` uses temp SQLite; it did not write to
+  production `prisma/dev.db`. Runtime write integration, capture-only,
+  Telegram, ops catchup, queue, scheduler, systemd, default checkpoint,
+  automatic Red execution, and always-on bot operation remain unimplemented.
 
 Keep the phase unchanged when:
 
@@ -1002,10 +1013,10 @@ This loop does not yet include:
 - automatic retry or resume
 - `token_completed` Telegram ops live-send execution
 - `loop_complete` Telegram ops live-send execution
-- Telegram live loop integration, durable dedupe storage, failed-send retry, or
-  cooldown automation
+- Telegram live loop integration, runtime Notification record write
+  integration, failed-send retry, or cooldown automation
 - queue idempotency, per-item failure handling, or durable notification dedupe
-  storage
+  runtime integration
 - generic multi-source adapter runtime
 
 ## Next Candidate Steps
