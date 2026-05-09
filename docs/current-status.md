@@ -666,6 +666,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   resend requires DB read confirmation, capture-only rehearsal, secret-free /
   rawJson-free marker checks, a human gate, and a separate Red approval.
   Failed-send retry automation remains unimplemented.
+- Notification model boundary / lifecycle policy is now fixed as docs-only
+  policy. The future model responsibility is durable notification dedupe,
+  capture-only / live-send lifecycle state, failed-send / resend evidence, and
+  Telegram live-loop readiness input; it remains separate from queue
+  idempotency. `Notification` is the first model-name candidate, with
+  `notificationKey` as the durable identity, `mint + eventType + metricId` as
+  the initial `metric_appended` key, nullable Token / Metric relations as
+  candidates, and `sentAt` as the future sent proof. Notification model,
+  Prisma schema change, migration, durable storage implementation,
+  capture-only write integration, Telegram live-loop integration, queue
+  idempotency, and systemd recovery remain unimplemented. The next Yellow
+  candidate is a Prisma model / migration preflight, not implementation.
 - Multi-candidate ordering / per-item failure handling, log retention /
   rotation implementation, systemd journal readiness, and Telegram runtime
   implementation gaps remain unresolved gates. Default checkpoint operation is

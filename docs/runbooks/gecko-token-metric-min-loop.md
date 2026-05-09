@@ -955,6 +955,12 @@ Use these markers:
   on the same notification key blocks resend, and any `metric_appended` resend
   still requires DB confirmation, capture-only pass, marker checks, human gate,
   and separate Red approval. Automatic failed-send retry remains unimplemented.
+- Notification model boundary / lifecycle policy fixed: future
+  `Notification` storage should use `mint + eventType + metricId` for the
+  initial `metric_appended` key, keep `metricId`-bearing `metric_appended` as
+  the only initial live candidate, and keep `token_completed` /
+  `loop_complete` capture-only. Prisma model / migration, durable storage, and
+  capture-only write integration remain unimplemented.
 
 Keep the phase unchanged when:
 

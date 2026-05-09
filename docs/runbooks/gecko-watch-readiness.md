@@ -239,6 +239,17 @@ Red approval. Failed-send retry automation, durable storage implementation,
 queue idempotency, Telegram live-loop integration, systemd recovery, default
 checkpoint operation, and unbounded watch remain unimplemented.
 
+Notification model boundary / lifecycle policy is now fixed at the docs level,
+but watch readiness and systemd readiness are still incomplete. `Notification`
+is the first model-name candidate; future storage is responsible for
+`notificationKey` durable dedupe, capture-only / live-send lifecycle state, and
+failed-send / resend evidence, while staying separate from queue idempotency.
+The initial key remains `mint + eventType + metricId` for `metric_appended`;
+`token_completed` and `loop_complete` remain capture-only. Prisma model /
+migration, durable storage implementation, capture-only write integration,
+Telegram live-loop integration, queue idempotency, systemd recovery, default
+checkpoint operation, and unbounded watch remain unimplemented.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the

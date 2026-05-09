@@ -2213,6 +2213,127 @@ Not fixed / future work:
 - queue idempotency.
 - systemd recovery.
 
+### Notification Model Boundary / Lifecycle Policy
+
+This is a docs-only policy for the future durable notification model boundary.
+It does not add a Prisma schema change, create a migration, implement a
+Notification model, execute capture-only, send Telegram, or start queue /
+systemd / unbounded watch runtime.
+
+Model responsibility:
+
+- durable dedupe by `notificationKey`.
+- capture-only / live-send lifecycle management.
+- `captured`, `sent`, `failed`, `skipped`, and `blocked` state management.
+- failed-send / resend decision evidence.
+- Telegram live-loop readiness input.
+- not queue idempotency itself.
+
+Model name:
+
+- First candidate: `Notification`.
+- `Notification` keeps the responsibility broad enough if later channels are
+  added.
+- `NotificationEvent` reads more like append-only history and is less aligned
+  with same-key lifecycle management.
+- `TelegramNotification` fits the current channel but fixes the model name to
+  Telegram too early.
+- `TokenNotification` is too narrow for `metric_appended` and loop events.
+
+Field candidates:
+
+- `id`.
+- `notificationKey`.
+- `eventType`.
+- `mint`.
+- nullable `tokenId`.
+- nullable `metricId`.
+- `trigger`.
+- `status`.
+- `mode`.
+- safe-summary `messagePreview`.
+- nullable `capturedAt`.
+- nullable `sentAt`.
+- nullable `failedAt`.
+- nullable `errorCode`.
+- nullable `reason`.
+- `rawJsonFree`.
+- `secretFree`.
+- nullable `source`.
+- `createdAt`.
+- `updatedAt`.
+
+Relation candidates:
+
+- A Token relation is a candidate.
+- Keep `mint` as a denormalized field candidate.
+- A Metric relation is naturally nullable.
+- `metric_appended` requires `metricId` by policy.
+- `token_completed` and `loop_complete` keep nullable `metricId` and remain
+  capture-only.
+- Required / nullable `metricId` should be enforced by event-type operating
+  rules unless a later schema design can express it safely.
+- This task does not change the schema.
+
+Unique / index candidates:
+
+- `notificationKey` unique is the first candidate.
+- Do not include `status` in the unique identity without a clear reason;
+  including it can weaken resend prevention for an already-sent key.
+- If failed-to-sent same-key lifecycle is allowed, use same-row state
+  transition or explicit approval metadata.
+- Index candidates: `mint`, `eventType`, `status`, `metricId`, `createdAt`,
+  `capturedAt`, `sentAt`, and `failedAt`.
+
+Status / mode lifecycle:
+
+- Mode candidates: `capture_only` and `live_send`.
+- Status candidates: `captured`, `sent`, `failed`, `skipped`, and `blocked`.
+- Capture-only pass is not `sent`.
+- Only `sentAt` is future sent proof.
+- `failed` is not `sent`.
+- A key with previous `sent` is not resendable.
+- `skipped` and `blocked` record safe reasons for no live send.
+- Human-approved resend after `failed` needs same-row state transition or
+  approval metadata.
+
+Never store:
+
+- Telegram response body.
+- request path.
+- bot token.
+- chat id.
+- token-containing URL.
+- raw API response.
+- raw payload.
+- exact rawJson payload.
+- raw stdout.
+- raw stderr.
+- `.env`.
+- `DATABASE_URL`.
+- `process.env`.
+- any line or blob with a secret marker.
+
+Migration pre-risks:
+
+- nullable relation design.
+- Prisma enum versus string fields.
+- `notificationKey` unique lifecycle / backfill.
+- relationship to historical capture-only JSONL.
+- rollback and test DB handling.
+- fixture / seed needs.
+- bad key design can block the resend lifecycle.
+
+Not fixed / future work:
+
+- Prisma Notification model.
+- migration.
+- durable storage implementation.
+- capture-only write integration.
+- Telegram live-loop integration.
+- queue idempotency.
+- systemd recovery.
+
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
 state, the default Gecko checkpoint remains unpromoted, DB state is the first
