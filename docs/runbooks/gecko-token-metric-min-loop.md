@@ -950,9 +950,10 @@ Use these markers:
   only events with `metricId` are initial live candidates. `token_completed` /
   `loop_complete` remain capture-only. Notification DB table creation is now
   complete with `Notification` count 0, and the minimal Notification
-  repository is implemented. Runtime Notification record write integration,
-  queue idempotency, failed-send retry, and Telegram live-loop integration are
-  still not implemented.
+  repository is implemented. `ops:catchup:gecko` now records the selected
+  `metric_appended` capture-only Notification row, while `token_completed` /
+  `loop_complete` Notification writes, queue idempotency, failed-send retry,
+  and Telegram live-loop integration are still not implemented.
 - Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
   on the same notification key blocks resend, and any `metric_appended` resend
   still requires DB confirmation, capture-only pass, marker checks, human gate,
@@ -963,14 +964,16 @@ Use these markers:
   the only initial live candidate, and keeps `token_completed` /
   `loop_complete` capture-only. Formal migration files now exist, while DB
   table creation / apply is now complete for `prisma/dev.db`; the minimal
-  Notification repository is implemented, while runtime Notification record
-  write integration and capture-only write integration remain unimplemented.
+  Notification repository is implemented, and the `metric_appended`
+  capture-only Notification write integration is implemented. Broader runtime
+  Notification writes, including `token_completed` / `loop_complete`, remain
+  unimplemented.
 - Notification schema / migration baseline policy fixed: the first Yellow
   schema cut added the model, schema-level inspection test, and
   `/tmp/add_notification.sql` SQL preview, with Prisma validate / generate,
   TypeScript check, and schema-level verification completed. It does not include
-  DB write integration, capture-only write integration, Telegram live send,
-  queue, or systemd.
+  DB write integration beyond the later `metric_appended` capture-only
+  Notification record path, Telegram live send, queue, or systemd.
 - Notification migration split policy fixed: `/tmp/lowcap-baseline-existing-schema.sql`
   contains only existing `Dev` / `Token` / `Metric` creation, while
   `/tmp/lowcap-add-notification-only.sql` contains only the `Notification`
@@ -987,8 +990,14 @@ Use these markers:
   `markNotificationFailed` with PrismaClient / notification delegate injection,
   explicit field mapping, and forbidden never-store key rejection.
   `tests/notificationRepository.test.ts` uses temp SQLite; it did not write to
-  production `prisma/dev.db`. Runtime write integration, capture-only,
-  Telegram, ops catchup, queue, scheduler, systemd, default checkpoint,
+  production `prisma/dev.db`. Commit `905d3ac` connects the repository to
+  `ops:catchup:gecko` capture-only output for `metric_appended` only, with key
+  `${mint}:metric_appended:${metricId}`, `status=captured`,
+  `mode=capture_only`, safe `messagePreview`, one Notification create maximum
+  per run, duplicate-key count stability, and skip behavior for missing
+  `mint` / `metricId` or multiple captured `metric_appended` records.
+  `token_completed` / `loop_complete` Notification writes, Telegram, sent /
+  failed runtime marking, queue, scheduler, systemd, default checkpoint,
   automatic Red execution, and always-on bot operation remain unimplemented.
 
 Keep the phase unchanged when:

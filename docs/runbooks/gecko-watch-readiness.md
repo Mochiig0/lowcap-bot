@@ -225,21 +225,22 @@ durable notification identity is the `metric_appended` key `mint + eventType +
 metricId`; `token_completed` and `loop_complete` remain capture-only. Future
 storage must distinguish capture-only from live send and `captured`, `sent`,
 `failed`, `skipped`, and `blocked` states, with only a human-gated live send
-with `sentAt` treated as sent. Notification DB table creation is complete, but
-the minimal Notification repository is implemented. Runtime Notification
-record write integration, queue idempotency, failed-send retry, Telegram
-live-loop integration, systemd recovery, default checkpoint operation, and
-unbounded watch remain unimplemented.
+with `sentAt` treated as sent. Notification DB table creation, the minimal
+Notification repository, and the `metric_appended` capture-only Notification
+record write integration are complete. `token_completed` / `loop_complete`
+Notification writes, queue idempotency, failed-send retry, Telegram live-loop
+integration, systemd recovery, default checkpoint operation, and unbounded
+watch remain unimplemented.
 
 Failed-send / resend policy is now fixed at the docs level, but watch
 readiness and systemd readiness are still incomplete. `failed` is not `sent`,
 and a previous `sent` on the same notification key blocks resend. Any resend
 requires DB read confirmation, capture-only rehearsal, safe failed-send summary
 review, secret-free / rawJson-free marker checks, a human gate, and a separate
-Red approval. Failed-send retry automation, runtime Notification record write
-integration, queue idempotency, Telegram live-loop integration, systemd
-recovery, default checkpoint operation, and unbounded watch remain
-unimplemented.
+Red approval. Failed-send retry automation, sent / failed runtime marking,
+broader Notification writes beyond `metric_appended` capture-only, queue
+idempotency, Telegram live-loop integration, systemd recovery, default
+checkpoint operation, and unbounded watch remain unimplemented.
 
 Notification model boundary / lifecycle policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. `Notification`
@@ -249,10 +250,11 @@ failed-send / resend evidence, while staying separate from queue idempotency.
 The initial key remains `mint + eventType + metricId` for `metric_appended`;
 `token_completed` and `loop_complete` remain capture-only. DB table creation /
 apply is now complete for `prisma/dev.db`, and the minimal Notification
-repository is implemented, but runtime Notification record write integration,
-capture-only write integration, Telegram live-loop integration, queue
-idempotency, systemd recovery, default checkpoint operation, and unbounded
-watch remain unimplemented.
+repository is implemented. The `metric_appended` capture-only Notification
+record write integration is now implemented for `ops:catchup:gecko`, but
+`token_completed` / `loop_complete` Notification writes, Telegram live-loop
+integration, queue idempotency, systemd recovery, default checkpoint operation,
+and unbounded watch remain unimplemented.
 
 Notification schema / migration baseline policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. The first
@@ -261,11 +263,16 @@ and `/tmp/add_notification.sql` SQL preview without changing existing `Dev` /
 `Token` / `Metric` models. Formal migration files now exist under
 `prisma/migrations`, and the Red DB apply created the `Notification` table in
 `prisma/dev.db` without reset or destructive migration. The minimal
-Notification repository is now implemented and covered by a temp-SQLite test,
-but runtime Notification record write integration, capture-only write
-integration, queue idempotency, Telegram live-loop integration, systemd
-recovery, default checkpoint operation, and unbounded watch remain
-unimplemented.
+Notification repository is now implemented and covered by a temp-SQLite test.
+Commit `905d3ac` connects it to `ops:catchup:gecko` capture-only output for
+`metric_appended` only, using key `${mint}:metric_appended:${metricId}`,
+`status=captured`, `mode=capture_only`, safe `messagePreview`, one
+Notification create maximum per run, duplicate-key count stability, and skip
+behavior for missing `mint` / `metricId` or multiple captured
+`metric_appended` records. `token_completed` / `loop_complete` Notification
+writes, queue idempotency, Telegram live-loop integration, sent / failed
+runtime marking, systemd recovery, default checkpoint operation, and unbounded
+watch remain unimplemented.
 
 Notification migration split policy is now fixed at the docs level, but it is
 not watch readiness or systemd readiness. Read-only SQL preview confirmed the

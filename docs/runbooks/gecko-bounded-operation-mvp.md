@@ -1943,7 +1943,8 @@ Return to human gate when:
 Not fixed / future work:
 
 - Telegram live-loop integration.
-- runtime Notification record write integration.
+- broader runtime Notification record write integration beyond the
+  `metric_appended` capture-only path.
 - failed-send retry.
 - cooldown automation.
 - queue idempotency.
@@ -2078,8 +2079,9 @@ Stop before live send or queue when:
 
 Not fixed / future work:
 
-- runtime Notification record write integration.
-- capture-only write integration.
+- broader runtime Notification record write integration beyond
+  `metric_appended` capture-only.
+- `token_completed` / `loop_complete` Notification write integration.
 - queue idempotency.
 - failed-send retry.
 - Telegram live-loop integration.
@@ -2212,8 +2214,9 @@ Stop and return to human gate when:
 Not fixed / future work:
 
 - failed-send retry automation.
-- runtime Notification record write integration.
-- capture-only write integration.
+- broader runtime Notification record write integration beyond
+  `metric_appended` capture-only.
+- `token_completed` / `loop_complete` Notification write integration.
 - Telegram live-loop integration.
 - queue idempotency.
 - systemd recovery.
@@ -2335,8 +2338,9 @@ Migration pre-risks:
 
 Not fixed / future work:
 
-- runtime Notification record write integration.
-- capture-only write integration.
+- broader runtime Notification record write integration beyond
+  `metric_appended` capture-only.
+- `token_completed` / `loop_complete` Notification write integration.
 - Telegram live-loop integration.
 - queue idempotency.
 - systemd recovery.
@@ -2352,9 +2356,11 @@ migration-file cut added the baseline and add-notification formal migration
 files under `prisma/migrations`. The Red DB apply then resolved the baseline
 migration as applied and deployed the add-notification migration to
 `prisma/dev.db`. A later Yellow added the minimal Notification repository and
-temp-SQLite repository test. These cuts do not connect runtime Notification
-record writes, execute capture-only, send Telegram, or start queue / systemd
-runtime.
+temp-SQLite repository test. Commit `905d3ac` then connected the repository to
+`ops:catchup:gecko` capture-only output for `metric_appended` records only. It
+does not connect Telegram live send, sent / failed runtime marking,
+`token_completed` / `loop_complete` Notification writes, failed-send retry, or
+queue / systemd runtime.
 
 Migration baseline policy:
 
@@ -2425,8 +2431,9 @@ Completed:
 Still excluded:
 
 - DB write integration test.
-- runtime Notification record write integration.
-- capture-only write integration.
+- broader runtime Notification record write integration beyond
+  `metric_appended` capture-only.
+- `token_completed` / `loop_complete` Notification write integration.
 - Telegram live-send integration.
 - failed-send retry.
 - queue idempotency.

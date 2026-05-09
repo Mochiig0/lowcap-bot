@@ -643,8 +643,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   The current safe unit remains one mint, one stage, one human gate, one exact
   Red command, rawJson-free / secret-free confirmation, and a docs record.
   Durable notification dedupe policy is fixed for the initial Telegram key
-  `mint + eventType + metricId`; schema, DB table, and minimal repository now
-  exist, but runtime Notification record write integration is not implemented.
+  `mint + eventType + metricId`; schema, DB table, minimal repository, and the
+  `metric_appended` capture-only Notification record write integration now
+  exist, but broader runtime Notification record write integration remains
+  incomplete.
   Docs records remain audit logs, and capture records / DB state remain
   confirmation inputs rather than the queue runtime's dedupe store.
   Capture-only rehearsal consistency is now fixed as docs-only policy: capture
@@ -660,8 +662,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   storage must distinguish `capture_only` from `live_send`, and `captured`,
   `sent`, `failed`, `skipped`, and `blocked` states; only a human-gated
   live-send result with `sentAt` is treated as sent. The Notification DB table
-  now exists in `prisma/dev.db`, and the minimal Notification repository is
-  implemented, but runtime Notification record write integration,
+  now exists in `prisma/dev.db`, the minimal Notification repository is
+  implemented, and `ops:catchup:gecko` now records the selected
+  `metric_appended` capture-only Notification row. `token_completed` /
+  `loop_complete` Notification writes, sent / failed runtime marking,
   failed-send retry, Telegram live-loop integration, queue idempotency, and
   systemd recovery remain unimplemented.
 - Failed-send / resend policy is now fixed as docs-only policy. `failed` is not
@@ -678,9 +682,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `mint + eventType + metricId` as the initial `metric_appended` key,
   nullable scalar `tokenId` / `metricId` fields without Prisma relations, String
   `status` / `mode`, and `sentAt` as the future sent proof. Migration apply /
-  DB table creation for `Notification` is complete, but durable storage runtime,
-  capture-only write integration, Telegram live-loop integration, queue
-  idempotency, and systemd recovery remain unimplemented.
+  DB table creation for `Notification` is complete, and the
+  `metric_appended` capture-only write integration is implemented. Durable
+  storage runtime beyond that narrow capture path, `token_completed` /
+  `loop_complete` writes, Telegram live-loop integration, queue idempotency,
+  and systemd recovery remain unimplemented.
 - Notification model / migration baseline policy is now fixed as docs-only
   policy. The repo currently has `prisma/schema.prisma`, `prisma/dev.db`, and
   formal migration files under `prisma/migrations`; the first Yellow schema cut
@@ -701,11 +707,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   instead of binding to the `src/cli/db.ts` singleton, uses explicit
   create/update field mapping, and throws when forbidden never-store input keys
   are present. The repository test wrote only to temp SQLite, not
-  `prisma/dev.db`. Runtime Notification record write integration,
-  capture-only write integration, Telegram live send, ops catchup,
-  failed-send retry automation, queue, scheduler, systemd, durable queue
-  runtime, default checkpoint operation, automatic Red execution, and always-on
-  bot operation remain later work.
+  `prisma/dev.db`. Commit `905d3ac` connects this repository to the
+  `ops:catchup:gecko` capture-only path for `metric_appended` only, using
+  notification key `${mint}:metric_appended:${metricId}`, `status=captured`,
+  `mode=capture_only`, and safe `messagePreview`. Missing `mint` / `metricId`
+  and multiple captured `metric_appended` records skip without fallback keys;
+  each run can create at most one Notification row, and duplicate
+  `notificationKey` values do not increase count. `token_completed` /
+  `loop_complete` Notification writes, Telegram live send integration, sent /
+  failed runtime marking, failed-send retry automation, queue, scheduler,
+  systemd, durable queue runtime, default checkpoint operation, automatic Red
+  execution, and always-on bot operation remain later work.
 - Notification migration split policy is now fixed as docs-only policy.
   Read-only /tmp SQL preview confirmed
   `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /
