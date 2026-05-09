@@ -658,8 +658,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   capture-only because they do not have the initial `metricId` key. Future
   storage must distinguish `capture_only` from `live_send`, and `captured`,
   `sent`, `failed`, `skipped`, and `blocked` states; only a human-gated
-  live-send result with `sentAt` is treated as sent. Formal migration, DB table
-  creation / write, durable storage implementation, failed-send retry, Telegram
+  live-send result with `sentAt` is treated as sent. DB table creation / apply
+  / write, durable storage implementation, failed-send retry, Telegram
   live-loop integration, queue idempotency, and systemd recovery remain
   unimplemented.
 - Failed-send / resend policy is now fixed as docs-only policy. `failed` is not
@@ -675,18 +675,20 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `Notification` uses `notificationKey` as the durable identity,
   `mint + eventType + metricId` as the initial `metric_appended` key,
   nullable scalar `tokenId` / `metricId` fields without Prisma relations, String
-  `status` / `mode`, and `sentAt` as the future sent proof. Formal migration,
-  DB table creation / write, durable storage implementation, capture-only write
+  `status` / `mode`, and `sentAt` as the future sent proof. DB table creation
+  / apply / write, durable storage implementation, capture-only write
   integration, Telegram live-loop integration, queue idempotency, and systemd
   recovery remain unimplemented.
 - Notification model / migration baseline policy is now fixed as docs-only
-  policy. The repo currently has `prisma/schema.prisma` and `prisma/dev.db` but
-  no `prisma/migrations`; the first Yellow schema cut added `Notification`,
-  schema-level inspection test coverage, and a `/tmp/add_notification.sql` SQL
-  preview. `prisma validate`, `prisma generate`, `tsc`, and the schema-level
-  test passed during that Yellow. Formal migration creation, `prisma migrate
-  dev`, `prisma db push`, DB write, repository code, capture-only write
-  integration, Telegram live send, queue, and systemd remain later work.
+  policy. The repo currently has `prisma/schema.prisma`, `prisma/dev.db`, and
+  formal migration files under `prisma/migrations`; the first Yellow schema cut
+  added `Notification`, schema-level inspection test coverage, and a
+  `/tmp/add_notification.sql` SQL preview. `prisma validate`, `prisma generate`,
+  `tsc`, and the schema-level test passed during that Yellow. DB table
+  creation / apply, `prisma migrate dev`, `prisma migrate deploy`,
+  `prisma migrate resolve`, `prisma db push`, DB write, repository code,
+  capture-only write integration, Telegram live send, queue, and systemd remain
+  later work.
 - Notification migration split policy is now fixed as docs-only policy.
   Read-only /tmp SQL preview confirmed
   `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /
@@ -694,10 +696,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `/tmp/lowcap-add-notification-only.sql` contains only `CREATE TABLE
   "Notification"` and `CREATE UNIQUE INDEX "Notification_notificationKey_key"`,
   without `Dev` / `Token` / `Metric` drop / alter / create and without
-  destructive migration. The recommended formal migration split is baseline
-  existing schema first, then add-notification-only second. Applying anything
-  to existing `prisma/dev.db`, including DB table creation, is a separate Red
-  task that must name the target DB, backup, rollback, and verification plan.
+  destructive migration. The formal migration split has now been created as a
+  baseline existing schema migration plus an add-notification-only migration.
+  Applying anything to existing `prisma/dev.db`, including DB table creation,
+  is a separate Red task that must name the target DB, backup, rollback, and
+  verification plan.
   `migrate resolve`, `migrate deploy`, `migrate dev`, and `db push` remain
   unrun.
 - Multi-candidate ordering / per-item failure handling, log retention /

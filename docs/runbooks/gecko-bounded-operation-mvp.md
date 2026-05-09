@@ -1954,9 +1954,10 @@ Not fixed / future work:
 ### Durable Notification Dedupe Storage Policy
 
 This is the policy for the future durable Telegram notification dedupe store.
-The first schema cut now provides a `Notification` model, but it does not create
-a formal migration, create the DB table, implement storage, run capture-only,
-send Telegram, start queue / systemd, or change runtime code.
+The first schema cut now provides a `Notification` model, and formal migration
+files now exist, but they have not been applied. This does not create the DB
+table, implement storage, run capture-only, send Telegram, start queue /
+systemd, or change runtime code.
 
 Responsibilities:
 
@@ -2033,7 +2034,8 @@ Unique constraint / idempotency candidates:
   so can weaken duplicate prevention for a key that was already sent.
 - Prefer modeling capture-only and live-send as one notification-key lifecycle.
 - The first schema cut now has the `notificationKey` identity in the Prisma
-  schema, but no formal migration or DB table creation has happened.
+  schema, and formal migration files now exist, but no DB table creation /
+  apply has happened.
 
 Capture-only relationship:
 
@@ -2075,8 +2077,7 @@ Stop before live send or queue when:
 
 Not fixed / future work:
 
-- formal migration.
-- DB table creation / write.
+- DB table creation / apply / write.
 - durable notification dedupe storage implementation.
 - queue idempotency.
 - failed-send retry.
@@ -2088,8 +2089,8 @@ Not fixed / future work:
 This is the policy for failed Telegram notification outcomes and later
 human-approved resend decisions. The first schema cut now provides a
 `Notification` model for future storage, but it does not send Telegram,
-implement failed-send retry automation, create a formal migration, create the
-DB table, start a queue / systemd service, or change runtime code.
+implement failed-send retry automation, apply a migration, create the DB table,
+start a queue / systemd service, or change runtime code.
 
 Failed vs sent boundary:
 
@@ -2173,7 +2174,8 @@ Notification-key lifecycle:
 - Resend approval may be represented as same-key state transition metadata or
   explicit approval metadata in a later implementation.
 - The first schema cut now has the same-key lifecycle candidate in Prisma
-  schema, but no formal migration or DB table creation has happened.
+  schema, and formal migration files now exist, but no DB table creation /
+  apply has happened.
 
 Capture-only / DB confirmation relationship:
 
@@ -2209,8 +2211,7 @@ Stop and return to human gate when:
 Not fixed / future work:
 
 - failed-send retry automation.
-- formal migration.
-- DB table creation / write.
+- DB table creation / apply / write.
 - durable notification dedupe storage implementation.
 - Telegram live-loop integration.
 - queue idempotency.
@@ -2221,9 +2222,9 @@ Not fixed / future work:
 This policy defines the durable notification model boundary. The first schema
 cut now adds `Notification` to `prisma/schema.prisma` with scalar nullable
 `tokenId` / `metricId` fields and no Prisma relations or back relations. It does
-not create a formal migration, write DB rows, implement repository/runtime
-storage, execute capture-only, send Telegram, or start queue / systemd /
-unbounded watch runtime.
+not apply migrations, write DB rows, implement repository/runtime storage,
+execute capture-only, send Telegram, or start queue / systemd / unbounded watch
+runtime.
 
 Model responsibility:
 
@@ -2332,8 +2333,7 @@ Migration pre-risks:
 
 Not fixed / future work:
 
-- formal migration.
-- DB table creation / write.
+- DB table creation / apply / write.
 - durable storage implementation.
 - capture-only write integration.
 - Telegram live-loop integration.
@@ -2342,17 +2342,20 @@ Not fixed / future work:
 
 ### Notification Schema / Migration Baseline Policy
 
-This policy covers the first Yellow Notification schema task. The first schema
-cut has added `Notification` to `prisma/schema.prisma`, added
-`tests/notificationSchema.test.ts`, run schema-level verification, run
-`prisma validate`, run `prisma generate`, run TypeScript check, and previewed
-SQL at `/tmp/add_notification.sql`. It does not create a formal migration,
-write DB rows, implement repository/runtime storage, execute capture-only, send
+This policy covers the first Yellow Notification schema task and the later
+migration-file cut. The first schema cut added `Notification` to
+`prisma/schema.prisma`, added `tests/notificationSchema.test.ts`, run
+schema-level verification, run `prisma validate`, run `prisma generate`, run
+TypeScript check, and previewed SQL at `/tmp/add_notification.sql`. The later
+migration-file cut added the baseline and add-notification formal migration
+files under `prisma/migrations`. These cuts do not apply migrations, write DB
+rows, implement repository/runtime storage, execute capture-only, send
 Telegram, or start queue / systemd runtime.
 
 Migration baseline policy:
 
-- `prisma/migrations` is currently absent.
+- `prisma/migrations` now contains the baseline existing schema migration and
+  the add-notification migration.
 - `prisma/schema.prisma` and `prisma/dev.db` already exist, so treat migration
   baseline / drift carefully before adding Notification storage.
 - The first Yellow must prioritize not breaking the existing DB.
@@ -2384,6 +2387,9 @@ Recommended formal migration split:
    schema and current indexes / foreign keys.
 2. Add-notification migration: add only the `Notification` table and
    `Notification_notificationKey_key` unique index.
+
+This split is now present as formal migration files. It is not applied to
+`prisma/dev.db` yet.
 
 Existing DB application boundary:
 

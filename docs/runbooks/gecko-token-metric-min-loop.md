@@ -948,8 +948,8 @@ Use these markers:
 - Durable notification dedupe storage policy fixed: the initial
   `metric_appended` notification key is `mint + eventType + metricId`, and
   only events with `metricId` are initial live candidates. `token_completed` /
-  `loop_complete` remain capture-only. Formal migration, DB table creation /
-  write, durable storage, queue idempotency, failed-send retry, and Telegram
+  `loop_complete` remain capture-only. DB table creation / apply / write,
+  durable storage, queue idempotency, failed-send retry, and Telegram
   live-loop integration are still not implemented.
 - Failed-send / resend policy fixed: `failed` is not `sent`, previous `sent`
   on the same notification key blocks resend, and any `metric_appended` resend
@@ -959,8 +959,9 @@ Use these markers:
   present in `prisma/schema.prisma`, uses `mint + eventType + metricId` for the
   initial `metric_appended` key, keeps `metricId`-bearing `metric_appended` as
   the only initial live candidate, and keeps `token_completed` /
-  `loop_complete` capture-only. Formal migration, durable storage, and
-  capture-only write integration remain unimplemented.
+  `loop_complete` capture-only. Formal migration files now exist, while DB
+  table creation / apply, durable storage, and capture-only write integration
+  remain unimplemented.
 - Notification schema / migration baseline policy fixed: the first Yellow
   schema cut added the model, schema-level inspection test, and
   `/tmp/add_notification.sql` SQL preview, with Prisma validate / generate,
@@ -971,9 +972,9 @@ Use these markers:
   contains only existing `Dev` / `Token` / `Metric` creation, while
   `/tmp/lowcap-add-notification-only.sql` contains only the `Notification`
   table and `Notification_notificationKey_key` unique index. Formal migration
-  files are still uncreated, DB table creation / DB write is still unrun, and
-  applying anything to `prisma/dev.db` is a separate Red task with explicit
-  target DB, backup, rollback, and verification.
+  files are now created under `prisma/migrations`, DB table creation / DB write
+  is still unrun, and applying anything to `prisma/dev.db` is a separate Red
+  task with explicit target DB, backup, rollback, and verification.
 
 Keep the phase unchanged when:
 
