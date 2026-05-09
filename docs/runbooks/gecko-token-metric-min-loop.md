@@ -77,6 +77,20 @@ and one production Telegram ops live send for `metric_appended`:
   timestamps stayed unchanged, and Telegram, detect, watch, enrich/rescore,
   tmux, systemd, and checkpoint updates were not invoked during the Metric
   step. `metrics:report` and `token:compare` confirmed the result rawJson-free.
+- the same bounded detect origin mint then confirmed a second single-mint
+  Metric append as a separate Red task through `second_metric_snapshot` and
+  the strict `lowcap-gecko-metric-single` tmux single-run:
+  `metric:snapshot:geckoterminal -- --mint ... --write` appended exactly one
+  additional `geckoterminal.token_snapshot` Metric, `id=1245`, at
+  `observedAt=2026-05-08T23:53:30.002Z` with `volume24h=0` and
+  `priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+  `topPoolPresent=true`. This moved `metricsCount` from 1 to 2 and set
+  latestMetric / `recentMetrics` to `1245 -> 1244`. Token fields stayed
+  `partial / Papu / PAPU / C / 0 / hardRejected=false`, the enrich/rescore
+  timestamps stayed unchanged, and Telegram, detect, watch, enrich/rescore,
+  ops, systemd, and checkpoint updates were not invoked during the Metric
+  step. `metrics:report -- --mint ... --limit 2` and `token:compare`
+  confirmed `1245 -> 1244` rawJson-free.
 - a later same-mint manual one-shot loop for
   `4G5QLe6x3kpXC4ofTpUk887ig4y758QN66mkZeqdpump` confirmed the direct
   detector / enrich-rescore / metric snapshot path without ops notification:

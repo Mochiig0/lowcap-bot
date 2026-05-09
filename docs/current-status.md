@@ -738,8 +738,36 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   timestamps. Telegram, detect, watch, enrich/rescore, tmux, systemd, and
   checkpoint updates were not invoked during the Metric step. The planner /
   validator output, Red result, and post reports stayed rawJson-free and did
-  not expose secret markers. Ffn2 is now a possible future
-  `second_metric_snapshot` intent target, but that preflight has not been run.
+  not expose secret markers.
+- The same Ffn2 candidate has now passed the `second_metric_snapshot` intent
+  Red gate through the strict tmux single-run operator flow. The read-only
+  guide used `--intent second_metric_snapshot` and confirmed
+  `expectedMetricsCount=1`, `expectedMetadataStatus=partial`, and
+  `expectedStage=partial_with_one_metric`; the planner returned
+  `currentStage=partial_with_one_metric`,
+  `nextStage=second_metric_write_or_tmux_single`, and
+  `nextRedCommandKind=tmux_metric_single_mint`; and the validator returned
+  `approvalReady=true` plus `canProceedToHumanGate=true`. These were
+  human-gate conditions only. After the separate human gate, exactly one Red
+  command ran through `lowcap-gecko-metric-single`; the exact command is
+  recorded in the bounded operation runbook. It naturally exited as a
+  no-`--watch` single-run, created / updated
+  `/tmp/lowcap-gecko-metric-single.log`, reported `writeEnabled=true`,
+  `selectedCount=1`, `okCount=1`, `errorCount=0`, and `writtenCount=1`, and
+  appended one Metric only: `id=1245`,
+  `source=geckoterminal.token_snapshot`,
+  `observedAt=2026-05-08T23:53:30.002Z`, and `volume24h=0`. The latest safe
+  summary is `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, and `topPoolPresent=true`. `metricsCount` moved
+  from `1` to `2`, latestMetric became `id=1245`, and `recentMetrics` is
+  `1245 -> 1244`; previous Metric `id=1244` remains. Token metadata /
+  scoring fields stayed unchanged as `Papu` / `PAPU`,
+  `description=null`, `metadataStatus=partial`, `scoreRank=C`,
+  `scoreTotal=0`, `hardRejected=false`, and the same enrich/rescore
+  timestamps. Telegram, detect, watch, enrich/rescore, ops, systemd, and
+  checkpoint updates were not invoked during the Metric step. The planner /
+  validator output, tmux log, Red result, and post reports stayed rawJson-free
+  and did not expose secret markers.
 - This is the current triple-guard planner gated operation milestone. The
   confirmed scope is intentionally narrow: the planner remains a read-only /
   non-executor selector, the three guards are available for Red preflight, a

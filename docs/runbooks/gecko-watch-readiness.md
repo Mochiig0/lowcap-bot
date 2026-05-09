@@ -177,6 +177,17 @@ Operational boundary:
   checkpoint. This confirms the bounded-detect origin can reach first Metric
   append without making unbounded watch, systemd, scheduler / queue, or default
   checkpoint operation ready.
+- Confirmed second Metric append for that same bounded-detect mint as a later
+  separate Red task through the strict `lowcap-gecko-metric-single` tmux
+  single-run: `Ffn2...pump` appended Metric `id=1245` with source
+  `geckoterminal.token_snapshot` at
+  `observedAt=2026-05-08T23:53:30.002Z`, moving `metricsCount` from 1 to 2
+  with `recentMetrics=1245 -> 1244` while preserving Token fields
+  (`Papu` / `PAPU`, score `C` / `0`, `hardRejected=false`). The Metric step
+  did not send Telegram, run detect/watch, run enrich/rescore, run ops, touch
+  systemd, or update any checkpoint. This confirms first plus second Metric
+  observation for the bounded-detect origin without making unbounded watch,
+  systemd, scheduler / queue, or default checkpoint operation ready.
 - Confirmed foreground bounded detect watch wrapper gate:
   `LOWCAP_GECKOTERMINAL_DETECT_CHECKPOINT_FILE=/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json LOWCAP_GECKOTERMINAL_DETECT_INTERVAL_SECONDS=60 bash scripts/run-geckoterminal-detect-watch.sh --pumpOnly --limit 1 --maxIterations 2`.
   The wrapper kept the checkpoint on `/tmp`, naturally exited after

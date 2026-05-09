@@ -234,6 +234,33 @@ checkpoint operations were not invoked. This remains a strict single-mint
 no-`--watch` flow and does not change the separate batch/watch bounded
 procedure.
 
+Bounded-flow `--intent second_metric_snapshot` strict single-mint reproduced
+result: with target mint
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, the guide returned
+`status=ok`, `intent=second_metric_snapshot`, `expectedMetricsCount=1`,
+`expectedMetadataStatus=partial`, `expectedStage=partial_with_one_metric`, all
+steps `willExecute=false`, and `red_execution` as a placeholder with no
+concrete tmux command. The planner returned
+`currentStage=partial_with_one_metric`,
+`nextStage=second_metric_write_or_tmux_single`, and
+`nextRedCommandKind=tmux_metric_single_mint`; the validator returned
+`approvalReady=true` and `canProceedToHumanGate=true`. After the separate
+human-approved Red task, exactly one copied `lowcap-gecko-metric-single`
+command naturally exited as a no-`--watch` single-run, left no tmux server
+running, created / updated `/tmp/lowcap-gecko-metric-single.log`, reported
+`selectedCount=1`, `okCount=1`, `errorCount=0`, `writeEnabled=true`, and
+`writtenCount=1`, and appended Metric `id=1245` at
+`observedAt=2026-05-08T23:53:30.002Z` with source
+`geckoterminal.token_snapshot` and `volume24h=0`. The target moved
+`metricsCount` from 1 to 2 with previous Metric `id=1244`; `metrics:report
+-- --mint ... --limit 2` and `token:compare` confirmed `1245 -> 1244`
+rawJson-free. The latest safe presence was `priceUsdPresent=true`,
+`fdvUsdPresent=true`, `reserveUsdPresent=true`, and `topPoolPresent=true`.
+Token fields stayed `partial / Papu / PAPU / C / 0 / hardRejected=false`, and
+Telegram / detect / watch / enrich / ops / systemd / checkpoint operations were
+not invoked. This remains a strict single-mint no-`--watch` flow and does not
+change the separate batch/watch bounded procedure.
+
 Confirmed bounded batch/watch tmux command:
 
 ```bash
