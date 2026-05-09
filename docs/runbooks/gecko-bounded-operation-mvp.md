@@ -1482,6 +1482,14 @@ command. This recheck did not change the non-executor boundary and does not
 promote automatic Red execution, executor wrapper, always-on operation,
 systemd, scheduler / queue, unbounded watch, or default checkpoint operation.
 
+Second read-only recheck note: `7a1e410` also passed docs consistency for this
+boundary. The docs still agree on the ok / stop split: ok output has commands
+with `redExecution.placeholder=true` and `exactCommand=null`; stop output has
+`commands=null`, no `redExecution`, no `exactCommand`, and no concrete command.
+`stopConditionCodes` remains a human-gate checklist, `forbidden` remains
+wrapper-specific, and the CLI remains a non-executor planning aid rather than
+an executor wrapper or automatic Red runner.
+
 Checklist-style `stopConditionCodes` should include at least:
 
 - `git_dirty`

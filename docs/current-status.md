@@ -513,6 +513,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Red execution, executor wrapper, always-on operation, systemd, scheduler /
   queue, unbounded watch, and default checkpoint operation remain unimplemented
   or deferred.
+- The follow-up read-only consistency check for `7a1e410` also passed across
+  the docs. The records still agree that ok output has commands plus
+  `redExecution.placeholder=true` and `exactCommand=null`, stop output has
+  `commands=null` with no `redExecution`, no `exactCommand`, and no concrete
+  command, and `bounded-flow:plan` remains a non-executor planning aid. Automatic
+  Red execution, executor wrapper, always-on operation, systemd, scheduler /
+  queue, unbounded watch, and default checkpoint operation remain deferred.
 - Read-only smoke for `ops:gecko:bounded-flow:plan` has passed on
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` for all three supported
   intents. `enrich_rescore`, `first_metric_snapshot`, and
