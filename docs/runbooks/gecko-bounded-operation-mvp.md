@@ -1360,6 +1360,124 @@ Do not proceed to systemd, scheduler / queue, unbounded watch, default
 checkpoint operation, bounded executor prototype, or automatic Red execution
 while any item above is unresolved.
 
+### Default Checkpoint Promotion Gate
+
+This is a docs-only promotion gate. It defines when the GeckoTerminal detect
+checkpoint may move from bounded `/tmp` rehearsal state to the repo-local
+default checkpoint path. It does not create, update, or operate the default
+checkpoint.
+
+Checkpoint categories:
+
+- `/tmp` checkpoint files are for bounded Red runs and rehearsals. They remain
+  isolated from the repo-local default checkpoint and must not be treated as
+  systemd, always-on, or persistent runtime state.
+- The default Gecko detect checkpoint path is
+  `data/checkpoints/geckoterminal-new-pools.json`. It remains unpromoted until
+  every promotion prerequisite below is satisfied. Even after promotion, it is
+  still a detect cursor, not proof that Token or Metric writes succeeded.
+
+Promotion prerequisites:
+
+- authoritative state / restart-resume policy fixed.
+- duplicate-prevention policy fixed.
+- retry / failure handling policy fixed.
+- operator-level cooldown / retry max policy fixed.
+- log retention and secret-free logging policy fixed.
+- Telegram live loop explicitly excluded from the promotion path, or fixed as
+  a separate policy.
+- multi-candidate / queue policy fixed.
+- DB / checkpoint mismatch stop conditions fixed.
+- ambiguous write-result stop conditions fixed.
+- partial-success stop conditions fixed.
+
+Promotion must not mean:
+
+- always-on ready.
+- systemd ready.
+- scheduler / queue ready.
+- unbounded watch ready.
+- automatic Red execution ready.
+- Telegram live loop included.
+- checkpoint is write success proof.
+- restart / resume, retry, duplicate prevention, or recovery are solved by the
+  checkpoint alone.
+
+Initial promotion scope:
+
+- bounded GeckoTerminal detect watch only.
+- explicit `--watch --write`.
+- explicit default checkpoint path.
+- explicit bounded iteration such as `--maxIterations 1`.
+- existing bounded constraints such as `--pumpOnly` and `--limit 1`.
+- at most one mint-only Token side effect.
+- `importedCount <= 1`.
+- failed / error count is zero.
+- DB read confirmation is required after the run.
+- rawJson-free and secret-marker checks are required.
+- human gate is required before any Red command.
+
+Read-only preflight before a future promotion Red:
+
+- `git status --short --branch` is clean.
+- HEAD and origin match.
+- Inspect whether the default checkpoint file exists without creating or
+  updating it.
+- If it exists, confirm its cursor value, update-time evidence, source /
+  network / lane meaning, and that it is not a copied `/tmp` rehearsal cursor
+  with unclear provenance.
+- Confirm DB state for recent Token counts, the candidate mint, and the
+  `existingCount` / `importedCount` meaning.
+- Confirm docs still state that default checkpoint operation is unpromoted and
+  that no previous Red run is unresolved.
+
+Stop conditions for promotion:
+
+- git dirty state.
+- HEAD mismatch.
+- origin mismatch.
+- existing default checkpoint meaning is unclear.
+- `/tmp` and default checkpoint state are mixed or confused.
+- DB / checkpoint mismatch handling is unclear.
+- promotion would contradict restart, retry, or duplicate policy.
+- operation expands to multi-mint.
+- Telegram live loop is added to the same step.
+- operation jumps directly to systemd or unbounded watch.
+- rawJson or secret-marker risk appears.
+- `importedCount > 1`.
+- `selectedCount > 1`.
+- `errorCount > 0`.
+- `failedCount > 0`.
+
+Future Red side-effect upper bound for first create / update:
+
+- live GeckoTerminal fetch.
+- default checkpoint create / update at most once.
+- bounded detect watch one cycle.
+- `maxIterations=1`.
+- `pumpOnly`.
+- `limit=1`.
+- mint-only Token creation at most one.
+- `importedCount <= 1`.
+- `failedCount=0`.
+- no Metric write.
+- no enrich / rescore.
+- no Telegram.
+- no tmux.
+- no systemd.
+- no scheduler / queue.
+- no unbounded watch.
+
+Relationship to systemd / queue / unbounded watch:
+
+- Default checkpoint promotion gate is one readiness prerequisite, not
+  readiness completion.
+- It does not authorize systemd, scheduler / queue, unbounded watch, automatic
+  Red execution, or a bounded executor prototype.
+- Keep those paths on hold until restart, duplicate, retry, log, Telegram,
+  multi-candidate, idempotency, and recovery policies are all satisfied in the
+  intended runtime scope.
+
 Consistency check note: `c6ee95e` passed read-only docs consistency for this
 policy. The docs agree that `/tmp` checkpoint files are bounded Red rehearsal
 state, the default Gecko checkpoint remains unpromoted, DB state is the first

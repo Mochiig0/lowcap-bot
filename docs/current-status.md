@@ -603,6 +603,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   not promote retry automation. Telegram failed-send retry, queue idempotency,
   systemd recovery, unbounded watch, and default checkpoint operation remain
   unresolved or deferred.
+- Default checkpoint promotion gate is now fixed as docs-only policy. The
+  default Gecko detect checkpoint path remains
+  `data/checkpoints/geckoterminal-new-pools.json`, but it is still unpromoted
+  and has not been created, updated, or placed into operation by this record.
+  `/tmp` checkpoints remain the bounded Red run / rehearsal lane. Promotion
+  requires the fixed authoritative-state, duplicate-prevention,
+  retry/failure, operator cooldown/retry, log/secret-free, Telegram separation,
+  multi-candidate / queue, and mismatch stop-condition gates. Even after a
+  future promotion, the checkpoint stays a detect cursor rather than write
+  success proof, and it does not make systemd, scheduler / queue, unbounded
+  watch, always-on operation, automatic Red execution, or bounded executor
+  work ready. The future first create/update of the default checkpoint requires
+  a separate bounded Red approval with an explicit side-effect upper bound.
 - Multi-candidate ordering / per-item failure handling, log retention,
   secret-free journal policy, and Telegram loop send / duplicate / cooldown /
   failed-send handling remain unresolved gates. Default checkpoint operation is

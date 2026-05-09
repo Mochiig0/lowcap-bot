@@ -165,6 +165,16 @@ Existing watch / wrapper cooldown sleeps are implementation-local and must not
 be read as systemd, scheduler / queue, unbounded watch, default checkpoint, or
 retry automation readiness.
 
+Default checkpoint promotion gate is now fixed at the docs level, but default
+checkpoint operation has not started. The repo-local Gecko detect checkpoint
+path is `data/checkpoints/geckoterminal-new-pools.json`; it remains unpromoted
+and must not be treated as persistent watch readiness until a separate bounded
+Red approval creates or updates it under the promotion gate. Existing `/tmp`
+checkpoint evidence remains bounded rehearsal state only. Promotion does not
+make checkpoint state write success proof and does not make systemd,
+scheduler / queue, unbounded watch, always-on operation, automatic Red
+execution, or bounded executor work ready.
+
 Next phase choices:
 
 - treat the human-triggered bounded operation MVP as complete for the
