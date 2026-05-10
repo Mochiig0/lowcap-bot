@@ -856,6 +856,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   eligible `failed` / `live_send` `metric_appended` row using retry-count,
   schedule, and lease gates. The migration file may exist before production
   apply, but production `prisma/dev.db` must not be migrated in this task.
+  Until that migration is applied in a separate Red task, production DB runs of
+  retry-field-aware CLIs can fail on missing columns and must remain blocked.
   Automatic retry execution, retry queue workers, scheduler / systemd,
   Telegram live send, sent row resend, default checkpoint operation, unbounded
   watch, and always-on bot operation remain unimplemented / unenabled.

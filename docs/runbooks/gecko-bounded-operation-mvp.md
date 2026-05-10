@@ -2505,6 +2505,8 @@ Notification retry queue foundation:
   and `workerId`.
 - The migration file can be created, but production `prisma/dev.db` must not be
   migrated or pushed during the foundation task.
+- Until a separate Red migration apply happens, production DB runs of
+  retry-field-aware CLIs can fail on missing columns and must stay blocked.
 - Repository selection / claim helpers are allowed only as a bounded foundation:
   `failed` / `live_send` `metric_appended` rows are candidates, `sent` rows are
   still blocked from resend, retry-count and `nextRetryAt` gates must apply,
