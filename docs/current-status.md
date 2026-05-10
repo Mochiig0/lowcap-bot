@@ -844,6 +844,21 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   queue, scheduler, systemd, durable queue runtime, default checkpoint
   operation, automatic Red execution, unbounded watch, and always-on bot
   operation remain unimplemented / unenabled.
+- Commit `300c5fb` adds `docs/philosophy/memecoin-market-model.md` as the
+  LowcapBot-specific memecoin market model. It frames LowcapBot as a
+  CLI-first, human-gated research OS for attention / narrative / risk /
+  community / market condition / outcome observation, not as financial advice,
+  a buy signal bot, an auto-trading engine, or always-on readiness.
+- The notification retry queue foundation is now present as a
+  production-side-effect-free slice. The schema adds retry metadata
+  (`retryCount`, `nextRetryAt`, `lastAttemptAt`, `leaseUntil`, and `workerId`)
+  plus retry/lease indexes; repository helpers select and claim at most one
+  eligible `failed` / `live_send` `metric_appended` row using retry-count,
+  schedule, and lease gates. The migration file may exist before production
+  apply, but production `prisma/dev.db` must not be migrated in this task.
+  Automatic retry execution, retry queue workers, scheduler / systemd,
+  Telegram live send, sent row resend, default checkpoint operation, unbounded
+  watch, and always-on bot operation remain unimplemented / unenabled.
 - Notification migration split policy is now fixed as docs-only policy.
   Read-only /tmp SQL preview confirmed
   `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /

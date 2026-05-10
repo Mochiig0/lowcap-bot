@@ -3,6 +3,10 @@ import { pathToFileURL } from "node:url";
 import type { Notification, PrismaClient } from "@prisma/client";
 
 import { db } from "./db.js";
+import {
+  countNotificationRetryCandidates,
+  findNextNotificationRetryCandidate,
+} from "../notifications/notificationRepository.js";
 
 type NotificationClient = Pick<PrismaClient, "notification">;
 
@@ -41,24 +45,6 @@ export type NotificationRetryPlanResult = {
   sideEffectUpperBoundSpec: SideEffectUpperBoundSpec;
   stopConditionCodes: string[];
 };
-
-const CANDIDATE_WHERE = {
-  eventType: "metric_appended",
-  trigger: "metric_appended",
-  status: "failed",
-  mode: "live_send",
-  rawJsonFree: true,
-  secretFree: true,
-  notificationKey: {
-    not: "",
-  },
-  mint: {
-    not: "",
-  },
-  metricId: {
-    not: null,
-  },
-} as const;
 
 const NO_SIDE_EFFECTS_SPEC: SideEffectUpperBoundSpec = {
   telegramSendMax: 0,
@@ -118,23 +104,13 @@ function toSelectedCandidate(notification: Notification): SelectedRetryCandidate
 export async function buildNotificationRetryPlan(
   client: NotificationClient,
 ): Promise<NotificationRetryPlanResult> {
+  const now = new Date();
   const [candidateCount, selected] = await Promise.all([
-    client.notification.count({
-      where: CANDIDATE_WHERE,
+    countNotificationRetryCandidates(client, {
+      now,
     }),
-    client.notification.findFirst({
-      where: CANDIDATE_WHERE,
-      orderBy: [
-        {
-          failedAt: "asc",
-        },
-        {
-          updatedAt: "asc",
-        },
-        {
-          id: "asc",
-        },
-      ],
+    findNextNotificationRetryCandidate(client, {
+      now,
     }),
   ]);
 

@@ -9,8 +9,10 @@ import { promisify } from "node:util";
 import { PrismaClient } from "@prisma/client";
 
 import {
+  claimNextNotificationRetryCandidate,
   createCapturedNotification,
   findNotificationByKey,
+  findNextNotificationRetryCandidate,
   markNotificationFailed,
   markNotificationSent,
   maybeCreateByNotificationKey,
@@ -72,6 +74,51 @@ function baseCapturedInput(
     source: "ops:catchup:gecko",
     ...overrides,
   };
+}
+
+async function seedFailedNotification(
+  client: PrismaClient,
+  overrides: {
+    notificationKey?: string;
+    status?: string;
+    mode?: string;
+    retryCount?: number;
+    nextRetryAt?: Date | null;
+    leaseUntil?: Date | null;
+    workerId?: string | null;
+    failedAt?: Date;
+    rawJsonFree?: boolean;
+    secretFree?: boolean;
+  } = {},
+): Promise<void> {
+  const notificationKey =
+    overrides.notificationKey ??
+    "MintRetry111111111111111111111111111111111:metric_appended:321";
+
+  await client.notification.create({
+    data: {
+      notificationKey,
+      eventType: "metric_appended",
+      mint: "MintRetry111111111111111111111111111111111",
+      tokenId: 11,
+      metricId: 321,
+      trigger: "metric_appended",
+      status: overrides.status ?? "failed",
+      mode: overrides.mode ?? "live_send",
+      messagePreview: "safe retry preview",
+      sentAt: overrides.status === "sent" ? new Date("2026-05-09T01:00:00.000Z") : null,
+      failedAt: overrides.failedAt ?? new Date("2026-05-09T02:00:00.000Z"),
+      errorCode: "telegram_network_error",
+      reason: "ops_notify_send_failed",
+      retryCount: overrides.retryCount ?? 0,
+      nextRetryAt: overrides.nextRetryAt,
+      leaseUntil: overrides.leaseUntil,
+      workerId: overrides.workerId,
+      rawJsonFree: overrides.rawJsonFree ?? true,
+      secretFree: overrides.secretFree ?? true,
+      source: "test",
+    },
+  });
 }
 
 test("notificationRepository", async (t) => {
@@ -151,6 +198,11 @@ test("notificationRepository", async (t) => {
       assert.equal(sent.sentAt?.toISOString(), sentAt.toISOString());
       assert.equal(sent.failedAt, null);
       assert.equal(sent.errorCode, null);
+      assert.equal(sent.reason, null);
+      assert.equal(sent.nextRetryAt, null);
+      assert.equal(sent.leaseUntil, null);
+      assert.equal(sent.workerId, null);
+      assert.equal(sent.lastAttemptAt?.toISOString(), sentAt.toISOString());
     });
   });
 
@@ -181,6 +233,79 @@ test("notificationRepository", async (t) => {
       assert.equal(failed.errorCode, "telegram_network_error");
       assert.equal(failed.reason, "safe network failure summary");
       assert.equal(failed.sentAt, null);
+      assert.equal(failed.leaseUntil, null);
+      assert.equal(failed.workerId, null);
+      assert.equal(failed.lastAttemptAt?.toISOString(), failedAt.toISOString());
+    });
+  });
+
+  await t.test("finds a failed notification retry candidate only when eligible", async () => {
+    await withTempDb(async ({ client }) => {
+      const now = new Date("2026-05-09T03:00:00.000Z");
+      await seedFailedNotification(client, {
+        notificationKey: "MintRetryFuture111111111111111111111111111:metric_appended:1",
+        nextRetryAt: new Date("2026-05-09T03:30:00.000Z"),
+      });
+      await seedFailedNotification(client, {
+        notificationKey: "MintRetryMaxed1111111111111111111111111111:metric_appended:2",
+        retryCount: 3,
+      });
+      await seedFailedNotification(client, {
+        notificationKey: "MintRetrySent11111111111111111111111111111:metric_appended:3",
+        status: "sent",
+      });
+      await seedFailedNotification(client, {
+        notificationKey: "MintRetryReady1111111111111111111111111111:metric_appended:4",
+        failedAt: new Date("2026-05-09T02:30:00.000Z"),
+      });
+
+      const candidate = await findNextNotificationRetryCandidate(client, {
+        now,
+        maxRetryCount: 3,
+      });
+
+      assert.equal(
+        candidate?.notificationKey,
+        "MintRetryReady1111111111111111111111111111:metric_appended:4",
+      );
+    });
+  });
+
+  await t.test("claims one retry candidate and blocks a second claim during lease", async () => {
+    await withTempDb(async ({ client }) => {
+      const now = new Date("2026-05-09T04:00:00.000Z");
+      await seedFailedNotification(client, {
+        notificationKey: "MintRetryClaim111111111111111111111111111:metric_appended:5",
+        failedAt: new Date("2026-05-09T02:00:00.000Z"),
+      });
+      const beforeCount = await client.notification.count();
+
+      const first = await claimNextNotificationRetryCandidate(client, {
+        now,
+        workerId: "test-worker-1",
+        leaseMs: 60_000,
+        maxRetryCount: 3,
+      });
+
+      assert.equal(first.claimed, true);
+      assert.equal(first.notification?.retryCount, 1);
+      assert.equal(first.notification?.workerId, "test-worker-1");
+      assert.equal(first.notification?.lastAttemptAt?.toISOString(), now.toISOString());
+      assert.equal(
+        first.notification?.leaseUntil?.toISOString(),
+        new Date("2026-05-09T04:01:00.000Z").toISOString(),
+      );
+
+      const second = await claimNextNotificationRetryCandidate(client, {
+        now,
+        workerId: "test-worker-2",
+        leaseMs: 60_000,
+        maxRetryCount: 3,
+      });
+
+      assert.equal(second.claimed, false);
+      assert.equal(second.notification, null);
+      assert.equal(await client.notification.count(), beforeCount);
     });
   });
 

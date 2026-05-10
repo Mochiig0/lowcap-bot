@@ -90,9 +90,17 @@ model Notification {
   failedAt        DateTime?
   errorCode       String?
   reason          String?
+  retryCount      Int       @default(0)
+  nextRetryAt     DateTime?
+  lastAttemptAt   DateTime?
+  leaseUntil      DateTime?
+  workerId        String?
   rawJsonFree     Boolean
   secretFree      Boolean
   source          String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([status, mode, eventType, trigger, nextRetryAt, failedAt, updatedAt])
+  @@index([leaseUntil])
 }

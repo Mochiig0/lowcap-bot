@@ -22,6 +22,8 @@ const FORBIDDEN_INPUT_KEYS = [
 ] as const;
 
 type NotificationClient = Pick<PrismaClient, "notification">;
+type NotificationRetryClient = Pick<PrismaClient, "$transaction" | "notification">;
+type NotificationTransactionClient = Pick<Prisma.TransactionClient, "notification">;
 
 type NotificationBaseInput = {
   notificationKey: string;
@@ -46,12 +48,32 @@ export type MarkNotificationFailedInput = {
   failedAt?: Date;
   errorCode?: string | null;
   reason?: string | null;
+  nextRetryAt?: Date | null;
 };
 
 export type MaybeCreateNotificationResult = {
   notification: Notification;
   created: boolean;
 };
+
+export type FindNotificationRetryCandidateInput = {
+  now?: Date;
+  maxRetryCount?: number;
+};
+
+export type ClaimNotificationRetryCandidateInput =
+  FindNotificationRetryCandidateInput & {
+    workerId: string;
+    leaseMs?: number;
+  };
+
+export type ClaimNotificationRetryCandidateResult = {
+  notification: Notification | null;
+  claimed: boolean;
+};
+
+const DEFAULT_MAX_RETRY_COUNT = 3;
+const DEFAULT_RETRY_LEASE_MS = 5 * 60 * 1000;
 
 function assertNoForbiddenInputKeys(input: object): void {
   const forbiddenKeys = FORBIDDEN_INPUT_KEYS.filter((key) =>
@@ -70,6 +92,82 @@ function isUniqueConstraintError(error: unknown): boolean {
   );
 }
 
+function getRetryPolicy(input: FindNotificationRetryCandidateInput = {}): {
+  now: Date;
+  maxRetryCount: number;
+} {
+  const maxRetryCount = input.maxRetryCount ?? DEFAULT_MAX_RETRY_COUNT;
+  if (!Number.isInteger(maxRetryCount) || maxRetryCount < 1) {
+    throw new Error("maxRetryCount must be a positive integer");
+  }
+
+  return {
+    now: input.now ?? new Date(),
+    maxRetryCount,
+  };
+}
+
+function buildRetryCandidateWhere(input: FindNotificationRetryCandidateInput = {}): Prisma.NotificationWhereInput {
+  const { now, maxRetryCount } = getRetryPolicy(input);
+
+  return {
+    eventType: "metric_appended",
+    trigger: "metric_appended",
+    status: "failed",
+    mode: "live_send",
+    rawJsonFree: true,
+    secretFree: true,
+    notificationKey: {
+      not: "",
+    },
+    mint: {
+      not: "",
+    },
+    metricId: {
+      not: null,
+    },
+    retryCount: {
+      lt: maxRetryCount,
+    },
+    OR: [
+      {
+        nextRetryAt: null,
+      },
+      {
+        nextRetryAt: {
+          lte: now,
+        },
+      },
+    ],
+    AND: [
+      {
+        OR: [
+          {
+            leaseUntil: null,
+          },
+          {
+            leaseUntil: {
+              lte: now,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+const RETRY_CANDIDATE_ORDER: Prisma.NotificationOrderByWithRelationInput[] = [
+  {
+    failedAt: "asc",
+  },
+  {
+    updatedAt: "asc",
+  },
+  {
+    id: "asc",
+  },
+];
+
 export async function findNotificationByKey(
   client: NotificationClient,
   notificationKey: string,
@@ -78,6 +176,93 @@ export async function findNotificationByKey(
     where: {
       notificationKey,
     },
+  });
+}
+
+export async function findNextNotificationRetryCandidate(
+  client: NotificationClient,
+  input: FindNotificationRetryCandidateInput = {},
+): Promise<Notification | null> {
+  return client.notification.findFirst({
+    where: buildRetryCandidateWhere(input),
+    orderBy: RETRY_CANDIDATE_ORDER,
+  });
+}
+
+export async function countNotificationRetryCandidates(
+  client: NotificationClient,
+  input: FindNotificationRetryCandidateInput = {},
+): Promise<number> {
+  return client.notification.count({
+    where: buildRetryCandidateWhere(input),
+  });
+}
+
+export async function claimNextNotificationRetryCandidate(
+  client: NotificationRetryClient,
+  input: ClaimNotificationRetryCandidateInput,
+): Promise<ClaimNotificationRetryCandidateResult> {
+  assertNoForbiddenInputKeys(input);
+
+  const workerId = input.workerId.trim();
+  if (workerId.length === 0) {
+    throw new Error("workerId is required");
+  }
+
+  const leaseMs = input.leaseMs ?? DEFAULT_RETRY_LEASE_MS;
+  if (!Number.isInteger(leaseMs) || leaseMs < 1) {
+    throw new Error("leaseMs must be a positive integer");
+  }
+
+  const { now, maxRetryCount } = getRetryPolicy(input);
+  const leaseUntil = new Date(now.getTime() + leaseMs);
+
+  return client.$transaction(async (tx: NotificationTransactionClient) => {
+    const candidate = await findNextNotificationRetryCandidate(tx, {
+      now,
+      maxRetryCount,
+    });
+
+    if (!candidate) {
+      return {
+        notification: null,
+        claimed: false,
+      };
+    }
+
+    const updateResult = await tx.notification.updateMany({
+      where: {
+        id: candidate.id,
+        ...buildRetryCandidateWhere({
+          now,
+          maxRetryCount,
+        }),
+      },
+      data: {
+        retryCount: {
+          increment: 1,
+        },
+        lastAttemptAt: now,
+        leaseUntil,
+        workerId,
+      },
+    });
+
+    if (updateResult.count !== 1) {
+      return {
+        notification: null,
+        claimed: false,
+      };
+    }
+
+    return {
+      notification: await tx.notification.findUnique({
+        where: {
+          id: candidate.id,
+        },
+      }),
+      claimed: true,
+    };
   });
 }
 
@@ -148,6 +333,7 @@ export async function markNotificationSent(
   input: MarkNotificationSentInput = {},
 ): Promise<Notification> {
   assertNoForbiddenInputKeys(input);
+  const sentAt = input.sentAt ?? new Date();
 
   return client.notification.update({
     where: {
@@ -156,10 +342,14 @@ export async function markNotificationSent(
     data: {
       status: "sent",
       mode: "live_send",
-      sentAt: input.sentAt ?? new Date(),
+      sentAt,
       failedAt: null,
       errorCode: null,
       reason: null,
+      nextRetryAt: null,
+      leaseUntil: null,
+      workerId: null,
+      lastAttemptAt: sentAt,
     },
   });
 }
@@ -170,6 +360,7 @@ export async function markNotificationFailed(
   input: MarkNotificationFailedInput = {},
 ): Promise<Notification> {
   assertNoForbiddenInputKeys(input);
+  const failedAt = input.failedAt ?? new Date();
 
   return client.notification.update({
     where: {
@@ -178,9 +369,13 @@ export async function markNotificationFailed(
     data: {
       status: "failed",
       mode: "live_send",
-      failedAt: input.failedAt ?? new Date(),
+      failedAt,
       errorCode: input.errorCode ?? null,
       reason: input.reason ?? null,
+      nextRetryAt: input.nextRetryAt === undefined ? undefined : input.nextRetryAt,
+      leaseUntil: null,
+      workerId: null,
+      lastAttemptAt: failedAt,
     },
   });
 }

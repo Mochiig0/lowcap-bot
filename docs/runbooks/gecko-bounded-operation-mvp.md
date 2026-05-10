@@ -2498,6 +2498,21 @@ automation, claim / lease, sent row resend, `token_completed` /
 default checkpoint operation, automatic Red execution, unbounded watch, and
 always-on operation remain unimplemented / unenabled.
 
+Notification retry queue foundation:
+
+- The production-side-effect-free foundation adds retry metadata to
+  `Notification`: `retryCount`, `nextRetryAt`, `lastAttemptAt`, `leaseUntil`,
+  and `workerId`.
+- The migration file can be created, but production `prisma/dev.db` must not be
+  migrated or pushed during the foundation task.
+- Repository selection / claim helpers are allowed only as a bounded foundation:
+  `failed` / `live_send` `metric_appended` rows are candidates, `sent` rows are
+  still blocked from resend, retry-count and `nextRetryAt` gates must apply,
+  and an active lease must prevent a second claim.
+- This is not automatic retry. It must not start a worker, scheduler, systemd
+  unit, queue runtime, Telegram live send, default checkpoint operation,
+  unbounded watch, or always-on bot.
+
 Migration baseline policy:
 
 - `prisma/migrations` now contains the baseline existing schema migration and

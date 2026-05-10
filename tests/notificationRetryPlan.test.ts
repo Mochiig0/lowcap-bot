@@ -60,6 +60,9 @@ async function seedNotification(input: {
   failedAt?: Date | null;
   updatedAt?: Date;
   errorCode?: string | null;
+  retryCount?: number;
+  nextRetryAt?: Date | null;
+  leaseUntil?: Date | null;
 }): Promise<void> {
   const mint = input.mint ?? "RetryPlan111111111111111111111111111pump";
   const metricId = input.metricId === undefined ? 1264 : input.metricId;
@@ -87,6 +90,9 @@ async function seedNotification(input: {
       failedAt: input.failedAt ?? new Date("2026-05-09T00:02:00.000Z"),
       errorCode: input.errorCode ?? "telegram_network_error",
       reason: "ops_notify_send_failed",
+      retryCount: input.retryCount ?? 0,
+      nextRetryAt: input.nextRetryAt,
+      leaseUntil: input.leaseUntil,
       rawJsonFree: input.rawJsonFree ?? true,
       secretFree: input.secretFree ?? true,
       source: "test",
@@ -221,6 +227,21 @@ test("notification retry planner excludes non-retryable rows", async () => {
       client,
       notificationKey: "RetryPlanMissingMetric11111111111111pump:metric_appended:none",
       metricId: null,
+    });
+    await seedNotification({
+      client,
+      notificationKey: "RetryPlanMaxed111111111111111111111111pump:metric_appended:6",
+      retryCount: 3,
+    });
+    await seedNotification({
+      client,
+      notificationKey: "RetryPlanFuture11111111111111111111111pump:metric_appended:7",
+      nextRetryAt: new Date("2999-01-01T00:00:00.000Z"),
+    });
+    await seedNotification({
+      client,
+      notificationKey: "RetryPlanLeased11111111111111111111111pump:metric_appended:8",
+      leaseUntil: new Date("2999-01-01T00:00:00.000Z"),
     });
     await seedNotification({
       client,
