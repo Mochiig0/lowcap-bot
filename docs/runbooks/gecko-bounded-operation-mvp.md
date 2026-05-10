@@ -2473,6 +2473,30 @@ automatic retry, retry queue, scheduler / systemd, `retryCount` / `nextRetryAt`
 / cooldown automation, claim / lease, sent row resend, `token_completed` /
 `loop_complete` retry, default checkpoint operation, unbounded watch, always-on
 operation, or automatic Red command execution.
+The planner-selected manual retry Red rehearsal has also run through the
+`notification:retry:plan` selected `nextRedCommand`:
+`pnpm -s notification:send -- --notificationKey <RETRY_KEY> --trigger metric_appended --live --retryFailed`.
+The target was
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`.
+Backup `/tmp/lowcap-dev.db.before-planner-retry-send-20260510T060558Z.bak`
+was created. Planner confirmation returned `status=ok`, `candidateCount=1`,
+`selectedCount=1`, and matching `nextRedCommand`; live retry returned
+`status=failed`, `senderCalled=true`, `sentCount=0`, `updatedCount=1`, and
+`errorCode=telegram_network_error`. Counts stayed `Token=1107`,
+`Metric=192`, and `Notification=2`. The retry target row remains
+`status=failed`, `mode=live_send`, `sentAt=null`,
+`failedAt=1778393159818`, `errorCode=telegram_network_error`,
+`reason=ops_notify_send_failed`, `rawJsonFree=1`, and `secretFree=1`; the
+existing sent row remains `status=sent`, `mode=live_send`,
+`sentAt=1778339880613`, `failedAt=null`, `errorCode=null`, `reason=null`,
+`rawJsonFree=1`, and `secretFree=1`. Telegram response body, bot token, chat
+id, and env markers were not stored; rollback was unnecessary and restore was
+not executed. This is planner-selected failed retry evidence, not retry
+success. Automatic retry, retry queue, `retryCount` / `nextRetryAt` / cooldown
+automation, claim / lease, sent row resend, `token_completed` /
+`loop_complete` retry, queue, scheduler, systemd, durable queue runtime,
+default checkpoint operation, automatic Red execution, unbounded watch, and
+always-on operation remain unimplemented / unenabled.
 
 Migration baseline policy:
 
