@@ -1844,6 +1844,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   manual retry rehearsal, not automatic retry; retry queue worker, scheduler,
   systemd, checkpoint operation, unbounded watch, and sent row resend remain
   unenabled.
+- Notification retry manual validation is now closed for the current slice:
+  foundation schema, production schema alignment, read-only planner selection,
+  and one planner-selected manual retry rehearsal are confirmed. Do not proceed
+  to automatic retry until retry policy, cooldown, claim recovery, worker
+  responsibility, attempt limits, and scheduler / systemd boundaries are
+  separately designed. The immediate next development focus returns to the core
+  LowcapBot observation OS: translate the memecoin market model into a bounded
+  plan for narrative / attention / risk / community / market condition /
+  outcome logging, token observation accumulation, and read-only review /
+  report commands. Start docs-first or read-only/report-first; do not jump to a
+  large observation-profile schema, and include skip / failed / dead / rug /
+  missed-opportunity outcomes as first-class future learning records.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields

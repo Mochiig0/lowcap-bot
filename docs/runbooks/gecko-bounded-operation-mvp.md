@@ -2532,6 +2532,19 @@ Notification retry queue foundation:
   unit, queue runtime, Telegram live send, default checkpoint operation,
   unbounded watch, or always-on bot.
 
+Manual retry closeout:
+
+- The current Notification retry manual validation slice is closed after the
+  planner-selected one-row rehearsal. Do not continue into automatic retry until
+  retry policy, cooldown, claim recovery, worker ownership, attempt limits, and
+  scheduler / systemd boundaries are separately designed.
+- The next core feature candidate should return to the observation OS: turn
+  `docs/philosophy/memecoin-market-model.md` candidate fields into a bounded
+  plan before schema / CLI expansion. Prefer docs-first or read-only/report
+  work for narrative, attention, risk, community, market condition, and outcome
+  logging; include skip, failed, dead, rug, and missed-opportunity records as
+  learning targets instead of tracking successful cases only.
+
 Migration baseline policy:
 
 - `prisma/migrations` now contains the baseline existing schema migration and
