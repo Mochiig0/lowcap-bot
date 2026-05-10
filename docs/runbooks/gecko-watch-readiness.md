@@ -240,10 +240,13 @@ and a previous `sent` on the same notification key blocks resend. Commit
 `metric_appended` `failed` / `live_send` row is retry-eligible, and sent row
 resend remains prohibited. Retry success clears `failedAt`, `errorCode`, and
 `reason`; retry failure may store only safe `errorCode` and fixed safe reason.
-Automatic failed-send retry, retry queue, cooldown automation, broader
-Notification writes beyond `metric_appended`, queue idempotency, systemd
-recovery, default checkpoint operation, and unbounded watch remain
-unimplemented.
+The manual retry Red rehearsal has now run once against
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`;
+it attempted one sender call and ended `status=failed` with
+`errorCode=telegram_network_error`, not a retry success. Automatic failed-send
+retry, retry queue, cooldown automation, broader Notification writes beyond
+`metric_appended`, queue idempotency, systemd recovery, default checkpoint
+operation, and unbounded watch remain unimplemented.
 
 Notification model boundary / lifecycle policy is now fixed at the docs level,
 but watch readiness and systemd readiness are still incomplete. `Notification`
@@ -344,7 +347,24 @@ sets `failedAt`, safe `errorCode`, and fixed safe
 `reason=ops_notify_send_failed`. It is covered by temp-SQLite mocked-sender
 tests, does not use production `prisma/dev.db`, and does not store Telegram
 response body, bot token, chat id, or env. The real Telegram retry Red
-rehearsal, automatic retry, retry queue, `retryCount` / `nextRetryAt` /
+rehearsal is now complete for
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
+through
+`pnpm -s notification:send -- --notificationKey <RETRY_KEY> --trigger metric_appended --live --retryFailed`.
+It created backup
+`/tmp/lowcap-dev.db.before-notification-retry-send-20260509T235410Z.bak`,
+kept dry-run no-send (`status=ready`, `senderCalled=false`, `sentCount=0`,
+`updatedCount=0`), then attempted one live sender call and returned
+`status=failed`, `senderCalled=true`, `sentCount=0`, `updatedCount=1`, and
+`errorCode=telegram_network_error`. Counts stayed `Token=1107`, `Metric=192`,
+and `Notification=2`. The retry row remains `status=failed`,
+`mode=live_send`, `sentAt=null`, `failedAt=1778370852010`,
+`errorCode=telegram_network_error`, `reason=ops_notify_send_failed`,
+`rawJsonFree=1`, and `secretFree=1`; the existing sent row remains
+`status=sent`, `mode=live_send`, and `sentAt=1778339880613`. Telegram response
+body, bot token, chat id, and env markers were not stored; rollback was
+unnecessary and restore was not executed. This is failed retry evidence, not
+retry success. Automatic retry, retry queue, `retryCount` / `nextRetryAt` /
 cooldown automation, sent row resend, `token_completed` / `loop_complete`
 retry, queue, scheduler, systemd, default checkpoint operation, automatic Red
 execution, always-on operation, and unbounded watch remain unimplemented /

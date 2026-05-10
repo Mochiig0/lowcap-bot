@@ -1719,6 +1719,29 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `Metric=192`, and `Notification=1`, the existing row now has
   `status=sent`, `mode=live_send`, and `sentAt=1778339880613`, and rollback
   was not needed.
+- the manual retry Red rehearsal is now complete for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
+  through
+  `pnpm -s notification:send -- --notificationKey <RETRY_KEY> --trigger metric_appended --live --retryFailed`:
+  backup `/tmp/lowcap-dev.db.before-notification-retry-send-20260509T235410Z.bak`
+  was created, dry-run returned `status=ready`, `senderCalled=false`,
+  `sentCount=0`, and `updatedCount=0`, and live retry attempted one sender call
+  but returned `status=failed`, `senderCalled=true`, `sentCount=0`,
+  `updatedCount=1`, and `errorCode=telegram_network_error`. Counts stayed
+  `Token=1107`, `Metric=192`, and `Notification=2`; the retry target row
+  remains `status=failed`, `mode=live_send`, `sentAt=null`,
+  `failedAt=1778370852010`, `errorCode=telegram_network_error`,
+  `reason=ops_notify_send_failed`, `rawJsonFree=1`, and `secretFree=1`; the
+  existing sent row
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`
+  remains `status=sent`, `mode=live_send`, and `sentAt=1778339880613`.
+  Telegram response body, bot token, chat id, and env markers were not stored;
+  rollback was unnecessary and restore was not executed. This is failed retry
+  evidence, not retry success: automatic retry, retry queue, `retryCount` /
+  `nextRetryAt` / cooldown automation, sent row resend, `token_completed` /
+  `loop_complete` retry, queue, scheduler, systemd, default checkpoint,
+  automatic Red execution, unbounded watch, and always-on bot operation remain
+  unimplemented / unexecuted.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields

@@ -1068,12 +1068,28 @@ Use these markers:
   `mode=live_send`, `failedAt`, safe `errorCode`, and fixed safe
   `reason=ops_notify_send_failed`. It creates no Notification rows, adds no
   Metric / Token writes, stores no response body / bot token / chat id / env,
-  and is covered by temp-SQLite mocked-sender tests. The real Telegram retry
-  Red rehearsal, automatic retry, retry queue, `retryCount` / `nextRetryAt` /
-  cooldown automation, sent row resend, `token_completed` / `loop_complete`
-  retry, queue, scheduler, systemd, default checkpoint, automatic Red
-  execution, unbounded watch, and always-on bot operation remain unimplemented
-  / unexecuted.
+  and is covered by temp-SQLite mocked-sender tests. The manual retry Red
+  rehearsal is now complete for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
+  through
+  `pnpm -s notification:send -- --notificationKey <RETRY_KEY> --trigger metric_appended --live --retryFailed`:
+  backup `/tmp/lowcap-dev.db.before-notification-retry-send-20260509T235410Z.bak`
+  was created, dry-run returned `status=ready`, `senderCalled=false`,
+  `sentCount=0`, and `updatedCount=0`, and live retry called the sender once
+  but returned `status=failed`, `senderCalled=true`, `sentCount=0`,
+  `updatedCount=1`, and `errorCode=telegram_network_error`. Counts stayed
+  `Token=1107`, `Metric=192`, and `Notification=2`; the retry target row
+  remains `status=failed`, `mode=live_send`, `sentAt=null`,
+  `failedAt=1778370852010`, `errorCode=telegram_network_error`,
+  `reason=ops_notify_send_failed`, `rawJsonFree=1`, and `secretFree=1`; the
+  existing sent row remains `status=sent`, `mode=live_send`, and
+  `sentAt=1778339880613`. Telegram response body, bot token, chat id, and env
+  markers were not stored; rollback was unnecessary and restore was not
+  executed. This is failed retry evidence, not retry success. Automatic retry,
+  retry queue, `retryCount` / `nextRetryAt` / cooldown automation, sent row
+  resend, `token_completed` / `loop_complete` retry, queue, scheduler, systemd,
+  default checkpoint, automatic Red execution, unbounded watch, and always-on
+  bot operation remain unimplemented / unexecuted.
 
 Keep the phase unchanged when:
 
