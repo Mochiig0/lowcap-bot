@@ -793,6 +793,29 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   resend, queue, scheduler, systemd, durable queue runtime, default checkpoint
   operation, automatic Red execution, unbounded watch, and always-on bot
   operation remain unimplemented / unexecuted.
+- Commit `02728ae` adds `notification:retry:plan` as a read-only /
+  non-executor retry planner. The CLI script is
+  `pnpm -s notification:retry:plan`, output uses
+  `mode=read_only_retry_planner`, `willExecute=false`, and
+  `executor=human` when a candidate exists or `executor=none` when it stops.
+  The planner performs DB write 0, Telegram send 0, and Notification update 0;
+  it does not execute `notification:send` and only prints the Red command as a
+  `nextRedCommand` string. Selection is limited to `failed` / `live_send`
+  `metric_appended` rows with `trigger=metric_appended`, `rawJsonFree=true`,
+  `secretFree=true`, non-empty `notificationKey` / `mint`, and present
+  `metricId`; `token_completed`, `loop_complete`, `sent`, and `captured` rows
+  are excluded. Candidates sort by `failedAt ASC`, `updatedAt ASC`, `id ASC`,
+  `selectedCount` is at most 1, and candidate 0 returns `status=stop` with
+  `nextRedCommand=null`. When a candidate exists, the printed command is
+  `pnpm -s notification:send -- --notificationKey <KEY> --trigger metric_appended --live --retryFailed`;
+  its documented side-effect upper bound is Telegram send max 1, Notification
+  update max 1, Notification create 0, Token / Metric write 0, and no
+  checkpoint / queue / systemd. The focused test uses temp SQLite and does not
+  use production `prisma/dev.db`. This is not automatic retry: retry queue,
+  scheduler / systemd, `retryCount` / `nextRetryAt` / cooldown automation,
+  claim / lease, sent row resend, `token_completed` / `loop_complete` retry,
+  default checkpoint operation, unbounded watch, always-on bot, and automatic
+  Red command execution remain unimplemented / unenabled.
 - Notification migration split policy is now fixed as docs-only policy.
   Read-only /tmp SQL preview confirmed
   `/tmp/lowcap-baseline-existing-schema.sql` contains only existing `Dev` /

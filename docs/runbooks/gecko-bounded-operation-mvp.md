@@ -2452,6 +2452,27 @@ This is failed retry evidence, not retry success. Automatic retry, retry queue,
 `loop_complete` retry, queue, scheduler, systemd, default checkpoint operation,
 automatic Red execution, unbounded watch, and always-on operation remain
 unimplemented / unexecuted.
+Commit `02728ae` adds `notification:retry:plan` as the read-only retry planner.
+Run it as `pnpm -s notification:retry:plan`; it reports
+`mode=read_only_retry_planner`, `willExecute=false`, and `executor=human` when
+it finds a candidate or `executor=none` when it stops. It does not write the DB,
+send Telegram, update Notifications, or execute `notification:send`; it only
+prints `nextRedCommand` for a human Red gate. Selection is limited to
+`failed` / `live_send` `metric_appended` rows with `trigger=metric_appended`,
+`rawJsonFree=true`, `secretFree=true`, `notificationKey`, `mint`, and
+`metricId`; `token_completed`, `loop_complete`, `sent`, and `captured` rows are
+excluded. The sort is `failedAt ASC`, `updatedAt ASC`, `id ASC`, and
+`selectedCount` is at most 1. Candidate 0 returns `status=stop` and
+`nextRedCommand=null`; candidate 1+ prints
+`pnpm -s notification:send -- --notificationKey <KEY> --trigger metric_appended --live --retryFailed`
+as a string only. The printed Red command's side-effect bound remains Telegram
+send max 1, Notification update max 1, Notification create 0, Token / Metric
+write 0, and no checkpoint / queue / systemd. Temp-SQLite tests cover the
+planner without using production `prisma/dev.db`. This does not implement
+automatic retry, retry queue, scheduler / systemd, `retryCount` / `nextRetryAt`
+/ cooldown automation, claim / lease, sent row resend, `token_completed` /
+`loop_complete` retry, default checkpoint operation, unbounded watch, always-on
+operation, or automatic Red command execution.
 
 Migration baseline policy:
 
