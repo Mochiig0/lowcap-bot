@@ -2550,6 +2550,11 @@ Manual retry closeout:
   and outcome labels stay `not_observed`; the report is not a buy signal and
   does not enable automatic retry, queue, scheduler, systemd, checkpoint, or
   watch operation.
+- `token:observation` also reflects existing `Token.reviewFlagsJson` as a
+  read-only community / metadata snapshot: website, X, Telegram, link count,
+  description-present, and Metaplex-hit state. This is not a schema expansion;
+  holder distribution, market condition, and outcome labels still remain
+  `not_observed`.
 
 Migration baseline policy:
 

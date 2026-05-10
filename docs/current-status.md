@@ -155,8 +155,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `pnpm token:compare` is the single-token read-only comparison view.
 - `pnpm token:observation` is the single-token read-only observation OS report:
   it combines Token identity, narrative placeholders, risk state, latest Metric
-  / outcome fields, Notification state, observation gaps, and review hints from
-  existing DB data only.
+  / outcome fields, Notification state, existing `Token.reviewFlagsJson`
+  community / metadata flags, observation gaps, and review hints from existing
+  DB data only.
 - `pnpm tokens:compare-report` is the multi-token read-only comparison view.
 - `pnpm tokens:compare-report` now reports `preFilterCount` and `filteredCount`, and applies `limit` after item-level review-flag filters so sparse review-flag holders are still visible in small result windows.
 - `pnpm metrics:report` is the read-only metric inspection view.
@@ -1871,6 +1872,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   unrecorded narrative / community / holder / market-condition / outcome fields
   are reported as `not_observed`, and the output is review support rather than
   a buy signal.
+- `token:observation` now reads existing `Token.reviewFlagsJson` without schema
+  changes or writes, and exposes website / X / Telegram / link count /
+  description-present / Metaplex-hit state as a community snapshot. This fills
+  part of the community / metadata gap from existing DB state; holder
+  distribution, market condition, and outcome labels remain `not_observed`.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields

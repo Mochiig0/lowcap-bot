@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 import { buildTokenObservationReport } from "../src/cli/tokenObservation.ts";
 
@@ -52,6 +52,7 @@ async function seedToken(
     mint: string;
     withMetric?: boolean;
     withNotification?: boolean;
+    reviewFlagsJson?: Prisma.InputJsonValue | null;
   },
 ): Promise<void> {
   const token = await client.token.create({
@@ -65,6 +66,7 @@ async function seedToken(
       scoreTotal: 17,
       hardRejected: false,
       hardRejectReason: null,
+      reviewFlagsJson: input.reviewFlagsJson ?? undefined,
       importedAt: new Date("2026-05-01T00:00:00.000Z"),
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
     },
@@ -149,6 +151,8 @@ test("token observation report returns a read-only observation view for an exist
     assert.equal(report.tokenIdentity?.scoreRank, "B");
     assert.equal(report.narrativeSnapshot.narrativeCategory, "not_observed");
     assert.equal(report.narrativeSnapshot.attentionSource, "test-observation");
+    assert.equal(report.communitySnapshot.source, "not_observed");
+    assert.equal(report.communitySnapshot.hasWebsite, "not_observed");
     assert.equal(report.riskSnapshot.hardRejected, false);
     assert.equal(report.riskSnapshot.topHolderPct, "not_observed");
     assert.equal(report.metricOutcomeSnapshot.metricCount, 1);
@@ -166,12 +170,99 @@ test("token observation report returns a read-only observation view for an exist
     assert.equal(report.notificationSnapshot.retryCandidateCount, 0);
     assert.equal(report.notificationSnapshot.sentRowResendEnabled, false);
     assert.ok(report.observationGaps.includes("narrativeCategory_not_recorded"));
+    assert.ok(report.observationGaps.includes("community_links_not_recorded"));
     assert.ok(report.observationGaps.includes("holder_distribution_not_recorded"));
     assert.ok(report.nextReviewHints.includes("classify narrative manually"));
+    assert.ok(report.nextReviewHints.includes("add community URL if known"));
     assert.equal(report.safetyBoundary.reviewOnly, true);
     assert.equal(report.safetyBoundary.advisoryOutput, false);
     assert.equal(report.safetyBoundary.sizingGuidance, false);
     assert.equal(report.safetyBoundary.disposalGuidance, false);
+  });
+});
+
+test("token observation report reflects reviewFlagsJson as community snapshot", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "ObservationReviewFlags11111111111111111pump";
+    await seedToken(client, {
+      mint,
+      withMetric: true,
+      withNotification: false,
+      reviewFlagsJson: {
+        hasWebsite: true,
+        hasX: true,
+        hasTelegram: true,
+        metaplexHit: true,
+        descriptionPresent: true,
+        linkCount: 3,
+      },
+    });
+
+    const before = await client.token.count();
+    const report = await buildTokenObservationReport(client, mint);
+    const after = await client.token.count();
+
+    assert.equal(after, before);
+    assert.equal(report.status, "ok");
+    assert.deepEqual(report.communitySnapshot, {
+      hasWebsite: true,
+      hasX: true,
+      hasTelegram: true,
+      linkCount: 3,
+      metaplexHit: true,
+      descriptionPresent: true,
+      source: "reviewFlagsJson",
+    });
+    assert.ok(!report.observationGaps.includes("community_links_not_recorded"));
+    assert.ok(!report.observationGaps.includes("description_not_recorded"));
+    assert.ok(!report.nextReviewHints.includes("add community URL if known"));
+    assert.ok(report.observationGaps.includes("holder_distribution_not_recorded"));
+    assert.ok(report.observationGaps.includes("market_condition_not_recorded"));
+    assert.ok(report.observationGaps.includes("outcome_label_not_recorded"));
+  });
+});
+
+test("token observation report treats null reviewFlagsJson as not_observed", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "ObservationNullReviewFlags111111111111pump";
+    await seedToken(client, {
+      mint,
+      reviewFlagsJson: null,
+    });
+
+    const report = await buildTokenObservationReport(client, mint);
+
+    assert.equal(report.status, "ok");
+    assert.equal(report.communitySnapshot.source, "not_observed");
+    assert.equal(report.communitySnapshot.hasWebsite, "not_observed");
+    assert.equal(report.communitySnapshot.linkCount, "not_observed");
+    assert.ok(report.observationGaps.includes("community_links_not_recorded"));
+    assert.ok(report.observationGaps.includes("description_not_recorded"));
+  });
+});
+
+test("token observation report treats invalid reviewFlagsJson shape as not_observed", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "ObservationBadReviewFlags1111111111111pump";
+    await seedToken(client, {
+      mint,
+      reviewFlagsJson: {
+        hasWebsite: "yes",
+        hasX: true,
+        hasTelegram: false,
+        metaplexHit: true,
+        descriptionPresent: true,
+        linkCount: -1,
+      },
+    });
+
+    const report = await buildTokenObservationReport(client, mint);
+
+    assert.equal(report.status, "ok");
+    assert.equal(report.communitySnapshot.source, "not_observed");
+    assert.equal(report.communitySnapshot.hasX, "not_observed");
+    assert.ok(report.observationGaps.includes("community_links_not_recorded"));
+    assert.ok(report.nextReviewHints.includes("add community URL if known"));
   });
 });
 

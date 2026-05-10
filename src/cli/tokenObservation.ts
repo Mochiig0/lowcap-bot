@@ -17,6 +17,27 @@ type ObservationState = "not_observed";
 
 type ObservationReportStatus = "ok" | "not_found";
 
+type JsonObject = Record<string, unknown>;
+
+type ReviewFlagsView = {
+  hasWebsite: boolean;
+  hasX: boolean;
+  hasTelegram: boolean;
+  metaplexHit: boolean;
+  descriptionPresent: boolean;
+  linkCount: number;
+};
+
+type CommunitySnapshot = {
+  hasWebsite: boolean | ObservationState;
+  hasX: boolean | ObservationState;
+  hasTelegram: boolean | ObservationState;
+  linkCount: number | ObservationState;
+  metaplexHit: boolean | ObservationState;
+  descriptionPresent: boolean | ObservationState;
+  source: "reviewFlagsJson" | ObservationState;
+};
+
 type TokenObservationReport = {
   status: ObservationReportStatus;
   mode: "read_only_token_observation_report";
@@ -42,6 +63,7 @@ type TokenObservationReport = {
     vampRisk: ObservationState;
     oneLineExplainability: ObservationState;
   };
+  communitySnapshot: CommunitySnapshot;
   riskSnapshot: {
     hardRejected: boolean | null;
     hardRejectReason: string | null;
@@ -167,14 +189,85 @@ function iso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
 }
 
+function extractReviewFlags(reviewFlagsJson: unknown): ReviewFlagsView | null {
+  if (!reviewFlagsJson || typeof reviewFlagsJson !== "object" || Array.isArray(reviewFlagsJson)) {
+    return null;
+  }
+
+  const hasWebsite = (reviewFlagsJson as JsonObject).hasWebsite;
+  const hasX = (reviewFlagsJson as JsonObject).hasX;
+  const hasTelegram = (reviewFlagsJson as JsonObject).hasTelegram;
+  const metaplexHit = (reviewFlagsJson as JsonObject).metaplexHit;
+  const descriptionPresent = (reviewFlagsJson as JsonObject).descriptionPresent;
+  const linkCount = (reviewFlagsJson as JsonObject).linkCount;
+
+  if (
+    typeof hasWebsite !== "boolean" ||
+    typeof hasX !== "boolean" ||
+    typeof hasTelegram !== "boolean" ||
+    typeof metaplexHit !== "boolean" ||
+    typeof descriptionPresent !== "boolean" ||
+    typeof linkCount !== "number" ||
+    !Number.isInteger(linkCount) ||
+    linkCount < 0
+  ) {
+    return null;
+  }
+
+  return {
+    hasWebsite,
+    hasX,
+    hasTelegram,
+    metaplexHit,
+    descriptionPresent,
+    linkCount,
+  };
+}
+
+function buildCommunitySnapshot(reviewFlags: ReviewFlagsView | null): CommunitySnapshot {
+  if (reviewFlags === null) {
+    return {
+      hasWebsite: "not_observed",
+      hasX: "not_observed",
+      hasTelegram: "not_observed",
+      linkCount: "not_observed",
+      metaplexHit: "not_observed",
+      descriptionPresent: "not_observed",
+      source: "not_observed",
+    };
+  }
+
+  return {
+    hasWebsite: reviewFlags.hasWebsite,
+    hasX: reviewFlags.hasX,
+    hasTelegram: reviewFlags.hasTelegram,
+    linkCount: reviewFlags.linkCount,
+    metaplexHit: reviewFlags.metaplexHit,
+    descriptionPresent: reviewFlags.descriptionPresent,
+    source: "reviewFlagsJson",
+  };
+}
+
+function hasCommunityLinks(reviewFlags: ReviewFlagsView | null): boolean {
+  return Boolean(
+    reviewFlags &&
+      (reviewFlags.hasWebsite ||
+        reviewFlags.hasX ||
+        reviewFlags.hasTelegram ||
+        reviewFlags.linkCount > 0),
+  );
+}
+
 function buildObservationGaps(input: {
   hasMetrics: boolean;
   hasNotifications: boolean;
+  reviewFlags: ReviewFlagsView | null;
 }): string[] {
   return [
     "narrativeCategory_not_recorded",
     "canonical_identity_not_recorded",
-    "community_links_not_recorded",
+    ...(hasCommunityLinks(input.reviewFlags) ? [] : ["community_links_not_recorded"]),
+    ...(input.reviewFlags?.descriptionPresent === true ? [] : ["description_not_recorded"]),
     "holder_distribution_not_recorded",
     "market_condition_not_recorded",
     "outcome_label_not_recorded",
@@ -186,10 +279,11 @@ function buildObservationGaps(input: {
 function buildNextReviewHints(input: {
   hasMetrics: boolean;
   hasNotifications: boolean;
+  reviewFlags: ReviewFlagsView | null;
 }): string[] {
   return [
     "classify narrative manually",
-    "add community URL if known",
+    ...(hasCommunityLinks(input.reviewFlags) ? [] : ["add community URL if known"]),
     ...(input.hasMetrics ? ["review latest metric context"] : ["append follow-up metric when approved"]),
     ...(input.hasNotifications ? ["review notification delivery state"] : ["capture notification state if a future event qualifies"]),
     "mark skipped/dead/rugged later when outcome evidence exists",
@@ -209,6 +303,7 @@ function buildNotFoundReport(mint: string): TokenObservationReport {
       vampRisk: "not_observed",
       oneLineExplainability: "not_observed",
     },
+    communitySnapshot: buildCommunitySnapshot(null),
     riskSnapshot: {
       hardRejected: null,
       hardRejectReason: null,
@@ -236,6 +331,7 @@ function buildNotFoundReport(mint: string): TokenObservationReport {
     observationGaps: buildObservationGaps({
       hasMetrics: false,
       hasNotifications: false,
+      reviewFlags: null,
     }),
     nextReviewHints: [
       "confirm mint before creating observation state",
@@ -317,6 +413,7 @@ export async function buildTokenObservationReport(
       metadataStatus: true,
       hardRejected: true,
       hardRejectReason: true,
+      reviewFlagsJson: true,
       scoreTotal: true,
       scoreRank: true,
       importedAt: true,
@@ -421,6 +518,7 @@ export async function buildTokenObservationReport(
   const latestMetric = token.metrics[0] ?? null;
   const hasMetrics = token._count.metrics > 0;
   const hasNotifications = notificationCount > 0;
+  const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
 
   return {
     status: "ok",
@@ -447,6 +545,7 @@ export async function buildTokenObservationReport(
       vampRisk: "not_observed",
       oneLineExplainability: "not_observed",
     },
+    communitySnapshot: buildCommunitySnapshot(reviewFlags),
     riskSnapshot: {
       hardRejected: token.hardRejected,
       hardRejectReason: token.hardRejectReason,
@@ -508,10 +607,12 @@ export async function buildTokenObservationReport(
     observationGaps: buildObservationGaps({
       hasMetrics,
       hasNotifications,
+      reviewFlags,
     }),
     nextReviewHints: buildNextReviewHints({
       hasMetrics,
       hasNotifications,
+      reviewFlags,
     }),
     safetyBoundary: {
       reviewOnly: true,
