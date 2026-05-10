@@ -2503,10 +2503,15 @@ Notification retry queue foundation:
 - The production-side-effect-free foundation adds retry metadata to
   `Notification`: `retryCount`, `nextRetryAt`, `lastAttemptAt`, `leaseUntil`,
   and `workerId`.
-- The migration file can be created, but production `prisma/dev.db` must not be
-  migrated or pushed during the foundation task.
-- Until a separate Red migration apply happens, production DB runs of
-  retry-field-aware CLIs can fail on missing columns and must stay blocked.
+- The separate Red migration apply gate has already aligned production
+  `prisma/dev.db`; the applied state was later confirmed read-only by checking
+  `20260510000100_add_notification_retry_foundation`, the retry metadata
+  columns, and the retry candidate / lease indexes. That confirmation did not
+  run `migrate deploy`.
+- `pnpm -s notification:retry:plan` now passes against production
+  `prisma/dev.db` as a read-only planner and only prints a human-gated
+  `nextRedCommand`; it does not execute `notification:send`, send Telegram, or
+  update Notifications.
 - Repository selection / claim helpers are allowed only as a bounded foundation:
   `failed` / `live_send` `metric_appended` rows are candidates, `sent` rows are
   still blocked from resend, retry-count and `nextRetryAt` gates must apply,

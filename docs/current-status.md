@@ -1810,6 +1810,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `loop_complete` retry, queue, scheduler, systemd, default checkpoint,
   automatic Red execution, unbounded watch, and always-on bot operation remain
   unimplemented / unexecuted.
+- the Notification retry foundation production schema alignment is now
+  confirmed after the separate migration apply gate: production `prisma/dev.db`
+  records `20260510000100_add_notification_retry_foundation` with
+  `finished_at` present and `rolled_back_at=null`, and `Notification` has
+  `retryCount`, `nextRetryAt`, `lastAttemptAt`, `leaseUntil`, `workerId`, plus
+  the retry candidate and lease indexes. This Green confirmation did not run
+  `migrate deploy` or write the DB. `pnpm -s notification:retry:plan` also
+  passed against the production DB as a read-only planner with
+  `mode=read_only_retry_planner`, `willExecute=false`, `candidateCount=1`,
+  `selectedCount=1`, and a human-gated `nextRedCommand`; it did not execute
+  `notification:send`, send Telegram, update Notifications, or start queue /
+  scheduler / systemd. Automatic retry, retry queue worker, scheduler, systemd,
+  checkpoint operation, retry execution, and sent row resend remain unenabled.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
