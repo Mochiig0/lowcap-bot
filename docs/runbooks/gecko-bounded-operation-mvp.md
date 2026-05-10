@@ -2512,6 +2512,18 @@ Notification retry queue foundation:
   `prisma/dev.db` as a read-only planner and only prints a human-gated
   `nextRedCommand`; it does not execute `notification:send`, send Telegram, or
   update Notifications.
+- After production retry schema alignment, the planner-selected manual retry
+  rehearsal ran one human-gated exact command for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`.
+  Before the run, planner output was `status=ok`, `candidateCount=1`,
+  `selectedCount=1`; after the run, planner output was `status=stop`,
+  `candidateCount=0`, `selectedCount=0`, and `nextRedCommand=null`. The live
+  retry returned `status=sent`, `senderCalled=true`, `sentCount=1`, and
+  `updatedCount=1`; the target row is now `status=sent`, `mode=live_send`,
+  `sentAt=1778450118596`, `failedAt=null`, `retryCount=0`,
+  `lastAttemptAt=1778450118596`, `nextRetryAt=null`, `leaseUntil=null`,
+  `workerId=null`, `errorCode=null`, and `reason=null`. Raw Telegram response
+  body, bot token, chat id, and env markers were not stored.
 - Repository selection / claim helpers are allowed only as a bounded foundation:
   `failed` / `live_send` `metric_appended` rows are candidates, `sent` rows are
   still blocked from resend, retry-count and `nextRetryAt` gates must apply,

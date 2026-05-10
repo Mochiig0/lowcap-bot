@@ -1823,6 +1823,27 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `notification:send`, send Telegram, update Notifications, or start queue /
   scheduler / systemd. Automatic retry, retry queue worker, scheduler, systemd,
   checkpoint operation, retry execution, and sent row resend remain unenabled.
+- the planner-selected manual retry rehearsal has now been re-run after
+  production retry schema alignment. Before the Red command,
+  `notification:retry:plan` returned `status=ok`, `candidateCount=1`, and
+  `selectedCount=1` for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`.
+  Backup
+  `/home/mochi/lowcap-bot-backups/dev.db.before-notification-manual-retry-20260511065201.db`
+  was created, then the human-gated exact command
+  `pnpm -s notification:send -- --notificationKey <RETRY_KEY> --trigger metric_appended --live --retryFailed`
+  ran once. It returned `status=sent`, `senderCalled=true`, `sentCount=1`,
+  and `updatedCount=1`; after the run, `notification:retry:plan` returned
+  `status=stop`, `candidateCount=0`, `selectedCount=0`, and
+  `nextRedCommand=null`. The target row is now `status=sent`,
+  `mode=live_send`, `sentAt=1778450118596`, `failedAt=null`, `retryCount=0`,
+  `lastAttemptAt=1778450118596`, `nextRetryAt=null`, `leaseUntil=null`,
+  `workerId=null`, `errorCode=null`, and `reason=null`, with
+  `rawJsonFree=1` and `secretFree=1`. Raw Telegram response body, bot token,
+  chat id, and env markers were not stored. This was a one-row human-gated
+  manual retry rehearsal, not automatic retry; retry queue worker, scheduler,
+  systemd, checkpoint operation, unbounded watch, and sent row resend remain
+  unenabled.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
