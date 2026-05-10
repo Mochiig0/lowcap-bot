@@ -2544,6 +2544,12 @@ Manual retry closeout:
   work for narrative, attention, risk, community, market condition, and outcome
   logging; include skip, failed, dead, rug, and missed-opportunity records as
   learning targets instead of tracking successful cases only.
+- The first bounded implementation step is `pnpm token:observation -- --mint
+  <MINT>`, a read-only JSON report over existing Token / Metric / Notification
+  data. Missing narrative, community, holder-distribution, market-condition,
+  and outcome labels stay `not_observed`; the report is not a buy signal and
+  does not enable automatic retry, queue, scheduler, systemd, checkpoint, or
+  watch operation.
 
 Migration baseline policy:
 

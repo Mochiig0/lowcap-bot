@@ -1,0 +1,547 @@
+import "dotenv/config";
+
+import { pathToFileURL } from "node:url";
+
+import type { Prisma, PrismaClient } from "@prisma/client";
+
+import { db } from "./db.js";
+import { buildSafeMetricSummary, type SafeMetricSummary } from "./metricSafeSummary.js";
+
+type TokenObservationArgs = {
+  mint: string;
+};
+
+type TokenObservationClient = Pick<PrismaClient, "token" | "notification">;
+
+type ObservationState = "not_observed";
+
+type ObservationReportStatus = "ok" | "not_found";
+
+type TokenObservationReport = {
+  status: ObservationReportStatus;
+  mode: "read_only_token_observation_report";
+  mint: string;
+  tokenIdentity: {
+    mint: string;
+    name: string | null;
+    symbol: string | null;
+    source: string | null;
+    firstSeenAt: string | null;
+    importedAt: string | null;
+    createdAt: string | null;
+    metadataStatus: string | null;
+    scoreRank: string | null;
+    scoreTotal: number | null;
+    hardRejected: boolean | null;
+    hardRejectReason: string | null;
+  } | null;
+  narrativeSnapshot: {
+    narrativeCategory: ObservationState;
+    attentionSource: string | ObservationState;
+    canonicalIdentityConfirmed: ObservationState;
+    vampRisk: ObservationState;
+    oneLineExplainability: ObservationState;
+  };
+  riskSnapshot: {
+    hardRejected: boolean | null;
+    hardRejectReason: string | null;
+    scoreRank: string | null;
+    scoreTotal: number | null;
+    topHolderPct: ObservationState;
+    holderDistribution: ObservationState;
+    liquidityRisk: ObservationState;
+    scamSurface: ObservationState;
+  };
+  metricOutcomeSnapshot: {
+    metricCount: number;
+    latestMetric: {
+      id: number;
+      source: string | null;
+      observedAt: string;
+      launchPrice: number | null;
+      peakPrice15m: number | null;
+      peakPrice1h: number | null;
+      maxMultiple15m: number | null;
+      maxMultiple1h: number | null;
+      peakFdv24h: number | null;
+      volume24h: number | null;
+      peakFdv7d: number | null;
+      volume7d: number | null;
+      timeToPeakMinutes: number | null;
+      alertedAt: string | null;
+      peakMultipleFromAlert: number | null;
+      safeSummary: SafeMetricSummary;
+    } | null;
+    latestMetricMissing: boolean;
+    outcomeLabel: ObservationState;
+  };
+  notificationSnapshot: {
+    notificationCount: number;
+    sentCount: number;
+    failedCount: number;
+    latestNotification: {
+      notificationKey: string;
+      eventType: string;
+      trigger: string;
+      status: string;
+      mode: string;
+      sentAt: string | null;
+      failedAt: string | null;
+      errorCode: string | null;
+      reason: string | null;
+      retryCount: number;
+      nextRetryAt: string | null;
+      lastAttemptAt: string | null;
+    } | null;
+    retryCandidateCount: number;
+    sentRowResendEnabled: false;
+  };
+  observationGaps: string[];
+  nextReviewHints: string[];
+  safetyBoundary: {
+    reviewOnly: true;
+    advisoryOutput: false;
+    sizingGuidance: false;
+    disposalGuidance: false;
+    automaticRetry: false;
+    queue: false;
+    systemd: false;
+  };
+};
+
+function printUsageAndExit(message?: string): never {
+  if (message) {
+    console.error(`Error: ${message}`);
+  }
+
+  console.log(
+    [
+      "Usage:",
+      "pnpm token:observation -- --mint <MINT>",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
+function readRequiredArg(
+  input: Partial<TokenObservationArgs>,
+  key: keyof Pick<TokenObservationArgs, "mint">,
+): string {
+  const value = input[key];
+  if (typeof value !== "string" || value.trim().length === 0) {
+    printUsageAndExit(`Missing required arg: --${key}`);
+  }
+
+  return value;
+}
+
+function parseArgs(argv: string[]): TokenObservationArgs {
+  const out: Partial<TokenObservationArgs> = {};
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const key = argv[i];
+    const value = argv[i + 1];
+
+    if (!key.startsWith("--")) continue;
+    if (value === undefined || value.startsWith("--")) {
+      printUsageAndExit(`Missing value for ${key}`);
+    }
+
+    switch (key) {
+      case "--mint":
+        out.mint = value;
+        break;
+      default:
+        printUsageAndExit(`Unknown arg: ${key}`);
+    }
+
+    i += 1;
+  }
+
+  return {
+    mint: readRequiredArg(out, "mint"),
+  };
+}
+
+function iso(value: Date | null | undefined): string | null {
+  return value ? value.toISOString() : null;
+}
+
+function buildObservationGaps(input: {
+  hasMetrics: boolean;
+  hasNotifications: boolean;
+}): string[] {
+  return [
+    "narrativeCategory_not_recorded",
+    "canonical_identity_not_recorded",
+    "community_links_not_recorded",
+    "holder_distribution_not_recorded",
+    "market_condition_not_recorded",
+    "outcome_label_not_recorded",
+    ...(input.hasMetrics ? [] : ["metric_observation_missing"]),
+    ...(input.hasNotifications ? [] : ["notification_observation_missing"]),
+  ];
+}
+
+function buildNextReviewHints(input: {
+  hasMetrics: boolean;
+  hasNotifications: boolean;
+}): string[] {
+  return [
+    "classify narrative manually",
+    "add community URL if known",
+    ...(input.hasMetrics ? ["review latest metric context"] : ["append follow-up metric when approved"]),
+    ...(input.hasNotifications ? ["review notification delivery state"] : ["capture notification state if a future event qualifies"]),
+    "mark skipped/dead/rugged later when outcome evidence exists",
+  ];
+}
+
+function buildNotFoundReport(mint: string): TokenObservationReport {
+  return {
+    status: "not_found",
+    mode: "read_only_token_observation_report",
+    mint,
+    tokenIdentity: null,
+    narrativeSnapshot: {
+      narrativeCategory: "not_observed",
+      attentionSource: "not_observed",
+      canonicalIdentityConfirmed: "not_observed",
+      vampRisk: "not_observed",
+      oneLineExplainability: "not_observed",
+    },
+    riskSnapshot: {
+      hardRejected: null,
+      hardRejectReason: null,
+      scoreRank: null,
+      scoreTotal: null,
+      topHolderPct: "not_observed",
+      holderDistribution: "not_observed",
+      liquidityRisk: "not_observed",
+      scamSurface: "not_observed",
+    },
+    metricOutcomeSnapshot: {
+      metricCount: 0,
+      latestMetric: null,
+      latestMetricMissing: true,
+      outcomeLabel: "not_observed",
+    },
+    notificationSnapshot: {
+      notificationCount: 0,
+      sentCount: 0,
+      failedCount: 0,
+      latestNotification: null,
+      retryCandidateCount: 0,
+      sentRowResendEnabled: false,
+    },
+    observationGaps: buildObservationGaps({
+      hasMetrics: false,
+      hasNotifications: false,
+    }),
+    nextReviewHints: [
+      "confirm mint before creating observation state",
+      "classify narrative manually after token intake",
+      "append follow-up metric only after token exists",
+    ],
+    safetyBoundary: {
+      reviewOnly: true,
+      advisoryOutput: false,
+      sizingGuidance: false,
+      disposalGuidance: false,
+      automaticRetry: false,
+      queue: false,
+      systemd: false,
+    },
+  };
+}
+
+function retryCandidateWhere(mint: string, now: Date): Prisma.NotificationWhereInput {
+  return {
+    mint,
+    eventType: "metric_appended",
+    trigger: "metric_appended",
+    status: "failed",
+    mode: "live_send",
+    rawJsonFree: true,
+    secretFree: true,
+    notificationKey: {
+      not: "",
+    },
+    metricId: {
+      not: null,
+    },
+    retryCount: {
+      lt: 3,
+    },
+    OR: [
+      {
+        nextRetryAt: null,
+      },
+      {
+        nextRetryAt: {
+          lte: now,
+        },
+      },
+    ],
+    AND: [
+      {
+        OR: [
+          {
+            leaseUntil: null,
+          },
+          {
+            leaseUntil: {
+              lte: now,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export async function buildTokenObservationReport(
+  client: TokenObservationClient,
+  mint: string,
+  input: { now?: Date } = {},
+): Promise<TokenObservationReport> {
+  const token = await client.token.findUnique({
+    where: {
+      mint,
+    },
+    select: {
+      id: true,
+      mint: true,
+      name: true,
+      symbol: true,
+      source: true,
+      metadataStatus: true,
+      hardRejected: true,
+      hardRejectReason: true,
+      scoreTotal: true,
+      scoreRank: true,
+      importedAt: true,
+      createdAt: true,
+      metrics: {
+        orderBy: [
+          {
+            observedAt: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+        take: 1,
+        select: {
+          id: true,
+          source: true,
+          observedAt: true,
+          launchPrice: true,
+          peakPrice15m: true,
+          peakPrice1h: true,
+          maxMultiple15m: true,
+          maxMultiple1h: true,
+          peakFdv24h: true,
+          volume24h: true,
+          peakFdv7d: true,
+          volume7d: true,
+          timeToPeakMinutes: true,
+          alertedAt: true,
+          peakMultipleFromAlert: true,
+          rawJson: true,
+        },
+      },
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
+    },
+  });
+
+  if (!token) {
+    return buildNotFoundReport(mint);
+  }
+
+  const [
+    notificationCount,
+    sentCount,
+    failedCount,
+    latestNotification,
+    retryCandidateCount,
+  ] = await Promise.all([
+    client.notification.count({
+      where: {
+        mint,
+      },
+    }),
+    client.notification.count({
+      where: {
+        mint,
+        status: "sent",
+      },
+    }),
+    client.notification.count({
+      where: {
+        mint,
+        status: "failed",
+      },
+    }),
+    client.notification.findFirst({
+      where: {
+        mint,
+      },
+      orderBy: [
+        {
+          updatedAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        notificationKey: true,
+        eventType: true,
+        trigger: true,
+        status: true,
+        mode: true,
+        sentAt: true,
+        failedAt: true,
+        errorCode: true,
+        reason: true,
+        retryCount: true,
+        nextRetryAt: true,
+        lastAttemptAt: true,
+      },
+    }),
+    client.notification.count({
+      where: retryCandidateWhere(mint, input.now ?? new Date()),
+    }),
+  ]);
+
+  const latestMetric = token.metrics[0] ?? null;
+  const hasMetrics = token._count.metrics > 0;
+  const hasNotifications = notificationCount > 0;
+
+  return {
+    status: "ok",
+    mode: "read_only_token_observation_report",
+    mint,
+    tokenIdentity: {
+      mint: token.mint,
+      name: token.name,
+      symbol: token.symbol,
+      source: token.source,
+      firstSeenAt: iso(token.importedAt ?? token.createdAt),
+      importedAt: iso(token.importedAt),
+      createdAt: iso(token.createdAt),
+      metadataStatus: token.metadataStatus,
+      scoreRank: token.scoreRank,
+      scoreTotal: token.scoreTotal,
+      hardRejected: token.hardRejected,
+      hardRejectReason: token.hardRejectReason,
+    },
+    narrativeSnapshot: {
+      narrativeCategory: "not_observed",
+      attentionSource: token.source ?? "not_observed",
+      canonicalIdentityConfirmed: "not_observed",
+      vampRisk: "not_observed",
+      oneLineExplainability: "not_observed",
+    },
+    riskSnapshot: {
+      hardRejected: token.hardRejected,
+      hardRejectReason: token.hardRejectReason,
+      scoreRank: token.scoreRank,
+      scoreTotal: token.scoreTotal,
+      topHolderPct: "not_observed",
+      holderDistribution: "not_observed",
+      liquidityRisk: "not_observed",
+      scamSurface: "not_observed",
+    },
+    metricOutcomeSnapshot: {
+      metricCount: token._count.metrics,
+      latestMetric: latestMetric
+        ? {
+            id: latestMetric.id,
+            source: latestMetric.source,
+            observedAt: latestMetric.observedAt.toISOString(),
+            launchPrice: latestMetric.launchPrice,
+            peakPrice15m: latestMetric.peakPrice15m,
+            peakPrice1h: latestMetric.peakPrice1h,
+            maxMultiple15m: latestMetric.maxMultiple15m,
+            maxMultiple1h: latestMetric.maxMultiple1h,
+            peakFdv24h: latestMetric.peakFdv24h,
+            volume24h: latestMetric.volume24h,
+            peakFdv7d: latestMetric.peakFdv7d,
+            volume7d: latestMetric.volume7d,
+            timeToPeakMinutes: latestMetric.timeToPeakMinutes,
+            alertedAt: iso(latestMetric.alertedAt),
+            peakMultipleFromAlert: latestMetric.peakMultipleFromAlert,
+            safeSummary: buildSafeMetricSummary(latestMetric.rawJson),
+          }
+        : null,
+      latestMetricMissing: !hasMetrics,
+      outcomeLabel: "not_observed",
+    },
+    notificationSnapshot: {
+      notificationCount,
+      sentCount,
+      failedCount,
+      latestNotification: latestNotification
+        ? {
+            notificationKey: latestNotification.notificationKey,
+            eventType: latestNotification.eventType,
+            trigger: latestNotification.trigger,
+            status: latestNotification.status,
+            mode: latestNotification.mode,
+            sentAt: iso(latestNotification.sentAt),
+            failedAt: iso(latestNotification.failedAt),
+            errorCode: latestNotification.errorCode,
+            reason: latestNotification.reason,
+            retryCount: latestNotification.retryCount,
+            nextRetryAt: iso(latestNotification.nextRetryAt),
+            lastAttemptAt: iso(latestNotification.lastAttemptAt),
+          }
+        : null,
+      retryCandidateCount,
+      sentRowResendEnabled: false,
+    },
+    observationGaps: buildObservationGaps({
+      hasMetrics,
+      hasNotifications,
+    }),
+    nextReviewHints: buildNextReviewHints({
+      hasMetrics,
+      hasNotifications,
+    }),
+    safetyBoundary: {
+      reviewOnly: true,
+      advisoryOutput: false,
+      sizingGuidance: false,
+      disposalGuidance: false,
+      automaticRetry: false,
+      queue: false,
+      systemd: false,
+    },
+  };
+}
+
+export async function runTokenObservationCli(argv = process.argv.slice(2)): Promise<void> {
+  const args = parseArgs(argv.filter((arg) => arg !== "--"));
+  const result = await buildTokenObservationReport(db, args.mint);
+  console.log(JSON.stringify(result, null, 2));
+}
+
+const isMainModule =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule) {
+  runTokenObservationCli()
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await db.$disconnect();
+    });
+}

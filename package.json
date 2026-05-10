@@ -40,6 +40,7 @@
     "review:manual-targets:geckoterminal": "node --import tsx src/cli/geckoterminalManualTargets.ts",
     "metric:priority-window-check:geckoterminal": "node --import tsx src/cli/metricPriorityWindowCheckGeckoterminal.ts",
     "token:show": "tsx src/cli/tokenShow.ts",
+    "token:observation": "node --import tsx src/cli/tokenObservation.ts",
     "token:compare": "tsx src/cli/tokenCompare.ts",
     "metric:add": "tsx src/cli/metricAdd.ts",
     "metric:snapshot:geckoterminal": "tsx src/cli/metricSnapshotGeckoterminal.ts",
