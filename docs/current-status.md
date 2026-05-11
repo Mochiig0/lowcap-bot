@@ -177,6 +177,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   coverage. It performs no DB writes, does not run `token:observe`, is not a buy
   signal, and does not enable automatic retry, queue, scheduler, systemd,
   checkpoint, `--write`, or `--watch` operation.
+- `pnpm community:gaps:plan` is the read-only planner for
+  `community_links_not_recorded`: it classifies existing `Token.reviewFlagsJson`
+  as missing / invalid / present-without-links / present-with-links and suggests
+  the next human-gated enrichment or manual community review step as a string
+  only. Community links are handled through enrichment / reviewFlagsJson, not
+  `token:observe`; the planner performs no DB write, external fetch, Telegram
+  send, queue, scheduler, systemd, checkpoint, `--write`, or `--watch`, and it
+  is not a buy signal. Holder distribution and market condition remain separate
+  unsupported capabilities.
 - `pnpm token:observe` is the manual observation capture foundation for
   `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
   SQLite tests and one separately approved production one-token Red rehearsal.

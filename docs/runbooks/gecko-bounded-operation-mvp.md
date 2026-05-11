@@ -2589,6 +2589,16 @@ Manual retry closeout:
   It does not write DB state, does not execute `token:observe`, is not a buy
   signal, and does not enable automatic retry, queue, scheduler, systemd,
   checkpoint, `--write`, or `--watch` operation.
+- The community-link follow-up planner is `pnpm community:gaps:plan --
+  [--limit <N>] [--sinceHours <N>] [--pumpOnly]`. It is read-only and
+  classifies existing `Token.reviewFlagsJson` into missing / invalid /
+  present-without-links / present-with-links, then suggests either dry-run
+  enrichment, reviewFlags inspection, or manual community-link review as a
+  human-gated string. It does not fetch, write DB state, run enrichment, send
+  Telegram, or start queue / scheduler / systemd / checkpoint / `--write` /
+  `--watch`. Community links are not a buy signal and are not filled through
+  `token:observe`; holder distribution and market condition remain separate
+  unsupported capabilities.
 
 Migration baseline policy:
 
