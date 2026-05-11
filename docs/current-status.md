@@ -169,10 +169,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   and prints a suggested manual observe command as a string only when
   `token:observe` can actually reduce narrative / thesis / outcome gaps. Holder
   distribution, market condition, community-link, metric, and notification gaps
-  stay separate from `token:observe` suggestions until separately designed. It
-  performs no DB writes, does not run `token:observe`, is not a buy signal, and
-  does not enable automatic retry, queue, scheduler, systemd, checkpoint,
-  `--write`, or `--watch` operation.
+  stay separate from `token:observe` suggestions until separately designed. The
+  report now includes `unsupportedGapPlan` entries: holder distribution and
+  market condition require separate capability design, community links belong
+  to reviewFlagsJson / enrichment, metric missing belongs to the Metric flow,
+  and notification missing must not be filled by sending Telegram solely for
+  coverage. It performs no DB writes, does not run `token:observe`, is not a buy
+  signal, and does not enable automatic retry, queue, scheduler, systemd,
+  checkpoint, `--write`, or `--watch` operation.
 - `pnpm token:observe` is the manual observation capture foundation for
   `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
   SQLite tests and one separately approved production one-token Red rehearsal.

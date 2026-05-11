@@ -212,6 +212,11 @@ test("tokens observation gaps report extracts multi-token manual-observation can
       report.items[1]?.priorityReason,
       "manual_observation_complete_remaining_unsupported_gaps",
     );
+    assert.ok(
+      report.items[1]?.unsupportedGapPlan.some(
+        (plan) => plan.gap === "holder_distribution_not_recorded",
+      ),
+    );
   });
 });
 
@@ -300,6 +305,93 @@ test("tokens observation gaps report classifies community-link candidates withou
     assert.ok(
       !report.items[0]?.observationGaps.includes("community_links_not_recorded"),
     );
+    assert.ok(
+      !report.items[0]?.unsupportedGapPlan.some(
+        (plan) => plan.gap === "community_links_not_recorded",
+      ),
+    );
+  });
+});
+
+test("tokens observation gaps report explains unsupported gap capabilities", async () => {
+  await withTempDb(async ({ client }) => {
+    const now = new Date("2026-05-10T00:00:00.000Z");
+    await seedToken(client, {
+      mint: "GapQueueUnsupportedPlan111111111111pump",
+      createdAt: new Date("2026-05-09T23:00:00.000Z"),
+      withMetric: false,
+      withNotification: false,
+      entrySnapshot: {
+        manualObservation: {
+          schemaVersion: 1,
+          source: "manual",
+          narrativeCategory: "crypto_meta",
+          whyWatch: "manual context",
+          outcomeLabel: "watched",
+          operatorNote: "review context only",
+          reviewedAt: "2026-05-09T23:30:00.000Z",
+        },
+      },
+    });
+
+    const before = await counts(client);
+    const report = await buildTokensObservationGapsReport(
+      client,
+      {
+        limit: 5,
+        sinceHours: 48,
+        pumpOnly: true,
+      },
+      { now },
+    );
+    const after = await counts(client);
+
+    assert.deepEqual(after, before);
+    const item = report.items[0];
+    assert.ok(item);
+
+    const plans = new Map(item.unsupportedGapPlan.map((plan) => [plan.gap, plan]));
+
+    assert.equal(
+      plans.get("holder_distribution_not_recorded")?.suggestedNextCapability,
+      "holder_distribution_snapshot",
+    );
+    assert.equal(
+      plans.get("market_condition_not_recorded")?.suggestedNextCapability,
+      "market_context_snapshot",
+    );
+    assert.equal(
+      plans.get("community_links_not_recorded")?.suggestedNextCapability,
+      "token_enrichment_review_flags",
+    );
+    assert.equal(
+      plans.get("metric_observation_missing")?.suggestedNextCapability,
+      "metric_snapshot_or_append",
+    );
+    assert.equal(
+      plans.get("notification_observation_missing")?.suggestedNextCapability,
+      "notification_lifecycle_observation",
+    );
+    assert.equal(
+      plans.get("holder_distribution_not_recorded")?.canTokenObserveResolve,
+      false,
+    );
+    assert.equal(
+      plans.get("market_condition_not_recorded")?.canTokenObserveResolve,
+      false,
+    );
+    assert.equal(
+      plans.get("community_links_not_recorded")?.canTokenObserveResolve,
+      false,
+    );
+    assert.equal(
+      plans.get("notification_observation_missing")?.requiresExternalFetch,
+      "false",
+    );
+    assert.match(
+      plans.get("notification_observation_missing")?.note ?? "",
+      /do not send Telegram solely/,
+    );
   });
 });
 
@@ -362,6 +454,13 @@ test("tokens observation gaps report does not suggest token:observe for unsuppor
     assert.equal(
       report.items[0]?.priorityReason,
       "manual_observation_complete_remaining_unsupported_gaps",
+    );
+    assert.deepEqual(
+      report.items[0]?.unsupportedGapPlan.map((plan) => plan.gap),
+      [
+        "holder_distribution_not_recorded",
+        "market_condition_not_recorded",
+      ],
     );
   });
 });

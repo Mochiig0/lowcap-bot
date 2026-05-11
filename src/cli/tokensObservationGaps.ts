@@ -32,6 +32,15 @@ type ObservationGapNextAction =
   | "external_metric_needed"
   | "holder_or_market_context_not_supported_yet"
   | "no_action";
+type UnsupportedGapCapability =
+  | "holder_distribution_snapshot"
+  | "market_context_snapshot"
+  | "token_enrichment_review_flags"
+  | "metric_snapshot_or_append"
+  | "notification_lifecycle_observation";
+type SchemaRequirement = "false" | "maybe_later";
+type ExternalFetchRequirement = "false" | "true" | "maybe" | "true_or_manual";
+type RedRequirement = "false_for_design_only" | "required_before_write_or_send";
 
 const TOKEN_OBSERVE_ACTIONABLE_GAPS = [
   "narrativeCategory_not_recorded",
@@ -44,6 +53,76 @@ const UNSUPPORTED_CONTEXT_GAPS = [
   "market_condition_not_recorded",
   "community_links_not_recorded",
 ] as const;
+
+const UNSUPPORTED_GAP_PLANS = {
+  holder_distribution_not_recorded: {
+    currentStatus: "not_observed",
+    canTokenObserveResolve: false,
+    suggestedNextCapability: "holder_distribution_snapshot",
+    requiresSchema: "maybe_later",
+    requiresExternalFetch: "true",
+    requiresRed: "false_for_design_only",
+    note: "read-only source/design needed before any holder distribution capture",
+  },
+  market_condition_not_recorded: {
+    currentStatus: "not_observed",
+    canTokenObserveResolve: false,
+    suggestedNextCapability: "market_context_snapshot",
+    requiresSchema: "maybe_later",
+    requiresExternalFetch: "true_or_manual",
+    requiresRed: "false_for_design_only",
+    note: "token-independent context should be designed separately from token thesis",
+  },
+  community_links_not_recorded: {
+    currentStatus: "not_observed",
+    canTokenObserveResolve: false,
+    suggestedNextCapability: "token_enrichment_review_flags",
+    requiresSchema: "false",
+    requiresExternalFetch: "maybe",
+    requiresRed: "required_before_write_or_send",
+    note: "can be filled by existing reviewFlagsJson/enrichment paths, not token:observe",
+  },
+  metric_observation_missing: {
+    currentStatus: "not_observed",
+    canTokenObserveResolve: false,
+    suggestedNextCapability: "metric_snapshot_or_append",
+    requiresSchema: "false",
+    requiresExternalFetch: "true",
+    requiresRed: "required_before_write_or_send",
+    note: "metric evidence should stay in the Metric flow, separate from manual observation",
+  },
+  notification_observation_missing: {
+    currentStatus: "not_observed",
+    canTokenObserveResolve: false,
+    suggestedNextCapability: "notification_lifecycle_observation",
+    requiresSchema: "false",
+    requiresExternalFetch: "false",
+    requiresRed: "required_before_write_or_send",
+    note: "do not send Telegram solely to fill a notification observation gap",
+  },
+} as const satisfies Record<
+  string,
+  {
+    currentStatus: "not_observed";
+    canTokenObserveResolve: false;
+    suggestedNextCapability: UnsupportedGapCapability;
+    requiresSchema: SchemaRequirement;
+    requiresExternalFetch: ExternalFetchRequirement;
+    requiresRed: RedRequirement;
+    note: string;
+  }
+>;
+
+type UnsupportedGapPlan = {
+  gap: keyof typeof UNSUPPORTED_GAP_PLANS;
+  currentStatus: "not_observed";
+  canTokenObserveResolve: false;
+  suggestedNextCapability: UnsupportedGapCapability;
+  requiresSchema: SchemaRequirement;
+  requiresExternalFetch: ExternalFetchRequirement;
+  requiresRed: RedRequirement;
+  note: string;
+};
 
 type TokensObservationGapItem = {
   mint: string;
@@ -64,6 +143,7 @@ type TokensObservationGapItem = {
   nextReviewHints: string[];
   suggestedManualObserveCommand: string | null;
   nextAction: ObservationGapNextAction;
+  unsupportedGapPlan: UnsupportedGapPlan[];
   priority: ObservationGapPriority;
   priorityReason: string;
 };
@@ -333,9 +413,21 @@ function buildItem(report: TokenObservationReport): TokensObservationGapItem | n
         ? buildSuggestedManualObserveCommand(report.tokenIdentity.mint)
         : null,
     nextAction,
+    unsupportedGapPlan: buildUnsupportedGapPlan(report),
     priority: priority.priority,
     priorityReason: priority.priorityReason,
   };
+}
+
+function isUnsupportedGap(gap: string): gap is keyof typeof UNSUPPORTED_GAP_PLANS {
+  return Object.prototype.hasOwnProperty.call(UNSUPPORTED_GAP_PLANS, gap);
+}
+
+function buildUnsupportedGapPlan(report: TokenObservationReport): UnsupportedGapPlan[] {
+  return report.observationGaps.filter(isUnsupportedGap).map((gap) => ({
+    gap,
+    ...UNSUPPORTED_GAP_PLANS[gap],
+  }));
 }
 
 function countGap(reports: TokenObservationReport[], gap: string): number {
