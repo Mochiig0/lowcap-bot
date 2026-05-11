@@ -162,9 +162,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   / outcome fields, Notification state, existing `Token.reviewFlagsJson`
   community / metadata flags, observation gaps, and review hints from existing
   DB data only.
+- `pnpm tokens:observation-gaps` is the multi-token read-only observation gap
+  queue/report for choosing the next human-gated `token:observe` target. It
+  scans existing Token / Metric / Notification state, summarizes missing
+  narrative / thesis / outcome / community / holder / market-condition context,
+  and prints a suggested manual observe command as a string only. It performs
+  no DB writes, does not run `token:observe`, is not a buy signal, and does not
+  enable automatic retry, queue, scheduler, systemd, checkpoint, `--write`, or
+  `--watch` operation.
 - `pnpm token:observe` is the manual observation capture foundation for
-  `Token.entrySnapshot.manualObservation`; it is a write CLI and has only been
-  verified against temp SQLite so far, not production `prisma/dev.db`.
+  `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
+  SQLite tests and one separately approved production one-token Red rehearsal.
+  Future production use still requires an explicit Red approval.
 - `pnpm tokens:compare-report` is the multi-token read-only comparison view.
 - `pnpm tokens:compare-report` now reports `preFilterCount` and `filteredCount`, and applies `limit` after item-level review-flag filters so sparse review-flag holders are still visible in small result windows.
 - `pnpm metrics:report` is the read-only metric inspection view.

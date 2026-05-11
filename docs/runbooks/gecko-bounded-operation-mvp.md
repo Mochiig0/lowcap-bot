@@ -2558,9 +2558,10 @@ Manual retry closeout:
 - The manual observation capture foundation is `pnpm token:observe -- --mint
   <MINT> ...`, which writes only `Token.entrySnapshot.manualObservation` with
   operator narrative category, watch / skip thesis, outcome label, note,
-  `source=manual`, and `schemaVersion=1`. It has been verified only with temp
-  SQLite; do not run it against production `prisma/dev.db` without a separate
-  Red approval. `token:observation` reads that namespace back as review context.
+  `source=manual`, and `schemaVersion=1`. It is covered by temp SQLite tests
+  and one separately approved production one-token Red rehearsal; future
+  production use still requires explicit Red approval. `token:observation`
+  reads that namespace back as review context.
   This is not a buy signal and does not enable automatic retry, queue,
   scheduler, systemd, checkpoint, or watch operation.
 - The first production one-token Red rehearsal for `token:observe` is complete
@@ -2572,6 +2573,15 @@ Manual retry closeout:
   remain `not_observed`; rawJson, env, Telegram secrets, Telegram response body,
   automatic retry, queue, scheduler, systemd, checkpoint, `--write`, and
   `--watch` were not used.
+- The multi-token follow-up view is `pnpm tokens:observation-gaps -- [--limit
+  <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>] [--gap <GAP>]`.
+  It is a read-only queue/report, not a worker: it lists existing tokens with
+  observation gaps, summarizes missing narrative / thesis / outcome / community
+  / holder / market-condition context, and prints suggested `token:observe`
+  commands as human-gated strings only. It does not write DB state, does not
+  execute `token:observe`, is not a buy signal, and does not enable automatic
+  retry, queue, scheduler, systemd, checkpoint, `--write`, or `--watch`
+  operation.
 
 Migration baseline policy:
 

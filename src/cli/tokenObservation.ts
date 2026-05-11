@@ -49,7 +49,7 @@ type CommunitySnapshot = {
   source: "reviewFlagsJson" | ObservationState;
 };
 
-type TokenObservationReport = {
+export type TokenObservationReport = {
   status: ObservationReportStatus;
   mode: "read_only_token_observation_report";
   mint: string;
