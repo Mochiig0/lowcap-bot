@@ -2563,6 +2563,15 @@ Manual retry closeout:
   Red approval. `token:observation` reads that namespace back as review context.
   This is not a buy signal and does not enable automatic retry, queue,
   scheduler, systemd, checkpoint, or watch operation.
+- The first production one-token Red rehearsal for `token:observe` is complete
+  for `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`. The exact flow backed up
+  `prisma/dev.db`, wrote one `Token.entrySnapshot.manualObservation` namespace
+  with `narrativeCategory=crypto_meta`, `outcomeLabel=watched`, and manual
+  review context, then confirmed through `token:observation` that narrative /
+  thesis / outcome gaps were removed. Holder distribution and market condition
+  remain `not_observed`; rawJson, env, Telegram secrets, Telegram response body,
+  automatic retry, queue, scheduler, systemd, checkpoint, `--write`, and
+  `--watch` were not used.
 
 Migration baseline policy:
 

@@ -1887,11 +1887,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `token:observe` adds the manual observation capture foundation without schema
   changes: it stores operator-provided narrative category, watch / skip thesis,
   outcome label, and operator note under `Token.entrySnapshot.manualObservation`.
-  This has only been verified with temp SQLite; production DB capture remains
-  unexecuted. `token:observation` reads the namespace back as review context and
-  uses it to remove narrative / thesis / outcome gaps where present. It is not a
-  buy signal, trading recommendation, automatic retry, queue, scheduler,
-  systemd, or checkpoint feature.
+  It was first verified with temp SQLite, and the first production one-token
+  Red rehearsal has now been run for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` with
+  `narrativeCategory=crypto_meta` and `outcomeLabel=watched`. The command
+  updated only `Token.entrySnapshot.manualObservation`; `token:observation`
+  then showed `manualObservation.source=manual`, `schemaVersion=1`, the
+  narrative / thesis / outcome context, and the narrative / thesis / outcome
+  gaps removed while holder distribution and market condition stayed
+  `not_observed`. This is not a buy signal, trading recommendation, automatic
+  retry, queue, scheduler, systemd, checkpoint, `--write`, or `--watch` feature.
+  RawJson, env, Telegram token / chat id, and Telegram response body were not
+  displayed or saved by this rehearsal.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields
