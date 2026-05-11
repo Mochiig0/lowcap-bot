@@ -166,10 +166,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   queue/report for choosing the next human-gated `token:observe` target. It
   scans existing Token / Metric / Notification state, summarizes missing
   narrative / thesis / outcome / community / holder / market-condition context,
-  and prints a suggested manual observe command as a string only. It performs
-  no DB writes, does not run `token:observe`, is not a buy signal, and does not
-  enable automatic retry, queue, scheduler, systemd, checkpoint, `--write`, or
-  `--watch` operation.
+  and prints a suggested manual observe command as a string only when
+  `token:observe` can actually reduce narrative / thesis / outcome gaps. Holder
+  distribution, market condition, community-link, metric, and notification gaps
+  stay separate from `token:observe` suggestions until separately designed. It
+  performs no DB writes, does not run `token:observe`, is not a buy signal, and
+  does not enable automatic retry, queue, scheduler, systemd, checkpoint,
+  `--write`, or `--watch` operation.
 - `pnpm token:observe` is the manual observation capture foundation for
   `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
   SQLite tests and one separately approved production one-token Red rehearsal.

@@ -26,6 +26,24 @@ type TokensObservationGapsArgs = {
 type TokensObservationGapsClient = Pick<PrismaClient, "token" | "notification">;
 
 type ObservationGapPriority = "high" | "medium" | "low";
+type ObservationGapNextAction =
+  | "manual_observation_needed"
+  | "manual_observation_already_present"
+  | "external_metric_needed"
+  | "holder_or_market_context_not_supported_yet"
+  | "no_action";
+
+const TOKEN_OBSERVE_ACTIONABLE_GAPS = [
+  "narrativeCategory_not_recorded",
+  "thesis_not_recorded",
+  "outcome_label_not_recorded",
+] as const;
+
+const UNSUPPORTED_CONTEXT_GAPS = [
+  "holder_distribution_not_recorded",
+  "market_condition_not_recorded",
+  "community_links_not_recorded",
+] as const;
 
 type TokensObservationGapItem = {
   mint: string;
@@ -44,7 +62,8 @@ type TokensObservationGapItem = {
   outcomeLabel: string;
   observationGaps: string[];
   nextReviewHints: string[];
-  suggestedManualObserveCommand: string;
+  suggestedManualObserveCommand: string | null;
+  nextAction: ObservationGapNextAction;
   priority: ObservationGapPriority;
   priorityReason: string;
 };
@@ -181,9 +200,45 @@ function buildSuggestedManualObserveCommand(mint: string): string {
     "pnpm -s token:observe -- --mint",
     shellQuote(mint),
     "--narrativeCategory unknown",
+    '--whyWatch "manual review context only"',
     "--outcomeLabel watched",
-    '--operatorNote "manual review context only"',
+    '--operatorNote "manual observation from gaps queue"',
   ].join(" ");
+}
+
+function hasAnyGap(
+  report: TokenObservationReport,
+  gaps: readonly string[],
+): boolean {
+  return gaps.some((gap) => report.observationGaps.includes(gap));
+}
+
+function hasTokenObserveActionableGap(report: TokenObservationReport): boolean {
+  return hasAnyGap(report, TOKEN_OBSERVE_ACTIONABLE_GAPS);
+}
+
+function hasUnsupportedContextGap(report: TokenObservationReport): boolean {
+  return hasAnyGap(report, UNSUPPORTED_CONTEXT_GAPS);
+}
+
+function classifyNextAction(report: TokenObservationReport): ObservationGapNextAction {
+  if (hasTokenObserveActionableGap(report)) {
+    return "manual_observation_needed";
+  }
+
+  if (report.manualObservation !== null && hasUnsupportedContextGap(report)) {
+    return "manual_observation_already_present";
+  }
+
+  if (report.observationGaps.includes("metric_observation_missing")) {
+    return "external_metric_needed";
+  }
+
+  if (hasUnsupportedContextGap(report)) {
+    return "holder_or_market_context_not_supported_yet";
+  }
+
+  return "no_action";
 }
 
 function hasCommunityLinks(report: TokenObservationReport): boolean {
@@ -219,10 +274,24 @@ function classifyPriority(report: TokenObservationReport): {
     };
   }
 
+  if (manualObservationPresent && hasUnsupportedContextGap(report)) {
+    return {
+      priority: "medium",
+      priorityReason: "manual_observation_complete_remaining_unsupported_gaps",
+    };
+  }
+
   if (metricCount === 0 && notificationCount === 0) {
     return {
       priority: "low",
       priorityReason: "metric_and_notification_missing",
+    };
+  }
+
+  if (hasTokenObserveActionableGap(report)) {
+    return {
+      priority: "medium",
+      priorityReason: "manual_observation_fields_missing",
     };
   }
 
@@ -238,6 +307,7 @@ function buildItem(report: TokenObservationReport): TokensObservationGapItem | n
   }
 
   const priority = classifyPriority(report);
+  const nextAction = classifyNextAction(report);
 
   return {
     mint: report.tokenIdentity.mint,
@@ -258,9 +328,11 @@ function buildItem(report: TokenObservationReport): TokensObservationGapItem | n
     outcomeLabel: report.metricOutcomeSnapshot.outcomeLabel,
     observationGaps: report.observationGaps,
     nextReviewHints: report.nextReviewHints,
-    suggestedManualObserveCommand: buildSuggestedManualObserveCommand(
-      report.tokenIdentity.mint,
-    ),
+    suggestedManualObserveCommand:
+      nextAction === "manual_observation_needed"
+        ? buildSuggestedManualObserveCommand(report.tokenIdentity.mint)
+        : null,
+    nextAction,
     priority: priority.priority,
     priorityReason: priority.priorityReason,
   };

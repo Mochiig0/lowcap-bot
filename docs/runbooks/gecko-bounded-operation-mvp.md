@@ -2578,10 +2578,13 @@ Manual retry closeout:
   It is a read-only queue/report, not a worker: it lists existing tokens with
   observation gaps, summarizes missing narrative / thesis / outcome / community
   / holder / market-condition context, and prints suggested `token:observe`
-  commands as human-gated strings only. It does not write DB state, does not
-  execute `token:observe`, is not a buy signal, and does not enable automatic
-  retry, queue, scheduler, systemd, checkpoint, `--write`, or `--watch`
-  operation.
+  commands as human-gated strings only when `token:observe` can reduce
+  narrative / thesis / outcome gaps. Holder distribution, market condition,
+  community-link, metric, and notification gaps remain `not_observed` or
+  separate follow-up work until separately designed. It does not write DB state,
+  does not execute `token:observe`, is not a buy signal, and does not enable
+  automatic retry, queue, scheduler, systemd, checkpoint, `--write`, or
+  `--watch` operation.
 
 Migration baseline policy:
 

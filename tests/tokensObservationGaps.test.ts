@@ -195,11 +195,23 @@ test("tokens observation gaps report extracts multi-token manual-observation can
     assert.equal(report.items.length, 2);
     assert.equal(report.items[0]?.manualObservationPresent, false);
     assert.equal(report.items[0]?.priority, "high");
+    assert.equal(report.items[0]?.priorityReason, "metrics_present_manual_observation_missing");
+    assert.equal(report.items[0]?.nextAction, "manual_observation_needed");
     assert.match(
       report.items[0]?.suggestedManualObserveCommand ?? "",
       /pnpm -s token:observe -- --mint GapQueueMetricMissingManual/,
     );
+    assert.match(
+      report.items[0]?.suggestedManualObserveCommand ?? "",
+      /--whyWatch "manual review context only"/,
+    );
     assert.equal(report.items[1]?.manualObservationPresent, true);
+    assert.equal(report.items[1]?.nextAction, "manual_observation_already_present");
+    assert.equal(report.items[1]?.suggestedManualObserveCommand, null);
+    assert.equal(
+      report.items[1]?.priorityReason,
+      "manual_observation_complete_remaining_unsupported_gaps",
+    );
   });
 });
 
@@ -280,12 +292,76 @@ test("tokens observation gaps report classifies community-link candidates withou
     assert.deepEqual(after, before);
     assert.equal(report.items.length, 1);
     assert.equal(report.items[0]?.priority, "medium");
+    assert.equal(report.items[0]?.nextAction, "manual_observation_needed");
     assert.equal(
       report.items[0]?.priorityReason,
       "community_links_present_manual_observation_missing",
     );
     assert.ok(
       !report.items[0]?.observationGaps.includes("community_links_not_recorded"),
+    );
+  });
+});
+
+test("tokens observation gaps report does not suggest token:observe for unsupported-only gaps", async () => {
+  await withTempDb(async ({ client }) => {
+    const now = new Date("2026-05-10T00:00:00.000Z");
+    await seedToken(client, {
+      mint: "GapQueueUnsupportedOnly111111111111pump",
+      createdAt: new Date("2026-05-09T23:00:00.000Z"),
+      withMetric: true,
+      withNotification: true,
+      entrySnapshot: {
+        manualObservation: {
+          schemaVersion: 1,
+          source: "manual",
+          narrativeCategory: "crypto_meta",
+          whyWatch: "manual context",
+          outcomeLabel: "watched",
+          operatorNote: "review context only",
+          reviewedAt: "2026-05-09T23:30:00.000Z",
+        },
+      },
+      reviewFlagsJson: {
+        hasWebsite: true,
+        hasX: true,
+        hasTelegram: true,
+        metaplexHit: true,
+        descriptionPresent: true,
+        linkCount: 3,
+      },
+    });
+
+    const report = await buildTokensObservationGapsReport(
+      client,
+      {
+        limit: 5,
+        sinceHours: 48,
+        pumpOnly: true,
+      },
+      { now },
+    );
+
+    assert.equal(report.items.length, 1);
+    assert.equal(report.items[0]?.manualObservationPresent, true);
+    assert.equal(report.items[0]?.suggestedManualObserveCommand, null);
+    assert.equal(report.items[0]?.nextAction, "manual_observation_already_present");
+    assert.ok(
+      report.items[0]?.observationGaps.includes("holder_distribution_not_recorded"),
+    );
+    assert.ok(
+      report.items[0]?.observationGaps.includes("market_condition_not_recorded"),
+    );
+    assert.ok(
+      !report.items[0]?.observationGaps.includes("narrativeCategory_not_recorded"),
+    );
+    assert.ok(!report.items[0]?.observationGaps.includes("thesis_not_recorded"));
+    assert.ok(
+      !report.items[0]?.observationGaps.includes("outcome_label_not_recorded"),
+    );
+    assert.equal(
+      report.items[0]?.priorityReason,
+      "manual_observation_complete_remaining_unsupported_gaps",
     );
   });
 });
