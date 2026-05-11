@@ -99,6 +99,10 @@ pnpm token:observation -- --mint <MINT>
 ```
 
 ```bash
+pnpm token:observe -- --mint <MINT> [--narrativeCategory <VALUE>] [--whyWatch <TEXT>] [--whySkip <TEXT>] [--outcomeLabel <VALUE>] [--operatorNote <TEXT>]
+```
+
+```bash
 pnpm token:compare -- --mint <MINT>
 ```
 
@@ -158,6 +162,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   / outcome fields, Notification state, existing `Token.reviewFlagsJson`
   community / metadata flags, observation gaps, and review hints from existing
   DB data only.
+- `pnpm token:observe` is the manual observation capture foundation for
+  `Token.entrySnapshot.manualObservation`; it is a write CLI and has only been
+  verified against temp SQLite so far, not production `prisma/dev.db`.
 - `pnpm tokens:compare-report` is the multi-token read-only comparison view.
 - `pnpm tokens:compare-report` now reports `preFilterCount` and `filteredCount`, and applies `limit` after item-level review-flag filters so sparse review-flag holders are still visible in small result windows.
 - `pnpm metrics:report` is the read-only metric inspection view.
@@ -1877,6 +1884,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   description-present / Metaplex-hit state as a community snapshot. This fills
   part of the community / metadata gap from existing DB state; holder
   distribution, market condition, and outcome labels remain `not_observed`.
+- `token:observe` adds the manual observation capture foundation without schema
+  changes: it stores operator-provided narrative category, watch / skip thesis,
+  outcome label, and operator note under `Token.entrySnapshot.manualObservation`.
+  This has only been verified with temp SQLite; production DB capture remains
+  unexecuted. `token:observation` reads the namespace back as review context and
+  uses it to remove narrative / thesis / outcome gaps where present. It is not a
+  buy signal, trading recommendation, automatic retry, queue, scheduler,
+  systemd, or checkpoint feature.
 - `ops:catchup:gecko --write` has been manually confirmed for one gated Gecko token-only write, and `ops:catchup:gecko --write --metricAppend --pumpOnly --limit 1 --maxCycles 1 --sinceMinutes 10080` has been manually confirmed to append exactly one `Metric` through the production Metric append runner after token completion
 - the confirmed ops Token to Metric loop keeps token write and Metric append as separate operator-visible executions; the successful Metric append checks produced `metricAppendExecutionResults.status=ok`, `writtenCount=1`, `tokenWriteExecutionResults=[]`, and final ops dry-runs with `plannedTokenWrites=0`, `plannedMetricAppends=0`, `metricPendingCount=0`, `latestMetricMissingCount=0`, and `nextRecommendedAction=no_action`
 - `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` has been manually confirmed in the same Token to Metric loop as capture-only output: token completion captured `token_completed`, the capture-enabled Metric append returned `metricId=1115`, Metric append captured `metric_appended` and `loop_complete`, delivery stayed `capture_only`, and the capture records did not include secret/env/raw stdout/raw stderr/full-args style fields

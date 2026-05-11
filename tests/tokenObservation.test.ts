@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 import { Prisma, PrismaClient } from "@prisma/client";
 
+import { captureManualTokenObservation } from "../src/cli/tokenObserve.ts";
 import { buildTokenObservationReport } from "../src/cli/tokenObservation.ts";
 
 const execFileAsync = promisify(execFile);
@@ -53,6 +54,7 @@ async function seedToken(
     withMetric?: boolean;
     withNotification?: boolean;
     reviewFlagsJson?: Prisma.InputJsonValue | null;
+    entrySnapshot?: Prisma.InputJsonValue | null;
   },
 ): Promise<void> {
   const token = await client.token.create({
@@ -67,6 +69,7 @@ async function seedToken(
       hardRejected: false,
       hardRejectReason: null,
       reviewFlagsJson: input.reviewFlagsJson ?? undefined,
+      entrySnapshot: input.entrySnapshot ?? undefined,
       importedAt: new Date("2026-05-01T00:00:00.000Z"),
       createdAt: new Date("2026-05-01T00:00:00.000Z"),
     },
@@ -219,6 +222,142 @@ test("token observation report reflects reviewFlagsJson as community snapshot", 
     assert.ok(report.observationGaps.includes("holder_distribution_not_recorded"));
     assert.ok(report.observationGaps.includes("market_condition_not_recorded"));
     assert.ok(report.observationGaps.includes("outcome_label_not_recorded"));
+  });
+});
+
+test("manual token observation capture stores manualObservation without changing review flags", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "ObservationManual111111111111111111111pump";
+    await seedToken(client, {
+      mint,
+      withMetric: true,
+      withNotification: false,
+      entrySnapshot: {
+        stage: "mint_only",
+        capturedAt: "2026-05-01T00:00:00.000Z",
+      },
+      reviewFlagsJson: {
+        hasWebsite: true,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: true,
+        descriptionPresent: true,
+        linkCount: 1,
+      },
+    });
+
+    const before = {
+      token: await client.token.count(),
+      metric: await client.metric.count(),
+      notification: await client.notification.count(),
+    };
+    const result = await captureManualTokenObservation(
+      client,
+      {
+        mint,
+        narrativeCategory: "animal",
+        whyWatch: "community meme under review",
+        outcomeLabel: "watched",
+        operatorNote: "manual review context only",
+      },
+      {
+        now: new Date("2026-05-01T00:20:00.000Z"),
+      },
+    );
+    const after = {
+      token: await client.token.count(),
+      metric: await client.metric.count(),
+      notification: await client.notification.count(),
+    };
+
+    assert.deepEqual(after, before);
+    assert.equal(result.status, "ok");
+    assert.equal(result.updated, true);
+    assert.deepEqual(result.manualObservation, {
+      schemaVersion: 1,
+      source: "manual",
+      narrativeCategory: "animal",
+      whyWatch: "community meme under review",
+      outcomeLabel: "watched",
+      operatorNote: "manual review context only",
+      reviewedAt: "2026-05-01T00:20:00.000Z",
+    });
+
+    const saved = await client.token.findUniqueOrThrow({
+      where: {
+        mint,
+      },
+      select: {
+        entrySnapshot: true,
+        reviewFlagsJson: true,
+      },
+    });
+    assert.deepEqual(saved.reviewFlagsJson, {
+      hasWebsite: true,
+      hasX: false,
+      hasTelegram: false,
+      metaplexHit: true,
+      descriptionPresent: true,
+      linkCount: 1,
+    });
+    assert.equal(
+      (saved.entrySnapshot as Record<string, unknown>).stage,
+      "mint_only",
+    );
+    assert.deepEqual(
+      (saved.entrySnapshot as Record<string, unknown>).manualObservation,
+      result.manualObservation,
+    );
+
+    const report = await buildTokenObservationReport(client, mint);
+    assert.equal(report.manualObservation?.narrativeCategory, "animal");
+    assert.equal(report.manualObservation?.whyWatch, "community meme under review");
+    assert.equal(report.manualObservation?.outcomeLabel, "watched");
+    assert.equal(report.narrativeSnapshot.narrativeCategory, "animal");
+    assert.equal(report.metricOutcomeSnapshot.outcomeLabel, "watched");
+    assert.ok(!report.observationGaps.includes("narrativeCategory_not_recorded"));
+    assert.ok(!report.observationGaps.includes("outcome_label_not_recorded"));
+    assert.ok(!report.observationGaps.includes("thesis_not_recorded"));
+    assert.ok(!report.nextReviewHints.includes("classify narrative manually"));
+    assert.ok(!report.nextReviewHints.includes("capture watch or skip thesis manually"));
+    assert.ok(!report.nextReviewHints.includes("add community URL if known"));
+  });
+});
+
+test("manual token observation capture returns not_found for missing mint", async () => {
+  await withTempDb(async ({ client }) => {
+    const result = await captureManualTokenObservation(client, {
+      mint: "ObservationMissingManual111111111111pump",
+      outcomeLabel: "unknown",
+    });
+
+    assert.equal(result.status, "not_found");
+    assert.equal(result.updated, false);
+    assert.equal(result.manualObservation, null);
+  });
+});
+
+test("manual token observation capture rejects invalid values", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "ObservationRejectManual111111111111pump";
+    await seedToken(client, {
+      mint,
+    });
+
+    await assert.rejects(
+      captureManualTokenObservation(client, {
+        mint,
+        narrativeCategory: "buy_now" as never,
+      }),
+      /Invalid narrativeCategory/,
+    );
+    await assert.rejects(
+      captureManualTokenObservation(client, {
+        mint,
+        outcomeLabel: "moon" as never,
+      }),
+      /Invalid outcomeLabel/,
+    );
   });
 });
 

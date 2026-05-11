@@ -28,6 +28,17 @@ type ReviewFlagsView = {
   linkCount: number;
 };
 
+type ManualObservationView = {
+  schemaVersion: 1;
+  source: "manual";
+  narrativeCategory: string | ObservationState;
+  whyWatch: string | null;
+  whySkip: string | null;
+  outcomeLabel: string | ObservationState;
+  operatorNote: string | null;
+  reviewedAt: string;
+};
+
 type CommunitySnapshot = {
   hasWebsite: boolean | ObservationState;
   hasX: boolean | ObservationState;
@@ -57,12 +68,13 @@ type TokenObservationReport = {
     hardRejectReason: string | null;
   } | null;
   narrativeSnapshot: {
-    narrativeCategory: ObservationState;
+    narrativeCategory: string | ObservationState;
     attentionSource: string | ObservationState;
     canonicalIdentityConfirmed: ObservationState;
     vampRisk: ObservationState;
     oneLineExplainability: ObservationState;
   };
+  manualObservation: ManualObservationView | null;
   communitySnapshot: CommunitySnapshot;
   riskSnapshot: {
     hardRejected: boolean | null;
@@ -95,7 +107,7 @@ type TokenObservationReport = {
       safeSummary: SafeMetricSummary;
     } | null;
     latestMetricMissing: boolean;
-    outcomeLabel: ObservationState;
+    outcomeLabel: string | ObservationState;
   };
   notificationSnapshot: {
     notificationCount: number;
@@ -224,6 +236,48 @@ function extractReviewFlags(reviewFlagsJson: unknown): ReviewFlagsView | null {
   };
 }
 
+function readOptionalString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function extractManualObservation(entrySnapshot: unknown): ManualObservationView | null {
+  if (!entrySnapshot || typeof entrySnapshot !== "object" || Array.isArray(entrySnapshot)) {
+    return null;
+  }
+
+  const manualObservation = (entrySnapshot as JsonObject).manualObservation;
+  if (
+    !manualObservation ||
+    typeof manualObservation !== "object" ||
+    Array.isArray(manualObservation)
+  ) {
+    return null;
+  }
+
+  const schemaVersion = (manualObservation as JsonObject).schemaVersion;
+  const source = (manualObservation as JsonObject).source;
+  const reviewedAt = readOptionalString((manualObservation as JsonObject).reviewedAt);
+
+  if (schemaVersion !== 1 || source !== "manual" || reviewedAt === null) {
+    return null;
+  }
+
+  return {
+    schemaVersion: 1,
+    source: "manual",
+    narrativeCategory:
+      readOptionalString((manualObservation as JsonObject).narrativeCategory) ??
+      "not_observed",
+    whyWatch: readOptionalString((manualObservation as JsonObject).whyWatch),
+    whySkip: readOptionalString((manualObservation as JsonObject).whySkip),
+    outcomeLabel:
+      readOptionalString((manualObservation as JsonObject).outcomeLabel) ??
+      "not_observed",
+    operatorNote: readOptionalString((manualObservation as JsonObject).operatorNote),
+    reviewedAt,
+  };
+}
+
 function buildCommunitySnapshot(reviewFlags: ReviewFlagsView | null): CommunitySnapshot {
   if (reviewFlags === null) {
     return {
@@ -258,19 +312,43 @@ function hasCommunityLinks(reviewFlags: ReviewFlagsView | null): boolean {
   );
 }
 
+function hasManualNarrativeCategory(manualObservation: ManualObservationView | null): boolean {
+  return Boolean(
+    manualObservation &&
+      manualObservation.narrativeCategory !== "not_observed",
+  );
+}
+
+function hasManualThesis(manualObservation: ManualObservationView | null): boolean {
+  return Boolean(manualObservation?.whyWatch || manualObservation?.whySkip);
+}
+
+function hasManualOutcomeLabel(manualObservation: ManualObservationView | null): boolean {
+  return Boolean(
+    manualObservation &&
+      manualObservation.outcomeLabel !== "not_observed",
+  );
+}
+
 function buildObservationGaps(input: {
   hasMetrics: boolean;
   hasNotifications: boolean;
   reviewFlags: ReviewFlagsView | null;
+  manualObservation: ManualObservationView | null;
 }): string[] {
   return [
-    "narrativeCategory_not_recorded",
+    ...(hasManualNarrativeCategory(input.manualObservation)
+      ? []
+      : ["narrativeCategory_not_recorded"]),
     "canonical_identity_not_recorded",
+    ...(hasManualThesis(input.manualObservation) ? [] : ["thesis_not_recorded"]),
     ...(hasCommunityLinks(input.reviewFlags) ? [] : ["community_links_not_recorded"]),
     ...(input.reviewFlags?.descriptionPresent === true ? [] : ["description_not_recorded"]),
     "holder_distribution_not_recorded",
     "market_condition_not_recorded",
-    "outcome_label_not_recorded",
+    ...(hasManualOutcomeLabel(input.manualObservation)
+      ? []
+      : ["outcome_label_not_recorded"]),
     ...(input.hasMetrics ? [] : ["metric_observation_missing"]),
     ...(input.hasNotifications ? [] : ["notification_observation_missing"]),
   ];
@@ -280,13 +358,21 @@ function buildNextReviewHints(input: {
   hasMetrics: boolean;
   hasNotifications: boolean;
   reviewFlags: ReviewFlagsView | null;
+  manualObservation: ManualObservationView | null;
 }): string[] {
   return [
-    "classify narrative manually",
+    ...(hasManualNarrativeCategory(input.manualObservation)
+      ? []
+      : ["classify narrative manually"]),
+    ...(hasManualThesis(input.manualObservation)
+      ? []
+      : ["capture watch or skip thesis manually"]),
     ...(hasCommunityLinks(input.reviewFlags) ? [] : ["add community URL if known"]),
     ...(input.hasMetrics ? ["review latest metric context"] : ["append follow-up metric when approved"]),
     ...(input.hasNotifications ? ["review notification delivery state"] : ["capture notification state if a future event qualifies"]),
-    "mark skipped/dead/rugged later when outcome evidence exists",
+    ...(hasManualOutcomeLabel(input.manualObservation)
+      ? ["review manual outcome label later if evidence changes"]
+      : ["mark skipped/dead/rugged later when outcome evidence exists"]),
   ];
 }
 
@@ -303,6 +389,7 @@ function buildNotFoundReport(mint: string): TokenObservationReport {
       vampRisk: "not_observed",
       oneLineExplainability: "not_observed",
     },
+    manualObservation: null,
     communitySnapshot: buildCommunitySnapshot(null),
     riskSnapshot: {
       hardRejected: null,
@@ -332,6 +419,7 @@ function buildNotFoundReport(mint: string): TokenObservationReport {
       hasMetrics: false,
       hasNotifications: false,
       reviewFlags: null,
+      manualObservation: null,
     }),
     nextReviewHints: [
       "confirm mint before creating observation state",
@@ -414,6 +502,7 @@ export async function buildTokenObservationReport(
       hardRejected: true,
       hardRejectReason: true,
       reviewFlagsJson: true,
+      entrySnapshot: true,
       scoreTotal: true,
       scoreRank: true,
       importedAt: true,
@@ -519,6 +608,7 @@ export async function buildTokenObservationReport(
   const hasMetrics = token._count.metrics > 0;
   const hasNotifications = notificationCount > 0;
   const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
+  const manualObservation = extractManualObservation(token.entrySnapshot);
 
   return {
     status: "ok",
@@ -539,12 +629,13 @@ export async function buildTokenObservationReport(
       hardRejectReason: token.hardRejectReason,
     },
     narrativeSnapshot: {
-      narrativeCategory: "not_observed",
+      narrativeCategory: manualObservation?.narrativeCategory ?? "not_observed",
       attentionSource: token.source ?? "not_observed",
       canonicalIdentityConfirmed: "not_observed",
       vampRisk: "not_observed",
       oneLineExplainability: "not_observed",
     },
+    manualObservation,
     communitySnapshot: buildCommunitySnapshot(reviewFlags),
     riskSnapshot: {
       hardRejected: token.hardRejected,
@@ -579,7 +670,7 @@ export async function buildTokenObservationReport(
           }
         : null,
       latestMetricMissing: !hasMetrics,
-      outcomeLabel: "not_observed",
+      outcomeLabel: manualObservation?.outcomeLabel ?? "not_observed",
     },
     notificationSnapshot: {
       notificationCount,
@@ -608,11 +699,13 @@ export async function buildTokenObservationReport(
       hasMetrics,
       hasNotifications,
       reviewFlags,
+      manualObservation,
     }),
     nextReviewHints: buildNextReviewHints({
       hasMetrics,
       hasNotifications,
       reviewFlags,
+      manualObservation,
     }),
     safetyBoundary: {
       reviewOnly: true,

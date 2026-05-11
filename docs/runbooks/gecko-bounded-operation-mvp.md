@@ -2555,6 +2555,14 @@ Manual retry closeout:
   description-present, and Metaplex-hit state. This is not a schema expansion;
   holder distribution, market condition, and outcome labels still remain
   `not_observed`.
+- The manual observation capture foundation is `pnpm token:observe -- --mint
+  <MINT> ...`, which writes only `Token.entrySnapshot.manualObservation` with
+  operator narrative category, watch / skip thesis, outcome label, note,
+  `source=manual`, and `schemaVersion=1`. It has been verified only with temp
+  SQLite; do not run it against production `prisma/dev.db` without a separate
+  Red approval. `token:observation` reads that namespace back as review context.
+  This is not a buy signal and does not enable automatic retry, queue,
+  scheduler, systemd, checkpoint, or watch operation.
 
 Migration baseline policy:
 
