@@ -186,6 +186,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   send, queue, scheduler, systemd, checkpoint, `--write`, or `--watch`, and it
   is not a buy signal. Holder distribution and market condition remain separate
   unsupported capabilities.
+- `pnpm community:review` is the manual community review capture foundation for
+  `Token.reviewFlagsJson`: it stores the existing community / metadata flags
+  (`hasWebsite`, `hasX`, `hasTelegram`, `metaplexHit`, `descriptionPresent`,
+  `linkCount`) plus small manual review metadata without schema changes.
+  Production DB use has not been run in this slice; coverage is temp SQLite
+  only. The saved flags are reflected by `token:observation` and
+  `community:gaps:plan`, are review context rather than a buy signal, and do not
+  enable external fetch, Telegram, automatic retry, queue, scheduler, systemd,
+  checkpoint, `--write`, or `--watch` operation.
 - `pnpm token:observe` is the manual observation capture foundation for
   `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
   SQLite tests and one separately approved production one-token Red rehearsal.

@@ -2599,6 +2599,16 @@ Manual retry closeout:
   `--watch`. Community links are not a buy signal and are not filled through
   `token:observe`; holder distribution and market condition remain separate
   unsupported capabilities.
+- The manual community review capture foundation is `pnpm community:review --
+  --mint <MINT> --hasWebsite <true|false> --hasX <true|false> --hasTelegram
+  <true|false> --descriptionPresent <true|false> [--metaplexHit
+  <true|false>] [--linkCount <N>] [--operatorNote <TEXT>]`. It writes only
+  `Token.reviewFlagsJson` and keeps the existing parser shape intact. This
+  slice has temp SQLite coverage only; production DB write is still a separate
+  Red approval. The result is visible in `token:observation` and
+  `community:gaps:plan`, is review context rather than a buy signal, and does
+  not enable fetch, Telegram, queue / scheduler / systemd / checkpoint /
+  `--write` / `--watch`, holder distribution, or market condition capture.
 
 Migration baseline policy:
 
