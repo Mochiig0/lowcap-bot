@@ -195,11 +195,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `Token.reviewFlagsJson`: it stores the existing community / metadata flags
   (`hasWebsite`, `hasX`, `hasTelegram`, `metaplexHit`, `descriptionPresent`,
   `linkCount`) plus small manual review metadata without schema changes.
-  Production DB use has not been run in this slice; coverage is temp SQLite
-  only. The saved flags are reflected by `token:observation` and
-  `community:gaps:plan`, are review context rather than a buy signal, and do not
-  enable external fetch, Telegram, automatic retry, queue, scheduler, systemd,
-  checkpoint, `--write`, or `--watch` operation.
+  Temp SQLite coverage exists, and the first production one-token Red rehearsal
+  was run for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup. That rehearsal
+  recorded `source=manual_community_review` with no community links
+  (`hasWebsite=false`, `hasX=false`, `hasTelegram=false`, `linkCount=0`), so
+  `token:observation` reflects the reviewed no-link state while
+  `community:gaps:plan` still lists the token as `present_no_links`. Treat that
+  as a later Yellow refinement candidate, not a failed Red rehearsal. The saved
+  flags are review context rather than a buy signal, and do not enable external
+  fetch, Telegram, automatic retry, queue, scheduler, systemd, checkpoint,
+  `--write`, or `--watch` operation.
 - `pnpm token:observe` is the manual observation capture foundation for
   `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
   SQLite tests and one separately approved production one-token Red rehearsal.

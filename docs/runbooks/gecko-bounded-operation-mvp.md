@@ -2603,12 +2603,17 @@ Manual retry closeout:
   --mint <MINT> --hasWebsite <true|false> --hasX <true|false> --hasTelegram
   <true|false> --descriptionPresent <true|false> [--metaplexHit
   <true|false>] [--linkCount <N>] [--operatorNote <TEXT>]`. It writes only
-  `Token.reviewFlagsJson` and keeps the existing parser shape intact. This
-  slice has temp SQLite coverage only; production DB write is still a separate
-  Red approval. The result is visible in `token:observation` and
-  `community:gaps:plan`, is review context rather than a buy signal, and does
-  not enable fetch, Telegram, queue / scheduler / systemd / checkpoint /
-  `--write` / `--watch`, holder distribution, or market condition capture.
+  `Token.reviewFlagsJson` and keeps the existing parser shape intact. Temp
+  SQLite coverage exists, and the first production one-token Red rehearsal was
+  run for `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup. The
+  rehearsal intentionally recorded a reviewed no-link state
+  (`source=manual_community_review`, all community link flags false, `linkCount=0`);
+  `token:observation` reflects that state, while `community:gaps:plan` still
+  lists the token as `present_no_links`. This is a later Yellow refinement
+  candidate, not a Red failure. The result is review context rather than a buy
+  signal and does not enable fetch, Telegram, queue / scheduler / systemd /
+  checkpoint / `--write` / `--watch`, holder distribution, or market condition
+  capture.
 - `pnpm smoke` is side-effecting, not read-only verification. It may write
   temporary Token / Metric / Dev rows to the configured database and restore
   `data/trend.json`; do not use it for ordinary Green / Yellow verification
