@@ -184,9 +184,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   checkpoint, `--write`, or `--watch` operation.
 - `pnpm community:gaps:plan` is the read-only planner for
   `community_links_not_recorded`: it classifies existing `Token.reviewFlagsJson`
-  as missing / invalid / present-without-links / present-with-links and suggests
-  the next human-gated enrichment or manual community review step as a string
-  only. Community links are handled through enrichment / reviewFlagsJson, not
+  as missing / invalid / present-without-links / reviewed-without-links /
+  present-with-links and suggests the next human-gated enrichment or manual
+  community review step as a string only. `source=manual_community_review` with
+  `linkCount=0` is treated as `reviewed_no_links`: the community gap remains,
+  but the planner no longer repeats a `community:review` command for the same
+  reviewed no-link state. Future enrichment can revisit it if links appear.
+  Community links are handled through enrichment / reviewFlagsJson, not
   `token:observe`; the planner performs no DB write, external fetch, Telegram
   send, queue, scheduler, systemd, checkpoint, `--write`, or `--watch`, and it
   is not a buy signal. Holder distribution and market condition remain separate
@@ -200,12 +204,11 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup. That rehearsal
   recorded `source=manual_community_review` with no community links
   (`hasWebsite=false`, `hasX=false`, `hasTelegram=false`, `linkCount=0`), so
-  `token:observation` reflects the reviewed no-link state while
-  `community:gaps:plan` still lists the token as `present_no_links`. Treat that
-  as a later Yellow refinement candidate, not a failed Red rehearsal. The saved
-  flags are review context rather than a buy signal, and do not enable external
-  fetch, Telegram, automatic retry, queue, scheduler, systemd, checkpoint,
-  `--write`, or `--watch` operation.
+  `token:observation` reflects the reviewed no-link state and
+  `community:gaps:plan` now reports it as `reviewed_no_links` with no repeated
+  manual review command. The saved flags are review context rather than a buy
+  signal, and do not enable external fetch, Telegram, automatic retry, queue,
+  scheduler, systemd, checkpoint, `--write`, or `--watch` operation.
 - `pnpm token:observe` is the manual observation capture foundation for
   `Token.entrySnapshot.manualObservation`; it is a write CLI covered by temp
   SQLite tests and one separately approved production one-token Red rehearsal.

@@ -32,6 +32,7 @@ type ReviewFlagsState =
   | "missing"
   | "invalid"
   | "present_no_links"
+  | "reviewed_no_links"
   | "present_with_links";
 
 type SuggestedNextAction =
@@ -81,6 +82,7 @@ type CommunityGapPlanReport = {
     communityLinksMissingCount: number;
     reviewFlagsMissingCount: number;
     reviewFlagsInvalidCount: number;
+    reviewedNoLinksCount: number;
     metadataMintOnlyCount: number;
     enrichedButNoCommunityLinksCount: number;
     suggestedEnrichCount: number;
@@ -212,15 +214,38 @@ function hasCommunityLinks(flags: ReviewFlagsView | null): boolean {
   );
 }
 
+function isReviewedNoLinks(reviewFlagsJson: unknown, flags: ReviewFlagsView): boolean {
+  if (!hasReviewFlagsObject(reviewFlagsJson)) {
+    return false;
+  }
+
+  const object = reviewFlagsJson as JsonObject;
+  return (
+    flags.hasWebsite === false &&
+    flags.hasX === false &&
+    flags.hasTelegram === false &&
+    flags.linkCount === 0 &&
+    object.source === "manual_community_review" &&
+    typeof object.reviewedAt === "string" &&
+    object.reviewedAt.trim().length > 0
+  );
+}
+
 function getReviewFlagsState(reviewFlagsJson: unknown): {
   flags: ReviewFlagsView | null;
   state: ReviewFlagsState;
 } {
   const flags = extractReviewFlags(reviewFlagsJson);
   if (flags) {
+    const state = hasCommunityLinks(flags)
+      ? "present_with_links"
+      : isReviewedNoLinks(reviewFlagsJson, flags)
+        ? "reviewed_no_links"
+        : "present_no_links";
+
     return {
       flags,
-      state: hasCommunityLinks(flags) ? "present_with_links" : "present_no_links",
+      state,
     };
   }
 
@@ -250,7 +275,10 @@ function getSuggestedNextAction(input: {
   metadataStatus: string | null;
   enrichedAt: Date | null;
 }): SuggestedNextAction {
-  if (input.reviewFlagsState === "present_with_links") {
+  if (
+    input.reviewFlagsState === "present_with_links" ||
+    input.reviewFlagsState === "reviewed_no_links"
+  ) {
     return "no_action";
   }
   if (input.reviewFlagsState === "invalid") {
@@ -266,7 +294,11 @@ function getSuggestedNextAction(input: {
   return "inspect_review_flags";
 }
 
-function buildNote(action: SuggestedNextAction): string {
+function buildNote(action: SuggestedNextAction, reviewFlagsState: ReviewFlagsState): string {
+  if (reviewFlagsState === "reviewed_no_links") {
+    return "manual community review already confirmed no public community links; future enrichment can revisit if new links appear";
+  }
+
   switch (action) {
     case "enrich_metadata":
       return "dry-run enrichment can inspect metadata/community links before any approved write";
@@ -317,7 +349,7 @@ function buildItem(token: {
       suggestedNextAction === "enrich_metadata"
         ? buildEnrichCommand(token.mint)
         : null,
-    note: buildNote(suggestedNextAction),
+    note: buildNote(suggestedNextAction, state),
   };
 }
 
@@ -326,11 +358,13 @@ function buildSummary(items: CommunityGapPlanItem[]): CommunityGapPlanReport["su
     communityLinksMissingCount: items.filter((item) => item.communityGapPresent).length,
     reviewFlagsMissingCount: items.filter((item) => item.reviewFlagsState === "missing").length,
     reviewFlagsInvalidCount: items.filter((item) => item.reviewFlagsState === "invalid").length,
+    reviewedNoLinksCount: items.filter((item) => item.reviewFlagsState === "reviewed_no_links").length,
     metadataMintOnlyCount: items.filter((item) => item.metadataStatus === "mint_only").length,
     enrichedButNoCommunityLinksCount: items.filter(
       (item) =>
         item.enrichedAt !== null &&
-        item.reviewFlagsState === "present_no_links",
+        (item.reviewFlagsState === "present_no_links" ||
+          item.reviewFlagsState === "reviewed_no_links"),
     ).length,
     suggestedEnrichCount: items.filter(
       (item) => item.suggestedNextAction === "enrich_metadata",

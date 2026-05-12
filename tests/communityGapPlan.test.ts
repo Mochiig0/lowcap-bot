@@ -116,6 +116,22 @@ test("community gap plan classifies missing, invalid, no-link, and linked review
       },
     });
     await seedToken(client, {
+      mint: "CommunityReviewedNoLinks11111111pump",
+      createdAt: new Date("2026-05-09T20:30:00.000Z"),
+      enrichedAt: new Date("2026-05-09T20:45:00.000Z"),
+      reviewFlagsJson: {
+        hasWebsite: false,
+        hasX: false,
+        hasTelegram: false,
+        metaplexHit: false,
+        descriptionPresent: false,
+        linkCount: 0,
+        source: "manual_community_review",
+        reviewedAt: "2026-05-09T20:40:00.000Z",
+        operatorNote: "manual community review context only",
+      },
+    });
+    await seedToken(client, {
       mint: "CommunityWithLinks111111111111111pump",
       createdAt: new Date("2026-05-09T20:00:00.000Z"),
       enrichedAt: new Date("2026-05-09T20:30:00.000Z"),
@@ -150,16 +166,17 @@ test("community gap plan classifies missing, invalid, no-link, and linked review
     assert.equal(report.advisoryOutput, false);
     assert.equal(report.queue, false);
     assert.equal(report.systemd, false);
-    assert.equal(report.selection.totalScanned, 4);
-    assert.equal(report.selection.totalMatched, 3);
-    assert.equal(report.summary.communityLinksMissingCount, 3);
+    assert.equal(report.selection.totalScanned, 5);
+    assert.equal(report.selection.totalMatched, 4);
+    assert.equal(report.summary.communityLinksMissingCount, 4);
     assert.equal(report.summary.reviewFlagsMissingCount, 1);
     assert.equal(report.summary.reviewFlagsInvalidCount, 1);
+    assert.equal(report.summary.reviewedNoLinksCount, 1);
     assert.equal(report.summary.metadataMintOnlyCount, 1);
-    assert.equal(report.summary.enrichedButNoCommunityLinksCount, 1);
+    assert.equal(report.summary.enrichedButNoCommunityLinksCount, 2);
     assert.equal(report.summary.suggestedEnrichCount, 1);
     assert.equal(report.summary.suggestedManualReviewCount, 1);
-    assert.equal(report.summary.noActionCount, 0);
+    assert.equal(report.summary.noActionCount, 1);
 
     const items = new Map(report.items.map((item) => [item.mint, item]));
 
@@ -204,6 +221,26 @@ test("community gap plan classifies missing, invalid, no-link, and linked review
     assert.equal(
       items.get("CommunityNoLinks11111111111111111pump")?.linkCount,
       0,
+    );
+    assert.equal(
+      items.get("CommunityReviewedNoLinks11111111pump")?.reviewFlagsState,
+      "reviewed_no_links",
+    );
+    assert.equal(
+      items.get("CommunityReviewedNoLinks11111111pump")?.communityGapPresent,
+      true,
+    );
+    assert.equal(
+      items.get("CommunityReviewedNoLinks11111111pump")?.suggestedNextAction,
+      "no_action",
+    );
+    assert.equal(
+      items.get("CommunityReviewedNoLinks11111111pump")?.suggestedCommand,
+      null,
+    );
+    assert.match(
+      items.get("CommunityReviewedNoLinks11111111pump")?.note ?? "",
+      /manual community review already confirmed no public community links/,
     );
     assert.equal(items.has("CommunityWithLinks111111111111111pump"), false);
   });

@@ -226,11 +226,9 @@ test("manual community review can record reviewed no-link state without breaking
       },
     );
     assert.equal(gapPlan.items[0]?.mint, mint);
-    assert.equal(gapPlan.items[0]?.reviewFlagsState, "present_no_links");
-    assert.equal(
-      gapPlan.items[0]?.suggestedNextAction,
-      "manual_review_community_links",
-    );
+    assert.equal(gapPlan.items[0]?.reviewFlagsState, "reviewed_no_links");
+    assert.equal(gapPlan.items[0]?.suggestedNextAction, "no_action");
+    assert.equal(gapPlan.items[0]?.suggestedCommand, null);
   });
 });
 

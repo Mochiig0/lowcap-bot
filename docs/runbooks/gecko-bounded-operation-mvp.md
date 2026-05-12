@@ -2592,13 +2592,17 @@ Manual retry closeout:
 - The community-link follow-up planner is `pnpm community:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly]`. It is read-only and
   classifies existing `Token.reviewFlagsJson` into missing / invalid /
-  present-without-links / present-with-links, then suggests either dry-run
-  enrichment, reviewFlags inspection, or manual community-link review as a
-  human-gated string. It does not fetch, write DB state, run enrichment, send
-  Telegram, or start queue / scheduler / systemd / checkpoint / `--write` /
-  `--watch`. Community links are not a buy signal and are not filled through
-  `token:observe`; holder distribution and market condition remain separate
-  unsupported capabilities.
+  present-without-links / reviewed-without-links / present-with-links, then
+  suggests either dry-run enrichment, reviewFlags inspection, or manual
+  community-link review as a human-gated string. A valid
+  `source=manual_community_review` no-link state is reported as
+  `reviewed_no_links`: the community gap remains because no public links are
+  recorded, but the planner does not repeat `community:review` for that token.
+  Future enrichment can revisit it if links appear. It does not fetch, write DB
+  state, run enrichment, send Telegram, or start queue / scheduler / systemd /
+  checkpoint / `--write` / `--watch`. Community links are not a buy signal and
+  are not filled through `token:observe`; holder distribution and market
+  condition remain separate unsupported capabilities.
 - The manual community review capture foundation is `pnpm community:review --
   --mint <MINT> --hasWebsite <true|false> --hasX <true|false> --hasTelegram
   <true|false> --descriptionPresent <true|false> [--metaplexHit
@@ -2608,12 +2612,11 @@ Manual retry closeout:
   run for `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup. The
   rehearsal intentionally recorded a reviewed no-link state
   (`source=manual_community_review`, all community link flags false, `linkCount=0`);
-  `token:observation` reflects that state, while `community:gaps:plan` still
-  lists the token as `present_no_links`. This is a later Yellow refinement
-  candidate, not a Red failure. The result is review context rather than a buy
-  signal and does not enable fetch, Telegram, queue / scheduler / systemd /
-  checkpoint / `--write` / `--watch`, holder distribution, or market condition
-  capture.
+  `token:observation` reflects that state, and `community:gaps:plan` now
+  distinguishes it as `reviewed_no_links` without suggesting another manual
+  review command. The result is review context rather than a buy signal and
+  does not enable fetch, Telegram, queue / scheduler / systemd / checkpoint /
+  `--write` / `--watch`, holder distribution, or market condition capture.
 - `pnpm smoke` is side-effecting, not read-only verification. It may write
   temporary Token / Metric / Dev rows to the configured database and restore
   `data/trend.json`; do not use it for ordinary Green / Yellow verification
