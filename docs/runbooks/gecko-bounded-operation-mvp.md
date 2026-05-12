@@ -2589,6 +2589,14 @@ Manual retry closeout:
   It does not write DB state, does not execute `token:observe`, is not a buy
   signal, and does not enable automatic retry, queue, scheduler, systemd,
   checkpoint, `--write`, or `--watch` operation.
+- Holder distribution is now fixed as a docs-first future capability in
+  `docs/design/holder-distribution-snapshot.md`. The design covers candidate
+  fields such as `topHolderPct`, `top10HolderPct`, `holderCount`,
+  `freshWalletCount`, `bundlerSignal`, `sameFundingOriginSignal`,
+  `lpWalletExcluded`, `devWalletPct`, `devBuyImpact`, `mcapVolumeRatio`, and
+  `bottedChartPattern`; compares future storage choices; and keeps external
+  fetch, schema, production DB write, queue / scheduler / systemd, checkpoint,
+  `--write`, and `--watch` outside the current task.
 - The community-link follow-up planner is `pnpm community:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly]`. It is read-only and
   classifies existing `Token.reviewFlagsJson` into missing / invalid /

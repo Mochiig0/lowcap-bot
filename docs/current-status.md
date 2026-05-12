@@ -182,6 +182,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   coverage. It performs no DB writes, does not run `token:observe`, is not a buy
   signal, and does not enable automatic retry, queue, scheduler, systemd,
   checkpoint, `--write`, or `--watch` operation.
+- Holder distribution remains a separate risk-observation capability. The
+  docs-first design for the future snapshot is
+  `docs/design/holder-distribution-snapshot.md`; it lists candidate fields such
+  as `topHolderPct`, `top10HolderPct`, `holderCount`, `freshWalletCount`,
+  `bundlerSignal`, `sameFundingOriginSignal`, `devWalletPct`, `devBuyImpact`,
+  `mcapVolumeRatio`, and `bottedChartPattern`, plus source / observedAt /
+  confidence / raw-free / secret-free boundaries. This task did not fetch
+  holder data, write DB state, add schema, or enable automation.
 - `pnpm community:gaps:plan` is the read-only planner for
   `community_links_not_recorded`: it classifies existing `Token.reviewFlagsJson`
   as missing / invalid / present-without-links / reviewed-without-links /
