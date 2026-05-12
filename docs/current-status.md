@@ -128,6 +128,11 @@ A minimal smoke-test path is also available:
 pnpm smoke
 ```
 
+`pnpm smoke` is not read-only verification. It can write temporary Token /
+Metric / Dev rows to the configured database and restore `data/trend.json`; do
+not use it for routine Green / Yellow verification without an explicit task that
+includes backup, residue checks, and cleanup confirmation.
+
 There is no always-on bot, scheduler, queue worker, or background automatic ingestion runtime yet.
 
 ## Current Operational Flow
@@ -2245,9 +2250,16 @@ Notes:
 - `token:show` now also includes `reviewFlags` when observational review flags have been stored on the token
 - `tokens:report` includes `latestMetricObservedAt` and `metricsCount`
 - report and show commands are read-only and return JSON
-- smoke runs a lightweight operational check for typecheck, `import`, sequential `import:mint` re-run behavior, `import:mint:file`, `import:mint:source-file`, `detect:dexscreener:token-profiles` dry-run/write behavior, `import:min`, `import:file`, metric save, `metric:add` append-only behavior, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report
+- smoke runs an operational check for typecheck, `import`, sequential `import:mint` re-run behavior, `import:mint:file`, `import:mint:source-file`, `detect:dexscreener:token-profiles` dry-run/write behavior, `import:min`, `import:file`, metric save, `metric:add` append-only behavior, `token:show`, `token:compare`, `tokens:compare-report`, `metric:show`, trend update, and metric report; it is side-effecting and not read-only verification
 - `pnpm test` runs the current pure-function tests for normalization, hard reject matching, score calculation, and trend keyword parsing
 - smoke restores `data/trend.json` after the run and cleans up its temporary smoke data
+- A production DB smoke residue cleanup was run only for the safe
+  `source GLOB 'smoke-test*'` subset: 6 Token rows and 1 Metric row were
+  deleted after backup. Broad `mint GLOB '*SMOKE*'` cleanup was not run because
+  non-smoke sources such as `geckoterminal.new_pools` can contain SMOKE-like
+  mints. After cleanup, the `source GLOB 'smoke-test*'` Token / Metric /
+  Notification / Dev subset was 0. `community:review` production DB write is
+  still not executed and still requires a separate Red approval.
 
 ## Repository State
 

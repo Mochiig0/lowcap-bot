@@ -2609,6 +2609,15 @@ Manual retry closeout:
   `community:gaps:plan`, is review context rather than a buy signal, and does
   not enable fetch, Telegram, queue / scheduler / systemd / checkpoint /
   `--write` / `--watch`, holder distribution, or market condition capture.
+- `pnpm smoke` is side-effecting, not read-only verification. It may write
+  temporary Token / Metric / Dev rows to the configured database and restore
+  `data/trend.json`; do not use it for ordinary Green / Yellow verification
+  unless the task explicitly includes backup, residue checks, and cleanup
+  confirmation. The smoke residue cleanup performed after this boundary was
+  limited to the safe `source GLOB 'smoke-test*'` subset only: 6 Token rows and
+  1 Metric row were deleted after backup, leaving that subset at 0. Broad
+  `mint GLOB '*SMOKE*'` cleanup remains intentionally unrun because non-smoke
+  sources such as `geckoterminal.new_pools` can contain SMOKE-like mints.
 
 Migration baseline policy:
 
