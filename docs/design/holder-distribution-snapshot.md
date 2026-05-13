@@ -66,6 +66,116 @@ Any source must be reviewed before use for raw payload, secret, and response-bod
 boundaries. A future Red or Yellow task should explicitly decide whether a
 source is raw-free enough to persist directly or needs a safe summary.
 
+## Source Contract
+
+The first source contract is a safe-summary contract, not a raw response
+contract. A source is admissible only if it can be transformed into the safe
+summary shape below without storing raw payloads, env values, API keys, private
+wallet material, Telegram values, or unbounded address lists.
+
+| Source candidate | topHolderPct | top10HolderPct | holderCount | freshWalletCount | bundlerSignal | sameFundingOriginSignal | can exclude LP wallet | raw payload risk | secret/env risk | rate limit risk | implementation complexity | first MVP suitability |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Rugcheck-style API | likely | likely | possible | possible | likely | possible | possible | medium: response may contain wallet lists or broad risk details | medium if API key is required | medium | medium | best first external-source candidate if a raw-free summary can be derived |
+| Solscan / on-chain holder endpoint | likely | likely | likely | no, unless extra wallet-age queries are added | no | no, unless funding graph is crawled | possible but source-specific | high: holder lists and account details are likely | medium if API key or RPC key is required | high | high | defer; useful later only as bounded one-token validation |
+| Birdeye / DexScreener / GeckoTerminal market-data source | unlikely | unlikely | unlikely | no | no | no | unlikely | low to medium depending on endpoint | low to medium depending on provider | medium | low to medium | use only if a documented endpoint exposes holder summary fields |
+| Manual operator review | yes, if operator has source evidence | yes, if operator has source evidence | yes, if operator has source evidence | possible | possible | possible | possible | low if only source-labeled summary is stored | low | low | low | fallback for temp parser and review workflow, not chain-derived truth |
+| External report only | yes, in report output | yes, in report output | yes, in report output | possible | possible | possible | possible | lowest production DB risk if not persisted | low | low to medium | low | good pre-storage rehearsal; does not reduce persisted gap |
+
+Field meanings for the first MVP:
+
+- `topHolderPct`: percentage of supply or circulating supply held by the top
+  non-excluded holder, as reported by the source. If the source definition is
+  unclear, keep `null`.
+- `top10HolderPct`: percentage held by the top 10 non-excluded holders, as
+  reported by the source. If the source includes LP or program wallets and this
+  cannot be normalized safely, keep `null`.
+- `holderCount`: holder count reported by the source. Do not derive it from a
+  partial page of holders.
+- `freshWalletCount`: count reported by the source for fresh or young wallets.
+  Do not infer it without wallet-age data.
+- `bundlerSignal`: source-labeled bundling or bundled-supply signal. Do not
+  invent a threshold until a source-specific contract exists.
+- `sameFundingOriginSignal`: source-labeled common-funding signal. Do not
+  derive it from partial transaction or wallet samples.
+- `lpWalletExcluded`: whether the source explicitly excludes LP / pool /
+  program wallets from concentration fields.
+
+## First MVP Source Recommendation
+
+First choice: a Rugcheck-style safe summary, only if the endpoint can provide
+holder concentration and risk flags that can be mapped into the safe summary
+without persisting raw payloads or wallet lists.
+
+Fallback: manual operator review or external report only, using the same safe
+summary shape and explicit `source` labels. Manual review is acceptable for
+parser and temp SQLite tests because it avoids fetch and raw payload concerns,
+but it must not pretend to be chain-derived data.
+
+Avoid initially: unbounded on-chain holder crawl, funding graph traversal, or
+multi-provider aggregation. Those paths create raw payload, rate-limit, and
+complexity risk before the safe summary parser is proven.
+
+The next Red task may choose one exact external source and one exact endpoint,
+but it must still keep raw payloads out of production persistence unless a
+separate raw-storage boundary is approved.
+
+## Safe Summary Contract
+
+The next parser temp test should use this fixed safe summary type:
+
+```ts
+type HolderDistributionSafeSummary = {
+  topHolderPct: number | null;
+  top10HolderPct: number | null;
+  holderCount: number | null;
+  freshWalletCount: number | null;
+  bundlerSignal: "none" | "low" | "medium" | "high" | "unknown";
+  sameFundingOriginSignal: "none" | "low" | "medium" | "high" | "unknown";
+  lpWalletExcluded: boolean | null;
+  source: string;
+  observedAt: string;
+  confidence: "low" | "medium" | "high" | "unknown";
+  rawFree: true;
+  secretFree: true;
+};
+```
+
+Validation rules:
+
+- Percent fields must be finite numbers from `0` through `100`, or `null`.
+- Count fields must be non-negative integers, or `null`.
+- `source` must be a non-empty source label such as
+  `rugcheck.safe_summary`, `manual_holder_review`, or
+  `external_holder_report`.
+- `observedAt` must be an ISO timestamp string.
+- `confidence` is source confidence, not trading confidence.
+- `rawFree` and `secretFree` must be literal `true`.
+- Missing or ambiguous source fields must stay `null` or `unknown`; do not
+  infer holder data from token metadata, community links, market metrics, or
+  manual thesis text.
+
+The safe summary intentionally excludes raw wallet addresses, raw transaction
+samples, response bodies, request URLs with secrets, API keys, Telegram data,
+and free-form raw JSON. `devWalletPct`, `devBuyImpact`, `mcapVolumeRatio`, and
+`bottedChartPattern` remain candidate future risk fields, but they are outside
+the first holder-distribution safe summary until a source-specific contract
+defines them safely.
+
+## Rejected / Deferred Sources
+
+- Unbounded on-chain holder crawls are deferred because they require pagination,
+  wallet lists, LP / program wallet classification, and likely RPC or provider
+  keys before the field contract is proven.
+- Funding-origin graph analysis is deferred because it needs transaction graph
+  traversal and can easily become a separate crawler.
+- Generic market-data endpoints are deferred unless documentation confirms
+  holder concentration fields. Existing GeckoTerminal / DexScreener flows
+  should not be stretched into holder capture without a source-specific field.
+- Persisting raw provider JSON is rejected for the first MVP. Only the safe
+  summary shape above may be considered in temp tests.
+- Treating holder distribution as a buy or skip signal is rejected. It is risk
+  observation context only.
+
 ## Storage Candidates
 
 ### Future `HolderSnapshot` model
@@ -125,6 +235,12 @@ Current preference: start with an external read-only report or temp-DB-tested
 safe summary before adding persistent production storage. Do not choose final
 storage until a source and field contract are fixed.
 
+The source contract now fixes the parser-facing safe summary type, but it still
+does not choose final storage. A future task may compare external report only,
+`Token.entrySnapshot.holderDistribution`, `Metric.rawJson` safe summary, and a
+future `HolderSnapshot` model after parser behavior is tested against temp
+SQLite fixtures.
+
 ## Safety Boundaries
 
 - Persist only safe summary fields, never raw response bodies.
@@ -166,6 +282,19 @@ Red tasks are required before:
 6. Run a one-token Red rehearsal only after backup, exact command, and
    verification are fixed.
 7. Decide storage after the first source and safe summary shape are proven.
+
+## Next Implementation Step
+
+Add temp SQLite parser tests for `HolderDistributionSafeSummary` using static
+fixtures only:
+
+- one Rugcheck-style safe-summary fixture with concentration and risk flags;
+- one manual holder review fixture with source-labeled operator values;
+- one invalid fixture that contains raw wallet lists or ambiguous percent
+  fields and must be rejected.
+
+This next step should not fetch, write production DB state, add schema, start
+queues, send Telegram, or introduce `--write` / `--watch`.
 
 ## Stop Conditions
 

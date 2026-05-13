@@ -188,8 +188,12 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   as `topHolderPct`, `top10HolderPct`, `holderCount`, `freshWalletCount`,
   `bundlerSignal`, `sameFundingOriginSignal`, `devWalletPct`, `devBuyImpact`,
   `mcapVolumeRatio`, and `bottedChartPattern`, plus source / observedAt /
-  confidence / raw-free / secret-free boundaries. This task did not fetch
-  holder data, write DB state, add schema, or enable automation.
+  confidence / raw-free / secret-free boundaries. The source contract now
+  recommends a Rugcheck-style safe summary as the first external-source
+  candidate if raw wallet lists and response bodies can be excluded, with
+  manual holder review or external report only as fallback. Unbounded on-chain
+  holder crawls and funding graph traversal remain deferred. This task did not
+  fetch holder data, write DB state, add schema, or enable automation.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

@@ -2596,7 +2596,11 @@ Manual retry closeout:
   `lpWalletExcluded`, `devWalletPct`, `devBuyImpact`, `mcapVolumeRatio`, and
   `bottedChartPattern`; compares future storage choices; and keeps external
   fetch, schema, production DB write, queue / scheduler / systemd, checkpoint,
-  `--write`, and `--watch` outside the current task.
+  `--write`, and `--watch` outside the current task. The source contract now
+  prefers a Rugcheck-style safe summary for the first external-source
+  rehearsal only if raw payloads and wallet lists are not persisted; manual
+  holder review or external report only remain fallback paths, while unbounded
+  on-chain holder crawl and funding graph traversal remain deferred.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future
