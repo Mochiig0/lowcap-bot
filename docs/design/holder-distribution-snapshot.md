@@ -157,11 +157,15 @@ Red tasks are required before:
 1. Keep `tokens:observation-gaps` reporting
    `holder_distribution_not_recorded` as unsupported.
 2. Use this design document as the fixed capability boundary.
-3. Add a read-only holder-source planner only after the source contract is known.
-4. Validate parser and safe-summary behavior with temp SQLite fixtures.
-5. Run a one-token Red rehearsal only after backup, exact command, and
+3. Use `pnpm holder:gaps:plan` to list existing
+   `holder_distribution_not_recorded` tokens as read-only future snapshot
+   candidates. The planner prints `suggestedCommand=null`, does not fetch or
+   infer holder data, and does not reduce the persisted gap.
+4. Add a holder-source capture planner only after the source contract is known.
+5. Validate parser and safe-summary behavior with temp SQLite fixtures.
+6. Run a one-token Red rehearsal only after backup, exact command, and
    verification are fixed.
-6. Decide storage after the first source and safe summary shape are proven.
+7. Decide storage after the first source and safe summary shape are proven.
 
 ## Stop Conditions
 

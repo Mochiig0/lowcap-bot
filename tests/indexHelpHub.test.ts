@@ -97,6 +97,10 @@ test("index help hub boundary", async (t) => {
     );
     assert.match(
       result.stdout,
+      /pnpm holder:gaps:plan -- \[--limit <N>\] \[--sinceHours <N>\] \[--pumpOnly\] \[--rank <S\|A\|B\|C>\]/,
+    );
+    assert.match(
+      result.stdout,
       /pnpm tokens:report -- \[--rank <RANK>\] \[--source <SOURCE>\]/,
     );
     assert.match(result.stdout, /pnpm smoke/);

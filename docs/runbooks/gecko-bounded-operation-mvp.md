@@ -2597,6 +2597,15 @@ Manual retry closeout:
   `bottedChartPattern`; compares future storage choices; and keeps external
   fetch, schema, production DB write, queue / scheduler / systemd, checkpoint,
   `--write`, and `--watch` outside the current task.
+- The holder distribution follow-up planner is `pnpm holder:gaps:plan --
+  [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
+  read-only and lists tokens with `holder_distribution_not_recorded` as future
+  `holder_distribution_snapshot` candidates using existing Token / Metric /
+  manual observation / reviewFlagsJson state only. `suggestedCommand` stays
+  `null`; the planner does not fetch external or on-chain data, does not infer
+  holder data, does not write DB state, does not add schema, and does not
+  enable Telegram, queue / scheduler / systemd / checkpoint, `--write`, or
+  `--watch`. The output is planning context rather than a buy signal.
 - The community-link follow-up planner is `pnpm community:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly]`. It is read-only and
   classifies existing `Token.reviewFlagsJson` into missing / invalid /

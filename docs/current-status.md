@@ -190,6 +190,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `mcapVolumeRatio`, and `bottedChartPattern`, plus source / observedAt /
   confidence / raw-free / secret-free boundaries. This task did not fetch
   holder data, write DB state, add schema, or enable automation.
+- `pnpm holder:gaps:plan` is the read-only planner for
+  `holder_distribution_not_recorded`: it lists existing Token rows as future
+  `holder_distribution_snapshot` candidates, carries through existing Metric,
+  manual observation, and reviewFlagsJson context, and keeps
+  `suggestedCommand=null`. It does not fetch external or on-chain holder data,
+  does not infer holder fields, does not write DB state, does not add schema,
+  and does not enable Telegram, queue, scheduler, systemd, checkpoint,
+  `--write`, or `--watch`. The output is planning context, not a buy signal.
 - `pnpm community:gaps:plan` is the read-only planner for
   `community_links_not_recorded`: it classifies existing `Token.reviewFlagsJson`
   as missing / invalid / present-without-links / reviewed-without-links /
