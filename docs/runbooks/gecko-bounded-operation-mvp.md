@@ -2618,20 +2618,22 @@ Manual retry closeout:
   are not printed. It does not fetch, write production DB state, add schema,
   send Telegram, start queue / scheduler / systemd / checkpoint, or enable
   `--write` / `--watch`.
-- Holder distribution production storage remains unapplied. The immediate MVP
-  storage path is still external report only, and the first persistent
-  candidate is `HolderSnapshot` after Red production migration approval.
+- Holder distribution production storage schema is now migrated, but no holder
+  snapshot rows have been written. The immediate MVP input path is still
+  external report only, and `HolderSnapshot` is the first persistent storage
+  table for future Red write rehearsal.
   `Token.entrySnapshot` is deferred because it is weak for repeated
   source-labeled holder snapshots; `Metric.rawJson` is deferred because holder
   distribution should not become a market Metric payload bucket.
-- `HolderSnapshot` now exists in `prisma/schema.prisma`, with the additive
-  migration file
-  `prisma/migrations/20260515000100_add_holder_snapshot/migration.sql`. It adds
-  a Token relation, safe summary scalar fields, `source`, `observedAt`,
+- `HolderSnapshot` now exists in `prisma/schema.prisma`, and production
+  `prisma/dev.db` has applied
+  `prisma/migrations/20260515000100_add_holder_snapshot/migration.sql` after
+  backup
+  `/home/mochi/lowcap-bot-backups/dev.db.before-holder-snapshot-migration-20260515012828.db`.
+  It adds a Token relation, safe summary scalar fields, `source`, `observedAt`,
   `confidence`, `rawFree`, `secretFree`, and indexes for token history and
   source audit. It does not add a first unique constraint and does not include
-  raw payload / rawJson / wallet-list columns. Production `prisma/dev.db`
-  migration apply has not run, and no holder snapshot rows have been written.
+  raw payload / rawJson / wallet-list columns.
 - Future holder snapshot CLI contracts are docs-only:
   `holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>` is the
   future one-row Red write command, and `holder:snapshot:show -- --mint <MINT>
@@ -2639,15 +2641,15 @@ Manual retry closeout:
   validate with `holder:safe-summary:report` / `parseHolderDistributionSafeSummary`,
   update no Token / Metric / Notification rows, perform no fetch or Telegram
   send, and return `holderSnapshotId` for rollback. Neither command exists yet.
-- HolderSnapshot schema-file rehearsal has passed on a temp SQLite DB. Temp
-  migration deploy / validate / generate / status passed; PRAGMA checks
-  confirmed the `HolderSnapshot` table, both expected indexes, and
-  `HolderSnapshot` count `0`. Future work is split into Red production
-  migration apply, Yellow CLI implementation with temp SQLite tests, and Red
-  one-token write rehearsal. The production migration apply requires backup,
-  clean HEAD / origin state, additive SQL only, read-only PRAGMA checks,
-  `HolderSnapshot` count `0`, no holder snapshot write in the same task, and no
-  `pnpm smoke`.
+- HolderSnapshot production migration apply has passed. `prisma migrate deploy`
+  applied `20260515000100_add_holder_snapshot`; migration status is up to date;
+  PRAGMA checks confirmed the `HolderSnapshot` table, both expected indexes,
+  and `HolderSnapshot` count `0`. Token / Metric / Notification counts stayed
+  unchanged at `1116 / 191 / 6`. Future work is split into Yellow CLI
+  implementation with temp SQLite tests and Red one-token write rehearsal. No
+  holder snapshot write, external fetch, Telegram, queue / scheduler / systemd
+  / checkpoint, `--write` / `--watch`, or `pnpm smoke` ran in the migration
+  apply task.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

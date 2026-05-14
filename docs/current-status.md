@@ -209,23 +209,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   rejects raw payload or secret-like keys without printing their values. It
   does not fetch, write production DB state, choose schema/storage, or create a
   buy signal.
-- Holder distribution production storage remains unapplied. The current design
-  keeps the immediate MVP path as external report only via
-  `holder:safe-summary:report`, while naming `HolderSnapshot` as the first
-  persistent storage candidate after Red production migration approval.
+- Holder distribution production storage schema is now migrated, but no holder
+  snapshot rows have been written. The current design keeps the immediate MVP
+  path as external report only via `holder:safe-summary:report`, while
+  `HolderSnapshot` is the first persistent storage table for future Red write
+  rehearsal.
   `Token.entrySnapshot` is deferred for holder distribution because it is poor
   for repeated source-labeled snapshots, and `Metric.rawJson` is deferred
   because holder distribution is not a market metric payload.
-- `HolderSnapshot` has been added to `prisma/schema.prisma` and the additive
-  migration file
-  `prisma/migrations/20260515000100_add_holder_snapshot/migration.sql` has been
-  created. The model relates to `Token`, stores only validated safe summary
-  scalar fields plus `source`, `observedAt`, `confidence`, `rawFree`, and
+- `HolderSnapshot` has been added to `prisma/schema.prisma` and production
+  `prisma/dev.db` has applied
+  `prisma/migrations/20260515000100_add_holder_snapshot/migration.sql` after
+  backup
+  `/home/mochi/lowcap-bot-backups/dev.db.before-holder-snapshot-migration-20260515012828.db`.
+  The model relates to `Token`, stores only validated safe summary scalar
+  fields plus `source`, `observedAt`, `confidence`, `rawFree`, and
   `secretFree`, and indexes `[tokenId, observedAt]` plus
   `[source, observedAt]`. It intentionally has no raw payload / rawJson /
-  wallet-list columns and no first unique constraint. Production migration
-  apply to `prisma/dev.db` has not run, and no holder snapshot rows have been
-  written.
+  wallet-list columns and no first unique constraint.
 - Future `holder:snapshot:add` and `holder:snapshot:show` command contracts are
   now documented only. `holder:snapshot:add` is a future one-row Red write
   command requiring exact `--mint` plus one safe summary file, with no batch
@@ -233,12 +234,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `holderSnapshotId` for rollback. `holder:snapshot:show` is the future
   read-only verifier that returns latest safe holder snapshots only. Neither
   command is implemented or listed in `package.json`.
-- The HolderSnapshot schema-file rehearsal has passed on a temp SQLite DB. Temp
-  migration deploy / validate / generate / status passed; PRAGMA checks
-  confirmed the `HolderSnapshot` table, the two expected indexes, and
-  `HolderSnapshot` count `0`. Production migration apply remains Red-only with
-  backup and read-only schema verification. `holder:snapshot:add` /
-  `holder:snapshot:show` are still unimplemented.
+- The HolderSnapshot production migration apply has passed. `prisma migrate
+  deploy` applied `20260515000100_add_holder_snapshot`; migration status is up
+  to date; PRAGMA checks confirmed the `HolderSnapshot` table, the two expected
+  indexes, and `HolderSnapshot` count `0`. Token / Metric / Notification counts
+  stayed unchanged at `1116 / 191 / 6`. `holder:snapshot:add` /
+  `holder:snapshot:show` are still unimplemented, and no holder snapshot row
+  write has run.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
