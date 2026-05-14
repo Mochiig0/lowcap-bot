@@ -1067,9 +1067,9 @@ Red tasks are required before:
 6. HolderSnapshot production migration has been applied once with backup and
    read-only schema verification.
 7. `holder:snapshot:add` and `holder:snapshot:show` are implemented and covered
-   by temp SQLite tests. Production `holder:snapshot:add` has not been run.
-8. Run a one-token Red rehearsal only after backup, exact command, and
-   verification are fixed.
+   by temp SQLite tests.
+8. The first production one-token Red rehearsal has written one manual
+   safe-summary `HolderSnapshot` row.
 9. Keep source fetch and holder snapshot CLI work separate from migration
    apply.
 
@@ -1112,9 +1112,29 @@ read-only verifier. It returns latest safe holder snapshots ordered by
 `observedAt desc, id desc`, emits safe fields only, and includes review hints
 without buy / sell / position / exit guidance.
 
-The next step is a Red one-token holder snapshot write rehearsal with backup,
-one fixture, one exact add command, read-only show verification, and rollback id
-recording. Source fetch remains a separate future task.
+The first Red one-token holder snapshot write rehearsal is recorded:
+
+- target mint: `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`;
+- backup:
+  `/home/mochi/lowcap-bot-backups/dev.db.before-holder-snapshot-row-rehearsal-20260515015522.db`;
+- fixture source: `manual_holder_review`;
+- holder percentage / count fields: `null`;
+- bundler and same-funding signals: `unknown`;
+- `holder:safe-summary:report`: `validCount=1`, `invalidCount=0`;
+- exact add command returned `holderSnapshotId=1`;
+- `holder:snapshot:show` confirmed `count=1` and safe fields only;
+- Token / Metric / Notification counts stayed unchanged at `1116 / 191 / 6`;
+- HolderSnapshot count moved `0 -> 1`;
+- `holder:gaps:plan` still reports the gap because persisted HolderSnapshot
+  integration is future Yellow work.
+
+The rehearsal was storage / parser / show-path validation only. It did not use
+external fetch, on-chain fetch, Telegram, queue, scheduler, systemd, checkpoint,
+`--write`, `--watch`, or `pnpm smoke`, and it is not a buy signal.
+
+The next step is a Yellow reader integration task so holder observation and gap
+planning can account for persisted `HolderSnapshot` rows. Source fetch remains
+a separate future task.
 
 ## Stop Conditions
 

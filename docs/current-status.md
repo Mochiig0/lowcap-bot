@@ -209,11 +209,10 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   rejects raw payload or secret-like keys without printing their values. It
   does not fetch, write production DB state, choose schema/storage, or create a
   buy signal.
-- Holder distribution production storage schema is now migrated, but no holder
-  snapshot rows have been written. The current design keeps the immediate MVP
-  path as external report only via `holder:safe-summary:report`, while
-  `HolderSnapshot` is the first persistent storage table for future Red write
-  rehearsal.
+- Holder distribution production storage schema is migrated, and the first
+  one-token HolderSnapshot row write rehearsal has completed. The rehearsal
+  used a static manual safe-summary fixture only; no holder values were fetched
+  or inferred.
   `Token.entrySnapshot` is deferred for holder distribution because it is poor
   for repeated source-labeled snapshots, and `Metric.rawJson` is deferred
   because holder distribution is not a market metric payload.
@@ -234,13 +233,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Notification update, and an inserted `holderSnapshotId` for rollback.
   `holder:snapshot:show` is the read-only verifier that returns latest safe
   holder snapshots only. The add command has been verified with temp SQLite
-  tests only; production `holder:snapshot:add` has not been run.
+  tests and one production Red one-token rehearsal.
 - The HolderSnapshot production migration apply has passed. `prisma migrate
   deploy` applied `20260515000100_add_holder_snapshot`; migration status is up
   to date; PRAGMA checks confirmed the `HolderSnapshot` table, the two expected
   indexes, and `HolderSnapshot` count `0`. Token / Metric / Notification counts
-  stayed unchanged at `1116 / 191 / 6`. The production `HolderSnapshot` row
-  count remains `0`; no production holder snapshot row write has run.
+  stayed unchanged at `1116 / 191 / 6`.
+- The production one-token HolderSnapshot row write rehearsal was run for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup
+  `/home/mochi/lowcap-bot-backups/dev.db.before-holder-snapshot-row-rehearsal-20260515015522.db`.
+  The fixture had `source=manual_holder_review`, `confidence=low`, all holder
+  percentage / count fields `null`, both funding / bundler signals `unknown`,
+  `rawFree=true`, and `secretFree=true`. `holder:safe-summary:report` returned
+  `validCount=1`, `invalidCount=0`; the exact one-row add command returned
+  `holderSnapshotId=1`; `holder:snapshot:show` confirmed `count=1` and the safe
+  fields. Token / Metric / Notification counts stayed unchanged at
+  `1116 / 191 / 6`; HolderSnapshot count moved `0 -> 1`. The row is review
+  context only, not a buy signal. `holder:gaps:plan` still reports the holder
+  gap because persisted HolderSnapshot integration is future Yellow work.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

@@ -2618,10 +2618,10 @@ Manual retry closeout:
   are not printed. It does not fetch, write production DB state, add schema,
   send Telegram, start queue / scheduler / systemd / checkpoint, or enable
   `--write` / `--watch`.
-- Holder distribution production storage schema is now migrated, but no holder
-  snapshot rows have been written. The immediate MVP input path is still
-  external report only, and `HolderSnapshot` is the first persistent storage
-  table for future Red write rehearsal.
+- Holder distribution production storage schema is migrated, and the first
+  one-token HolderSnapshot row write rehearsal has completed. The rehearsal
+  used a static manual safe-summary fixture only; no holder values were fetched
+  or inferred.
   `Token.entrySnapshot` is deferred because it is weak for repeated
   source-labeled holder snapshots; `Metric.rawJson` is deferred because holder
   distribution should not become a market Metric payload bucket.
@@ -2641,16 +2641,25 @@ Manual retry closeout:
   `parseHolderDistributionSafeSummary`, rejects batch `items` input, updates no
   Token / Metric / Notification rows, performs no fetch or Telegram send, and
   returns `holderSnapshotId` for rollback. It has been verified with temp
-  SQLite tests only; production `holder:snapshot:add` has not been run.
+  SQLite tests and one production Red one-token rehearsal.
 - HolderSnapshot production migration apply has passed. `prisma migrate deploy`
   applied `20260515000100_add_holder_snapshot`; migration status is up to date;
   PRAGMA checks confirmed the `HolderSnapshot` table, both expected indexes,
   and `HolderSnapshot` count `0`. Token / Metric / Notification counts stayed
-  unchanged at `1116 / 191 / 6`. The production `HolderSnapshot` row count
-  remains `0`. Future work is the Red one-token write rehearsal. No production
-  holder snapshot write, external fetch, Telegram, queue / scheduler / systemd
-  / checkpoint, `--write` / `--watch`, or `pnpm smoke` ran in the CLI
-  implementation task.
+  unchanged at `1116 / 191 / 6`.
+- The production one-token HolderSnapshot row write rehearsal was run for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` after backup
+  `/home/mochi/lowcap-bot-backups/dev.db.before-holder-snapshot-row-rehearsal-20260515015522.db`.
+  The static fixture used `source=manual_holder_review`, `confidence=low`,
+  holder percentage / count fields `null`, funding / bundler signals `unknown`,
+  `rawFree=true`, and `secretFree=true`. The fixture report returned
+  `validCount=1`; the exact one-row add command returned `holderSnapshotId=1`;
+  `holder:snapshot:show` confirmed `count=1`. Token / Metric / Notification
+  counts stayed unchanged at `1116 / 191 / 6`; HolderSnapshot count moved
+  `0 -> 1`. `holder:gaps:plan` still reports the holder gap because persisted
+  HolderSnapshot integration is future Yellow work. No external fetch,
+  on-chain fetch, Telegram, queue / scheduler / systemd / checkpoint,
+  `--write` / `--watch`, or `pnpm smoke` ran in the write rehearsal.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future
