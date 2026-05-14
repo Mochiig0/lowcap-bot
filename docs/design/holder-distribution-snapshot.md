@@ -1190,6 +1190,35 @@ Next-phase candidates:
 - Yellow: compare holder snapshots with later outcomes once more snapshots
   exist.
 
+## Rugcheck-Style Synthetic Mapper Fixture
+
+`src/observation/holderSourceMappers.ts` adds the first source-specific mapper
+rehearsal:
+
+- mapper name: `mapRugcheckStyleHolderSummary`;
+- input shape: synthetic/static Rugcheck-style summary fixture only;
+- output: `HolderDistributionSafeSummary` with
+  `source="rugcheck.safe_summary.synthetic"` by default;
+- final output must pass the `HolderDistributionSafeSummary` validator;
+- missing or ambiguous concentration / wallet-signal fields stay `null` or
+  `unknown`;
+- the mapper does not infer holder values from incomplete provider context;
+- raw provider JSON, raw response bodies, wallet-list fields, request URLs, and
+  secret-like keys are rejected before summary output;
+- rejected issues describe key/path and reason without printing raw payload or
+  secret values.
+
+This is not real Rugcheck API integration and does not approve a real endpoint,
+credential, or response shape. It is a raw-free mapping rehearsal for the source
+contract only. It performs no external API fetch, no on-chain fetch, no
+production DB write, no `holder:snapshot:add`, and no Telegram / queue /
+systemd / checkpoint / watch work.
+
+The mapper output is review context only. It is not buy / sell / position /
+exit guidance, and it must not become a holder score or trading recommendation.
+Future real source capture needs a separate source / endpoint / raw-boundary
+approval task before any Red external safe-summary capture.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

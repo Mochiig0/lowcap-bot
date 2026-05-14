@@ -2688,6 +2688,14 @@ Manual retry closeout:
   queue / systemd, do not run an unbounded on-chain crawl, do not store raw
   provider JSON, and do not turn holder state into a buy / sell / position /
   exit signal.
+- A Rugcheck-style synthetic/static mapper rehearsal now exists in
+  `src/observation/holderSourceMappers.ts`. It accepts only a narrow synthetic
+  summary shape, maps explicit holder concentration / wallet-signal fields into
+  `HolderDistributionSafeSummary`, leaves missing or ambiguous fields as
+  `null` / `unknown`, and rejects raw provider JSON, wallet-list fields,
+  request URLs, and secret-like keys without printing raw values. This is not a
+  real Rugcheck API fetch and does not approve an endpoint, source credential,
+  production write, queue / scheduler / systemd, or trading signal.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

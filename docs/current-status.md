@@ -274,6 +274,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   stay source-specific and raw-free; do not jump to scheduler / queue / systemd,
   unbounded on-chain crawl, raw provider JSON storage, or holder-derived buy
   scoring.
+- `src/observation/holderSourceMappers.ts` now includes a Rugcheck-style
+  synthetic/static mapper rehearsal. It maps explicit synthetic holder
+  concentration and wallet-signal summary fields into
+  `HolderDistributionSafeSummary`, validates the mapped output with the safe
+  summary contract, keeps missing or ambiguous fields as `null` / `unknown`,
+  and rejects raw provider JSON, wallet-list fields, request URLs, and
+  secret-like keys without printing raw values. This is not a real Rugcheck API
+  integration, performs no external or on-chain fetch, writes no production DB
+  state, and is not a buy signal.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
