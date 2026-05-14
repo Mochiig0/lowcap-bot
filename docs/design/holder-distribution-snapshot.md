@@ -5,18 +5,19 @@
 Holder distribution is a core LowcapBot observation gap. It belongs to the risk
 and scam-surface side of the observation OS, not to buy-signal generation.
 
-This document fixes the first design boundary for filling
-`holder_distribution_not_recorded`. It does not introduce schema changes, does
-not fetch external data, and does not write production DB state. The goal is to
-name the fields, source constraints, safety rules, and MVP route before any
-capture command or storage model exists.
+This document fixes the design boundary for filling
+`holder_distribution_not_recorded`. It names the fields, source constraints,
+safety rules, storage path, and migration boundary before any holder capture
+command exists. As of the schema-file rehearsal step, the Prisma schema and
+migration file exist, but production migration apply, holder snapshot writes,
+external fetch, and holder snapshot read/write CLIs remain unimplemented.
 
 ## Non-goals
 
 - No external API fetch.
 - No on-chain fetch.
 - No production DB write.
-- No schema or migration change.
+- No production migration apply without a separate Red task.
 - No trading, position sizing, exit, or profit guidance.
 - No Telegram send.
 - No queue, scheduler, systemd, checkpoint, `--write`, or `--watch` operation.
@@ -236,14 +237,13 @@ Cons:
 - Harder to compare historical holder state with later outcomes.
 
 Current preference: start with an external read-only report or temp-DB-tested
-safe summary before adding persistent production storage. Do not choose final
-storage until a source and field contract are fixed.
+safe summary before production persistence. The first persistent storage path is
+the `HolderSnapshot` model after schema-file rehearsal and separate Red
+production migration approval.
 
-The source contract now fixes the parser-facing safe summary type, but it still
-does not choose final storage. A future task may compare external report only,
-`Token.entrySnapshot.holderDistribution`, `Metric.rawJson` safe summary, and a
-future `HolderSnapshot` model after parser behavior is tested against temp
-SQLite fixtures.
+The source contract fixes the parser-facing safe summary type. The storage
+decision now keeps external report only as the immediate pre-production path and
+uses `HolderSnapshot` as the first persistent candidate after migration approval.
 
 ## Storage Decision Matrix
 
@@ -268,8 +268,9 @@ Use a two-stage path:
    distribution is a repeated risk observation, not a Token thesis field and
    not a market Metric payload.
 
-This task does not implement the model and does not change
-`prisma/schema.prisma`.
+The model has now been added to `prisma/schema.prisma` and an additive
+migration file has been created, but it has not been applied to production
+`prisma/dev.db`.
 
 ## First Persistent Storage Candidate
 
@@ -341,8 +342,10 @@ task must define:
 
 ## HolderSnapshot Model Proposal
 
-This is a proposal only. It is not implemented in `prisma/schema.prisma`, and
-no migration exists yet.
+This proposal is now reflected in `prisma/schema.prisma` and
+`prisma/migrations/20260515000100_add_holder_snapshot/migration.sql`. The
+production DB has not been migrated, and `holder:snapshot:add` /
+`holder:snapshot:show` are still not implemented.
 
 ### Proposed Prisma Model Sketch
 
@@ -478,12 +481,13 @@ parsed safe summary fields and must enforce:
 
 ### Migration Boundary
 
-Schema change and migration application are not part of this Yellow design.
-Future work must keep these steps separate:
+Schema-file creation and production migration application must stay separate:
 
 - Yellow schema proposal refinement may edit docs only.
-- Red schema task may edit `prisma/schema.prisma` and create a migration after
-  explicit approval.
+- The schema-file rehearsal task may edit `prisma/schema.prisma`, create the
+  migration file, and rehearse against a temp DB only.
+- Red production migration apply may apply the migration after backup and
+  read-only verification planning.
 - Red write task may run a one-token holder snapshot write only after migration,
   backup, rollback, and read-only verification are fixed.
 - External or on-chain fetch remains a separate Red task.
@@ -784,13 +788,12 @@ Stop before running or implementing the future commands if:
 
 ## HolderSnapshot Migration Rehearsal Plan
 
-This section plans future schema / migration work only. It does not change
-`prisma/schema.prisma`, does not add a migration file, and does not run a
-migration.
+This section records the schema-file rehearsal boundary. The schema file and
+migration file now exist, but production migration apply has not run.
 
 ### Future Schema Edit Scope
 
-The first schema edit should be strictly additive:
+The first schema edit is strictly additive:
 
 - add the `HolderSnapshot` model only;
 - add `Token.holderSnapshots HolderSnapshot[]` only;
@@ -862,8 +865,9 @@ D. Red one-token write rehearsal:
 
 ### Temp DB Migration Rehearsal
 
-Before production migration, rehearse against a temp SQLite DB. Future exact
-commands may differ, but the intent should be:
+Before production migration, rehearse against a temp SQLite DB. The schema-file
+task used this temp-only boundary; production `prisma/dev.db` was not migrated.
+Future exact commands may differ, but the intent should be:
 
 ```bash
 TMP_DIR="$(mktemp -d)"
@@ -889,6 +893,19 @@ Expected temp DB result:
 - row count is `0`;
 - no Token / Metric / Notification schema drift;
 - no data writes beyond migration metadata and empty schema objects.
+
+Schema-file rehearsal result:
+
+- migration file:
+  `prisma/migrations/20260515000100_add_holder_snapshot/migration.sql`;
+- temp DB migration deploy passed;
+- temp DB `PRAGMA table_info('HolderSnapshot')` showed the expected safe
+  summary columns only;
+- temp DB `PRAGMA index_list('HolderSnapshot')` showed
+  `HolderSnapshot_tokenId_observedAt_idx` and
+  `HolderSnapshot_source_observedAt_idx`;
+- temp DB `SELECT COUNT(*) FROM HolderSnapshot` returned `0`;
+- production `prisma/dev.db` migration apply was not run.
 
 ### Production Migration Apply Boundary
 
@@ -1026,9 +1043,12 @@ Red tasks are required before:
    infer holder data, and does not reduce the persisted gap.
 4. Add a holder-source capture planner only after the source contract is known.
 5. Validate parser and safe-summary behavior with temp SQLite fixtures.
-6. Run a one-token Red rehearsal only after backup, exact command, and
+6. Apply the HolderSnapshot migration to production only in a separate Red task
+   with backup and read-only schema verification.
+7. Run a one-token Red rehearsal only after backup, exact command, and
    verification are fixed.
-7. Decide storage after the first source and safe summary shape are proven.
+8. Keep source fetch and holder snapshot CLI work separate from migration
+   apply.
 
 ## Next Implementation Step
 
@@ -1056,8 +1076,9 @@ review hints. Invalid raw payload / secret-like keys are rejected without
 printing their values.
 
 This parser and report foundation does not fetch, write production DB state,
-choose final storage, add schema, start queues, send Telegram, or introduce
-`--write` / `--watch`.
+write holder snapshot rows, start queues, send Telegram, or introduce `--write`
+/ `--watch`. The schema and migration file now exist, but production migration
+apply and holder snapshot CLIs remain future work.
 
 ## Stop Conditions
 

@@ -40,6 +40,7 @@ model Token {
   devId            Int?
   dev              Dev?     @relation(fields: [devId], references: [id])
   metrics          Metric[]
+  holderSnapshots  HolderSnapshot[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -72,6 +73,34 @@ model Metric {
   rawJson       Json?
 
   @@index([tokenId, observedAt])
+}
+
+model HolderSnapshot {
+  id                      Int      @id @default(autoincrement())
+  tokenId                 Int
+  token                   Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  source                  String
+  observedAt              DateTime
+
+  topHolderPct            Float?
+  top10HolderPct          Float?
+  holderCount             Int?
+  freshWalletCount        Int?
+
+  bundlerSignal           String
+  sameFundingOriginSignal String
+  lpWalletExcluded        Boolean?
+
+  confidence              String
+  rawFree                 Boolean
+  secretFree              Boolean
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([tokenId, observedAt])
+  @@index([source, observedAt])
 }
 
 model Notification {

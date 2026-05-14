@@ -2618,20 +2618,20 @@ Manual retry closeout:
   are not printed. It does not fetch, write production DB state, add schema,
   send Telegram, start queue / scheduler / systemd / checkpoint, or enable
   `--write` / `--watch`.
-- Holder distribution storage remains design-only. The immediate MVP storage
-  path is still external report only, and the first persistent candidate is a
-  future `HolderSnapshot` model after Red approval. `Token.entrySnapshot` is
-  deferred because it is weak for repeated source-labeled holder snapshots;
-  `Metric.rawJson` is deferred because holder distribution should not become a
-  market Metric payload bucket. No schema, migration, or production write has
-  been added for holder snapshots.
-- The future `HolderSnapshot` schema proposal is docs-only. It sketches a
-  Token relation, safe summary scalar fields, `source`, `observedAt`,
+- Holder distribution production storage remains unapplied. The immediate MVP
+  storage path is still external report only, and the first persistent
+  candidate is `HolderSnapshot` after Red production migration approval.
+  `Token.entrySnapshot` is deferred because it is weak for repeated
+  source-labeled holder snapshots; `Metric.rawJson` is deferred because holder
+  distribution should not become a market Metric payload bucket.
+- `HolderSnapshot` now exists in `prisma/schema.prisma`, with the additive
+  migration file
+  `prisma/migrations/20260515000100_add_holder_snapshot/migration.sql`. It adds
+  a Token relation, safe summary scalar fields, `source`, `observedAt`,
   `confidence`, `rawFree`, `secretFree`, and indexes for token history and
   source audit. It does not add a first unique constraint and does not include
-  raw payload / rawJson / wallet-list columns. Red work is still required for
-  schema edit, migration, backup, one-token write command, inserted-row
-  rollback, and read-only verification.
+  raw payload / rawJson / wallet-list columns. Production `prisma/dev.db`
+  migration apply has not run, and no holder snapshot rows have been written.
 - Future holder snapshot CLI contracts are docs-only:
   `holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>` is the
   future one-row Red write command, and `holder:snapshot:show -- --mint <MINT>
@@ -2639,11 +2639,13 @@ Manual retry closeout:
   validate with `holder:safe-summary:report` / `parseHolderDistributionSafeSummary`,
   update no Token / Metric / Notification rows, perform no fetch or Telegram
   send, and return `holderSnapshotId` for rollback. Neither command exists yet.
-- HolderSnapshot migration rehearsal is now planned docs-only. Future work is
-  split into schema-file/migration creation, Red production migration apply,
-  Yellow CLI implementation with temp SQLite tests, and Red one-token write
-  rehearsal. The production migration apply requires backup, clean HEAD /
-  origin state, additive SQL only, temp DB rehearsal, read-only PRAGMA checks,
+- HolderSnapshot schema-file rehearsal has passed on a temp SQLite DB. Temp
+  migration deploy / validate / generate / status passed; PRAGMA checks
+  confirmed the `HolderSnapshot` table, both expected indexes, and
+  `HolderSnapshot` count `0`. Future work is split into Red production
+  migration apply, Yellow CLI implementation with temp SQLite tests, and Red
+  one-token write rehearsal. The production migration apply requires backup,
+  clean HEAD / origin state, additive SQL only, read-only PRAGMA checks,
   `HolderSnapshot` count `0`, no holder snapshot write in the same task, and no
   `pnpm smoke`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
