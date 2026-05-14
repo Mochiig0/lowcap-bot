@@ -54,6 +54,7 @@ async function seedToken(
     source?: string;
     scoreRank?: string;
     withMetric?: boolean;
+    withHolderSnapshot?: boolean;
     reviewFlagsJson?: Prisma.InputJsonValue | null;
     entrySnapshot?: Prisma.InputJsonValue | null;
   },
@@ -96,18 +97,41 @@ async function seedToken(
       },
     });
   }
+
+  if (input.withHolderSnapshot) {
+    await client.holderSnapshot.create({
+      data: {
+        tokenId: token.id,
+        source: "manual_holder_review",
+        observedAt: new Date(input.createdAt.getTime() + 120_000),
+        topHolderPct: null,
+        top10HolderPct: null,
+        holderCount: null,
+        freshWalletCount: null,
+        bundlerSignal: "unknown",
+        sameFundingOriginSignal: "unknown",
+        lpWalletExcluded: null,
+        confidence: "low",
+        rawFree: true,
+        secretFree: true,
+      },
+    });
+  }
 }
 
 function counts(client: PrismaClient): Promise<{
   token: number;
   metric: number;
+  holderSnapshot: number;
 }> {
   return Promise.all([
     client.token.count(),
     client.metric.count(),
-  ]).then(([token, metric]) => ({
+    client.holderSnapshot.count(),
+  ]).then(([token, metric, holderSnapshot]) => ({
     token,
     metric,
+    holderSnapshot,
   }));
 }
 
@@ -189,6 +213,8 @@ test("holder distribution gap plan extracts read-only candidates and priority re
     assert.equal(report.selection.totalScanned, 4);
     assert.equal(report.selection.totalMatched, 4);
     assert.equal(report.summary.holderDistributionMissingCount, 4);
+    assert.equal(report.summary.holderSnapshotPresentCount, 0);
+    assert.equal(report.summary.holderSnapshotMissingCount, 4);
     assert.equal(report.summary.metricPresentCount, 1);
     assert.equal(report.summary.manualObservationPresentCount, 1);
     assert.equal(report.summary.communityReviewedCount, 2);
@@ -235,6 +261,54 @@ test("holder distribution gap plan extracts read-only candidates and priority re
       byMint.get("HolderGapSourceOnly111111111111pump")?.priorityReason,
       "holder_gap_source_design_needed",
     );
+  });
+});
+
+test("holder distribution gap plan excludes tokens with persisted HolderSnapshot", async () => {
+  await withTempDb(async ({ client }) => {
+    const now = new Date("2026-05-10T00:00:00.000Z");
+    await seedToken(client, {
+      mint: "HolderGapPersisted11111111111111pump",
+      createdAt: new Date("2026-05-09T23:00:00.000Z"),
+      scoreRank: "B",
+      withHolderSnapshot: true,
+    });
+    await seedToken(client, {
+      mint: "HolderGapStillMissing1111111111pump",
+      createdAt: new Date("2026-05-09T22:00:00.000Z"),
+      scoreRank: "B",
+    });
+
+    const before = await counts(client);
+    const report = await buildHolderDistributionGapPlan(
+      client,
+      {
+        limit: 10,
+        sinceHours: 48,
+        pumpOnly: true,
+        rank: "B",
+      },
+      { now },
+    );
+    const after = await counts(client);
+
+    assert.deepEqual(after, before);
+    assert.equal(report.selection.totalScanned, 2);
+    assert.equal(report.selection.totalMatched, 1);
+    assert.equal(report.summary.holderSnapshotPresentCount, 1);
+    assert.equal(report.summary.holderSnapshotMissingCount, 1);
+    assert.equal(report.summary.holderDistributionMissingCount, 1);
+    assert.equal(report.items.length, 1);
+    assert.equal(report.items[0]?.mint, "HolderGapStillMissing1111111111pump");
+    assert.equal(report.items[0]?.holderDistributionGapPresent, true);
+    assert.equal(report.items[0]?.suggestedCommand, null);
+
+    const serialized = JSON.stringify(report);
+    assert.doesNotMatch(serialized, /buySignal/);
+    assert.doesNotMatch(serialized, /shouldBuy/);
+    assert.doesNotMatch(serialized, /positionSize/);
+    assert.doesNotMatch(serialized, /exitDecision/);
+    assert.doesNotMatch(serialized, /rawJson/);
   });
 });
 

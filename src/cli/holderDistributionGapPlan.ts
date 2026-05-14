@@ -65,7 +65,7 @@ type HolderDistributionGapPlanItem = {
   communityState: CommunityState;
   manualObservationPresent: boolean;
   outcomeLabel: string;
-  holderDistributionGapPresent: true;
+  holderDistributionGapPresent: boolean;
   suggestedNextCapability: "holder_distribution_snapshot";
   sourcePlan: "read_only_design_first";
   suggestedCommand: null;
@@ -94,6 +94,8 @@ type HolderDistributionGapPlanReport = {
   };
   summary: {
     holderDistributionMissingCount: number;
+    holderSnapshotPresentCount: number;
+    holderSnapshotMissingCount: number;
     metricPresentCount: number;
     communityReviewedCount: number;
     manualObservationPresentCount: number;
@@ -361,12 +363,14 @@ function buildItem(token: {
   reviewFlagsJson: unknown;
   entrySnapshot: unknown;
   metrics: { observedAt: Date }[];
-  _count: { metrics: number };
+  holderSnapshots: { source: string }[];
+  _count: { metrics: number; holderSnapshots: number };
 }): HolderDistributionGapPlanItem {
   const communityState = getCommunityState(token.reviewFlagsJson);
   const manualObservation = extractManualObservation(token.entrySnapshot);
   const manualObservationPresent = manualObservation !== null;
   const metricCount = token._count.metrics;
+  const holderSnapshotPresent = token._count.holderSnapshots > 0;
   const priorityReason = classifyPriorityReason({
     metricCount,
     manualObservationPresent,
@@ -386,7 +390,7 @@ function buildItem(token: {
     communityState,
     manualObservationPresent,
     outcomeLabel: manualObservation?.outcomeLabel ?? "not_observed",
-    holderDistributionGapPresent: true,
+    holderDistributionGapPresent: !holderSnapshotPresent,
     suggestedNextCapability: "holder_distribution_snapshot",
     sourcePlan: "read_only_design_first",
     suggestedCommand: null,
@@ -396,23 +400,28 @@ function buildItem(token: {
 }
 
 function buildSummary(
-  items: HolderDistributionGapPlanItem[],
+  scannedItems: HolderDistributionGapPlanItem[],
+  matchedItems: HolderDistributionGapPlanItem[],
 ): HolderDistributionGapPlanReport["summary"] {
   return {
-    holderDistributionMissingCount: items.filter(
+    holderDistributionMissingCount: matchedItems.filter(
       (item) => item.holderDistributionGapPresent,
     ).length,
-    metricPresentCount: items.filter((item) => item.metricCount > 0).length,
-    communityReviewedCount: items.filter((item) =>
+    holderSnapshotPresentCount: scannedItems.filter(
+      (item) => !item.holderDistributionGapPresent,
+    ).length,
+    holderSnapshotMissingCount: matchedItems.length,
+    metricPresentCount: matchedItems.filter((item) => item.metricCount > 0).length,
+    communityReviewedCount: matchedItems.filter((item) =>
       hasCommunityContext(item.communityState),
     ).length,
-    manualObservationPresentCount: items.filter(
+    manualObservationPresentCount: matchedItems.filter(
       (item) => item.manualObservationPresent,
     ).length,
-    highPriorityCandidateCount: items.filter(
+    highPriorityCandidateCount: matchedItems.filter(
       (item) => item.priorityReason !== "holder_gap_source_design_needed",
     ).length,
-    sourcePlanOnlyCount: items.filter(
+    sourcePlanOnlyCount: matchedItems.filter(
       (item) => item.priorityReason === "holder_gap_source_design_needed",
     ).length,
   };
@@ -472,9 +481,24 @@ export async function buildHolderDistributionGapPlan(
           observedAt: true,
         },
       },
+      holderSnapshots: {
+        orderBy: [
+          {
+            observedAt: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+        take: 1,
+        select: {
+          source: true,
+        },
+      },
       _count: {
         select: {
           metrics: true,
+          holderSnapshots: true,
         },
       },
     },
@@ -504,7 +528,7 @@ export async function buildHolderDistributionGapPlan(
       totalScanned: scannedItems.length,
       totalMatched: matchedItems.length,
     },
-    summary: buildSummary(matchedItems),
+    summary: buildSummary(scannedItems, matchedItems),
     items,
   };
 }

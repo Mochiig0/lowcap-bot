@@ -2660,6 +2660,18 @@ Manual retry closeout:
   HolderSnapshot integration is future Yellow work. No external fetch,
   on-chain fetch, Telegram, queue / scheduler / systemd / checkpoint,
   `--write` / `--watch`, or `pnpm smoke` ran in the write rehearsal.
+- `token:observation` and `holder:gaps:plan` now read persisted
+  `HolderSnapshot` rows. The rehearsal mint
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` now shows
+  `holderDistributionSnapshot.holderSnapshotId=1` in `token:observation`, no
+  longer carries `holder_distribution_not_recorded`, and keeps
+  `holder_distribution_values_unknown` / `holder_distribution_manual_review_only`
+  because the fixture intentionally stored unknown holder values. The same mint
+  is no longer re-proposed by `holder:gaps:plan`; the planner reports
+  `holderSnapshotPresentCount=1`. Production `HolderSnapshot` count remains
+  `1`. This was read-only integration only: no production write, fetch,
+  Telegram, queue / scheduler / systemd / checkpoint, `--write` / `--watch`, or
+  `pnpm smoke`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

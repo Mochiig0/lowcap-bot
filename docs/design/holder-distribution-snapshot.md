@@ -1070,7 +1070,9 @@ Red tasks are required before:
    by temp SQLite tests.
 8. The first production one-token Red rehearsal has written one manual
    safe-summary `HolderSnapshot` row.
-9. Keep source fetch and holder snapshot CLI work separate from migration
+9. `token:observation` and `holder:gaps:plan` read persisted HolderSnapshot
+   rows without production writes.
+10. Keep source fetch and holder snapshot CLI work separate from migration
    apply.
 
 ## Next Implementation Step
@@ -1132,9 +1134,20 @@ The rehearsal was storage / parser / show-path validation only. It did not use
 external fetch, on-chain fetch, Telegram, queue, scheduler, systemd, checkpoint,
 `--write`, `--watch`, or `pnpm smoke`, and it is not a buy signal.
 
-The next step is a Yellow reader integration task so holder observation and gap
-planning can account for persisted `HolderSnapshot` rows. Source fetch remains
-a separate future task.
+The reader integration is now implemented:
+
+- `token:observation` exposes `holderDistributionSnapshot` safe fields for the
+  latest persisted row;
+- `holder_distribution_not_recorded` is removed when a HolderSnapshot exists;
+- null / unknown manual fixture rows keep review gaps
+  `holder_distribution_values_unknown` and
+  `holder_distribution_manual_review_only`;
+- `holder:gaps:plan` excludes tokens with persisted HolderSnapshot rows and
+  reports `holderSnapshotPresentCount`;
+- production read-only verification confirmed HolderSnapshot count remains `1`.
+
+The next step is a separate source-capture design / rehearsal task if a real
+holder source should be tried. Source fetch remains a separate future task.
 
 ## Stop Conditions
 
@@ -1150,8 +1163,10 @@ Stop before implementation if:
 
 ## Relation To Existing Reports
 
-`token:observation` should continue to show holder distribution as
-`not_observed` until a safe holder snapshot exists.
+`token:observation` should show holder distribution as `not_observed` until a
+safe holder snapshot exists. Once a safe snapshot exists, it should show only
+the persisted safe summary fields and keep any unknown-value review gaps
+separate from trading guidance.
 
 `tokens:observation-gaps` should continue to surface
 `holder_distribution_not_recorded` and point to `holder_distribution_snapshot`

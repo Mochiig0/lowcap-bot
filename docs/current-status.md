@@ -251,6 +251,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `1116 / 191 / 6`; HolderSnapshot count moved `0 -> 1`. The row is review
   context only, not a buy signal. `holder:gaps:plan` still reports the holder
   gap because persisted HolderSnapshot integration is future Yellow work.
+- `token:observation` and `holder:gaps:plan` now read persisted
+  `HolderSnapshot` rows. For
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, `token:observation` shows
+  `holderDistributionSnapshot` with `holderSnapshotId=1`, removes
+  `holder_distribution_not_recorded`, and keeps
+  `holder_distribution_values_unknown` / `holder_distribution_manual_review_only`
+  because the rehearsal fixture intentionally stored `null` / `unknown` holder
+  values. `holder:gaps:plan` no longer re-proposes that token and reports
+  `holderSnapshotPresentCount=1`; production `HolderSnapshot` count remains
+  `1`. This read-only integration did not write production DB state, fetch
+  holder data, send Telegram, or introduce trading guidance.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

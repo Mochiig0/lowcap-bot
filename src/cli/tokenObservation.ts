@@ -49,6 +49,22 @@ type CommunitySnapshot = {
   source: "reviewFlagsJson" | ObservationState;
 };
 
+type HolderDistributionSnapshot = {
+  holderSnapshotId: number;
+  source: string;
+  observedAt: string;
+  topHolderPct: number | null;
+  top10HolderPct: number | null;
+  holderCount: number | null;
+  freshWalletCount: number | null;
+  bundlerSignal: string;
+  sameFundingOriginSignal: string;
+  lpWalletExcluded: boolean | null;
+  confidence: string;
+  rawFree: boolean;
+  secretFree: boolean;
+} | null;
+
 export type TokenObservationReport = {
   status: ObservationReportStatus;
   mode: "read_only_token_observation_report";
@@ -76,13 +92,14 @@ export type TokenObservationReport = {
   };
   manualObservation: ManualObservationView | null;
   communitySnapshot: CommunitySnapshot;
+  holderDistributionSnapshot: HolderDistributionSnapshot;
   riskSnapshot: {
     hardRejected: boolean | null;
     hardRejectReason: string | null;
     scoreRank: string | null;
     scoreTotal: number | null;
-    topHolderPct: ObservationState;
-    holderDistribution: ObservationState;
+    topHolderPct: number | ObservationState;
+    holderDistribution: "present" | ObservationState;
     liquidityRisk: ObservationState;
     scamSurface: ObservationState;
   };
@@ -335,7 +352,19 @@ function buildObservationGaps(input: {
   hasNotifications: boolean;
   reviewFlags: ReviewFlagsView | null;
   manualObservation: ManualObservationView | null;
+  holderDistributionSnapshot: HolderDistributionSnapshot;
 }): string[] {
+  const holderValuesKnown = Boolean(
+    input.holderDistributionSnapshot &&
+      (input.holderDistributionSnapshot.topHolderPct !== null ||
+        input.holderDistributionSnapshot.top10HolderPct !== null ||
+        input.holderDistributionSnapshot.holderCount !== null ||
+        input.holderDistributionSnapshot.freshWalletCount !== null ||
+        input.holderDistributionSnapshot.bundlerSignal !== "unknown" ||
+        input.holderDistributionSnapshot.sameFundingOriginSignal !== "unknown" ||
+        input.holderDistributionSnapshot.lpWalletExcluded !== null),
+  );
+
   return [
     ...(hasManualNarrativeCategory(input.manualObservation)
       ? []
@@ -344,7 +373,15 @@ function buildObservationGaps(input: {
     ...(hasManualThesis(input.manualObservation) ? [] : ["thesis_not_recorded"]),
     ...(hasCommunityLinks(input.reviewFlags) ? [] : ["community_links_not_recorded"]),
     ...(input.reviewFlags?.descriptionPresent === true ? [] : ["description_not_recorded"]),
-    "holder_distribution_not_recorded",
+    ...(input.holderDistributionSnapshot
+      ? []
+      : ["holder_distribution_not_recorded"]),
+    ...(input.holderDistributionSnapshot && !holderValuesKnown
+      ? ["holder_distribution_values_unknown"]
+      : []),
+    ...(input.holderDistributionSnapshot?.source === "manual_holder_review"
+      ? ["holder_distribution_manual_review_only"]
+      : []),
     "market_condition_not_recorded",
     ...(hasManualOutcomeLabel(input.manualObservation)
       ? []
@@ -359,6 +396,7 @@ function buildNextReviewHints(input: {
   hasNotifications: boolean;
   reviewFlags: ReviewFlagsView | null;
   manualObservation: ManualObservationView | null;
+  holderDistributionSnapshot: HolderDistributionSnapshot;
 }): string[] {
   return [
     ...(hasManualNarrativeCategory(input.manualObservation)
@@ -368,6 +406,9 @@ function buildNextReviewHints(input: {
       ? []
       : ["capture watch or skip thesis manually"]),
     ...(hasCommunityLinks(input.reviewFlags) ? [] : ["add community URL if known"]),
+    ...(input.holderDistributionSnapshot
+      ? ["review persisted holder snapshot context"]
+      : ["plan holder distribution snapshot separately"]),
     ...(input.hasMetrics ? ["review latest metric context"] : ["append follow-up metric when approved"]),
     ...(input.hasNotifications ? ["review notification delivery state"] : ["capture notification state if a future event qualifies"]),
     ...(hasManualOutcomeLabel(input.manualObservation)
@@ -391,6 +432,7 @@ function buildNotFoundReport(mint: string): TokenObservationReport {
     },
     manualObservation: null,
     communitySnapshot: buildCommunitySnapshot(null),
+    holderDistributionSnapshot: null,
     riskSnapshot: {
       hardRejected: null,
       hardRejectReason: null,
@@ -420,6 +462,7 @@ function buildNotFoundReport(mint: string): TokenObservationReport {
       hasNotifications: false,
       reviewFlags: null,
       manualObservation: null,
+      holderDistributionSnapshot: null,
     }),
     nextReviewHints: [
       "confirm mint before creating observation state",
@@ -536,9 +579,36 @@ export async function buildTokenObservationReport(
           rawJson: true,
         },
       },
+      holderSnapshots: {
+        orderBy: [
+          {
+            observedAt: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+        take: 1,
+        select: {
+          id: true,
+          source: true,
+          observedAt: true,
+          topHolderPct: true,
+          top10HolderPct: true,
+          holderCount: true,
+          freshWalletCount: true,
+          bundlerSignal: true,
+          sameFundingOriginSignal: true,
+          lpWalletExcluded: true,
+          confidence: true,
+          rawFree: true,
+          secretFree: true,
+        },
+      },
       _count: {
         select: {
           metrics: true,
+          holderSnapshots: true,
         },
       },
     },
@@ -609,6 +679,24 @@ export async function buildTokenObservationReport(
   const hasNotifications = notificationCount > 0;
   const reviewFlags = extractReviewFlags(token.reviewFlagsJson);
   const manualObservation = extractManualObservation(token.entrySnapshot);
+  const latestHolderSnapshot = token.holderSnapshots[0] ?? null;
+  const holderDistributionSnapshot: HolderDistributionSnapshot = latestHolderSnapshot
+    ? {
+      holderSnapshotId: latestHolderSnapshot.id,
+      source: latestHolderSnapshot.source,
+      observedAt: latestHolderSnapshot.observedAt.toISOString(),
+      topHolderPct: latestHolderSnapshot.topHolderPct,
+      top10HolderPct: latestHolderSnapshot.top10HolderPct,
+      holderCount: latestHolderSnapshot.holderCount,
+      freshWalletCount: latestHolderSnapshot.freshWalletCount,
+      bundlerSignal: latestHolderSnapshot.bundlerSignal,
+      sameFundingOriginSignal: latestHolderSnapshot.sameFundingOriginSignal,
+      lpWalletExcluded: latestHolderSnapshot.lpWalletExcluded,
+      confidence: latestHolderSnapshot.confidence,
+      rawFree: latestHolderSnapshot.rawFree,
+      secretFree: latestHolderSnapshot.secretFree,
+    }
+    : null;
 
   return {
     status: "ok",
@@ -637,13 +725,14 @@ export async function buildTokenObservationReport(
     },
     manualObservation,
     communitySnapshot: buildCommunitySnapshot(reviewFlags),
+    holderDistributionSnapshot,
     riskSnapshot: {
       hardRejected: token.hardRejected,
       hardRejectReason: token.hardRejectReason,
       scoreRank: token.scoreRank,
       scoreTotal: token.scoreTotal,
-      topHolderPct: "not_observed",
-      holderDistribution: "not_observed",
+      topHolderPct: holderDistributionSnapshot?.topHolderPct ?? "not_observed",
+      holderDistribution: holderDistributionSnapshot ? "present" : "not_observed",
       liquidityRisk: "not_observed",
       scamSurface: "not_observed",
     },
@@ -700,12 +789,14 @@ export async function buildTokenObservationReport(
       hasNotifications,
       reviewFlags,
       manualObservation,
+      holderDistributionSnapshot,
     }),
     nextReviewHints: buildNextReviewHints({
       hasMetrics,
       hasNotifications,
       reviewFlags,
       manualObservation,
+      holderDistributionSnapshot,
     }),
     safetyBoundary: {
       reviewOnly: true,

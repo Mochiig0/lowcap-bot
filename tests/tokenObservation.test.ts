@@ -225,6 +225,82 @@ test("token observation report reflects reviewFlagsJson as community snapshot", 
   });
 });
 
+test("token observation report reflects latest HolderSnapshot and clears not recorded gap", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "ObservationHolderSnapshot11111111111pump";
+    await seedToken(client, {
+      mint,
+      withMetric: true,
+      withNotification: false,
+    });
+    const token = await client.token.findUniqueOrThrow({
+      where: {
+        mint,
+      },
+      select: {
+        id: true,
+      },
+    });
+    await client.holderSnapshot.create({
+      data: {
+        tokenId: token.id,
+        source: "manual_holder_review",
+        observedAt: new Date("2026-05-15T00:00:00.000Z"),
+        topHolderPct: null,
+        top10HolderPct: null,
+        holderCount: null,
+        freshWalletCount: null,
+        bundlerSignal: "unknown",
+        sameFundingOriginSignal: "unknown",
+        lpWalletExcluded: null,
+        confidence: "low",
+        rawFree: true,
+        secretFree: true,
+      },
+    });
+
+    const before = {
+      token: await client.token.count(),
+      metric: await client.metric.count(),
+      notification: await client.notification.count(),
+      holderSnapshot: await client.holderSnapshot.count(),
+    };
+    const report = await buildTokenObservationReport(client, mint);
+    const after = {
+      token: await client.token.count(),
+      metric: await client.metric.count(),
+      notification: await client.notification.count(),
+      holderSnapshot: await client.holderSnapshot.count(),
+    };
+
+    assert.deepEqual(after, before);
+    assert.equal(report.holderDistributionSnapshot?.source, "manual_holder_review");
+    assert.equal(report.holderDistributionSnapshot?.observedAt, "2026-05-15T00:00:00.000Z");
+    assert.equal(report.holderDistributionSnapshot?.topHolderPct, null);
+    assert.equal(report.holderDistributionSnapshot?.top10HolderPct, null);
+    assert.equal(report.holderDistributionSnapshot?.holderCount, null);
+    assert.equal(report.holderDistributionSnapshot?.freshWalletCount, null);
+    assert.equal(report.holderDistributionSnapshot?.bundlerSignal, "unknown");
+    assert.equal(report.holderDistributionSnapshot?.sameFundingOriginSignal, "unknown");
+    assert.equal(report.holderDistributionSnapshot?.lpWalletExcluded, null);
+    assert.equal(report.holderDistributionSnapshot?.confidence, "low");
+    assert.equal(report.holderDistributionSnapshot?.rawFree, true);
+    assert.equal(report.holderDistributionSnapshot?.secretFree, true);
+    assert.equal(report.riskSnapshot.holderDistribution, "present");
+    assert.equal(report.riskSnapshot.topHolderPct, "not_observed");
+    assert.ok(!report.observationGaps.includes("holder_distribution_not_recorded"));
+    assert.ok(report.observationGaps.includes("holder_distribution_values_unknown"));
+    assert.ok(report.observationGaps.includes("holder_distribution_manual_review_only"));
+
+    const serialized = JSON.stringify(report);
+    assert.doesNotMatch(serialized, /buySignal/);
+    assert.doesNotMatch(serialized, /shouldBuy/);
+    assert.doesNotMatch(serialized, /positionSize/);
+    assert.doesNotMatch(serialized, /exitDecision/);
+    assert.doesNotMatch(serialized, /rawJson/);
+  });
+});
+
 test("manual token observation capture stores manualObservation without changing review flags", async () => {
   await withTempDb(async ({ client }) => {
     const mint = "ObservationManual111111111111111111111pump";
