@@ -2632,6 +2632,13 @@ Manual retry closeout:
   raw payload / rawJson / wallet-list columns. Red work is still required for
   schema edit, migration, backup, one-token write command, inserted-row
   rollback, and read-only verification.
+- Future holder snapshot CLI contracts are docs-only:
+  `holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>` is the
+  future one-row Red write command, and `holder:snapshot:show -- --mint <MINT>
+  [--limit <N>]` is the future read-only verifier. The write command must
+  validate with `holder:safe-summary:report` / `parseHolderDistributionSafeSummary`,
+  update no Token / Metric / Notification rows, perform no fetch or Telegram
+  send, and return `holderSnapshotId` for rollback. Neither command exists yet.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

@@ -585,6 +585,203 @@ Stop before schema or write implementation if:
   `--write`, or `--watch`;
 - the output starts to read like buy / sell / position / exit guidance.
 
+## Future Holder Snapshot CLI Contract
+
+This section defines future command contracts only. These commands are not
+implemented, are not listed in `package.json`, and must not be run until the
+schema / migration Red work has completed.
+
+### `holder:snapshot:add`
+
+Sketch:
+
+```bash
+pnpm holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>
+```
+
+Responsibility:
+
+- Red production DB write command.
+- Writes exactly one `HolderSnapshot` row.
+- Requires an exact `--mint`; no implicit candidate selection.
+- Requires one safe summary file; no batch default and no `items` array write.
+- Requires the target `Token` row to exist.
+- Validates the file with the same boundary as `holder:safe-summary:report` and
+  `parseHolderDistributionSafeSummary`.
+- Persists only validated safe summary scalar fields.
+- Returns the inserted `holderSnapshotId`.
+- Does not update `Token`, `Metric`, or `Notification`.
+- Does not fetch external API data or on-chain data.
+- Does not send Telegram.
+- Does not use queue, scheduler, systemd, checkpoint, `--watch`, or batch
+  execution.
+
+Input contract:
+
+- `--mint <MINT>` is required and must identify one existing Token.
+- `--file <SAFE_SUMMARY_FILE>` is required.
+- The file should contain one safe summary object or one `{ mint, summary }`
+  wrapper. If both CLI mint and file mint are present, they must match.
+- The parsed summary must have `rawFree=true` and `secretFree=true`.
+- Raw payload fields, wallet lists, `rawJson`, response bodies, request URLs
+  with secrets, `apiKey`, `token`, `chatId`, Telegram material, and env values
+  are rejected.
+
+Output shape proposal:
+
+```json
+{
+  "status": "ok",
+  "mode": "holder_snapshot_add_one",
+  "mint": "<MINT>",
+  "updated": true,
+  "holderSnapshotId": 1,
+  "source": "rugcheck.safe_summary",
+  "observedAt": "2026-05-10T00:00:00.000Z",
+  "rawFree": true,
+  "secretFree": true,
+  "safetyBoundary": {
+    "writeScope": "one_holder_snapshot_row",
+    "tokenUpdated": false,
+    "metricUpdated": false,
+    "notificationUpdated": false,
+    "externalFetch": false,
+    "telegramSend": false,
+    "queue": false,
+    "systemd": false
+  }
+}
+```
+
+Error output statuses:
+
+- `not_found`: the target Token does not exist; no write.
+- `invalid_safe_summary`: the file fails safe summary validation; no write.
+
+The error output must include issue text only, never raw payload values or
+secret values. The command must not include buy / sell / position / exit
+guidance.
+
+### `holder:snapshot:show`
+
+Sketch:
+
+```bash
+pnpm holder:snapshot:show -- --mint <MINT> [--limit <N>]
+```
+
+Responsibility:
+
+- Read-only command.
+- Requires exact `--mint`.
+- Returns the latest N holder snapshots for the token, ordered by
+  `observedAt desc`, then `id desc`.
+- Emits safe fields only.
+- Emits no raw payload, wallet list, raw response body, request URL, API key,
+  Telegram value, env value, or free-form raw JSON.
+- Provides review context only; no buy / sell / position / exit guidance.
+- Can be used after a Red rehearsal to verify the inserted holder snapshot.
+
+Output shape proposal:
+
+```json
+{
+  "status": "ok",
+  "mode": "read_only_holder_snapshot_show",
+  "mint": "<MINT>",
+  "count": 1,
+  "items": [
+    {
+      "holderSnapshotId": 1,
+      "source": "rugcheck.safe_summary",
+      "observedAt": "2026-05-10T00:00:00.000Z",
+      "topHolderPct": 12.5,
+      "top10HolderPct": 42.25,
+      "holderCount": 1234,
+      "freshWalletCount": 17,
+      "bundlerSignal": "low",
+      "sameFundingOriginSignal": "unknown",
+      "lpWalletExcluded": true,
+      "confidence": "medium",
+      "rawFree": true,
+      "secretFree": true,
+      "riskReviewHints": [
+        "review holder concentration manually",
+        "compare with later outcome",
+        "do not infer trading decision"
+      ]
+    }
+  ]
+}
+```
+
+Error output statuses:
+
+- `not_found`: the target Token does not exist.
+
+`holder:snapshot:show` must not mutate DB state and must not trigger any
+external fetch or notification.
+
+### Red Rehearsal Flow For Future Commands
+
+1. Select a target token with:
+   `pnpm holder:gaps:plan -- --limit <N> --pumpOnly`.
+2. Prepare a single safe summary fixture for the target mint.
+3. Validate the fixture with:
+   `pnpm holder:safe-summary:report -- --file <SAFE_SUMMARY_FILE>`.
+4. Confirm `validCount=1`, `invalidCount=0`, no raw payload / secret output,
+   and no buy / sell / position / exit guidance.
+5. Create a production DB backup.
+6. Run exactly one future write command:
+   `pnpm holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>`.
+7. Record `holderSnapshotId` from the output.
+8. Verify with:
+   `pnpm holder:snapshot:show -- --mint <MINT> --limit 5`.
+9. Confirm `rawFree=true`, `secretFree=true`, source / observedAt / fields
+   match the fixture, and no unsafe payload text appears.
+10. Confirm `Token`, `Metric`, and `Notification` were not updated by the
+   holder snapshot write.
+11. Treat `token:observation` holder snapshot integration and
+   `holder:gaps:plan` gap handling as future post-implementation work unless
+   those readers have already been updated.
+12. Update docs with the exact command, inserted id, verification result, and
+   rollback status.
+
+### Rollback Command Sketch
+
+If rollback is needed after the one-token rehearsal:
+
+```sql
+DELETE FROM HolderSnapshot WHERE id = <INSERTED_ID>;
+```
+
+Rollback rules:
+
+- Use the exact inserted `holderSnapshotId`.
+- Delete only that `HolderSnapshot` row.
+- Do not patch or delete `Token`, `Metric`, or `Notification`.
+- Do not run source-wide, mint-pattern, or broad cleanup SQL.
+- If schema migration rollback is needed, restore the pre-migration backup
+  instead of improvising destructive schema edits.
+
+### Future CLI Stop Conditions
+
+Stop before running or implementing the future commands if:
+
+- backup is missing;
+- schema is not aligned with the documented HolderSnapshot model;
+- target Token is not found;
+- safe summary validation fails;
+- the file contains raw payload, wallet list, `rawJson`, response body, request
+  URL with secrets, `apiKey`, `token`, `chatId`, Telegram material, or env
+  values;
+- the command would write more than one row;
+- the command would update `Token`, `Metric`, or `Notification`;
+- inserted `holderSnapshotId` is not available for rollback;
+- output starts to read like buy / sell / position / exit guidance;
+- implementation requires external fetch, on-chain fetch, Telegram, queue,
+  scheduler, systemd, checkpoint, `--watch`, or batch execution.
+
 ## Safety Boundaries
 
 - Persist only safe summary fields, never raw response bodies.

@@ -225,6 +225,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   unique constraint. Any schema edit, migration, write CLI, one-token Red
   rehearsal, rollback SQL, or read-only holder snapshot show command remains
   future work.
+- Future `holder:snapshot:add` and `holder:snapshot:show` command contracts are
+  now documented only. `holder:snapshot:add` is a future one-row Red write
+  command requiring exact `--mint` plus one safe summary file, with no batch
+  default, no fetch, no Token / Metric / Notification update, and an inserted
+  `holderSnapshotId` for rollback. `holder:snapshot:show` is the future
+  read-only verifier that returns latest safe holder snapshots only. Neither
+  command is implemented or listed in `package.json`.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
