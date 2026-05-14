@@ -262,6 +262,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `holderSnapshotPresentCount=1`; production `HolderSnapshot` count remains
   `1`. This read-only integration did not write production DB state, fetch
   holder data, send Telegram, or introduce trading guidance.
+- Holder distribution MVP loop is complete for storage / parser / write-path /
+  read-path validation: schema exists, production migration is applied, one
+  manual safe-summary row was written, `holder:snapshot:add` / show exist,
+  `token:observation` reads the latest snapshot, and `holder:gaps:plan` excludes
+  tokens with persisted snapshots. This does not complete real holder analysis:
+  the only production row is `holderSnapshotId=1` for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, with
+  `source=manual_holder_review`, holder values `null` / `unknown`, no external
+  fetch, no on-chain fetch, and no inferred holder data. Next-phase work must
+  stay source-specific and raw-free; do not jump to scheduler / queue / systemd,
+  unbounded on-chain crawl, raw provider JSON storage, or holder-derived buy
+  scoring.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

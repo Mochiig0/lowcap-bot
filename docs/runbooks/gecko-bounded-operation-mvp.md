@@ -2672,6 +2672,22 @@ Manual retry closeout:
   `1`. This was read-only integration only: no production write, fetch,
   Telegram, queue / scheduler / systemd / checkpoint, `--write` / `--watch`, or
   `pnpm smoke`.
+- Holder distribution MVP loop is complete only for storage / parser /
+  write-path / read-path validation. The completed loop is:
+  HolderSnapshot schema and production migration applied, `holder:snapshot:add`
+  / show implemented, one production manual safe-summary row written for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, `holderSnapshotId=1`,
+  `token:observation` reads that latest snapshot, and `holder:gaps:plan` no
+  longer re-proposes the same token. This is not real holder analysis and not
+  trading guidance: the current row is `source=manual_holder_review`, holder
+  values are `null` / `unknown`, and
+  `holder_distribution_values_unknown` /
+  `holder_distribution_manual_review_only` remain review gaps. External source
+  capture remains future work.
+- Next-phase shortcuts are forbidden: do not jump directly to scheduler /
+  queue / systemd, do not run an unbounded on-chain crawl, do not store raw
+  provider JSON, and do not turn holder state into a buy / sell / position /
+  exit signal.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

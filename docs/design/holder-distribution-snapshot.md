@@ -1149,6 +1149,54 @@ The reader integration is now implemented:
 The next step is a separate source-capture design / rehearsal task if a real
 holder source should be tried. Source fetch remains a separate future task.
 
+## MVP Loop Closeout
+
+The holder distribution MVP loop is complete for the narrow storage / parser /
+write-path / read-path goal:
+
+- HolderSnapshot schema was added.
+- Production migration was applied.
+- `holder:snapshot:add` and `holder:snapshot:show` were implemented.
+- One production Red rehearsal wrote exactly one HolderSnapshot row.
+- `token:observation` reads the latest persisted HolderSnapshot.
+- `holder:gaps:plan` excludes tokens that already have persisted
+  HolderSnapshot rows.
+- Production HolderSnapshot count is `1`.
+- The rehearsal target was
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`, with
+  `holderSnapshotId=1`.
+
+This closeout does not mean real holder analysis is complete. The current
+production row is a manual/static safe summary fixture:
+
+- `source=manual_holder_review`;
+- holder values are `null` / `unknown`;
+- no external API fetch was performed;
+- no on-chain fetch was performed;
+- no holder values were inferred;
+- `holder_distribution_values_unknown` and
+  `holder_distribution_manual_review_only` remain review gaps.
+
+The completed loop validates storage, parser, one-row write, and read-only
+reporting only. It is not buy / sell / position / exit guidance, and holder
+state must not become a trading score.
+
+Next-phase candidates:
+
+- Yellow: review one real holder source contract and endpoint boundary.
+- Yellow: add a source-specific raw-free mapper fixture.
+- Red: run one-source external safe-summary capture only after source,
+  endpoint, raw payload, and secret boundaries are approved.
+- Yellow: compare holder snapshots with later outcomes once more snapshots
+  exist.
+
+Forbidden shortcuts:
+
+- Do not jump directly to scheduler, queue, or systemd.
+- Do not run an unbounded on-chain holder crawl.
+- Do not store raw provider JSON.
+- Do not turn holder distribution into a buy signal.
+
 ## Stop Conditions
 
 Stop before implementation if:
