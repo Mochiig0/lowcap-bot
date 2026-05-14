@@ -2625,6 +2625,13 @@ Manual retry closeout:
   `Metric.rawJson` is deferred because holder distribution should not become a
   market Metric payload bucket. No schema, migration, or production write has
   been added for holder snapshots.
+- The future `HolderSnapshot` schema proposal is docs-only. It sketches a
+  Token relation, safe summary scalar fields, `source`, `observedAt`,
+  `confidence`, `rawFree`, `secretFree`, and indexes for token history and
+  source audit. It does not add a first unique constraint and does not include
+  raw payload / rawJson / wallet-list columns. Red work is still required for
+  schema edit, migration, backup, one-token write command, inserted-row
+  rollback, and read-only verification.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

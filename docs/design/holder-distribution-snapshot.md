@@ -339,6 +339,252 @@ task must define:
 - explicit confirmation that no buy/sell/position/exit guidance is introduced;
 - queue, scheduler, systemd, checkpoint, `--write`, and `--watch` boundaries.
 
+## HolderSnapshot Model Proposal
+
+This is a proposal only. It is not implemented in `prisma/schema.prisma`, and
+no migration exists yet.
+
+### Proposed Prisma Model Sketch
+
+```prisma
+model Token {
+  // existing fields...
+  holderSnapshots HolderSnapshot[]
+}
+
+model HolderSnapshot {
+  id                      Int      @id @default(autoincrement())
+  tokenId                 Int
+  token                   Token    @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  source                  String
+  observedAt              DateTime
+
+  topHolderPct            Float?
+  top10HolderPct          Float?
+  holderCount             Int?
+  freshWalletCount        Int?
+
+  bundlerSignal           String
+  sameFundingOriginSignal String
+  lpWalletExcluded        Boolean?
+
+  confidence              String
+  rawFree                 Boolean
+  secretFree              Boolean
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([tokenId, observedAt])
+  @@index([source, observedAt])
+}
+```
+
+Optional fields considered but deferred:
+
+- `schemaVersion`: useful if the safe summary contract changes, but not needed
+  while the first persistent model is gated by one validator version and docs.
+- `sourceRunId`: useful for batch provenance, but batch holder capture is not
+  admitted yet.
+- `note`: useful for manual context, but it risks mixing source facts with
+  operator narrative. Manual notes should stay outside the first persistent
+  holder snapshot unless a later contract makes them safe and source-labeled.
+
+### Field Definitions
+
+- `id`: row identity for rollback and read-only inspection.
+- `tokenId` / `token`: required relation to `Token`; `onDelete: Cascade`
+  follows existing `Metric` behavior and prevents orphan holder snapshots if a
+  token is intentionally deleted.
+- `source`: non-empty source label from `HolderDistributionSafeSummary`, such
+  as `rugcheck.safe_summary`, `manual_holder_review`, or
+  `external_holder_report`.
+- `observedAt`: source observation time parsed from the safe summary ISO
+  timestamp.
+- `topHolderPct` / `top10HolderPct`: nullable percentages, `0` through `100`.
+- `holderCount` / `freshWalletCount`: nullable non-negative integers.
+- `bundlerSignal` / `sameFundingOriginSignal`: safe summary enum strings
+  (`none`, `low`, `medium`, `high`, `unknown`). Keep as strings in the first
+  model to avoid adding database enum complexity in SQLite.
+- `lpWalletExcluded`: nullable boolean indicating whether the source explicitly
+  excluded LP / pool / program wallets from concentration fields.
+- `confidence`: source confidence string (`low`, `medium`, `high`, `unknown`),
+  not trading confidence.
+- `rawFree` / `secretFree`: literal true in accepted writes. These remain
+  columns so read-only verification can assert the persisted safety boundary.
+- `createdAt` / `updatedAt`: operational audit timestamps.
+
+No raw provider response body, wallet list, request URL, API key, Telegram
+value, free-form `rawJson`, or raw payload field belongs in this model.
+
+### Relation / Index / Constraint Decisions
+
+Relation:
+
+- Add `Token.holderSnapshots HolderSnapshot[]` when the model is implemented.
+- Keep holder snapshots separate from `Metric` and `Token.entrySnapshot` so
+  holder risk observations remain source-labeled and repeatable.
+
+Indexes:
+
+- `@@index([tokenId, observedAt])` supports token-level history and future
+  `holder:snapshot:show --mint <MINT>` style inspection.
+- `@@index([source, observedAt])` supports source-specific audit and bounded
+  source review.
+
+Unique constraints:
+
+- Do not add a unique constraint in the first proposal.
+- Rationale: repeated snapshots from the same source at the same reported
+  `observedAt` may need manual investigation during early Red rehearsals, and a
+  uniqueness failure would complicate one-token validation. Dedupe policy can
+  be added later after source behavior is known.
+- If needed later, consider a soft dedupe check in the write CLI before adding
+  a database uniqueness constraint.
+
+### Retention / Repeated Snapshot Policy
+
+The model is intentionally historical. Repeated snapshots are allowed because
+holder distribution changes over time and can be compared with later outcome
+evidence. The first Red rehearsal should write at most one row. Batch capture,
+retention pruning, and repeated scheduled capture remain out of scope until a
+separate operations design exists.
+
+Future retention policy candidates:
+
+- keep all one-token rehearsals until outcome review is complete;
+- cap repeated source snapshots per token only after real storage volume is
+  known;
+- never delete rows as automated cleanup without a specific Red-approved
+  rollback or retention task.
+
+### Validation Boundary
+
+Any future `HolderSnapshot` write must pass through
+`parseHolderDistributionSafeSummary` first. The write path may only persist the
+parsed safe summary fields and must enforce:
+
+- `rawFree === true`;
+- `secretFree === true`;
+- no raw wallet lists;
+- no raw response bodies;
+- no `rawJson`;
+- no request URL with secrets;
+- no `apiKey`, `token`, `chatId`, Telegram token, or env material;
+- `confidence` as source confidence only;
+- holder fields used as risk observation context only, never as buy / sell /
+  position / exit guidance.
+
+### Migration Boundary
+
+Schema change and migration application are not part of this Yellow design.
+Future work must keep these steps separate:
+
+- Yellow schema proposal refinement may edit docs only.
+- Red schema task may edit `prisma/schema.prisma` and create a migration after
+  explicit approval.
+- Red write task may run a one-token holder snapshot write only after migration,
+  backup, rollback, and read-only verification are fixed.
+- External or on-chain fetch remains a separate Red task.
+- Queue, scheduler, systemd, checkpoint, `--write`, and `--watch` remain
+  unapproved for holder snapshots.
+
+### Migration Risk
+
+Main risks:
+
+- adding a new relation to `Token` can affect generated Prisma Client types and
+  report queries;
+- migration must be tested against SQLite and production backup/restore flow;
+- future reports must not accidentally expose raw payload fields, although the
+  proposed model intentionally has no raw payload columns;
+- cascading delete behavior must be understood before any cleanup task touches
+  Token rows.
+
+Mitigations:
+
+- keep the first model narrow and safe-summary-only;
+- validate migration with `pnpm exec prisma validate` and temp DB migration
+  rehearsal before production;
+- verify read-only reports expose only safe fields;
+- keep rollback limited to `HolderSnapshot` rows created by the rehearsal.
+
+### Rollback Strategy
+
+Before any Red rehearsal:
+
+- create a production DB backup;
+- record the target mint;
+- record the expected safe summary fixture hash or file path;
+- record the future write command exactly.
+
+For a one-token rehearsal:
+
+- capture the inserted `HolderSnapshot.id`;
+- rollback SQL deletes only that `HolderSnapshot` row by `id`;
+- do not delete or patch `Token`, `Metric`, or `Notification`;
+- do not run broad cleanup by mint pattern or source pattern;
+- raw payload cleanup should be unnecessary because the parser gate prevents
+  raw payload persistence.
+
+Migration rollback is separate from row rollback. If the migration itself must
+be rolled back, restore from backup rather than improvising destructive schema
+edits.
+
+### One-Token Red Rehearsal Flow
+
+Future command names are sketches only and are not implemented yet.
+
+1. Use `pnpm holder:gaps:plan -- --limit <N> --pumpOnly` to choose one target
+   mint with `holder_distribution_not_recorded`.
+2. Prepare a static safe summary fixture for that mint.
+3. Run `pnpm holder:safe-summary:report -- --file <SAFE_SUMMARY_FILE>` and
+   confirm `validCount=1`, `invalidCount=0`, no raw payload / secret output,
+   and no trading guidance.
+4. Create a production DB backup.
+5. Run one future exact write command once, for example:
+   `pnpm holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>`.
+6. Record the inserted `HolderSnapshot.id`.
+7. Verify through read-only commands:
+   - future `pnpm holder:snapshot:show -- --mint <MINT>`;
+   - `pnpm token:observation -- --mint <MINT>` once it knows how to read holder
+     snapshots;
+   - `pnpm holder:gaps:plan -- --limit <N> --pumpOnly` once it knows how to
+     treat persisted holder snapshots.
+8. Confirm Token / Metric / Notification rows were not modified by the holder
+   snapshot write.
+9. Update docs with command, row id, verification output summary, and rollback
+   status.
+
+### Read-Only Verification Flow
+
+Future read-only verification should show:
+
+- target mint;
+- holder snapshot row id;
+- source and observedAt;
+- safe summary fields;
+- `rawFree=true`;
+- `secretFree=true`;
+- no raw payload, raw wallet list, request URL, API key, Telegram value, or
+  free-form raw JSON;
+- no buy / sell / position / exit guidance.
+
+### HolderSnapshot Stop Conditions
+
+Stop before schema or write implementation if:
+
+- the model needs a raw payload, raw response body, wallet list, request URL,
+  API key, token, chat id, or free-form raw JSON field;
+- parser output cannot map cleanly into scalar safe summary fields;
+- a source requires unbounded holder crawl or funding graph traversal before
+  the one-token rehearsal;
+- rollback cannot be limited to the new holder snapshot row;
+- verification would require Telegram, queue, scheduler, systemd, checkpoint,
+  `--write`, or `--watch`;
+- the output starts to read like buy / sell / position / exit guidance.
+
 ## Safety Boundaries
 
 - Persist only safe summary fields, never raw response bodies.

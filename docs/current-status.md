@@ -217,6 +217,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   source-labeled snapshots, and `Metric.rawJson` is deferred because holder
   distribution is not a market metric payload. No schema or migration has been
   added.
+- The `HolderSnapshot` schema proposal is now documented only. The proposed
+  future model relates to `Token`, stores only validated safe summary scalar
+  fields plus `source`, `observedAt`, `confidence`, `rawFree`, and `secretFree`,
+  and indexes `[tokenId, observedAt]` plus `[source, observedAt]`. The proposal
+  intentionally has no raw payload / rawJson / wallet-list columns and no first
+  unique constraint. Any schema edit, migration, write CLI, one-token Red
+  rehearsal, rollback SQL, or read-only holder snapshot show command remains
+  future work.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
