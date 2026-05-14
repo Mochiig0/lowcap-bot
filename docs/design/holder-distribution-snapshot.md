@@ -1043,6 +1043,7 @@ Yellow tasks may:
 - add read-only planner output explaining the holder snapshot route;
 - add temp SQLite tests for parser or report helpers;
 - inspect existing DB schema and docs;
+- implement holder snapshot commands with temp SQLite tests only;
 - produce human-gated command strings without executing them.
 
 Red tasks are required before:
@@ -1065,8 +1066,8 @@ Red tasks are required before:
 5. Validate parser and safe-summary behavior with temp SQLite fixtures.
 6. HolderSnapshot production migration has been applied once with backup and
    read-only schema verification.
-7. Implement read-only/write CLIs in a separate Yellow task with temp SQLite
-   tests before any production holder snapshot row write.
+7. `holder:snapshot:add` and `holder:snapshot:show` are implemented and covered
+   by temp SQLite tests. Production `holder:snapshot:add` has not been run.
 8. Run a one-token Red rehearsal only after backup, exact command, and
    verification are fixed.
 9. Keep source fetch and holder snapshot CLI work separate from migration
@@ -1097,10 +1098,23 @@ summary through the parser, and prints only safe summary fields, issue text, and
 review hints. Invalid raw payload / secret-like keys are rejected without
 printing their values.
 
-This parser and report foundation does not fetch, write production DB state,
-write holder snapshot rows, start queues, send Telegram, or introduce `--write`
-/ `--watch`. The schema and production migration now exist, but holder snapshot
-CLIs and row writes remain future work.
+`pnpm holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>` is now
+implemented as a one-row write CLI. It requires an exact mint, rejects batch
+`items` input, requires a raw safe summary object or `{ mint, summary }`, checks
+file mint mismatch, validates with `parseHolderDistributionSafeSummary`, writes
+exactly one `HolderSnapshot` row, and returns `holderSnapshotId` plus the safety
+boundary. It does not update Token / Metric / Notification, fetch external or
+on-chain data, send Telegram, start queue / scheduler / systemd, touch
+checkpoint, or use `--write` / `--watch`. Production add remains unrun.
+
+`pnpm holder:snapshot:show -- --mint <MINT> [--limit <N>]` is implemented as a
+read-only verifier. It returns latest safe holder snapshots ordered by
+`observedAt desc, id desc`, emits safe fields only, and includes review hints
+without buy / sell / position / exit guidance.
+
+The next step is a Red one-token holder snapshot write rehearsal with backup,
+one fixture, one exact add command, read-only show verification, and rollback id
+recording. Source fetch remains a separate future task.
 
 ## Stop Conditions
 

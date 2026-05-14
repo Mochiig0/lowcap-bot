@@ -2634,22 +2634,23 @@ Manual retry closeout:
   `confidence`, `rawFree`, `secretFree`, and indexes for token history and
   source audit. It does not add a first unique constraint and does not include
   raw payload / rawJson / wallet-list columns.
-- Future holder snapshot CLI contracts are docs-only:
+- Holder snapshot CLIs are implemented:
   `holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>` is the
-  future one-row Red write command, and `holder:snapshot:show -- --mint <MINT>
-  [--limit <N>]` is the future read-only verifier. The write command must
-  validate with `holder:safe-summary:report` / `parseHolderDistributionSafeSummary`,
-  update no Token / Metric / Notification rows, perform no fetch or Telegram
-  send, and return `holderSnapshotId` for rollback. Neither command exists yet.
+  one-row write command, and `holder:snapshot:show -- --mint <MINT> [--limit
+  <N>]` is the read-only verifier. The write command validates with
+  `parseHolderDistributionSafeSummary`, rejects batch `items` input, updates no
+  Token / Metric / Notification rows, performs no fetch or Telegram send, and
+  returns `holderSnapshotId` for rollback. It has been verified with temp
+  SQLite tests only; production `holder:snapshot:add` has not been run.
 - HolderSnapshot production migration apply has passed. `prisma migrate deploy`
   applied `20260515000100_add_holder_snapshot`; migration status is up to date;
   PRAGMA checks confirmed the `HolderSnapshot` table, both expected indexes,
   and `HolderSnapshot` count `0`. Token / Metric / Notification counts stayed
-  unchanged at `1116 / 191 / 6`. Future work is split into Yellow CLI
-  implementation with temp SQLite tests and Red one-token write rehearsal. No
+  unchanged at `1116 / 191 / 6`. The production `HolderSnapshot` row count
+  remains `0`. Future work is the Red one-token write rehearsal. No production
   holder snapshot write, external fetch, Telegram, queue / scheduler / systemd
-  / checkpoint, `--write` / `--watch`, or `pnpm smoke` ran in the migration
-  apply task.
+  / checkpoint, `--write` / `--watch`, or `pnpm smoke` ran in the CLI
+  implementation task.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

@@ -227,20 +227,20 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `secretFree`, and indexes `[tokenId, observedAt]` plus
   `[source, observedAt]`. It intentionally has no raw payload / rawJson /
   wallet-list columns and no first unique constraint.
-- Future `holder:snapshot:add` and `holder:snapshot:show` command contracts are
-  now documented only. `holder:snapshot:add` is a future one-row Red write
-  command requiring exact `--mint` plus one safe summary file, with no batch
-  default, no fetch, no Token / Metric / Notification update, and an inserted
-  `holderSnapshotId` for rollback. `holder:snapshot:show` is the future
-  read-only verifier that returns latest safe holder snapshots only. Neither
-  command is implemented or listed in `package.json`.
+- `pnpm holder:snapshot:add -- --mint <MINT> --file <SAFE_SUMMARY_FILE>` and
+  `pnpm holder:snapshot:show -- --mint <MINT> [--limit <N>]` are implemented.
+  `holder:snapshot:add` is a one-row write CLI requiring exact `--mint` plus
+  one safe summary file, with no batch default, no fetch, no Token / Metric /
+  Notification update, and an inserted `holderSnapshotId` for rollback.
+  `holder:snapshot:show` is the read-only verifier that returns latest safe
+  holder snapshots only. The add command has been verified with temp SQLite
+  tests only; production `holder:snapshot:add` has not been run.
 - The HolderSnapshot production migration apply has passed. `prisma migrate
   deploy` applied `20260515000100_add_holder_snapshot`; migration status is up
   to date; PRAGMA checks confirmed the `HolderSnapshot` table, the two expected
   indexes, and `HolderSnapshot` count `0`. Token / Metric / Notification counts
-  stayed unchanged at `1116 / 191 / 6`. `holder:snapshot:add` /
-  `holder:snapshot:show` are still unimplemented, and no holder snapshot row
-  write has run.
+  stayed unchanged at `1116 / 191 / 6`. The production `HolderSnapshot` row
+  count remains `0`; no production holder snapshot row write has run.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
