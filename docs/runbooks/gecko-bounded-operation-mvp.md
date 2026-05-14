@@ -2639,6 +2639,13 @@ Manual retry closeout:
   validate with `holder:safe-summary:report` / `parseHolderDistributionSafeSummary`,
   update no Token / Metric / Notification rows, perform no fetch or Telegram
   send, and return `holderSnapshotId` for rollback. Neither command exists yet.
+- HolderSnapshot migration rehearsal is now planned docs-only. Future work is
+  split into schema-file/migration creation, Red production migration apply,
+  Yellow CLI implementation with temp SQLite tests, and Red one-token write
+  rehearsal. The production migration apply requires backup, clean HEAD /
+  origin state, additive SQL only, temp DB rehearsal, read-only PRAGMA checks,
+  `HolderSnapshot` count `0`, no holder snapshot write in the same task, and no
+  `pnpm smoke`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

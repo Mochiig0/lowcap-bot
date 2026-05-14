@@ -782,6 +782,212 @@ Stop before running or implementing the future commands if:
 - implementation requires external fetch, on-chain fetch, Telegram, queue,
   scheduler, systemd, checkpoint, `--watch`, or batch execution.
 
+## HolderSnapshot Migration Rehearsal Plan
+
+This section plans future schema / migration work only. It does not change
+`prisma/schema.prisma`, does not add a migration file, and does not run a
+migration.
+
+### Future Schema Edit Scope
+
+The first schema edit should be strictly additive:
+
+- add the `HolderSnapshot` model only;
+- add `Token.holderSnapshots HolderSnapshot[]` only;
+- do not change existing `Token`, `Metric`, or `Notification` fields;
+- do not add raw payload, raw response body, wallet list, request URL, API key,
+  Telegram value, env value, `rawJson`, or free-form JSON columns;
+- do not add a unique constraint in the first migration;
+- do not implement `holder:snapshot:add` or `holder:snapshot:show` in the same
+  schema task.
+
+Expected model diff is the sketch in `HolderSnapshot Model Proposal`: one new
+model with safe summary scalar columns and two indexes:
+
+- `@@index([tokenId, observedAt])`;
+- `@@index([source, observedAt])`.
+
+Expected Token diff:
+
+```prisma
+holderSnapshots HolderSnapshot[]
+```
+
+### Migration File Naming
+
+Use a timestamped Prisma migration name that describes the additive change, for
+example:
+
+```text
+YYYYMMDDHHMMSS_add_holder_snapshot/
+```
+
+The generated SQL must be reviewed before production. It should create the
+`HolderSnapshot` table and indexes only. If the migration wants to drop,
+rewrite, or reset existing tables, stop.
+
+### Future Task Split
+
+A. Yellow or Red schema-file task:
+
+- edit `prisma/schema.prisma`;
+- create the migration file;
+- run validation and temp DB rehearsal;
+- do not run production `prisma migrate deploy`;
+- do not write holder snapshot data.
+
+B. Red production migration apply:
+
+- confirm expected HEAD / origin match and clean working tree;
+- create production DB backup;
+- run production migration apply;
+- run read-only schema verification;
+- confirm `HolderSnapshot` count is `0`;
+- do not run `holder:snapshot:add`.
+
+C. Yellow CLI implementation:
+
+- implement `holder:snapshot:add` and `holder:snapshot:show`;
+- use temp SQLite tests only;
+- do not write production DB state.
+
+D. Red one-token write rehearsal:
+
+- create production DB backup;
+- validate one safe summary fixture;
+- run the exact one-row write command once;
+- verify with `holder:snapshot:show`;
+- record inserted id and rollback status;
+- update docs.
+
+### Temp DB Migration Rehearsal
+
+Before production migration, rehearse against a temp SQLite DB. Future exact
+commands may differ, but the intent should be:
+
+```bash
+TMP_DIR="$(mktemp -d)"
+DATABASE_URL="file:$TMP_DIR/holder-snapshot-rehearsal.db" pnpm exec prisma migrate deploy
+DATABASE_URL="file:$TMP_DIR/holder-snapshot-rehearsal.db" pnpm exec prisma validate
+DATABASE_URL="file:$TMP_DIR/holder-snapshot-rehearsal.db" pnpm exec prisma generate
+DATABASE_URL="file:$TMP_DIR/holder-snapshot-rehearsal.db" pnpm exec prisma migrate status
+```
+
+Temp DB verification should inspect the schema only:
+
+```sql
+PRAGMA table_info('HolderSnapshot');
+PRAGMA index_list('HolderSnapshot');
+SELECT COUNT(*) FROM HolderSnapshot;
+```
+
+Expected temp DB result:
+
+- `HolderSnapshot` table exists;
+- expected columns exist;
+- expected indexes exist;
+- row count is `0`;
+- no Token / Metric / Notification schema drift;
+- no data writes beyond migration metadata and empty schema objects.
+
+### Production Migration Apply Boundary
+
+Production migration apply is Red-only. Preconditions:
+
+- expected HEAD and origin/master match;
+- working tree is clean;
+- production DB backup exists and path is recorded;
+- migration SQL has been reviewed as additive;
+- temp DB rehearsal has passed;
+- `pnpm exec prisma validate` passes;
+- `pnpm exec tsc --noEmit` passes;
+- no external fetch is needed;
+- no holder snapshot write command is part of the same task;
+- `pnpm smoke` is not part of the migration task.
+
+Future production apply command sketch:
+
+```bash
+pnpm exec prisma migrate deploy
+```
+
+Stop immediately if Prisma reports drift, reset requirement, destructive
+change, failed migration state, or any need to drop/recreate existing tables.
+
+### Post-Migration Verification
+
+After production migration apply, run read-only checks only:
+
+```bash
+pnpm exec prisma validate
+pnpm exec prisma generate
+pnpm exec tsc --noEmit
+pnpm exec prisma migrate status
+```
+
+Production DB schema checks:
+
+```sql
+PRAGMA table_info('HolderSnapshot');
+PRAGMA index_list('HolderSnapshot');
+SELECT COUNT(*) FROM HolderSnapshot;
+```
+
+Expected production result:
+
+- `HolderSnapshot` table exists;
+- expected indexes exist;
+- `HolderSnapshot` row count is `0`;
+- Token / Metric / Notification row counts are unchanged;
+- no holder snapshot write has run;
+- no raw payload or secret-bearing table/column exists.
+
+### Migration Rollback Plan
+
+Before production migration:
+
+- backup is mandatory;
+- backup path and file size should be recorded;
+- restore criteria should be written before apply.
+
+After migration apply but before data writes:
+
+- prefer backup restore if rollback is needed;
+- do not improvise destructive schema edits;
+- do not run broad cleanup SQL;
+- do not patch Token / Metric / Notification.
+
+After a later one-token holder snapshot write:
+
+- row rollback is separate and limited to:
+
+```sql
+DELETE FROM HolderSnapshot WHERE id = <INSERTED_ID>;
+```
+
+- use the inserted id from `holder:snapshot:add`;
+- do not delete by mint pattern, source pattern, or timestamp range;
+- do not edit Token / Metric / Notification.
+
+### Migration Rehearsal Stop Conditions
+
+Stop before schema edit, migration creation, or production apply if:
+
+- the change requires editing existing Token / Metric / Notification fields;
+- a raw payload / rawJson / wallet-list column seems necessary;
+- a unique constraint is needed to proceed;
+- generated SQL is not additive;
+- Prisma reports drift, reset, destructive change, or failed migration state;
+- temp DB rehearsal fails;
+- backup is missing before production apply;
+- post-migration verification cannot prove `HolderSnapshot` count is `0`;
+- rollback cannot be explained as backup restore before writes or
+  `HolderSnapshot.id` row delete after the later one-token write;
+- the task starts to include external fetch, holder snapshot write CLI
+  implementation, production data write, Telegram, queue, scheduler, systemd,
+  checkpoint, `--write`, `--watch`, or `pnpm smoke`;
+- output or docs start to read like buy / sell / position / exit guidance.
+
 ## Safety Boundaries
 
 - Persist only safe summary fields, never raw response bodies.

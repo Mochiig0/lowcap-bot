@@ -232,6 +232,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `holderSnapshotId` for rollback. `holder:snapshot:show` is the future
   read-only verifier that returns latest safe holder snapshots only. Neither
   command is implemented or listed in `package.json`.
+- The HolderSnapshot migration rehearsal plan is documented only. Future schema
+  work is split from production migration apply, CLI implementation, and
+  one-token write rehearsal. The first schema edit must be additive: add only
+  `HolderSnapshot` plus `Token.holderSnapshots`, no existing Token / Metric /
+  Notification field changes, no raw payload columns, and no first unique
+  constraint. Production migration apply remains Red-only with backup, temp DB
+  rehearsal, read-only PRAGMA checks, and `HolderSnapshot` count `0`.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
