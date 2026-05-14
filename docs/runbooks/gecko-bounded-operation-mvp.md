@@ -2610,6 +2610,14 @@ Manual retry closeout:
   Storage remains undecided, and the parser does not fetch, write production DB
   state, add schema, send Telegram, start queue / scheduler / systemd /
   checkpoint, or enable `--write` / `--watch`.
+- The holder safe-summary file report is
+  `pnpm holder:safe-summary:report -- --file <PATH>`. It is read-only and
+  validates static / manual / external report fixtures before any storage
+  decision. It emits valid / invalid counts, safe summary fields, sanitized
+  issue text, and review hints only; raw payload values and secret-like values
+  are not printed. It does not fetch, write production DB state, add schema,
+  send Telegram, start queue / scheduler / systemd / checkpoint, or enable
+  `--write` / `--watch`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

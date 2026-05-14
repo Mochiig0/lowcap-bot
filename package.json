@@ -31,6 +31,7 @@
     "community:gaps:plan": "node --import tsx src/cli/communityGapPlan.ts",
     "community:review": "node --import tsx src/cli/communityReview.ts",
     "holder:gaps:plan": "node --import tsx src/cli/holderDistributionGapPlan.ts",
+    "holder:safe-summary:report": "node --import tsx src/cli/holderSafeSummaryReport.ts",
     "logs:summary:geckoterminal:metaplex": "node ./scripts/summarize-geckoterminal-enrich-metaplex-log.mjs",
     "ops:summary:geckoterminal": "node --import tsx src/cli/geckoterminalOpsSummary.ts",
     "ops:catchup:gecko": "node --import tsx src/cli/geckoterminalCatchupSupervisor.ts",

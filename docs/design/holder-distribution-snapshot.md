@@ -305,9 +305,16 @@ The current tests use static fixtures only:
   unknown fields, invalid timestamps, empty source, raw wallet lists, raw
   response bodies, raw JSON, and secret-like keys.
 
-This parser foundation does not fetch, write production DB state, choose final
-storage, add schema, start queues, send Telegram, or introduce `--write` /
-`--watch`.
+`pnpm holder:safe-summary:report -- --file <PATH>` is the read-only file report
+for static safe-summary fixtures. It accepts either a single
+`{ mint, summary }` object or `{ items: [{ mint, summary }] }`, validates each
+summary through the parser, and prints only safe summary fields, issue text, and
+review hints. Invalid raw payload / secret-like keys are rejected without
+printing their values.
+
+This parser and report foundation does not fetch, write production DB state,
+choose final storage, add schema, start queues, send Telegram, or introduce
+`--write` / `--watch`.
 
 ## Stop Conditions
 

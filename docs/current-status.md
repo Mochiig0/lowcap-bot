@@ -202,6 +202,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   response-body / raw JSON keys, and secret-like keys such as API token or chat
   id fields. It does not fetch, write production DB state, choose final storage,
   add schema, or create a buy signal.
+- `pnpm holder:safe-summary:report -- --file <PATH>` is the read-only file
+  report for static / manual / external holder safe-summary fixtures. It reads
+  either one `{ mint, summary }` object or an `items` array, reports valid /
+  invalid counts, emits only safe summary fields plus sanitized issue text, and
+  rejects raw payload or secret-like keys without printing their values. It
+  does not fetch, write production DB state, choose schema/storage, or create a
+  buy signal.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
