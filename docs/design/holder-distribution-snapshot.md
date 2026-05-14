@@ -150,6 +150,10 @@ Validation rules:
 - `observedAt` must be an ISO timestamp string.
 - `confidence` is source confidence, not trading confidence.
 - `rawFree` and `secretFree` must be literal `true`.
+- Unknown extra fields must be rejected.
+- Dangerous raw-payload or secret-like keys must be rejected at any depth,
+  including `walletList`, `wallets`, `holders`, `topHolders`, `rawJson`,
+  `responseBody`, `requestUrl`, `apiKey`, `token`, and `chatId`.
 - Missing or ambiguous source fields must stay `null` or `unknown`; do not
   infer holder data from token metadata, community links, market metrics, or
   manual thesis text.
@@ -285,16 +289,25 @@ Red tasks are required before:
 
 ## Next Implementation Step
 
-Add temp SQLite parser tests for `HolderDistributionSafeSummary` using static
-fixtures only:
+`src/observation/holderDistributionSafeSummary.ts` now provides the
+parser-facing helper API for the fixed safe summary shape:
+
+- `parseHolderDistributionSafeSummary(input: unknown)`;
+- `isHolderDistributionSafeSummary(input: unknown)`;
+- `buildHolderDistributionSafeSummaryIssueList(input: unknown)`.
+
+The current tests use static fixtures only:
 
 - one Rugcheck-style safe-summary fixture with concentration and risk flags;
 - one manual holder review fixture with source-labeled operator values;
-- one invalid fixture that contains raw wallet lists or ambiguous percent
-  fields and must be rejected.
+- one external holder report fixture;
+- invalid fixtures for out-of-range percentages, invalid counts, unsafe flags,
+  unknown fields, invalid timestamps, empty source, raw wallet lists, raw
+  response bodies, raw JSON, and secret-like keys.
 
-This next step should not fetch, write production DB state, add schema, start
-queues, send Telegram, or introduce `--write` / `--watch`.
+This parser foundation does not fetch, write production DB state, choose final
+storage, add schema, start queues, send Telegram, or introduce `--write` /
+`--watch`.
 
 ## Stop Conditions
 

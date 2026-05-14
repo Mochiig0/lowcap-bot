@@ -2601,6 +2601,15 @@ Manual retry closeout:
   rehearsal only if raw payloads and wallet lists are not persisted; manual
   holder review or external report only remain fallback paths, while unbounded
   on-chain holder crawl and funding graph traversal remain deferred.
+- The holder safe-summary parser foundation is
+  `src/observation/holderDistributionSafeSummary.ts`, covered by static
+  fixture tests only. It accepts the fixed `HolderDistributionSafeSummary`
+  shape and rejects unknown extra fields, unsafe percent / count / timestamp
+  values, `rawFree=false`, `secretFree=false`, raw wallet-list keys, raw
+  response-body / raw JSON keys, and secret-like API token or chat id keys.
+  Storage remains undecided, and the parser does not fetch, write production DB
+  state, add schema, send Telegram, start queue / scheduler / systemd /
+  checkpoint, or enable `--write` / `--watch`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

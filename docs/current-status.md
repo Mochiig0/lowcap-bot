@@ -194,6 +194,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   manual holder review or external report only as fallback. Unbounded on-chain
   holder crawls and funding graph traversal remain deferred. This task did not
   fetch holder data, write DB state, add schema, or enable automation.
+- `src/observation/holderDistributionSafeSummary.ts` now provides the
+  `HolderDistributionSafeSummary` parser / validator foundation with static
+  fixture tests only. It accepts the fixed safe summary shape and rejects
+  unknown extra fields, invalid percentages / counts / timestamps, `rawFree` or
+  `secretFree` values other than literal `true`, raw wallet-list keys, raw
+  response-body / raw JSON keys, and secret-like keys such as API token or chat
+  id fields. It does not fetch, write production DB state, choose final storage,
+  add schema, or create a buy signal.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
