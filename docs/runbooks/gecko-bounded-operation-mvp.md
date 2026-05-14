@@ -2618,6 +2618,13 @@ Manual retry closeout:
   are not printed. It does not fetch, write production DB state, add schema,
   send Telegram, start queue / scheduler / systemd / checkpoint, or enable
   `--write` / `--watch`.
+- Holder distribution storage remains design-only. The immediate MVP storage
+  path is still external report only, and the first persistent candidate is a
+  future `HolderSnapshot` model after Red approval. `Token.entrySnapshot` is
+  deferred because it is weak for repeated source-labeled holder snapshots;
+  `Metric.rawJson` is deferred because holder distribution should not become a
+  market Metric payload bucket. No schema, migration, or production write has
+  been added for holder snapshots.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

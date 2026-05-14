@@ -245,6 +245,100 @@ does not choose final storage. A future task may compare external report only,
 future `HolderSnapshot` model after parser behavior is tested against temp
 SQLite fixtures.
 
+## Storage Decision Matrix
+
+| Storage candidate | repeated snapshots | source / observedAt / confidence | outcome analysis fit | schema / migration complexity | raw payload leakage risk | existing report integration | rollback / cleanup complexity | MVP suitability | Red task complexity |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Future `HolderSnapshot` model | strong: one token can have many source-labeled observations | strong: columns can make source, observedAt, confidence, rawFree, and secretFree explicit | strong: joins cleanly to Token and later Metric / outcome reports | high: requires schema, migration, indexes, and retention rules | low if only safe summary fields are stored and raw JSON is excluded | medium: reports need a new relation/read path | medium: row-level delete/rollback is clear but migration must be handled carefully | best first persistent candidate after Red approval | high |
+| `Token.entrySnapshot.holderDistribution` | weak: best for one-time/manual snapshot, poor history | medium: possible inside JSON namespace but less enforceable | medium-low: mixed into Token snapshot and harder to query across time | low: no schema change | medium: JSON namespace can drift unless parser gates every write | medium: token reports can read it, but cohort queries are awkward | high: JSON patch rollback can collide with other entrySnapshot namespaces | not preferred for holder distribution persistence | medium |
+| `Metric.rawJson` safe summary | medium: Metric already has time series, but holder state is not always metric-adjacent | medium-low: source and observedAt exist, confidence/rawFree/secretFree would be embedded | medium: can compare near market metrics, but holder facts become hidden in metric payloads | low: no schema change | high: `rawJson` is already a payload boundary and must not become a holder bucket | low-medium: rawJson-free reports would need strict extraction | medium-high: cleanup risks deleting or editing Metric rows that carry market observations | not preferred; only reconsider if holder context is strictly metric-source derived | medium |
+| External report only | none persisted | strong in output, but not stored | weak for later DB analysis unless exported separately | none | lowest: no production persistence | high for current `holder:safe-summary:report` flow, weak for DB-backed reports | low: no production cleanup | safest immediate MVP before persistence | low |
+
+## Recommended MVP Storage Path
+
+Use a two-stage path:
+
+1. Immediate next stage: continue with `holder:safe-summary:report` and external
+   report only. This keeps validation, source review, and operator review
+   raw-free while storage remains undecided. It does not reduce the persisted
+   `holder_distribution_not_recorded` gap.
+2. First persistent candidate: add a future `HolderSnapshot` model only after a
+   Red task approves schema, migration, backup, exact write command, rollback,
+   and verification. This is the preferred persistent route because holder
+   distribution is a repeated risk observation, not a Token thesis field and
+   not a market Metric payload.
+
+This task does not implement the model and does not change
+`prisma/schema.prisma`.
+
+## First Persistent Storage Candidate
+
+`HolderSnapshot` should be the first persistent storage candidate when the
+project is ready for Red work. The model should be designed around safe summary
+fields only:
+
+- relation to `Token`;
+- source label;
+- observedAt;
+- topHolderPct / top10HolderPct / holderCount / freshWalletCount;
+- bundlerSignal / sameFundingOriginSignal / lpWalletExcluded;
+- confidence;
+- rawFree=true and secretFree=true;
+- createdAt / updatedAt or equivalent audit fields;
+- indexes for tokenId+observedAt and source+observedAt if needed.
+
+Do not include raw response bodies, raw wallet lists, request URLs, API keys,
+or free-form raw JSON in the first persistent model.
+
+## Why Not `Token.entrySnapshot` For Holder Distribution
+
+`Token.entrySnapshot` is useful for narrow one-time manual context, but holder
+distribution is expected to change over time and may come from multiple
+sources. Storing it in `Token.entrySnapshot.holderDistribution` would make
+history awkward, blur source-derived risk facts with manual thesis context, and
+increase JSON patch / rollback risk for a Token-level namespace that already
+holds other observation context.
+
+It remains acceptable for temp tests or non-persistent fixtures, but it is not
+the preferred persistent holder distribution path.
+
+## Why Not `Metric.rawJson` For Holder Distribution
+
+Holder distribution can be observed near market metrics, but it is not itself a
+market metric. Putting holder state into `Metric.rawJson` would hide holder
+facts behind a payload boundary, complicate rawJson-free reporting, and risk
+turning `rawJson` into a mixed safe-summary bucket. It also makes cleanup and
+rollback harder because a Metric row may carry both market observation and
+holder context.
+
+Only reconsider this path for a source where holder context is strictly
+metric-adjacent and the saved content remains a validated safe summary, not raw
+provider JSON.
+
+## Why External Report Only Remains Useful Before Persistence
+
+External report only remains the safest immediate path because it proves source
+mapping and parser behavior without production DB writes. It is suitable for
+Rugcheck-style fixture review, manual holder review rehearsal, and external
+report comparison. Its limitation is explicit: the persisted
+`holder_distribution_not_recorded` gap remains unchanged.
+
+## Red Task Requirements Before Schema / Migration
+
+Before implementing `HolderSnapshot` or any persistent holder storage, a Red
+task must define:
+
+- exact schema and migration diff;
+- backup path and restore criteria;
+- one-token write command and no-batch default;
+- parser gate using `HolderDistributionSafeSummary`;
+- raw payload / secret marker checks;
+- rollback / cleanup SQL limited to the new holder snapshot rows;
+- read-only verification command;
+- docs update plan;
+- explicit confirmation that no buy/sell/position/exit guidance is introduced;
+- queue, scheduler, systemd, checkpoint, `--write`, and `--watch` boundaries.
+
 ## Safety Boundaries
 
 - Persist only safe summary fields, never raw response bodies.

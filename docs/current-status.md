@@ -209,6 +209,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   rejects raw payload or secret-like keys without printing their values. It
   does not fetch, write production DB state, choose schema/storage, or create a
   buy signal.
+- Holder distribution storage remains unimplemented. The current design keeps
+  the immediate MVP path as external report only via
+  `holder:safe-summary:report`, while naming a future `HolderSnapshot` model as
+  the first persistent storage candidate after Red approval. `Token.entrySnapshot`
+  is deferred for holder distribution because it is poor for repeated
+  source-labeled snapshots, and `Metric.rawJson` is deferred because holder
+  distribution is not a market metric payload. No schema or migration has been
+  added.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
