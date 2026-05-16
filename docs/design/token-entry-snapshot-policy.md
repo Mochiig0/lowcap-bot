@@ -186,4 +186,5 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- `metric:show` rawJson inspect policy.
+- HolderSnapshot real source capture policy.
+- `ScoreSnapshot` / `scoreHistory` future policy.

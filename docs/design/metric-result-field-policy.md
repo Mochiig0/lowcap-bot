@@ -249,6 +249,11 @@ later, prefer clearer names such as `observedWindowVolume` or
 `Metric.rawJson` is a sanitized provider snapshot used by read-only reports. It
 is not a provider-complete raw response body.
 
+Low-level inspection and sharing boundaries are fixed in
+`docs/design/metric-rawjson-inspect-policy.md`. In short, `metric:show` may
+print `rawJson` for operator / developer inspection, while normal reports
+should prefer rawJson-free summaries.
+
 Policy:
 
 - reports may read FDV, market cap, volume, and price candidates from `rawJson`.

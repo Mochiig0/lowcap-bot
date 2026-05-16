@@ -349,4 +349,5 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- `metric:show` rawJson inspect policy.
+- HolderSnapshot real source capture policy.
+- `ScoreSnapshot` / `scoreHistory` future policy.

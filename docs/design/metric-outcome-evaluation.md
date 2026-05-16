@@ -126,6 +126,10 @@ Uses:
 confirmed as notification-worthy. `evaluationAt` is when the operator evaluates
 the outcome later.
 
+`Metric.rawJson` inspection policy is fixed in
+`docs/design/metric-rawjson-inspect-policy.md`. `metrics:window-report` uses
+valid FDV extracted from `rawJson`; it does not print raw provider payloads.
+
 The MVP uses the report execution time. A future CLI may add
 `--evaluationAt <ISO>` so historical evaluation can be reproduced for a past
 point in time.

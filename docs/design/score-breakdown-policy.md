@@ -388,5 +388,5 @@ rows, rank thresholds, dictionaries, trend data, reports, planners,
 
 ## Next Docs-Only Candidates
 
-- `metric:show` rawJson inspect policy.
 - HolderSnapshot real source capture policy.
+- `ScoreSnapshot` / `scoreHistory` future policy.

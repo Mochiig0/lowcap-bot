@@ -548,6 +548,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Notification lifecycle, or a buy signal. `Dev.note` remains optional manual
   memo text and must not store secrets, provider raw bodies, outcomes, holder
   bodies, notification state, or queue / scheduler / worker state.
+- `Metric.rawJson` inspect policy is fixed in
+  `docs/design/metric-rawjson-inspect-policy.md`. `Metric.rawJson` remains a
+  sanitized provider snapshot, not a provider-complete raw response body.
+  `metric:show` is the low-level operator / developer inspect surface that may
+  print `rawJson`; normal review surfaces such as `metrics:report`,
+  `token:compare`, `tokens:compare-report`, and `metrics:window-report` should
+  prefer rawJson-free summaries or internally extracted valid FDV values.
+  Secrets, env-derived values, request headers, Telegram credentials,
+  `DATABASE_URL`, huge payloads, Notification lifecycle, HolderSnapshot bodies,
+  `scoreBreakdown`, and outcome labels must stay out of `rawJson`.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

@@ -334,5 +334,5 @@ enrich-rescore behavior, reports, planners, enumization, or review workflow.
 
 ## Next Docs-Only Candidates
 
-- `metric:show` rawJson inspect policy.
 - HolderSnapshot real source capture policy.
+- `ScoreSnapshot` / `scoreHistory` future policy.

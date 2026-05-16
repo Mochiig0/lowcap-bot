@@ -115,6 +115,12 @@ Recommended next Yellow implementation slice:
   HolderSnapshot evidence, funding-origin proof, bundle proof, Metric outcome,
   Notification lifecycle, or a buy signal. Wallet normalization, validation,
   confidence fields, and Dev-based scoring remain future design work;
+- `docs/design/metric-rawjson-inspect-policy.md` fixes `Metric.rawJson` as a
+  sanitized provider snapshot and `metric:show` as the low-level inspect
+  surface that may print it. Normal report / compare / outcome views remain
+  rawJson-free or use extracted valid FDV values; full rawJson dumps are
+  operator / developer debugging material, not canonical outcome review,
+  public report output, or a buy signal;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot

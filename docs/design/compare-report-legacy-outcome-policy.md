@@ -105,6 +105,7 @@ Use it for:
 - `source`
 - `metadataStatus`
 - latest Metric presence
+- latest Metric rawJson-free safe summary columns
 - review flags
 - broad list / filter workflows
 
@@ -200,7 +201,11 @@ This task does not implement any of those options. It does not rename
 - This does not guarantee profit.
 - `outcomeBucket` is legacy / provisional.
 - canonical outcome is `metrics:window-report` window-level `outcomeLabel`.
+- full Metric `rawJson` inspection belongs to
+  `docs/design/metric-rawjson-inspect-policy.md`, not compare reports.
 
 ## Next Docs-Only Candidates
 
-- `metric:show` rawJson inspect policy.
+- HolderSnapshot real source capture policy.
+- `ScoreSnapshot` / `scoreHistory` future policy.
+- `OutcomeSnapshot` / `AlertOutcome` future persistence policy.
