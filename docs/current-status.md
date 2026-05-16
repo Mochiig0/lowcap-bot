@@ -464,6 +464,26 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   to the existing DexScreener checkpoint and `data/trend.json` stayed
   unchanged. Next accumulation work must treat Metric accumulation and
   Notification accumulation as separate slices, not as part of detect write.
+- Bounded Metric accumulation preflight is now documented, but
+  `metric:snapshot:geckoterminal` has not been run after the 3h write
+  rehearsal. Git history is consistent: `2b5521e`, `205962e`, `a20b826`,
+  `a54db45`, `9899c4f`, `d380162`, and `cf07465` are all ancestors of HEAD.
+  Current DB counts are Token / Metric / Notification / HolderSnapshot
+  `1296 / 191 / 6 / 1`. The 3h write rehearsal cohort can be identified as
+  GeckoTerminal-origin pump tokens with `metadataStatus=mint_only`, first-seen
+  anchors inside the 2026-05-16 14:10-17:12Z rehearsal window, and no Metrics;
+  `review:queue:geckoterminal --pumpOnly` reports 180 Gecko-origin tokens and
+  180 `metricPending` rows. Code inspection shows
+  `metric:snapshot:geckoterminal` fetches one GeckoTerminal token snapshot per
+  selected token, writes `Metric` rows only with `--write`, has no checkpoint
+  file behavior, does not update Token or HolderSnapshot, and does not send
+  Telegram. Batch mode does not create Notification rows; exact `--mint` mode
+  creates one capture-only `metric_appended` Notification after a successful
+  Metric write. Recommended first Red command is the batch path with no
+  Notification side effect:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes
+  1440 --minGapMinutes 60 --write`. Metric and Notification accumulation must
+  remain separate Red slices.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

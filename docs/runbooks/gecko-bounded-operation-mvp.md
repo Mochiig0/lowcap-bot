@@ -4369,6 +4369,107 @@ Next boundary:
 - Do not fold Metric, Notification, Telegram, queue, scheduler, systemd, or
   outcome persistence into the detect write command.
 
+### Bounded Metric Accumulation Preflight
+
+This is a docs-only preflight. `metric:snapshot:geckoterminal` has not been
+run after the 3h write rehearsal.
+
+Git history boundary:
+
+- HEAD contains the parallel docs-only policy commits:
+  `2b5521e`, `205962e`, `a20b826`, `a54db45`, `9899c4f`, and `d380162`.
+- HEAD also contains `cf07465`, the 3h write rehearsal result commit.
+- The write rehearsal result is therefore recorded on top of the docs policy
+  history rather than replacing it.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot counts are
+  `1296 / 191 / 6 / 1`.
+- The 3h write rehearsal added 180 GeckoTerminal-origin pump tokens.
+- `review:queue:geckoterminal -- --pumpOnly --limit 10` reports
+  `geckoOriginTokenCount=180`, `firstSeenSourceSnapshotCount=180`,
+  `enrichPendingCount=180`, and `metricPendingCount=180`.
+- The cohort can be recognized by GeckoTerminal origin, `metadataStatus=mint_only`,
+  first-seen anchors in the 2026-05-16 14:10-17:12Z rehearsal window,
+  `metricsCount=0`, and pump mints.
+
+Implementation boundary confirmed from `metric:snapshot:geckoterminal`:
+
+- Script: `pnpm metric:snapshot:geckoterminal`.
+- CLI options include `--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`,
+  `--prioritizeRichPending`, `--minGapMinutes`, `--source`, `--write`,
+  `--watch`, `--intervalSeconds`, and `--maxIterations`.
+- It is dry-run by default.
+- It fetches live GeckoTerminal token snapshots from the token endpoint, one
+  request per selected token, unless a fixture env override is explicitly used.
+- It writes `Metric` rows only when `--write` is present.
+- It writes `observedAt`, `source`, sanitized `rawJson`, and `volume24h` when
+  available; FDV / market-cap / liquidity-style values stay in sanitized
+  `rawJson` for read-only reports.
+- It does not update Token rows.
+- It does not write HolderSnapshot rows.
+- It does not send Telegram.
+- It has no checkpoint file option or checkpoint update behavior.
+- In recent batch mode, it does not create Notification rows.
+- In exact `--mint` mode, after a successful Metric write it also creates a
+  capture-only `metric_appended` Notification row through
+  `maybeCreateByNotificationKey`.
+- In watch mode, a 429-like token snapshot error aborts the remaining selected
+  tokens for that cycle and records rate-limit counters.
+
+Selection / duplicate boundary:
+
+- Recent batch mode selects GeckoTerminal-origin Tokens by
+  `firstSeenSourceSnapshot.detectedAt` when present, otherwise `Token.createdAt`,
+  bounded by `--sinceMinutes`.
+- `--pumpOnly` filters to pump mints.
+- `--limit` bounds the selected token count.
+- There is no metadata-status filter and no "has no Metric" filter in this CLI.
+- `--minGapMinutes` checks the latest Metric for the same token and source
+  before fetch; when the latest Metric is still inside the gap, the token is
+  skipped before external fetch and no Metric is created.
+- Initial Red execution should use a small limit and `--minGapMinutes` even
+  though the current 180-token cohort has no Metrics.
+
+Recommended first Red command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Expected side effects if separately approved and run:
+
+- one live GeckoTerminal token snapshot fetch;
+- one current-DB Metric append if the selected token is not skipped and fetch /
+  parse succeeds;
+- Metric count should increase by at most 1;
+- Token / Notification / HolderSnapshot counts should remain unchanged in this
+  batch-mode command;
+- no Telegram live send;
+- no checkpoint update;
+- no detect command, enrich / rescore, scheduler, systemd, queue, or
+  `pnpm smoke`.
+
+Alternatives:
+
+- `--limit 3` can be considered after the limit-1 Red result is clean.
+- Exact `--mint <MINT> --write` should be treated as a separate Notification
+  accumulation preflight because it also creates a capture-only
+  `metric_appended` Notification row after a successful Metric write.
+- Do not target all 180 tokens in the first Metric accumulation Red task.
+
+Stop conditions for the next Red task:
+
+- more than the approved Metric count would be written;
+- Notification appears in batch mode;
+- Token or HolderSnapshot writes appear;
+- Telegram output appears;
+- rate-limit / 429 counters grow;
+- raw provider body or secret-like material appears;
+- checkpoint, queue, scheduler, systemd, detect, enrich / rescore, or
+  `pnpm smoke` is introduced.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

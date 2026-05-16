@@ -149,6 +149,14 @@ Recommended next Yellow implementation slice:
   accumulation slice. The completed 3h write rehearsal confirms mint-only Token
   accumulation, not metric snapshot writes, notification capture, Telegram live
   send, scoring completion, or outcome evaluation;
+- the Metric accumulation preflight is docs-only complete: use the recent
+  Gecko-origin mint-only cohort from the 3h write rehearsal, keep the first Red
+  command to a very small batch, and avoid `--mint` mode unless Notification
+  capture is also explicitly approved. Candidate command:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes
+  1440 --minGapMinutes 60 --write`. This is expected to fetch one token
+  snapshot and append one Metric row, with no Token update, HolderSnapshot
+  write, Telegram send, checkpoint, or Notification row in batch mode;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
