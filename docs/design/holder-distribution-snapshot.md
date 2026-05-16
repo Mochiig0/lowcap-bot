@@ -1,5 +1,11 @@
 # Holder Distribution Snapshot Design
 
+Current HolderSnapshot source and field policy is fixed in
+`docs/design/holder-snapshot-policy.md`. That policy is the concise current
+source of truth for interpreting persisted HolderSnapshot rows. This document
+remains the longer design history for source evaluation, safe-summary shape,
+and deferred paid-source work.
+
 ## Purpose
 
 Holder distribution is a core LowcapBot observation gap. It belongs to the risk
@@ -7,10 +13,13 @@ and scam-surface side of the observation OS, not to buy-signal generation.
 
 This document fixes the design boundary for filling
 `holder_distribution_not_recorded`. It names the fields, source constraints,
-safety rules, storage path, and migration boundary before any holder capture
-command exists. As of the production migration apply step, the Prisma schema
-and production DB schema include `HolderSnapshot`, but holder snapshot writes,
-external fetch, and holder snapshot read/write CLIs remain unimplemented.
+safety rules, storage path, and migration boundary from the original
+holder-storage design. Since this design was first written, the Prisma schema
+and production DB schema gained `HolderSnapshot`, and the safe-summary parser,
+one-row `holder:snapshot:add`, read-only `holder:snapshot:show`,
+`holder:safe-summary:report`, and `holder:gaps:plan` paths now exist. Real
+holder source capture, external fetch, and paid-source mappers remain future
+work.
 
 ## Non-goals
 
@@ -65,7 +74,8 @@ Potential future sources:
 
 Any source must be reviewed before use for raw payload, secret, and response-body
 boundaries. A future Red or Yellow task should explicitly decide whether a
-source is raw-free enough to persist directly or needs a safe summary.
+source is raw-free enough to persist directly or needs a safe summary. The
+MVP policy continues to treat real holder source capture as future work.
 
 ## Source Contract
 

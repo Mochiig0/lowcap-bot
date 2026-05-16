@@ -298,8 +298,9 @@ Reasons:
 
 ## HolderSnapshot Boundary
 
-HolderSnapshot values are separate from Metric outcome policy and are not MVP
-blockers for Metric outcome review.
+HolderSnapshot source and field policy is fixed in
+`docs/design/holder-snapshot-policy.md`. HolderSnapshot values are separate
+from Metric outcome policy and are not MVP blockers for Metric outcome review.
 
 Holder fields that remain future enhancement until real holder source capture
 is approved:
@@ -413,7 +414,7 @@ Keep deferred:
 - saving to `Metric.maxMultiple15m` or `Metric.maxMultiple1h`.
 - saving to `Metric.alertedAt` or `Metric.peakMultipleFromAlert`.
 - `OutcomeSnapshot` / `AlertOutcome` persistence.
-- real-source HolderSnapshot judgement.
+- HolderSnapshot real source implementation plan.
 - extra labels such as `missed_pump` or `failed`.
 
 ## Safety Notes

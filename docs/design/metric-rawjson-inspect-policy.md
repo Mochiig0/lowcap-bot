@@ -276,8 +276,8 @@ or provider fetch behavior.
 
 ## Next Docs-Only Candidates
 
-- HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.
 - `OutcomeSnapshot` / `AlertOutcome` future persistence policy.
+- HolderSnapshot real source implementation plan.
 - Dev wallet confidence implementation plan.
 - rawJson sanitization implementation audit.

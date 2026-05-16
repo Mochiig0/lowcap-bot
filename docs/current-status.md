@@ -558,6 +558,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Secrets, env-derived values, request headers, Telegram credentials,
   `DATABASE_URL`, huge payloads, Notification lifecycle, HolderSnapshot bodies,
   `scoreBreakdown`, and outcome labels must stay out of `rawJson`.
+- HolderSnapshot source policy is fixed in
+  `docs/design/holder-snapshot-policy.md`. HolderSnapshot is a safe summarized
+  holder distribution / holder-risk snapshot, not raw holder capture, not a
+  full wallet graph, not scam proof, and not a buy signal. Current
+  implementation covers safe-summary shape validation, one-row
+  `holder:snapshot:add`, read-only `holder:snapshot:show`,
+  `holder:safe-summary:report`, and `holder:gaps:plan`; approved real holder
+  source capture remains future enhancement work and is not a 3h / 6h bounded
+  monitoring blocker. Concentration fields must be read with `source`,
+  `confidence`, and `lpWalletExcluded`; fresh / bundler / same-funding signals
+  remain source-dependent review context; `rawFree` and `secretFree` are the
+  safety boundary.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

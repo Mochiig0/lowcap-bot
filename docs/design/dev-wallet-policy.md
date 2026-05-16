@@ -222,6 +222,7 @@ HolderSnapshot:
 - holder distribution, fresh-wallet, bundler, and funding-origin review.
 - separate from `Dev.wallet`.
 - do not infer bundler, same-funding origin, or LP exclusion from `Dev.wallet`.
+- controlled by `docs/design/holder-snapshot-policy.md`.
 
 Metric outcome:
 
@@ -310,7 +311,7 @@ normalization, or wallet validation.
 
 ## Next Docs-Only Candidates
 
-- HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.
 - `OutcomeSnapshot` / `AlertOutcome` future persistence policy.
+- HolderSnapshot real source implementation plan.
 - Dev wallet confidence implementation plan.

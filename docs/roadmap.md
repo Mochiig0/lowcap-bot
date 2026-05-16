@@ -121,6 +121,14 @@ Recommended next Yellow implementation slice:
   rawJson-free or use extracted valid FDV values; full rawJson dumps are
   operator / developer debugging material, not canonical outcome review,
   public report output, or a buy signal;
+- `docs/design/holder-snapshot-policy.md` fixes HolderSnapshot as safe
+  summarized holder distribution / holder-risk context. Storage, safe-summary
+  validation, one-row manual add, read-only show, safe-summary report, and gap
+  planning exist, but approved real holder source capture remains future
+  enhancement work and is not a 3h / 6h bounded monitoring blocker.
+  Concentration fields must be read with `source`, `confidence`, and
+  `lpWalletExcluded`; fresh / bundler / same-funding signals are
+  source-dependent review context, not automatic score evidence or buy signals;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot

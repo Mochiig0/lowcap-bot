@@ -342,5 +342,5 @@ runtime.
 
 ## Next Docs-Only Candidates
 
-- HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.
+- HolderSnapshot real source implementation plan.

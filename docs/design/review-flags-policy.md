@@ -272,6 +272,11 @@ Storage destinations:
 - provider market snapshot: `Metric.rawJson`.
 - lightweight token context: `Token.entrySnapshot.contextCapture`.
 
+HolderSnapshot source and field policy is fixed in
+`docs/design/holder-snapshot-policy.md`. HolderSnapshot bodies stay separate
+from `reviewFlagsJson`; a future task may define holder-derived lightweight
+review flags, but this policy does not.
+
 ## Relationship To Metadata And Scoring
 
 `Token.metadataStatus` is metadata completeness state. It is not
@@ -334,5 +339,5 @@ enrich-rescore behavior, reports, planners, enumization, or review workflow.
 
 ## Next Docs-Only Candidates
 
-- HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.
+- `OutcomeSnapshot` / `AlertOutcome` future persistence policy.

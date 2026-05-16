@@ -206,6 +206,6 @@ This task does not implement any of those options. It does not rename
 
 ## Next Docs-Only Candidates
 
-- HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.
 - `OutcomeSnapshot` / `AlertOutcome` future persistence policy.
+- HolderSnapshot real source implementation plan.
