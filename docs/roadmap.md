@@ -19,14 +19,24 @@ Why this is now the most natural next step:
 - `pnpm token:enrich-rescore:geckoterminal`, `pnpm metric:snapshot:geckoterminal`, and `pnpm ops:summary:geckoterminal` already cover the current Gecko follow-up and read-only ops surface.
 - `token:observation`, gap planners, manual observation, community review, and HolderSnapshot storage/read paths now provide the minimum research OS review context.
 - CoinGecko Pro / paid holder-source work is parked: it is useful later, but not an MVP blocker.
-- The next safe step is a read-only `mvp:status` report plus a consolidated manual-operation command order, so operators can see readiness and blockers without fetches, writes, Telegram sends, or runtime expansion.
+- `pnpm mvp:status` is available as the broad read-only MVP readiness report.
+- The next safe step is now `pnpm bounded:watch:readiness`, a read-only check
+  focused on detect/checkpoint/dedupe/metric/notification/observation readiness
+  before a separately approved 3h dry-run.
 
 Recommended next Yellow implementation slice:
 
 - `pnpm mvp:status` is now available as a read-only CLI;
 - use it to report DB / migration / key command availability, core row counts, observation-loop coverage, and known blockers;
-- next implementation focus is `bounded_watch_readiness_check` for the 3-to-6-hour bounded monitoring MVP;
-- update the bounded operation runbook with the current manual command order as that readiness check is defined;
+- `pnpm bounded:watch:readiness` is now the next read-only core-loop check for
+  the 3-to-6-hour bounded monitoring MVP;
+- use it to keep Pro API / paid holder source work parked while moving toward
+  candidate detection, mint persistence, score/risk review, Metric
+  accumulation, Telegram notification boundaries, and later outcome review;
+- next operating step after the readiness report is a separately approved 3h
+  dry-run, then a separately approved 3h write rehearsal only if the dry-run is
+  acceptable;
+- scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
 ## Short-Term

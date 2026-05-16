@@ -390,6 +390,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   checkpoint updates, `--write`, `--watch`, or `pnpm smoke`. Pro API and paid
   holder source work remain parked. The next implementation slice is
   `bounded_watch_readiness_check`, not scheduler / systemd promotion.
+- `pnpm bounded:watch:readiness` is now the read-only readiness report for
+  moving toward a 3-to-6-hour bounded monitoring MVP. It checks current
+  detect/checkpoint/dedupe/metric/notification/observation command support,
+  keeps `readOnly=true`, `willWrite=false`, `willFetch=false`,
+  `willSendTelegram=false`, and `willUpdateCheckpoint=false`, and prints
+  next command suggestions as strings only. The immediate next operating step
+  is a separately approved 3h dry-run. The purpose is core data accumulation
+  and later outcome review, not automatic trading or buy-signal output.
+  Scheduler / systemd remain post-3h/6h monitored-run work, and Pro API /
+  paid holder source work remains parked.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

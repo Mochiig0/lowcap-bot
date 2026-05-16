@@ -4176,6 +4176,33 @@ Planner stop conditions:
   unbounded watch, or default checkpoint operation.
 - `git status --short --branch` is dirty.
 
+## Bounded Watch Readiness CLI
+
+`pnpm bounded:watch:readiness` is the read-only readiness check before moving
+from one-off bounded operations toward a 3-to-6-hour bounded monitoring MVP.
+It reports detect command availability, checkpoint support, Token.mint dedupe
+support, Metric accumulation support, notification capture / retry-plan
+support, observation review support, readiness flags, blockers, and next
+command suggestions as strings only.
+
+The command does not write production DB rows, fetch external APIs, send
+Telegram, update checkpoints, start queue / scheduler / systemd, execute
+`--write` / `--watch`, or run `pnpm smoke`. Pro API and paid holder source work
+remain parked. The operating purpose is candidate detection, storage,
+score/risk review, Metric accumulation, bounded notification handling, and
+later outcome review; it is not automatic trading or buy-signal output.
+
+Use the readiness report before asking for a Red 3h dry-run:
+
+```bash
+pnpm -s bounded:watch:readiness
+```
+
+The next step after a clean readiness report is still a separate approval for a
+3h dry-run. A 3h write rehearsal and any 6h monitored run must stay separate
+Red tasks. Scheduler / systemd work waits until after the 3h/6h monitored-run
+path has been verified.
+
 ## Daily Operator Order
 
 Use this order when continuing bounded Gecko candidate accumulation.

@@ -59,6 +59,7 @@
     "notification:send": "node --import tsx src/cli/notificationLiveSend.ts",
     "notification:retry:plan": "node --import tsx src/cli/notificationRetryPlan.ts",
     "mvp:status": "node --import tsx src/cli/mvpStatus.ts",
+    "bounded:watch:readiness": "node --import tsx src/cli/boundedWatchReadiness.ts",
     "smoke": "node --import tsx src/cli/smokeTest.ts",
     "test": "node --import tsx --test tests/*.test.ts"
   },
