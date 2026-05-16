@@ -2722,6 +2722,14 @@ Manual retry closeout:
   `markets` were absent. The mapping decision is `needs_more_source_review`;
   no raw response body, wallet / owner address, auth material, `.env`, raw
   provider JSON fixture, DB write, or `holder:snapshot:add` occurred.
+- Rugcheck summary preflight closeout does not approve the summary endpoint as
+  a holder distribution source. No holder concentration fields were confirmed,
+  the real mapper remains unimplemented, and `score`, `score_normalised`,
+  `risks`, and `lpLockedPct` must not be mapped into
+  `HolderDistributionSafeSummary` concentration fields. Treat those observed
+  fields only as possible future risk / liquidity context under a separate
+  contract; avoid full-report preflight by default because `topHolders[]` /
+  wallet payload risk is high.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

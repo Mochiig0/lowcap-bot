@@ -312,6 +312,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `needs_more_source_review`: no raw response body was printed or saved, no raw
   provider JSON fixture was created, no DB write or `holder:snapshot:add` was
   run, and no real mapper or persistence path is approved.
+- Rugcheck summary preflight closeout keeps the source unresolved for
+  `HolderDistributionSafeSummary`: no holder concentration fields were
+  confirmed, so `mapRugcheckRealResponseToSafeSummary` remains unimplemented.
+  Do not map `score`, `score_normalised`, `risks`, or `lpLockedPct` into holder
+  concentration fields. `lpLockedPct` / provider score / risk fields may become
+  future risk-context inputs only after a separate risk-context contract; full
+  report preflight remains avoided by default because wallet payload risk is
+  high.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

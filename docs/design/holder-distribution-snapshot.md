@@ -1484,6 +1484,54 @@ using only sanitized field names / shapes, or perform more source review before
 any real mapper implementation. Any persistence or safe-summary capture still
 requires a separate approval.
 
+## Rugcheck Summary Preflight Closeout
+
+The Rugcheck summary endpoint Red preflight is closed for holder distribution
+source admission.
+
+Closeout facts:
+
+- Red preflight completed as exactly one mint, one request, and sanitized
+  shape-only output;
+- HTTP status was `200`;
+- JSON parse was ok;
+- observed top-level keys were `tokenProgram`, `tokenType`, `risks`, `score`,
+  `score_normalised`, and `lpLockedPct`;
+- dangerous key categories were not detected by key scan;
+- holder concentration fields were not confirmed:
+  - `topHolderPct` absent;
+  - `top10HolderPct` absent;
+  - `holderCount` absent;
+  - `topHoldersPct` absent;
+- mapping decision remains `needs_more_source_review`.
+
+Source decision:
+
+- Rugcheck summary endpoint is not approved as a
+  `HolderDistributionSafeSummary` holder concentration source yet;
+- do not implement `mapRugcheckRealResponseToSafeSummary` yet;
+- do not map `score`, `score_normalised`, or `risks` into holder distribution;
+- do not map `lpLockedPct` into `topHolderPct`, `top10HolderPct`, or
+  `holderCount`;
+- `lpLockedPct` may be future risk / liquidity context, but only under a
+  separate risk-context safe-summary contract;
+- the current Rugcheck-style synthetic mapper remains the only implemented
+  mapper.
+
+Future options:
+
+- A. Keep Rugcheck summary unresolved for holder distribution.
+- B. Review a different source that exposes explicit holder concentration
+  fields without raw wallet-list persistence.
+- C. Create a separate risk-context safe-summary contract later for
+  `lpLockedPct`, provider `score`, `score_normalised`, and `risks`.
+- D. Only with separate approval, consider a full-report preflight; default is
+  to avoid it because public examples indicate `topHolders[]` / wallet payload
+  risk is high.
+
+Do not treat this closeout as source approval, safe-summary capture readiness,
+or holder-derived trading guidance.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.
