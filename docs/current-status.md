@@ -330,6 +330,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   payloads. DEX Screener / current GeckoTerminal public API docs did not expose
   holder concentration aggregates. Continue `manual_holder_review` /
   external-report-only paths until an aggregate source is separately approved.
+- CoinGecko / GeckoTerminal Onchain Token Info boundary review is docs-only and
+  leaves the source unapproved, but it is the best next preflight candidate:
+  docs show `holders.count` and `holders.distribution_percentage.top_10`, with
+  holder data marked beta and distribution calculated from total supply.
+  Mapping would be limited to `holderCount` and `top10HolderPct`; `topHolderPct`
+  stays `null`, wallet-signal fields stay `unknown` / `null`, and
+  `lpWalletExcluded` stays `null` because docs say all wallet types are
+  included. Pro API key / paid-plan / rate-limit / terms approval is required,
+  and the separate Top Token Holders endpoint must be avoided because it returns
+  wallet-address payload.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

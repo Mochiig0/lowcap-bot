@@ -2740,6 +2740,15 @@ Manual retry closeout:
   while DEX Screener / current GeckoTerminal public API docs do not expose the
   needed aggregate fields. Continue manual holder review or external-report-only
   review until an aggregate source is approved.
+- CoinGecko / GeckoTerminal Onchain Token Info boundary review keeps the source
+  unapproved but identifies it as the best next one-token shape-only preflight
+  candidate. Docs show `holders.count` and
+  `holders.distribution_percentage.top_10`, while holder data is beta and Pro
+  API auth / paid-plan / rate-limit / terms approval is required. Any future
+  mapping is limited to `holderCount` and `top10HolderPct`; keep
+  `topHolderPct=null`, wallet signals unknown, and `lpWalletExcluded=null`.
+  Avoid the separate Top Token Holders endpoint because it returns wallet
+  addresses and holder-list payload.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

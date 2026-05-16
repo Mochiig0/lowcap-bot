@@ -1606,6 +1606,122 @@ than one request is needed, the response requires wallet-list persistence,
 shape-only output cannot answer field presence, or the output begins to read
 like buy / sell / position / exit guidance.
 
+## CoinGecko / GeckoTerminal Onchain Token Info Boundary Review
+
+Reviewed official CoinGecko / GeckoTerminal docs only. No CoinGecko API fetch,
+external API request, on-chain request, production DB write,
+`holder:snapshot:add`, mapper implementation, schema change, queue, scheduler,
+systemd, checkpoint update, `--write`, `--watch`, or `pnpm smoke` was run.
+
+Docs reviewed:
+
+- CoinGecko Pro API authentication docs for Pro API key handling and onchain
+  endpoint access;
+- CoinGecko endpoint overview for GeckoTerminal-powered Onchain DEX endpoints;
+- CoinGecko Onchain Token Info by Token Address docs;
+- CoinGecko Top Token Holders by Token Address docs.
+
+Endpoint candidate:
+
+- `GET https://pro-api.coingecko.com/api/v3/onchain/networks/{network}/tokens/{address}/info`
+- for the current Solana holder-source path, candidate network would be
+  `solana` and `address` would be the token mint / contract address;
+- exact target mint, network id, request command, and output shape still need a
+  separate Red preflight approval.
+
+Auth / beta / terms boundary:
+
+- Pro API key is required for the Pro API root and Onchain DEX endpoints;
+- docs recommend header auth with `x-cg-pro-api-key` and warn that query-string
+  auth can expose the key;
+- monthly credits and minute rate limits depend on the paid plan;
+- each request counts toward minute rate limit, and successful requests deduct
+  monthly credits;
+- holder data is documented as beta, with ongoing data quality, coverage, and
+  update-frequency improvements;
+- supported holder chains include Solana, EVM networks, Sui, TON, and Ronin;
+- cache / update frequency is documented as every 60 seconds;
+- this repo must not add `.env` fields, print API keys, print request URLs with
+  query auth, commit raw response bodies, or assume a paid-plan entitlement;
+- because auth / paid-plan / beta-quality / account terms need operator
+  approval, this endpoint is not an approved source yet.
+
+Field semantics from docs:
+
+- `holders.count` is documented in the Token Info response and can map to
+  `holderCount` only after preflight confirms shape and numeric parsing;
+- `holders.distribution_percentage.top_10` is documented and can map to
+  `top10HolderPct` only after preflight confirms it is present for the target
+  Solana token and can be parsed as a percent;
+- docs describe `distribution_percentage` as calculated from total supply;
+- docs state Solana coverage includes `top_10`, `11_20`, `21_40`, and `rest`;
+- no explicit top-1 / top-holder equivalent was found in the Token Info docs;
+- no fresh-wallet, bundler, or same-funding-origin aggregate fields were found;
+- docs state distribution includes all wallet types, including CEX wallets,
+  treasury / issuer wallets, and other wallet types, so
+  `lpWalletExcluded` must remain `null` unless a later source-specific contract
+  proves an exclusion rule;
+- `gt_score` and `gt_score_details.holders` are risk / quality context and
+  must not be mapped into holder concentration fields.
+
+Raw payload boundary:
+
+- Token Info sample shows aggregate holder fields, metadata, social URLs, and
+  token / authority fields; it does not require holder wallet-list persistence
+  for `holders.count` or `holders.distribution_percentage.top_10`;
+- the separate Top Token Holders endpoint exists and returns holder addresses,
+  ranks, amounts, percentages, values, and explorer URLs;
+- Top Token Holders must be avoided for this MVP because it is a wallet-address
+  payload endpoint and would reintroduce raw holder-list handling;
+- any future preflight must use Token Info only, one request only, shape-only
+  output, and no raw JSON dump.
+
+Shape-only preflight possibility:
+
+- possible as a future Red preflight only if the operator approves Pro API key
+  use, exact target mint, network id, endpoint, rate-limit / credit boundary,
+  and sanitized output fields;
+- allowed output should be limited to HTTP status, top-level / shallow keys,
+  presence of `holders.count` and `holders.distribution_percentage.top_10`,
+  dangerous-key categories, primitive field shapes, and mapping feasibility;
+- forbidden output includes raw response body, raw JSON, request URLs with
+  query auth, headers, API keys, wallet addresses, explorer URLs, holder lists,
+  metadata descriptions if they include unsafe free text, `.env`, screenshots,
+  or secrets.
+
+Mapping feasibility:
+
+- `holderCount`: plausible from `holders.count`;
+- `top10HolderPct`: plausible from `holders.distribution_percentage.top_10`;
+- `topHolderPct`: keep `null` unless a separate explicit top-holder aggregate
+  field is documented and preflight-confirmed;
+- `freshWalletCount`: keep `null`;
+- `bundlerSignal`: keep `unknown`;
+- `sameFundingOriginSignal`: keep `unknown`;
+- `lpWalletExcluded`: keep `null` because docs say distribution includes all
+  wallet types and do not document LP / pool wallet exclusion;
+- `confidence`: source confidence only, likely `low` or `unknown` while holder
+  data remains beta;
+- `rawFree` / `secretFree`: must remain literal `true` after mapper
+  validation.
+
+Source decision:
+
+- CoinGecko / GeckoTerminal Onchain Token Info is the best next holder
+  concentration preflight candidate found so far because docs expose aggregate
+  `holderCount` and top-10 distribution fields;
+- it is not an approved `HolderDistributionSafeSummary` source yet;
+- do not implement a mapper yet;
+- do not use Top Token Holders for this MVP;
+- do not persist anything until a separate one-token, one-request, shape-only
+  Red preflight confirms target-token field presence and raw-free boundaries.
+
+Stop before Red preflight if Pro API key handling is not approved, paid-plan
+terms / rate limits are unclear, the target network or address parameter is
+unclear, Token Info cannot answer field presence without raw output, Top
+Holders becomes necessary, wallet-list persistence is required, or output reads
+like buy / sell / position / exit guidance.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.
