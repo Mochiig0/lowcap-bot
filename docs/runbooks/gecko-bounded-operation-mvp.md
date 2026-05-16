@@ -4229,11 +4229,16 @@ Default future outcome windows are:
 ```
 
 Future read-only window output may include `alertFdv`,
-`alertFdvObservedAt`, `alertFdvFreshnessSeconds`, `peakObservedAt`,
-`fdvSampleCount`, `timeToPeakMinutes`, `peakMultipleFromAlert`, and
-`outcomeLabel`. Labels are computed only for review:
-`no_data`, `flat`, `small_win`, `hit`, and `big_hit`. They are not stored in
-DB yet and must not be treated as trading guidance.
+`alertFdvObservedAt`, `alertFdvFreshnessSeconds`, `latestFdv`,
+`latestFdvAgeSeconds`, `windowStartAt`, `windowEndAt`, `isWindowComplete`,
+`outcomeIsProvisional`, `peakObservedAt`, `fdvSampleCount`,
+`timeToPeakMinutes`, `peakMultipleFromAlert`, `drawdownFromPeak`, and
+`outcomeLabel`. For MVP evaluation, `evaluationAt=reportGeneratedAt`, where
+`reportGeneratedAt` is the report execution time. A window is complete only
+when `evaluationAt >= windowEndAt`; otherwise its outcome label is
+provisional. Labels are computed only for review: `no_data`, `flat`,
+`small_win`, `hit`, and `big_hit`. They are not stored in DB yet and must not
+be treated as trading guidance.
 
 Allowed read-only use:
 

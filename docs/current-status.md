@@ -406,11 +406,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   fixed in `docs/design/metric-outcome-evaluation.md`: default windows are
   30m, 60m, 90m, 2h, 3h, 4h, 5h, 6h, 8h, 10h, 12h, and 24h; each window's peak
   FDV is `max(fdv)` over observed Metric rows, not a single 24h-later sample;
-  and future read-only output may compute `alertFdv`, `timeToPeakMinutes`,
-  `peakMultipleFromAlert`, and `outcomeLabel` without saving them to DB. The
-  report performs no DB write, fetch, Telegram send, checkpoint update,
-  `--write`, `--watch`, or `pnpm smoke`, and it is verification context rather
-  than automatic trading or buy-signal output.
+  `evaluationAt` is the report execution time for MVP evaluation; and future
+  read-only output may compute `alertFdv`, `latestFdv`, window completion,
+  provisional status, `timeToPeakMinutes`, `peakMultipleFromAlert`,
+  `drawdownFromPeak`, and `outcomeLabel` without saving them to DB. The report
+  performs no DB write, fetch, Telegram send, checkpoint update, `--write`,
+  `--watch`, or `pnpm smoke`, and it is verification context rather than
+  automatic trading or buy-signal output.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

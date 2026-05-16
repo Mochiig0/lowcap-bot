@@ -22,8 +22,8 @@ not position sizing, and not profit guidance.
 
 ## Peak FDV Window Policy
 
-Peak FDV is the maximum FDV observed in `Metric` history inside each evaluation
-window:
+Peak FDV is the maximum valid FDV observed in `Metric` history inside each
+evaluation window:
 
 ```text
 peakFdv = max(metric.fdv) within the window
@@ -61,6 +61,40 @@ Meaning:
 | 720 | 12h |
 | 1440 | 24h |
 
+Intent:
+
+- 30m through 6h windows give fine-grained short-term pump validation.
+- 8h, 10h, 12h, and 24h windows keep medium-longer extension visible.
+- The 24h window is still a window maximum over observed valid Metric FDV, not
+  one sample taken exactly 24 hours later.
+
+## Evaluation At
+
+`evaluationAt` is the evaluation reference time for a
+`metrics:window-report` run.
+
+For the MVP:
+
+```text
+evaluationAt = reportGeneratedAt
+reportGeneratedAt = the time metrics:window-report runs
+```
+
+Uses:
+
+- selecting `latestFdv`.
+- computing `latestFdvAgeSeconds`.
+- computing `drawdownFromPeak`.
+- deciding whether each window is complete or still provisional.
+
+`evaluationAt` is different from `alertedAt`. `alertedAt` is when the token was
+confirmed as notification-worthy. `evaluationAt` is when the operator evaluates
+the outcome later.
+
+The MVP uses the report execution time. A future CLI may add
+`--evaluationAt <ISO>` so historical evaluation can be reproduced for a past
+point in time.
+
 ## Alerted At
 
 `alertedAt` is the time when score/risk evaluation has completed and the token
@@ -75,6 +109,32 @@ Resolve `alertedAt` in this priority order:
 5. `Token.createdAt`
 
 The first available timestamp is the evaluation anchor.
+
+## Valid FDV
+
+A valid FDV is:
+
+- a number.
+- finite.
+- greater than `0`.
+
+Invalid FDV values include:
+
+- `null`
+- `undefined`
+- `NaN`
+- `Infinity`
+- values less than or equal to `0`
+- values that cannot be parsed as numbers
+
+Invalid FDV values are excluded from:
+
+- `peakFdv`
+- `alertFdv`
+- `latestFdv`
+- `firstObservedFdv`
+- `peakMultipleFromAlert`
+- `drawdownFromPeak`
 
 ## Alert FDV
 
@@ -93,16 +153,108 @@ Candidate output fields:
 - `alertFdvObservedAt`
 - `alertFdvFreshnessSeconds`
 
+Alert-before Metrics may be used for `alertFdv` only. They must not be included
+in window `peakFdv`.
+
+## Latest FDV
+
+`latestFdv` is the newest valid FDV available at `evaluationAt`.
+
+Select it from Metrics where:
+
+```text
+observedAt <= evaluationAt
+```
+
+Candidate output fields:
+
+- `latestFdv`
+- `latestFdvSource`
+- `latestFdvObservedAt`
+- `latestFdvAgeSeconds`
+
+`latestFdvAgeSeconds` is:
+
+```text
+evaluationAt - latestFdvObservedAt
+```
+
+Return `null` when `latestFdv` is unavailable.
+
+## Window Boundary
+
+Each window is anchored at `alertedAt`:
+
+```text
+windowStartAt = alertedAt
+windowEndAt = alertedAt + windowMinutes
+included metrics: alertedAt <= observedAt <= windowEndAt
+```
+
+The `peakFdv` window must not include pre-alert Metrics. Pre-alert Metrics may
+only help establish `alertFdv`. `peakFdv` exists to measure how far the token
+extended after detection or notification.
+
 ## Window Output Fields
 
 Each outcome window should expose these read-only computed values:
 
+- `windowStartAt`
+- `windowEndAt`
+- `isWindowComplete`
+- `outcomeIsProvisional`
 - `peakFdv`
 - `peakObservedAt`
 - `fdvSampleCount`
 - `timeToPeakMinutes`
 - `peakMultipleFromAlert`
+- `drawdownFromPeak`
 - `outcomeLabel`
+
+## Window Completion
+
+`isWindowComplete` is a read-only computed value per window:
+
+```text
+isWindowComplete = evaluationAt >= windowEndAt
+```
+
+When `evaluationAt < windowEndAt`, `isWindowComplete=false`.
+
+Example:
+
+```text
+alertedAt = 10:00
+evaluationAt = 13:00
+```
+
+Then:
+
+| Window | Completion |
+| --- | --- |
+| 30m | complete |
+| 60m | complete |
+| 120m | complete |
+| 180m | complete |
+| 360m | incomplete |
+| 24h | incomplete |
+
+## Provisional Outcome
+
+`outcomeIsProvisional` is:
+
+```text
+outcomeIsProvisional = !isWindowComplete
+```
+
+When `isWindowComplete=false`, the window's `peakFdv`,
+`peakMultipleFromAlert`, and `outcomeLabel` are provisional. They describe only
+the Metrics observed up to the current `evaluationAt`; they are not final
+window outcomes.
+
+Incomplete windows may still compute `peakFdv` from observed Metrics so far.
+Their `outcomeLabel` must be treated as provisional, and thinly sampled windows
+should not be overtrusted.
 
 ## Time To Peak
 
@@ -127,6 +279,28 @@ Return a number only when:
 - `alertFdv` exists.
 - `alertFdv > 0`.
 - `peakFdv` exists.
+
+Otherwise return `null`.
+
+## Drawdown From Peak
+
+`drawdownFromPeak` describes how far FDV has fallen from each window's peak to
+the token's latest valid FDV at `evaluationAt`.
+
+Compute it per window:
+
+```text
+drawdownFromPeak = max(0, (peakFdv - latestFdv) / peakFdv)
+```
+
+Use the token-level `latestFdv` selected at `evaluationAt`, not a
+window-specific latest value.
+
+Return a number only when:
+
+- `peakFdv` exists.
+- `peakFdv > 0`.
+- `latestFdv` exists.
 
 Otherwise return `null`.
 
@@ -156,6 +330,52 @@ Classification:
 Thinly sampled windows should not be overtrusted. The label describes observed
 Metric history, not the true market high.
 
+When `isWindowComplete=false`, `outcomeLabel` is provisional.
+
+## Future Output Shape
+
+This is a future `metrics:window-report` computed-output sketch only. This task
+does not implement it.
+
+```json
+{
+  "reportGeneratedAt": "...",
+  "evaluationAt": "...",
+  "alertedAt": "...",
+  "alertFdv": 10000,
+  "latestFdv": 40000,
+  "latestFdvAgeSeconds": 120,
+  "windows": {
+    "30m": {
+      "windowStartAt": "...",
+      "windowEndAt": "...",
+      "isWindowComplete": true,
+      "outcomeIsProvisional": false,
+      "peakFdv": 15000,
+      "peakObservedAt": "...",
+      "fdvSampleCount": 3,
+      "peakMultipleFromAlert": 1.5,
+      "timeToPeakMinutes": 18,
+      "drawdownFromPeak": 0,
+      "outcomeLabel": "small_win"
+    },
+    "24h": {
+      "windowStartAt": "...",
+      "windowEndAt": "...",
+      "isWindowComplete": false,
+      "outcomeIsProvisional": true,
+      "peakFdv": 40000,
+      "peakObservedAt": "...",
+      "fdvSampleCount": 8,
+      "peakMultipleFromAlert": 4,
+      "timeToPeakMinutes": 160,
+      "drawdownFromPeak": 0,
+      "outcomeLabel": "hit"
+    }
+  }
+}
+```
+
 ## Storage Policy
 
 Do not automatically persist these outcome fields into DB columns yet. Treat
@@ -175,5 +395,6 @@ Any storage decision requires a separate design and implementation task.
 - This is not automatic trading.
 - This is not a buy signal.
 - This does not guarantee profit.
-- These labels exist to validate notification and scoring behavior.
+- Outcome values exist to validate notification and scoring behavior.
+- `isWindowComplete=false` means `outcomeLabel` is provisional.
 - A window with sparse Metric samples can miss pumps or dips between samples.

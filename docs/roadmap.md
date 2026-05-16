@@ -38,8 +38,9 @@ Recommended next Yellow implementation slice:
   in `docs/design/metric-outcome-evaluation.md`: default windows are
   30,60,90,120,180,240,300,360,480,600,720,1440 minutes; peak FDV is the
   observed max inside each window, not one 24h-later point; and
-  `outcomeLabel` remains read-only computed review context rather than a saved
-  DB field or buy signal;
+  `evaluationAt`, window completion, provisional outcome labels, latest FDV,
+  and drawdown remain read-only computed review context rather than saved DB
+  fields or buy signals;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;
