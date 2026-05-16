@@ -22,6 +22,19 @@ not position sizing, and not profit guidance.
 - No `metric:snapshot:geckoterminal` implementation change in this docs-only
   task.
 
+## Implementation Status
+
+`metrics:window-report` now implements this MVP read-only outcome shape. It
+adds `reportGeneratedAt`, `evaluationAt`, `alertedAt`, `alertFdv`,
+`latestFdv`, `firstObservedFdv`, per-window completion / coverage fields,
+`peakMultipleFromAlert`, `timeToPeakMinutes`, `drawdownFromPeak`, and
+`outcomeLabel`.
+
+This implementation is still read-only: it does not write Metric result
+fields, create Notification rows, change schema, run migrations, fetch
+external APIs, send Telegram, execute detector / watch / write commands, or
+persist outcome labels.
+
 ## Metric Result Field Boundary
 
 The Metric result-field storage boundary is fixed in
@@ -230,6 +243,7 @@ extended after detection or notification.
 
 Each outcome window should expose these read-only computed values:
 
+- `windowMinutes`
 - `windowStartAt`
 - `windowEndAt`
 - `isWindowComplete`
@@ -237,6 +251,10 @@ Each outcome window should expose these read-only computed values:
 - `peakFdv`
 - `peakObservedAt`
 - `fdvSampleCount`
+- `fdvFirstObservedAt`
+- `fdvLastObservedAt`
+- `fdvObservedSpanMinutes`
+- `fdvSampleCoverageLabel`
 - `timeToPeakMinutes`
 - `peakMultipleFromAlert`
 - `drawdownFromPeak`

@@ -34,13 +34,14 @@ Recommended next Yellow implementation slice:
   candidate detection, mint persistence, score/risk review, Metric
   accumulation, Telegram notification boundaries, and later outcome review;
 - `pnpm metrics:window-report` is now the read-only outcome verification helper
-  for accumulated Metric history. The future outcome evaluation design is fixed
-  in `docs/design/metric-outcome-evaluation.md`: default windows are
+  for accumulated Metric history. The outcome evaluation design is fixed in
+  `docs/design/metric-outcome-evaluation.md`: default windows are
   30,60,90,120,180,240,300,360,480,600,720,1440 minutes; peak FDV is the
   observed max inside each window, not one 24h-later point; and
-  `evaluationAt`, window completion, provisional outcome labels, latest FDV,
-  and drawdown remain read-only computed review context rather than saved DB
-  fields or buy signals;
+  `alertedAt`, `alertFdv`, `latestFdv`, `firstObservedFdv`, window completion,
+  provisional outcome labels, coverage labels, `peakMultipleFromAlert`, and
+  drawdown are implemented as read-only computed review context rather than
+  saved DB fields or buy signals;
 - `docs/design/metric-result-field-policy.md` fixes the Metric schema boundary:
   Metric rows remain observation snapshots, and result fields such as
   `peakFdv24h`, `maxMultiple15m`, `timeToPeakMinutes`, `alertedAt`, and

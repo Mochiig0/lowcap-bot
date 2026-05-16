@@ -4240,10 +4240,10 @@ systemd, queue, unbounded watch, Telegram live send, or checkpoint promotion.
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for
 checking whether accumulated Metric history later showed FDV peaks after
-candidate detection or notification. Current implementation details remain in
-the CLI; the future Metric outcome evaluation policy is fixed in
-`docs/design/metric-outcome-evaluation.md`. That policy uses `alertedAt` as the
-anchor, resolved from `Notification.sentAt`, `Notification.capturedAt`,
+candidate detection or notification. The Metric outcome evaluation policy is
+fixed in `docs/design/metric-outcome-evaluation.md`. The implemented report
+uses `alertedAt` as the anchor, resolved from `Notification.sentAt`,
+`Notification.capturedAt`,
 `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`, `Token.importedAt`,
 then `Token.createdAt`. The current CLI still accepts `--entryAt <ISO>` for an
 operator override.
@@ -4261,17 +4261,18 @@ Default future outcome windows are:
 30,60,90,120,180,240,300,360,480,600,720,1440
 ```
 
-Future read-only window output may include `alertFdv`,
-`alertFdvObservedAt`, `alertFdvFreshnessSeconds`, `latestFdv`,
+Read-only window output includes `alertFdv`, `alertFdvObservedAt`,
+`alertFdvFreshnessSeconds`, `latestFdv`,
 `latestFdvAgeSeconds`, `windowStartAt`, `windowEndAt`, `isWindowComplete`,
 `outcomeIsProvisional`, `peakObservedAt`, `fdvSampleCount`,
-`timeToPeakMinutes`, `peakMultipleFromAlert`, `drawdownFromPeak`, and
-`outcomeLabel`. For MVP evaluation, `evaluationAt=reportGeneratedAt`, where
-`reportGeneratedAt` is the report execution time. A window is complete only
-when `evaluationAt >= windowEndAt`; otherwise its outcome label is
-provisional. Labels are computed only for review: `no_data`, `flat`,
-`small_win`, `hit`, and `big_hit`. They are not stored in DB yet and must not
-be treated as trading guidance.
+`fdvSampleCoverageLabel`, `timeToPeakMinutes`, `peakMultipleFromAlert`,
+`drawdownFromPeak`, and `outcomeLabel`. For MVP evaluation,
+`evaluationAt=reportGeneratedAt`, where `reportGeneratedAt` is the report
+execution time. A window is complete only when
+`evaluationAt >= windowEndAt`; otherwise its outcome label is provisional.
+Labels are computed only for review: `no_data`, `flat`, `small_win`, `hit`,
+and `big_hit`. They are not stored in DB yet and must not be treated as
+trading guidance.
 
 Allowed read-only use:
 

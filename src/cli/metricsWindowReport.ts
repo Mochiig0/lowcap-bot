@@ -6,7 +6,26 @@ type EntryAtSource =
   | "firstSeenSourceSnapshot.detectedAt"
   | "importedAt"
   | "createdAt"
-  | "cli";
+  | "cli"
+  | "notification.sentAt"
+  | "notification.capturedAt";
+
+type AlertedAtSource =
+  | "cli_entryAt"
+  | "notification_sent_at"
+  | "notification_captured_at"
+  | "first_seen_detected_at"
+  | "token_imported_at"
+  | "token_created_at"
+  | "unavailable";
+
+type AlertFdvSource =
+  | "metric_before_alert"
+  | "metric_after_alert"
+  | "unavailable";
+
+type FdvSampleCoverageLabel = "no_data" | "thin" | "partial" | "usable";
+type OutcomeLabel = "no_data" | "flat" | "small_win" | "hit" | "big_hit";
 
 type MetricsWindowReportArgs = {
   mint: string;
@@ -21,6 +40,19 @@ type WindowReport = {
   peakObservedAt: string | null;
   firstObservedFdv: number | null;
   peakMultipleFromFirstObserved: number | null;
+  windowMinutes: number;
+  windowStartAt: string | null;
+  windowEndAt: string | null;
+  isWindowComplete: boolean;
+  outcomeIsProvisional: boolean;
+  fdvFirstObservedAt: string | null;
+  fdvLastObservedAt: string | null;
+  fdvObservedSpanMinutes: number | null;
+  fdvSampleCoverageLabel: FdvSampleCoverageLabel;
+  peakMultipleFromAlert: number | null;
+  timeToPeakMinutes: number | null;
+  drawdownFromPeak: number | null;
+  outcomeLabel: OutcomeLabel;
 };
 
 type MetricsWindowReportOutput = {
@@ -33,6 +65,21 @@ type MetricsWindowReportOutput = {
   mint: string;
   entryAt: string;
   entryAtSource: EntryAtSource;
+  reportGeneratedAt: string;
+  evaluationAt: string;
+  alertedAt: string;
+  alertedAtSource: AlertedAtSource;
+  alertNotificationId: number | null;
+  alertFdv: number | null;
+  alertFdvObservedAt: string | null;
+  alertFdvSource: AlertFdvSource;
+  alertFdvFreshnessSeconds: number | null;
+  latestFdv: number | null;
+  latestFdvObservedAt: string | null;
+  latestFdvAgeSeconds: number | null;
+  firstObservedFdv: number | null;
+  firstObservedAt: string | null;
+  minutesFromFirstObservedToAlert: number | null;
   metricCount: number;
   fdvMetricCount: number;
   windows: Record<string, WindowReport>;
@@ -47,6 +94,21 @@ type MetricsWindowReportOutput = {
   mint: string;
   entryAt: null;
   entryAtSource: null;
+  reportGeneratedAt: string;
+  evaluationAt: string;
+  alertedAt: null;
+  alertedAtSource: "unavailable";
+  alertNotificationId: null;
+  alertFdv: null;
+  alertFdvObservedAt: null;
+  alertFdvSource: "unavailable";
+  alertFdvFreshnessSeconds: null;
+  latestFdv: null;
+  latestFdvObservedAt: null;
+  latestFdvAgeSeconds: null;
+  firstObservedFdv: null;
+  firstObservedAt: null;
+  minutesFromFirstObservedToAlert: null;
   metricCount: 0;
   fdvMetricCount: 0;
   windows: Record<string, never>;
@@ -60,7 +122,17 @@ type MetricSample = {
   fdv: number | null;
 };
 
-const DEFAULT_WINDOWS = [30, 60, 1440];
+type FdvSample = MetricSample & { fdv: number };
+
+type AlertedAtResolution = {
+  alertedAt: Date;
+  entryAtSource: EntryAtSource;
+  alertedAtSource: AlertedAtSource;
+  alertNotificationId: number | null;
+};
+
+const DEFAULT_WINDOWS = [30, 60, 90, 120, 180, 240, 300, 360, 480, 600, 720, 1440];
+const ALERT_FDV_LOOKAROUND_MS = 5 * 60 * 1000;
 
 function printUsageAndExit(message?: string): never {
   if (message) {
@@ -70,7 +142,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm metrics:window-report -- --mint <MINT> [--entryAt <ISO>] [--windows 30,60,1440]",
+      "pnpm metrics:window-report -- --mint <MINT> [--entryAt <ISO>] [--windows 30,60,90,120,180,240,300,360,480,600,720,1440]",
     ].join("\n"),
   );
   process.exit(1);
@@ -163,12 +235,12 @@ function readRecord(value: unknown, key: string): JsonObject | null {
 
 function readFiniteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
+    return value > 0 ? value : null;
   }
 
   if (typeof value === "string" && value.trim().length > 0) {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   return null;
@@ -209,66 +281,227 @@ function readFirstSeenDetectedAt(entrySnapshot: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function resolveEntryAt(input: {
+function resolveAlertedAt(input: {
   cliEntryAt?: Date;
   entrySnapshot: unknown;
   importedAt: Date;
   createdAt: Date;
-}): { entryAt: Date; entryAtSource: EntryAtSource } {
+  sentNotification: { id: number; sentAt: Date } | null;
+  capturedNotification: { id: number; capturedAt: Date } | null;
+}): AlertedAtResolution {
   if (input.cliEntryAt) {
     return {
-      entryAt: input.cliEntryAt,
+      alertedAt: input.cliEntryAt,
       entryAtSource: "cli",
+      alertedAtSource: "cli_entryAt",
+      alertNotificationId: null,
+    };
+  }
+
+  if (input.sentNotification) {
+    return {
+      alertedAt: input.sentNotification.sentAt,
+      entryAtSource: "notification.sentAt",
+      alertedAtSource: "notification_sent_at",
+      alertNotificationId: input.sentNotification.id,
+    };
+  }
+
+  if (input.capturedNotification) {
+    return {
+      alertedAt: input.capturedNotification.capturedAt,
+      entryAtSource: "notification.capturedAt",
+      alertedAtSource: "notification_captured_at",
+      alertNotificationId: input.capturedNotification.id,
     };
   }
 
   const firstSeenDetectedAt = readFirstSeenDetectedAt(input.entrySnapshot);
   if (firstSeenDetectedAt) {
     return {
-      entryAt: firstSeenDetectedAt,
+      alertedAt: firstSeenDetectedAt,
       entryAtSource: "firstSeenSourceSnapshot.detectedAt",
+      alertedAtSource: "first_seen_detected_at",
+      alertNotificationId: null,
     };
   }
 
   if (input.importedAt) {
     return {
-      entryAt: input.importedAt,
+      alertedAt: input.importedAt,
       entryAtSource: "importedAt",
+      alertedAtSource: "token_imported_at",
+      alertNotificationId: null,
     };
   }
 
   return {
-    entryAt: input.createdAt,
+    alertedAt: input.createdAt,
     entryAtSource: "createdAt",
+    alertedAtSource: "token_created_at",
+    alertNotificationId: null,
   };
 }
 
 function formatWindowKey(windowMinutes: number): string {
-  if (windowMinutes % 1440 === 0) {
-    return `${windowMinutes / 1440 * 24}h`;
+  if (windowMinutes >= 120 && windowMinutes % 60 === 0) {
+    return `${windowMinutes / 60}h`;
   }
 
   return `${windowMinutes}m`;
 }
 
+function secondsBetween(left: Date, right: Date): number {
+  return Math.abs(left.getTime() - right.getTime()) / 1000;
+}
+
+function minutesBetween(from: Date, to: Date): number | null {
+  const minutes = (to.getTime() - from.getTime()) / (60 * 1000);
+  return minutes >= 0 ? minutes : null;
+}
+
+function getFdvSamples(samples: MetricSample[]): FdvSample[] {
+  return samples.filter((sample): sample is FdvSample => sample.fdv !== null);
+}
+
+function findAlertFdv(
+  fdvSamples: FdvSample[],
+  alertedAt: Date,
+): {
+  alertFdv: number | null;
+  alertFdvObservedAt: Date | null;
+  alertFdvSource: AlertFdvSource;
+  alertFdvFreshnessSeconds: number | null;
+} {
+  const lowerBound = new Date(alertedAt.getTime() - ALERT_FDV_LOOKAROUND_MS);
+  const upperBound = new Date(alertedAt.getTime() + ALERT_FDV_LOOKAROUND_MS);
+  const before = [...fdvSamples]
+    .filter((sample) => sample.observedAt <= alertedAt && sample.observedAt >= lowerBound)
+    .sort((left, right) => right.observedAt.getTime() - left.observedAt.getTime())[0];
+
+  if (before) {
+    return {
+      alertFdv: before.fdv,
+      alertFdvObservedAt: before.observedAt,
+      alertFdvSource: "metric_before_alert",
+      alertFdvFreshnessSeconds: secondsBetween(before.observedAt, alertedAt),
+    };
+  }
+
+  const after = fdvSamples
+    .filter((sample) => sample.observedAt >= alertedAt && sample.observedAt <= upperBound)
+    .sort((left, right) => left.observedAt.getTime() - right.observedAt.getTime())[0];
+
+  if (after) {
+    return {
+      alertFdv: after.fdv,
+      alertFdvObservedAt: after.observedAt,
+      alertFdvSource: "metric_after_alert",
+      alertFdvFreshnessSeconds: secondsBetween(after.observedAt, alertedAt),
+    };
+  }
+
+  return {
+    alertFdv: null,
+    alertFdvObservedAt: null,
+    alertFdvSource: "unavailable",
+    alertFdvFreshnessSeconds: null,
+  };
+}
+
+function findLatestFdv(
+  fdvSamples: FdvSample[],
+  evaluationAt: Date,
+): {
+  latestFdv: number | null;
+  latestFdvObservedAt: Date | null;
+  latestFdvAgeSeconds: number | null;
+} {
+  const latest = [...fdvSamples]
+    .filter((sample) => sample.observedAt <= evaluationAt)
+    .sort((left, right) => right.observedAt.getTime() - left.observedAt.getTime())[0];
+
+  if (!latest) {
+    return {
+      latestFdv: null,
+      latestFdvObservedAt: null,
+      latestFdvAgeSeconds: null,
+    };
+  }
+
+  return {
+    latestFdv: latest.fdv,
+    latestFdvObservedAt: latest.observedAt,
+    latestFdvAgeSeconds: (evaluationAt.getTime() - latest.observedAt.getTime()) / 1000,
+  };
+}
+
+function getFdvSampleCoverageLabel(fdvSampleCount: number): FdvSampleCoverageLabel {
+  if (fdvSampleCount === 0) return "no_data";
+  if (fdvSampleCount === 1) return "thin";
+  if (fdvSampleCount < 4) return "partial";
+  return "usable";
+}
+
+function getOutcomeLabel(input: {
+  alertFdv: number | null;
+  fdvSampleCount: number;
+  peakFdv: number | null;
+  peakMultipleFromAlert: number | null;
+}): OutcomeLabel {
+  if (
+    input.alertFdv === null ||
+    input.fdvSampleCount === 0 ||
+    input.peakFdv === null ||
+    input.peakMultipleFromAlert === null
+  ) {
+    return "no_data";
+  }
+
+  if (input.peakMultipleFromAlert < 1.5) return "flat";
+  if (input.peakMultipleFromAlert < 3) return "small_win";
+  if (input.peakMultipleFromAlert < 10) return "hit";
+  return "big_hit";
+}
+
 function buildWindowReport(
   samples: MetricSample[],
-  entryAt: Date,
+  alertedAt: Date,
+  evaluationAt: Date,
   windowMinutes: number,
+  alertFdv: number | null,
+  latestFdv: number | null,
 ): WindowReport {
-  const windowEnd = new Date(entryAt.getTime() + windowMinutes * 60 * 1000);
+  const windowEnd = new Date(alertedAt.getTime() + windowMinutes * 60 * 1000);
+  const effectiveWindowEnd = new Date(Math.min(windowEnd.getTime(), evaluationAt.getTime()));
   const inWindow = samples.filter(
-    (sample) => sample.observedAt >= entryAt && sample.observedAt <= windowEnd,
+    (sample) => sample.observedAt >= alertedAt && sample.observedAt <= effectiveWindowEnd,
   );
-  const fdvSamples = inWindow.filter((sample): sample is MetricSample & { fdv: number } => sample.fdv !== null);
+  const fdvSamples = getFdvSamples(inWindow);
   const firstObservedFdv = fdvSamples[0]?.fdv ?? null;
-  let peakSample: (MetricSample & { fdv: number }) | null = null;
+  const fdvFirstObservedAt = fdvSamples[0]?.observedAt ?? null;
+  const fdvLastObservedAt = fdvSamples[fdvSamples.length - 1]?.observedAt ?? null;
+  let peakSample: FdvSample | null = null;
 
   for (const sample of fdvSamples) {
     if (peakSample === null || sample.fdv > peakSample.fdv) {
       peakSample = sample;
     }
   }
+
+  const peakMultipleFromAlert =
+    peakSample && alertFdv !== null && alertFdv > 0 ? peakSample.fdv / alertFdv : null;
+  const timeToPeakMinutes =
+    peakSample ? minutesBetween(alertedAt, peakSample.observedAt) : null;
+  const drawdownFromPeak =
+    peakSample && latestFdv !== null && peakSample.fdv > 0
+      ? Math.max(0, (peakSample.fdv - latestFdv) / peakSample.fdv)
+      : null;
+  const fdvObservedSpanMinutes =
+    fdvFirstObservedAt && fdvLastObservedAt && fdvSamples.length >= 2
+      ? (fdvLastObservedAt.getTime() - fdvFirstObservedAt.getTime()) / (60 * 1000)
+      : null;
+  const isWindowComplete = evaluationAt >= windowEnd;
 
   return {
     sampleCount: inWindow.length,
@@ -280,6 +513,24 @@ function buildWindowReport(
       peakSample && firstObservedFdv && firstObservedFdv > 0
         ? peakSample.fdv / firstObservedFdv
         : null,
+    windowMinutes,
+    windowStartAt: alertedAt.toISOString(),
+    windowEndAt: windowEnd.toISOString(),
+    isWindowComplete,
+    outcomeIsProvisional: !isWindowComplete,
+    fdvFirstObservedAt: fdvFirstObservedAt?.toISOString() ?? null,
+    fdvLastObservedAt: fdvLastObservedAt?.toISOString() ?? null,
+    fdvObservedSpanMinutes,
+    fdvSampleCoverageLabel: getFdvSampleCoverageLabel(fdvSamples.length),
+    peakMultipleFromAlert,
+    timeToPeakMinutes,
+    drawdownFromPeak,
+    outcomeLabel: getOutcomeLabel({
+      alertFdv,
+      fdvSampleCount: fdvSamples.length,
+      peakFdv: peakSample?.fdv ?? null,
+      peakMultipleFromAlert,
+    }),
   };
 }
 
@@ -306,6 +557,8 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
       },
     },
   });
+  const reportGeneratedAt = new Date();
+  const evaluationAt = reportGeneratedAt;
 
   if (token === null) {
     return {
@@ -318,6 +571,21 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
       mint: args.mint,
       entryAt: null,
       entryAtSource: null,
+      reportGeneratedAt: reportGeneratedAt.toISOString(),
+      evaluationAt: evaluationAt.toISOString(),
+      alertedAt: null,
+      alertedAtSource: "unavailable",
+      alertNotificationId: null,
+      alertFdv: null,
+      alertFdvObservedAt: null,
+      alertFdvSource: "unavailable",
+      alertFdvFreshnessSeconds: null,
+      latestFdv: null,
+      latestFdvObservedAt: null,
+      latestFdvAgeSeconds: null,
+      firstObservedFdv: null,
+      firstObservedAt: null,
+      minutesFromFirstObservedToAlert: null,
       metricCount: 0,
       fdvMetricCount: 0,
       windows: {},
@@ -328,20 +596,69 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
     };
   }
 
-  const { entryAt, entryAtSource } = resolveEntryAt({
+  const [sentNotification, capturedNotification] = await Promise.all([
+    db.notification.findFirst({
+      where: {
+        tokenId: token.id,
+        status: "sent",
+        sentAt: { not: null },
+      },
+      orderBy: [
+        { sentAt: "asc" },
+        { id: "asc" },
+      ],
+      select: {
+        id: true,
+        sentAt: true,
+      },
+    }),
+    db.notification.findFirst({
+      where: {
+        tokenId: token.id,
+        status: "captured",
+        capturedAt: { not: null },
+      },
+      orderBy: [
+        { capturedAt: "asc" },
+        { id: "asc" },
+      ],
+      select: {
+        id: true,
+        capturedAt: true,
+      },
+    }),
+  ]);
+  const { alertedAt, entryAtSource, alertedAtSource, alertNotificationId } = resolveAlertedAt({
     cliEntryAt: args.entryAt,
     entrySnapshot: token.entrySnapshot,
     importedAt: token.importedAt,
     createdAt: token.createdAt,
+    sentNotification: sentNotification && sentNotification.sentAt
+      ? { id: sentNotification.id, sentAt: sentNotification.sentAt }
+      : null,
+    capturedNotification: capturedNotification && capturedNotification.capturedAt
+      ? { id: capturedNotification.id, capturedAt: capturedNotification.capturedAt }
+      : null,
   });
   const samples = token.metrics.map((metric) => ({
     observedAt: metric.observedAt,
     fdv: extractFdvUsd(metric.rawJson),
   }));
+  const fdvSamples = getFdvSamples(samples);
+  const alertFdvResult = findAlertFdv(fdvSamples, alertedAt);
+  const latestFdvResult = findLatestFdv(fdvSamples, evaluationAt);
+  const firstObserved = fdvSamples[0] ?? null;
   const windows = Object.fromEntries(
     args.windows.map((windowMinutes) => [
       formatWindowKey(windowMinutes),
-      buildWindowReport(samples, entryAt, windowMinutes),
+      buildWindowReport(
+        samples,
+        alertedAt,
+        evaluationAt,
+        windowMinutes,
+        alertFdvResult.alertFdv,
+        latestFdvResult.latestFdv,
+      ),
     ]),
   );
 
@@ -353,15 +670,33 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
     willFetch: false,
     willSendTelegram: false,
     mint: token.mint,
-    entryAt: entryAt.toISOString(),
+    entryAt: alertedAt.toISOString(),
     entryAtSource,
+    reportGeneratedAt: reportGeneratedAt.toISOString(),
+    evaluationAt: evaluationAt.toISOString(),
+    alertedAt: alertedAt.toISOString(),
+    alertedAtSource,
+    alertNotificationId,
+    alertFdv: alertFdvResult.alertFdv,
+    alertFdvObservedAt: alertFdvResult.alertFdvObservedAt?.toISOString() ?? null,
+    alertFdvSource: alertFdvResult.alertFdvSource,
+    alertFdvFreshnessSeconds: alertFdvResult.alertFdvFreshnessSeconds,
+    latestFdv: latestFdvResult.latestFdv,
+    latestFdvObservedAt: latestFdvResult.latestFdvObservedAt?.toISOString() ?? null,
+    latestFdvAgeSeconds: latestFdvResult.latestFdvAgeSeconds,
+    firstObservedFdv: firstObserved?.fdv ?? null,
+    firstObservedAt: firstObserved?.observedAt.toISOString() ?? null,
+    minutesFromFirstObservedToAlert: firstObserved
+      ? minutesBetween(firstObserved.observedAt, alertedAt)
+      : null,
     metricCount: samples.length,
-    fdvMetricCount: samples.filter((sample) => sample.fdv !== null).length,
+    fdvMetricCount: fdvSamples.length,
     windows,
     notes: [
-      "peakFdv30m, peakFdv60m, and peakFdv24h are computed as max(fdv) over observed Metric history in each window",
+      "peakFdv30m through peakFdv24h are computed as max(fdv) over observed Metric history in each window",
       "peakFdv24h is computed from observed Metric history, not a single 24h-later snapshot",
       "provider payload fields are only inspected internally for fdvUsd/fdv_usd candidates and are not printed",
+      "outcomeLabel is read-only notification and scoring verification context and is not persisted",
     ],
   };
 }

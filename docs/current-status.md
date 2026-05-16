@@ -402,17 +402,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   paid holder source work remains parked.
 - `pnpm metrics:window-report -- --mint <MINT>` is now the read-only Metric
   history peak report for notification / scoring verification after bounded
-  monitoring data accumulates. The future Metric outcome evaluation design is
+  monitoring data accumulates. The Metric outcome evaluation design is
   fixed in `docs/design/metric-outcome-evaluation.md`: default windows are
   30m, 60m, 90m, 2h, 3h, 4h, 5h, 6h, 8h, 10h, 12h, and 24h; each window's peak
   FDV is `max(fdv)` over observed Metric rows, not a single 24h-later sample;
-  `evaluationAt` is the report execution time for MVP evaluation; and future
-  read-only output may compute `alertFdv`, `latestFdv`, window completion,
-  provisional status, `timeToPeakMinutes`, `peakMultipleFromAlert`,
-  `drawdownFromPeak`, and `outcomeLabel` without saving them to DB. The report
-  performs no DB write, fetch, Telegram send, checkpoint update, `--write`,
-  `--watch`, or `pnpm smoke`, and it is verification context rather than
-  automatic trading or buy-signal output.
+  `evaluationAt` is the report execution time for MVP evaluation; and the
+  read-only output now computes `alertedAt`, `alertFdv`, `latestFdv`,
+  `firstObservedFdv`, window completion, provisional status,
+  `timeToPeakMinutes`, `peakMultipleFromAlert`, `drawdownFromPeak`, coverage
+  labels, and `outcomeLabel` without saving them to DB. The report performs no
+  DB write, schema change, Notification write, fetch, Telegram send,
+  checkpoint update, `--write`, `--watch`, or `pnpm smoke`, and it is
+  verification context rather than automatic trading or buy-signal output.
 - The first 3h GeckoTerminal detect watch dry-run completed on 2026-05-16 with
   `pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1
   --maxIterations 180 --intervalSeconds 60`. It ran 180 cycles with
