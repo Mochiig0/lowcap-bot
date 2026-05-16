@@ -484,6 +484,25 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes
   1440 --minGapMinutes 60 --write`. Metric and Notification accumulation must
   remain separate Red slices.
+- The first bounded Metric accumulation Red execution has now completed in
+  recent batch mode. Command:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes
+  1440 --minGapMinutes 60 --write`. It selected
+  `AW7QAFFfEiGg5o4EfB6yUg4EB8ML3N74F3A2F4uepump`, fetched one GeckoTerminal
+  token snapshot, and appended Metric `id=1274` at
+  `observedAt=2026-05-16T20:39:48.499Z` with source
+  `geckoterminal.token_snapshot`. Counts moved from Token / Metric /
+  Notification / HolderSnapshot `1296 / 191 / 6 / 1` to
+  `1296 / 192 / 6 / 1`; `review:queue:geckoterminal -- --pumpOnly` moved
+  `metricPendingCount` from 180 to 179. The run had `okCount=1`,
+  `writtenCount=1`, `skippedCount=0`, and `errorCount=0`; no rate-limit /
+  retry condition was observed. Because it used batch mode and not exact
+  `--mint` mode, it did not create a Notification row, did not send Telegram,
+  did not update Token or HolderSnapshot, did not enrich / rescore, and did
+  not touch checkpoints. `metrics:window-report` for the selected mint
+  remained read-only and confirmed one valid FDV sample in the 24h window;
+  30m / 60m windows remained `no_data` because the first Metric was observed
+  outside those windows.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

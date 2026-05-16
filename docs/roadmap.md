@@ -157,6 +157,15 @@ Recommended next Yellow implementation slice:
   1440 --minGapMinutes 60 --write`. This is expected to fetch one token
   snapshot and append one Metric row, with no Token update, HolderSnapshot
   write, Telegram send, checkpoint, or Notification row in batch mode;
+- the first bounded Metric accumulation Red run is complete in batch mode:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes
+  1440 --minGapMinutes 60 --write` selected
+  `AW7QAFFfEiGg5o4EfB6yUg4EB8ML3N74F3A2F4uepump` and appended Metric
+  `id=1274`. Counts moved `1296 / 191 / 6 / 1` to `1296 / 192 / 6 / 1`, and
+  `metricPendingCount` moved 180 to 179. Token / Notification /
+  HolderSnapshot counts stayed unchanged, no Telegram send occurred, no
+  checkpoint was touched, and exact `--mint` Notification capture remains a
+  separate slice;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

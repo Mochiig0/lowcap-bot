@@ -4470,6 +4470,75 @@ Stop conditions for the next Red task:
 - checkpoint, queue, scheduler, systemd, detect, enrich / rescore, or
   `pnpm smoke` is introduced.
 
+### Bounded Metric Accumulation Result
+
+The first bounded Metric accumulation Red task completed in recent batch mode.
+Exact command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 1 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Selection and write summary:
+
+- selected mint:
+  `AW7QAFFfEiGg5o4EfB6yUg4EB8ML3N74F3A2F4uepump`
+- selected token id: `5379`
+- Metric id: `1274`
+- `observedAt=2026-05-16T20:39:48.499Z`
+- `source=geckoterminal.token_snapshot`
+- `volume24h=0`
+- `selectedCount=1`, `okCount=1`, `writtenCount=1`, `skippedCount=0`,
+  `errorCount=0`
+- `minGapMinutes=60` was active.
+- No `skipped_recent_metric`, fetch error, rate-limit retry, or failure
+  cooldown was observed.
+
+DB count confirmation:
+
+| Table | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Token | 1296 | 1296 | 0 |
+| Metric | 191 | 192 | +1 |
+| Notification | 6 | 6 | 0 |
+| HolderSnapshot | 1 | 1 | 0 |
+
+Queue confirmation:
+
+- `review:queue:geckoterminal -- --pumpOnly` moved `metricPendingCount` from
+  180 to 179.
+- The selected mint now has `metricsCount=1`,
+  `latestMetricObservedAt=2026-05-16T20:39:48.499Z`, and
+  `latestMetricSource=geckoterminal.token_snapshot`.
+
+Boundary confirmation:
+
+- This was batch mode; exact `--mint` mode was not used.
+- Notification capture was not part of this task, and Notification count stayed
+  unchanged.
+- Telegram live send did not occur.
+- HolderSnapshot count stayed unchanged.
+- Token enrich / rescore did not run, and Token count stayed unchanged.
+- No checkpoint file was created or updated by this command.
+- No detect / import / queue / scheduler / systemd / `pnpm smoke` command was
+  run.
+- `metrics:window-report -- --mint
+  AW7QAFFfEiGg5o4EfB6yUg4EB8ML3N74F3A2F4uepump --windows 30,60,1440`
+  remained read-only and confirmed one valid FDV sample in the 24h window; the
+  30m and 60m windows remained `no_data` because the Metric was observed
+  outside those windows.
+
+Next boundary:
+
+- A small follow-up Metric accumulation run such as `--limit 3` can be
+  considered after a separate Red approval.
+- Notification capture remains a separate slice because exact `--mint` mode can
+  create a capture-only `metric_appended` Notification after a successful
+  Metric write.
+- This result confirms one Metric append from the 3h write rehearsal cohort; it
+  does not confirm Telegram live send, HolderSnapshot real-source capture,
+  enrich / rescore, scheduler / systemd operation, or outcome persistence.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for
