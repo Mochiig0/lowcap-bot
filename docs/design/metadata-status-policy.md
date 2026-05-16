@@ -327,7 +327,6 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- `tokens:compare-report` outcomeBucket legacy policy.
 - Notification eventType / trigger required-fields policy.
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.

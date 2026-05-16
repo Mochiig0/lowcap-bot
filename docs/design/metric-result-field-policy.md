@@ -168,6 +168,19 @@ Priority:
 - `peakMultipleFromAlert` is primary for notification quality validation.
 - `peakMultipleFromFirstObserved` is a secondary signal for detection speed.
 
+## Compare Report Legacy Outcome Bucket
+
+The `tokens:compare-report` `outcomeBucket` compatibility boundary is fixed in
+`docs/design/compare-report-legacy-outcome-policy.md`.
+
+`tokens:compare-report outcomeBucket` reads older Metric result fields, notably
+the latest Metric `maxMultiple15m`. Treat it as a legacy / provisional /
+backward-compatible bucket, not as the canonical outcome result.
+
+Canonical outcome review should use `metrics:window-report` window-level
+`outcomeLabel`, based on FDV window maxima, `alertFdv`, and
+`peakMultipleFromAlert`.
+
 ## Time To Peak
 
 `timeToPeakMinutes` must state which peak it refers to.

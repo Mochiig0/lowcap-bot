@@ -161,4 +161,3 @@ not migrate existing rows, change code, change schema, or change the current
 
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.
-- `tokens:compare-report` outcomeBucket legacy policy.

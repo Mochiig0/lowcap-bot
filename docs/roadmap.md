@@ -64,6 +64,12 @@ Recommended next Yellow implementation slice:
   planners / reports / guards should treat `metadataStatus` as metadata
   completeness rather than safety, score, source, notification, holder, or
   outcome state;
+- `docs/design/compare-report-legacy-outcome-policy.md` fixes
+  `tokens:compare-report outcomeBucket` as legacy / provisional compatibility
+  output based on older Metric result fields such as latest Metric
+  `maxMultiple15m`; canonical outcome review remains
+  `metrics:window-report` window-level `outcomeLabel` based on FDV window
+  maxima, `alertFdv`, and `peakMultipleFromAlert`;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;

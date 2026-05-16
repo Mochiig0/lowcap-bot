@@ -448,6 +448,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   metadata lifecycle state. Reports / planners / guards should read
   `metadataStatus` as metadata completeness, not safety, risk, source,
   Notification status, HolderSnapshot status, or outcome label.
+- `tokens:compare-report outcomeBucket` legacy policy is fixed in
+  `docs/design/compare-report-legacy-outcome-policy.md`. `outcomeBucket` is a
+  legacy / provisional / backward-compatible bucket based on older Metric
+  result fields, currently latest Metric `maxMultiple15m`, and is not the
+  canonical outcome evaluation path. Current outcome review should prefer
+  `metrics:window-report` window-level `outcomeLabel` based on FDV window
+  maxima, `alertFdv`, and `peakMultipleFromAlert`.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

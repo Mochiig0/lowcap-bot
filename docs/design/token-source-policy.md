@@ -286,7 +286,6 @@ or any Metric / Notification / HolderSnapshot implementation.
 
 ## Next Docs-Only Candidates
 
-- `tokens:compare-report` outcomeBucket legacy policy.
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.
 - Notification eventType-by-required-fields policy.

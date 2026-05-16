@@ -27,12 +27,20 @@ not position sizing, and not profit guidance.
 The Metric result-field storage boundary is fixed in
 `docs/design/metric-result-field-policy.md`.
 
+The `tokens:compare-report` legacy outcome-bucket boundary is fixed in
+`docs/design/compare-report-legacy-outcome-policy.md`.
+
 In the MVP, Metric rows are treated as time-series observation snapshots, not
 as aggregate rows that are continuously updated with final outcomes. Result
 fields such as `peakFdv24h`, `maxMultiple15m`, `timeToPeakMinutes`,
 `alertedAt`, and `peakMultipleFromAlert` remain read-only computed outcome
 values for `metrics:window-report`, not live snapshot write targets for
 `metric:snapshot:geckoterminal`.
+
+`tokens:compare-report outcomeBucket` is legacy / provisional compatibility
+output based on older Metric result fields. It is not the canonical outcome
+evaluation path. Use this document's window-level `outcomeLabel` policy for
+current outcome review.
 
 ## Peak FDV Window Policy
 
