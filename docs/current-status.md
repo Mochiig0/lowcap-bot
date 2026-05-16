@@ -292,6 +292,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   mapper stays synthetic; `mapRugcheckRealResponseToSafeSummary` and real
   response fixtures are not implemented, no raw provider JSON is stored, no
   fetch was run, and Red external capture is not approved yet.
+- The Rugcheck summary endpoint preflight plan is now docs-only: a future Red
+  task may consider exactly one mint and one `GET /v1/tokens/{mint}/report/summary`
+  request only after endpoint / auth / rate-limit approval. Allowed output is
+  limited to HTTP status, top-level keys, dangerous-key presence, sanitized
+  field-shape summary, and mapping feasibility. It forbids raw response bodies,
+  raw JSON fixtures, wallet / owner addresses, secret-bearing URLs or headers,
+  API keys / JWTs, `.env`, screenshots with wallet lists / secrets, DB writes,
+  `holder:snapshot:add`, queue / scheduler / systemd, checkpoint updates,
+  `--write`, `--watch`, and `pnpm smoke`.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

@@ -1304,6 +1304,135 @@ persistence, `topHoldersPct` semantics are ambiguous, a mapper would need
 free-text risk inference, output starts reading like buy / sell / position /
 exit guidance, or raw payload / secrets would need to be logged.
 
+## Rugcheck Summary Endpoint Preflight Plan
+
+This is a docs-only execution plan for a possible future Red endpoint
+preflight. It does not approve capture, does not confirm the endpoint contract,
+and does not run a real Rugcheck API request, on-chain request, production DB
+write, `holder:snapshot:add`, queue, scheduler, systemd, checkpoint update,
+`--write`, `--watch`, or `pnpm smoke`.
+
+Purpose:
+
+- verify whether a single summary response can be inspected without storing
+  raw provider JSON;
+- confirm the top-level response shape and candidate holder fields before any
+  real mapper fixture is implemented;
+- confirm whether dangerous raw-payload or secret-like keys are present;
+- decide whether the source can advance only to a source-specific mapper
+  fixture, not to persistence.
+
+Candidate endpoint:
+
+- candidate: `GET /v1/tokens/{mint}/report/summary`;
+- endpoint URL, auth mode, terms, rate limit, and exact response shape remain
+  unresolved until the future Red preflight is separately approved;
+- full report, insider graph, and bulk endpoints are out of scope.
+
+Target mint policy:
+
+- initial candidate mint:
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`;
+- reason: this mint already has Token / HolderSnapshot context from the
+  manual rehearsal loop;
+- before any Red preflight, re-confirm the target mint, endpoint, and exact
+  command with the operator.
+
+Auth / secret boundary:
+
+- do not assume anonymous access;
+- if an API key, JWT, bearer token, or provider credential is required, approve
+  the credential boundary before the request;
+- do not print, persist, commit, screenshot, or paste auth headers, request
+  URLs containing secrets, `.env` values, API keys, JWTs, tokens, Telegram
+  fields, or any secret-like value;
+- preflight output may say that auth was required or not required, but must not
+  include the credential material.
+
+Request count limit:
+
+- exactly one mint;
+- summary endpoint only;
+- exactly one request;
+- no retry, batch request, follow-up endpoint, full report fallback, holder
+  crawl, queue, scheduler, systemd, checkpoint update, `--write`, `--watch`, or
+  `pnpm smoke`.
+
+Allowed output:
+
+- HTTP status;
+- response top-level keys only;
+- presence / absence of candidate holder fields;
+- whether dangerous keys exist, reported by key/path category only;
+- sanitized field-shape summary such as primitive type, array/object presence,
+  and nullability;
+- whether mapping to `HolderDistributionSafeSummary` seems possible;
+- whether the response appears to require more source review;
+- no actual wallet addresses and no raw response body.
+
+Forbidden output:
+
+- raw response body;
+- raw JSON dump;
+- raw provider JSON fixture;
+- `topHolders[]` entries;
+- wallet addresses;
+- owner addresses;
+- request URL containing secrets;
+- auth headers;
+- API keys, JWTs, bearer tokens, or provider tokens;
+- Telegram bot token, chat id, or Telegram response fields;
+- `.env` values;
+- screenshots containing wallet lists or secrets;
+- free-form provider risk descriptions if they contain wallet-like data.
+
+No persistence boundary:
+
+- do not write production DB state;
+- do not run `holder:snapshot:add`;
+- do not write a raw response fixture;
+- do not commit response bodies, screenshots, provider JSON, wallet lists, or
+  secret-bearing output;
+- rollback should be unnecessary because the approved preflight must not create
+  persisted app state.
+
+Mapping decision boundary:
+
+- after preflight, do not automatically persist holder data;
+- do not implement `mapRugcheckRealResponseToSafeSummary` in the same Red
+  preflight task;
+- do not map ambiguous `topHoldersPct` semantics into `topHolderPct` or
+  `top10HolderPct`;
+- keep unknown or ambiguous fields as `null` / `unknown`;
+- possible outcomes are:
+  `approved_for_mapper_fixture_only`, `needs_more_source_review`,
+  `rejected_for_raw_payload_risk`, or
+  `rejected_for_auth_or_terms_uncertainty`.
+
+Stop conditions:
+
+- endpoint URL, auth, terms, or rate limit remain unclear at approval time;
+- more than one request would be needed;
+- the summary endpoint redirects the task toward full report, insider graph,
+  bulk, or on-chain holder crawl;
+- response inspection would require printing or saving a raw response body;
+- wallet lists, owner addresses, request URLs with secrets, auth headers, API
+  keys, JWTs, Telegram fields, or `.env` values would appear in output;
+- source terms prohibit the intended inspection;
+- holder fields are too ambiguous to decide fixture mapping;
+- output starts to read like buy / sell / position / exit guidance.
+
+Post-preflight next steps:
+
+- if `approved_for_mapper_fixture_only`, add a sanitized source-specific mapper
+  fixture shape without storing raw provider JSON;
+- if `needs_more_source_review`, keep the source unresolved and do not
+  implement a real mapper;
+- if rejected for raw payload, auth, terms, or rate-limit risk, keep the
+  synthetic mapper as the only implemented mapper;
+- any later persistence task needs a separate approval after a real mapper
+  fixture is reviewed.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

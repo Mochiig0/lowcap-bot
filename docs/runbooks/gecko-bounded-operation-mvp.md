@@ -2703,6 +2703,15 @@ Manual retry closeout:
   endpoint preflight only after approval; avoid full reports that expose
   `topHolders[]` / wallet-list payload, do not store raw provider JSON, and keep
   the real-response mapper separate from the current synthetic fixture mapper.
+- The Rugcheck summary endpoint preflight plan is also docs-only. A future Red
+  task is bounded to one re-confirmed mint, one summary endpoint request, no
+  retry, no batch, no full-report fallback, no DB write, no
+  `holder:snapshot:add`, no raw response persistence, no queue / scheduler /
+  systemd, no checkpoint update, no `--write` / `--watch`, and no `pnpm smoke`.
+  Permitted output is only HTTP status, top-level keys, dangerous-key presence,
+  sanitized field-shape summary, and safe-summary mapping feasibility; raw
+  response bodies, wallet / owner addresses, auth material, `.env`, and
+  screenshots containing wallet lists or secrets remain forbidden.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future
