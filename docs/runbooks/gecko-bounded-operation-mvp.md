@@ -4206,11 +4206,14 @@ path has been verified.
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for
-checking whether accumulated Metric history later showed a 30m / 60m / 24h
-FDV peak after candidate detection or notification. It uses the token entry
-anchor in this order: `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`,
-then `Token.importedAt`, then `Token.createdAt`; operators can override that
-with `--entryAt <ISO>`.
+checking whether accumulated Metric history later showed FDV peaks after
+candidate detection or notification. Current implementation details remain in
+the CLI; the future Metric outcome evaluation policy is fixed in
+`docs/design/metric-outcome-evaluation.md`. That policy uses `alertedAt` as the
+anchor, resolved from `Notification.sentAt`, `Notification.capturedAt`,
+`Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`, `Token.importedAt`,
+then `Token.createdAt`. The current CLI still accepts `--entryAt <ISO>` for an
+operator override.
 
 The report computes each window as `max(fdv)` over observed Metric rows inside
 the window. The 24h peak is not a single 24h-later snapshot; it is the observed
@@ -4218,6 +4221,19 @@ maximum across the full 24h window, so a short-lived early pump can still be
 counted by later review. If a window has Metric rows but no FDV candidate
 field, `sampleCount` still counts the rows while `fdvSampleCount=0` and
 `peakFdv=null`.
+
+Default future outcome windows are:
+
+```text
+30,60,90,120,180,240,300,360,480,600,720,1440
+```
+
+Future read-only window output may include `alertFdv`,
+`alertFdvObservedAt`, `alertFdvFreshnessSeconds`, `peakObservedAt`,
+`fdvSampleCount`, `timeToPeakMinutes`, `peakMultipleFromAlert`, and
+`outcomeLabel`. Labels are computed only for review:
+`no_data`, `flat`, `small_win`, `hit`, and `big_hit`. They are not stored in
+DB yet and must not be treated as trading guidance.
 
 Allowed read-only use:
 
