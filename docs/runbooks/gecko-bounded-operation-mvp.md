@@ -4252,6 +4252,16 @@ external APIs, send Telegram, update checkpoints, execute `--write` /
 `--watch`, or run `pnpm smoke`. It is notification / score verification
 context, not automatic trading or buy-signal output.
 
+Metric result fields are not live snapshot write targets in the MVP. The
+source of truth for this boundary is
+`docs/design/metric-result-field-policy.md`. `metric:snapshot:geckoterminal`
+should keep appending observation snapshots; it should not fill
+`Metric.peakFdv24h`, `Metric.peakFdv7d`, `Metric.maxMultiple15m`,
+`Metric.maxMultiple1h`, `Metric.volume7d`, `Metric.timeToPeakMinutes`,
+`Metric.alertedAt`, or `Metric.peakMultipleFromAlert` during live snapshot
+capture. Outcome review comes later from `metrics:window-report` over
+accumulated Metric history.
+
 ## Daily Operator Order
 
 Use this order when continuing bounded Gecko candidate accumulation.

@@ -413,6 +413,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   performs no DB write, fetch, Telegram send, checkpoint update, `--write`,
   `--watch`, or `pnpm smoke`, and it is verification context rather than
   automatic trading or buy-signal output.
+- Metric result-field policy is fixed in
+  `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
+  append-only-ish observation snapshots (`observedAt`, `source`, provider
+  `volume24h`, sanitized `rawJson`) and are not aggregate rows for continuously
+  updated outcomes. Result fields such as `peakFdv24h`, `peakFdv7d`,
+  `peakPrice15m`, `peakPrice1h`, `maxMultiple15m`, `maxMultiple1h`,
+  `volume7d`, `timeToPeakMinutes`, `alertedAt`, and
+  `peakMultipleFromAlert` are treated as computed outcome fields for
+  `metrics:window-report`, not live snapshot write targets for
+  `metric:snapshot:geckoterminal`. Outcome persistence remains deferred until
+  an `OutcomeSnapshot`, `AlertOutcome`, or equivalent design is approved.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

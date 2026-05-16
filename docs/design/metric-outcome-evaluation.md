@@ -19,6 +19,20 @@ not position sizing, and not profit guidance.
 - No external fetch.
 - No `--write` or `--watch` execution.
 - No `metrics:window-report` implementation change in this docs-only task.
+- No `metric:snapshot:geckoterminal` implementation change in this docs-only
+  task.
+
+## Metric Result Field Boundary
+
+The Metric result-field storage boundary is fixed in
+`docs/design/metric-result-field-policy.md`.
+
+In the MVP, Metric rows are treated as time-series observation snapshots, not
+as aggregate rows that are continuously updated with final outcomes. Result
+fields such as `peakFdv24h`, `maxMultiple15m`, `timeToPeakMinutes`,
+`alertedAt`, and `peakMultipleFromAlert` remain read-only computed outcome
+values for `metrics:window-report`, not live snapshot write targets for
+`metric:snapshot:geckoterminal`.
 
 ## Peak FDV Window Policy
 
@@ -265,6 +279,8 @@ Rules:
 
 - Compute it separately per window.
 - Return `null` when `alertedAt`, `peakFdv`, or `peakObservedAt` is missing.
+- If the same `peakFdv` appears more than once in a window, use the earliest
+  `observedAt` as `peakObservedAt`.
 
 ## Peak Multiple From Alert
 
@@ -389,6 +405,9 @@ storage paths:
 - finalized `Metric` outcome values
 
 Any storage decision requires a separate design and implementation task.
+Until then, do not save computed outcomes into existing Metric result columns
+such as `peakFdv24h`, `maxMultiple15m`, `timeToPeakMinutes`, `alertedAt`, or
+`peakMultipleFromAlert`.
 
 ## Safety Notes
 

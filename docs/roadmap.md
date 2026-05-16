@@ -41,6 +41,11 @@ Recommended next Yellow implementation slice:
   `evaluationAt`, window completion, provisional outcome labels, latest FDV,
   and drawdown remain read-only computed review context rather than saved DB
   fields or buy signals;
+- `docs/design/metric-result-field-policy.md` fixes the Metric schema boundary:
+  Metric rows remain observation snapshots, and result fields such as
+  `peakFdv24h`, `maxMultiple15m`, `timeToPeakMinutes`, `alertedAt`, and
+  `peakMultipleFromAlert` are computed outcome fields, not
+  `metric:snapshot:geckoterminal` live snapshot write targets;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;
