@@ -1722,6 +1722,121 @@ unclear, Token Info cannot answer field presence without raw output, Top
 Holders becomes necessary, wallet-list persistence is required, or output reads
 like buy / sell / position / exit guidance.
 
+## CoinGecko Token Info Preflight Plan
+
+This is a docs-only plan for a possible future Red preflight. It does not
+approve CoinGecko / GeckoTerminal as a `HolderDistributionSafeSummary` source,
+does not run a CoinGecko API request, does not write production DB state, does
+not run `holder:snapshot:add`, and does not implement a mapper.
+
+Preflight candidate:
+
+- endpoint:
+  `GET https://pro-api.coingecko.com/api/v3/onchain/networks/{network}/tokens/{address}/info`;
+- likely current params: `network=solana`, `address=<target mint>`;
+- candidate target mint:
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`;
+- before any Red preflight, re-approve the target mint, network id, exact
+  endpoint, exact command, Pro API key boundary, and sanitized output shape.
+
+API key / secret boundary:
+
+- Pro API key is required;
+- use header auth candidate `x-cg-pro-api-key`;
+- avoid query-string auth because it puts the key in the request URL;
+- do not print, paste, commit, screenshot, or log `.env`, API keys, auth
+  headers, request URLs containing secrets, raw headers, or secret-like values;
+- if the key is not available, stop before Red preflight;
+- if paid-plan entitlement, credit consumption, minute rate limit, or terms are
+  not approved, stop before Red preflight.
+
+Red preflight scope:
+
+- exactly one mint;
+- exactly one request;
+- Token Info endpoint only;
+- no Top Token Holders endpoint;
+- no retry;
+- no batch;
+- no raw response persistence;
+- no production DB write;
+- no `holder:snapshot:add`;
+- no mapper implementation in the same task;
+- no queue, scheduler, systemd, checkpoint update, `--write`, `--watch`, or
+  `pnpm smoke`.
+
+Allowed output:
+
+- HTTP status;
+- ok / parse status;
+- top-level keys;
+- shallow keys under `data`, `attributes`, `holders`, and
+  `holders.distribution_percentage` if present;
+- presence of `holders.count`;
+- presence of `holders.distribution_percentage.top_10`;
+- primitive type summary only;
+- dangerous-key categories presence, without values;
+- mapping feasibility.
+
+Forbidden output:
+
+- raw response body;
+- raw JSON dump;
+- raw provider JSON fixture;
+- wallet addresses;
+- explorer URLs;
+- Top Token Holders response;
+- request URL containing an API key;
+- auth headers;
+- API key;
+- `.env`;
+- screenshots containing secrets;
+- free-form unsafe metadata text if it contains wallet-like data;
+- any holder list, owner list, account list, or address-like value.
+
+Mapping decision boundary:
+
+- possible outcomes:
+  `approved_for_mapper_fixture_only`, `needs_more_source_review`,
+  `rejected_for_auth_or_terms_uncertainty`,
+  `rejected_for_raw_payload_risk`, or `rejected_for_beta_data_quality`;
+- after preflight, do not automatically persist holder data;
+- after preflight, do not automatically implement a mapper;
+- if later approved, map `holders.count` to `holderCount`;
+- if later approved, map `holders.distribution_percentage.top_10` to
+  `top10HolderPct`;
+- keep `topHolderPct=null` unless an explicit top-holder aggregate field is
+  documented and preflight-confirmed;
+- keep `freshWalletCount=null`;
+- keep `bundlerSignal="unknown"`;
+- keep `sameFundingOriginSignal="unknown"`;
+- keep `lpWalletExcluded=null`;
+- set `confidence` as source confidence only, likely `low` or `unknown` while
+  holder data is beta;
+- final mapper output must keep `rawFree=true` and `secretFree=true`.
+
+Stop conditions:
+
+- Pro API key is unavailable or unapproved;
+- paid-plan, credit, minute rate-limit, or terms boundary is unclear;
+- target mint, network id, endpoint, or exact command is unclear;
+- more than one request would be needed;
+- Token Info cannot answer field presence with shape-only output;
+- Top Token Holders endpoint becomes necessary;
+- response inspection would require raw response body, raw JSON, wallet
+  addresses, explorer URLs, auth headers, request URLs with secrets, `.env`, or
+  screenshots;
+- beta holder data quality is not acceptable for even a mapper fixture;
+- output starts to read like buy / sell / position / exit guidance.
+
+Post-preflight next steps:
+
+- if `approved_for_mapper_fixture_only`, add a sanitized fixture shape that
+  contains only the approved aggregate holder fields and no raw provider JSON;
+- if `needs_more_source_review`, keep the source unresolved;
+- if rejected for auth / terms / raw-payload / beta-quality risk, keep
+  `manual_holder_review` and external-report-only review as the fallback paths.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

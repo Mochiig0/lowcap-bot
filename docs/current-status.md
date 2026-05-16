@@ -340,6 +340,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   included. Pro API key / paid-plan / rate-limit / terms approval is required,
   and the separate Top Token Holders endpoint must be avoided because it returns
   wallet-address payload.
+- CoinGecko Token Info preflight plan is docs-only. A future Red task is
+  limited to one re-approved mint, one Token Info request, header auth with
+  `x-cg-pro-api-key`, no query-string API key, no Top Token Holders endpoint,
+  no retry, no batch, no raw response persistence, no DB write, no
+  `holder:snapshot:add`, no mapper implementation, and no `pnpm smoke`. Allowed
+  output is only HTTP / parse status, top-level and shallow holder keys,
+  presence of `holders.count` and
+  `holders.distribution_percentage.top_10`, primitive type summary, dangerous
+  key categories, and mapping feasibility. Stop if key / paid plan / credit /
+  rate-limit / terms approval is missing.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

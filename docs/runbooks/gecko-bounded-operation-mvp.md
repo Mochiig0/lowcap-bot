@@ -2749,6 +2749,15 @@ Manual retry closeout:
   `topHolderPct=null`, wallet signals unknown, and `lpWalletExcluded=null`.
   Avoid the separate Top Token Holders endpoint because it returns wallet
   addresses and holder-list payload.
+- CoinGecko Token Info preflight plan is docs-only and remains unapproved for
+  execution until the exact Red task is approved. Future scope is one
+  re-approved mint, one Token Info request, header auth via `x-cg-pro-api-key`,
+  no query-string API key, no Top Token Holders endpoint, no retry, no batch,
+  no raw response persistence, no DB write, no `holder:snapshot:add`, no mapper
+  implementation, and no `pnpm smoke`. Output must stay shape-only: HTTP /
+  parse status, top-level and shallow holder keys, presence of `holders.count`
+  and `holders.distribution_percentage.top_10`, primitive type summary,
+  dangerous-key categories, and mapping feasibility only.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future
