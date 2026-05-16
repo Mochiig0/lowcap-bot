@@ -2758,6 +2758,15 @@ Manual retry closeout:
   parse status, top-level and shallow holder keys, presence of `holders.count`
   and `holders.distribution_percentage.top_10`, primitive type summary,
   dangerous-key categories, and mapping feasibility only.
+- CoinGecko preflight operator approval checklist is docs-only and must be
+  satisfied before the Red command exists: target mint, `solana` network,
+  Token Info endpoint, exactly one request, Pro API key use, header auth only,
+  no query-string auth, paid-plan / credit / minute-rate-limit / terms
+  acceptance, beta holder data acceptance, output sanitation, no raw response
+  persistence, no Top Token Holders endpoint, no DB write, no
+  `holder:snapshot:add`, no mapper implementation, and no `pnpm smoke`. The
+  future command sketch reads `COINGECKO_PRO_API_KEY` from env and must not
+  print the key, headers, `.env`, secret-bearing URLs, or raw response body.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

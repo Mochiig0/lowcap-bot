@@ -1837,6 +1837,69 @@ Post-preflight next steps:
 - if rejected for auth / terms / raw-payload / beta-quality risk, keep
   `manual_holder_review` and external-report-only review as the fallback paths.
 
+## CoinGecko Preflight Operator Approval Checklist
+
+This checklist must be completed before any CoinGecko Token Info Red preflight.
+Completing the checklist approves at most one shape-only request; it does not
+approve CoinGecko as a holder source, does not approve persistence, and does
+not approve mapper implementation.
+
+Required operator approvals:
+
+- target mint approval:
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` or a replacement explicitly
+  named in the Red task;
+- network id approval: expected `solana`;
+- endpoint approval:
+  `GET /api/v3/onchain/networks/{network}/tokens/{address}/info`;
+- exactly one request approval;
+- Pro API key use approval;
+- header auth approval with `x-cg-pro-api-key`;
+- query-string auth prohibited;
+- paid plan / credit consumption approval;
+- minute rate-limit approval;
+- beta holder data acceptance;
+- CoinGecko account / terms usage acceptance;
+- output sanitation approval: shape-only output, no raw body;
+- no raw response persistence;
+- no Top Token Holders endpoint;
+- no production DB write;
+- no `holder:snapshot:add`;
+- no mapper implementation in the same task;
+- no queue, scheduler, systemd, checkpoint update, `--write`, or `--watch`;
+- no `pnpm smoke`.
+
+Stop before execution if any item is not explicitly approved, if
+`COINGECKO_PRO_API_KEY` is missing, or if approval requires printing `.env`,
+API keys, auth headers, request URLs with secrets, raw response bodies, wallet
+addresses, or other secret-like material.
+
+Exact command sketch for the later Red task:
+
+```bash
+# Red task only. Do not run during docs-only planning.
+# COINGECKO_PRO_API_KEY must already be available in the environment.
+# Do not echo it. Do not pass it in the URL. Do not print headers.
+node -e '<shape-only Token Info preflight script>'
+```
+
+Script requirements for the later Red task:
+
+- read `process.env.COINGECKO_PRO_API_KEY`;
+- fail closed before any request if the key is missing;
+- call the Token Info endpoint exactly once for the approved network and mint;
+- use only the `x-cg-pro-api-key` header for auth;
+- never print the header, key, `.env`, request URL containing secrets, or raw
+  response body;
+- never write the response body to disk, `/tmp`, fixtures, screenshots, or git;
+- parse JSON only in memory;
+- print sanitized shape only: HTTP / parse status, top-level and shallow
+  holder keys, presence of `holders.count`, presence of
+  `holders.distribution_percentage.top_10`, primitive type summary, dangerous
+  key categories, and mapping feasibility;
+- stop if the Token Info response requires raw body inspection, Top Token
+  Holders, a retry, batch request, persistence, or mapper implementation.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

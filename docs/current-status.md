@@ -350,6 +350,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `holders.distribution_percentage.top_10`, primitive type summary, dangerous
   key categories, and mapping feasibility. Stop if key / paid plan / credit /
   rate-limit / terms approval is missing.
+- CoinGecko preflight operator approval checklist is docs-only and must be
+  completed before any Red request: approve target mint, `solana` network id,
+  Token Info endpoint, exactly one request, Pro API key use, header auth only,
+  no query-string auth, paid-plan / credit / minute-rate-limit / terms
+  acceptance, beta holder data acceptance, output sanitation, no raw response
+  persistence, no Top Token Holders endpoint, no DB write, no
+  `holder:snapshot:add`, no mapper implementation, and no `pnpm smoke`. The
+  command sketch requires `COINGECKO_PRO_API_KEY` in env and forbids echoing the
+  key, headers, `.env`, secret-bearing URLs, or raw response body.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
