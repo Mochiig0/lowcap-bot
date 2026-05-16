@@ -23,9 +23,10 @@ Why this is now the most natural next step:
 
 Recommended next Yellow implementation slice:
 
-- add `pnpm mvp:status` as a read-only CLI;
-- report DB / migration / key command availability, core row counts, observation-loop coverage, and known blockers;
-- update the bounded operation runbook with the current manual command order;
+- `pnpm mvp:status` is now available as a read-only CLI;
+- use it to report DB / migration / key command availability, core row counts, observation-loop coverage, and known blockers;
+- next implementation focus is `bounded_watch_readiness_check` for the 3-to-6-hour bounded monitoring MVP;
+- update the bounded operation runbook with the current manual command order as that readiness check is defined;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
 ## Short-Term

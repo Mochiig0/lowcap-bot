@@ -2786,6 +2786,13 @@ Manual retry closeout:
   inspect DB / migration / command availability, core counts, observation-loop
   coverage, and blockers without fetches, writes, Telegram sends, schema
   changes, `--write`, `--watch`, or `pnpm smoke`.
+- `pnpm mvp:status` is now available as that read-only report. Use it before
+  planning the 3-to-6-hour bounded monitoring rehearsal to see counts,
+  migration summary, key command availability, readiness flags, blockers,
+  `nearTermGoal=3_to_6_hour_bounded_monitoring_mvp`, and
+  `nextRecommendedSlice=bounded_watch_readiness_check`. It does not write,
+  fetch, send Telegram, start queue / scheduler / systemd, update checkpoints,
+  run `--write` / `--watch`, or run `pnpm smoke`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

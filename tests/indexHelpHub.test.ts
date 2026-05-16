@@ -107,6 +107,7 @@ test("index help hub boundary", async (t) => {
       result.stdout,
       /pnpm tokens:report -- \[--rank <RANK>\] \[--source <SOURCE>\]/,
     );
+    assert.match(result.stdout, /pnpm mvp:status/);
     assert.match(result.stdout, /pnpm smoke/);
   });
 

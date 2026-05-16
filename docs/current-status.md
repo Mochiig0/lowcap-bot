@@ -382,6 +382,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   core row counts, observation-loop coverage, and remaining blockers without
   fetches, writes, Telegram sends, or schema changes; pair it with runbook
   consolidation for the current manual operation command order.
+- `pnpm mvp:status` is now the read-only readiness report for the
+  `3_to_6_hour_bounded_monitoring_mvp` goal. It reports Token / Metric /
+  Notification / HolderSnapshot counts, migration summary, key command
+  availability, readiness flags, blockers, and `nextRecommendedSlice` without
+  DB writes, external fetches, Telegram sends, queue / scheduler / systemd,
+  checkpoint updates, `--write`, `--watch`, or `pnpm smoke`. Pro API and paid
+  holder source work remain parked. The next implementation slice is
+  `bounded_watch_readiness_check`, not scheduler / systemd promotion.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
