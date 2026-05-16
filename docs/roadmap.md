@@ -91,8 +91,16 @@ Recommended next Yellow implementation slice:
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot
   counts stayed unchanged at `1116 / 191 / 6 / 1`;
-- next operating step is a separately approved 3h write rehearsal or a narrower
-  bounded write rehearsal only if the operator accepts the dry-run result;
+- the 3h write rehearsal preflight is docs-only complete: `--write` for
+  `detect:geckoterminal:new-pools` creates or reuses mint-only Token rows
+  through `importMint`; it does not append Metrics, create Notification rows,
+  touch HolderSnapshot, enrich / rescore, or send Telegram. Checkpoint updates
+  occur only under `--watch --write`, and the Red rehearsal should use a fresh
+  `/tmp` checkpoint. DB writes still target `DATABASE_URL`;
+- next operating step is a separately approved current-DB 3h write rehearsal if
+  the operator accepts durable mint-only observations, or an isolated `/tmp` DB
+  rehearsal if the goal is side-effect containment rather than MVP current-DB
+  accumulation validation;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

@@ -428,6 +428,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   and no Telegram send, DB write, queue, scheduler, systemd, `--write`, or
   checkpoint update occurred. The next step is not scheduler / systemd; it is a
   separately approved 3h write rehearsal or narrower bounded write rehearsal.
+- 3h write rehearsal preflight is now documented, but the rehearsal has not
+  been run. Code inspection shows `detect:geckoterminal:new-pools --write`
+  delegates accepted candidates to `importMint`, which only creates a new
+  `mint_only` Token or returns the existing Token by unique mint. It does not
+  append Metrics, create Notification rows, touch HolderSnapshot, enrich,
+  rescore, or call Telegram live send. In watch mode, checkpointing is enabled
+  only when both `--watch` and `--write` are present; `--checkpointFile` is
+  supported only in that mode and should use an isolated fresh `/tmp` file for
+  the Red rehearsal so `data/checkpoints` remains untouched. DB writes still go
+  to the active `DATABASE_URL`; a `/tmp` checkpoint does not isolate the DB.
+  Current-DB rehearsal is the better MVP validation if the operator accepts
+  durable mint-only observations, while an isolated `/tmp` DB rehearsal would
+  require `DATABASE_URL=file:/tmp/...` plus schema preparation and would not
+  validate current production-style accumulation. Candidate Red command:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit
+  1 --maxIterations 180 --intervalSeconds 60 --checkpointFile
+  /tmp/lowcap-bot-gecko-write-rehearsal.json`. Confirm the checkpoint path is
+  fresh or intentionally reused before running.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

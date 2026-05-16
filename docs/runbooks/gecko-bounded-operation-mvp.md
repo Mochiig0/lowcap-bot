@@ -4236,6 +4236,84 @@ This result is sufficient to consider a separately approved 3h write rehearsal
 or narrower bounded write rehearsal. It is not approval for scheduler /
 systemd, queue, unbounded watch, Telegram live send, or checkpoint promotion.
 
+### Three Hour Write Rehearsal Preflight
+
+This is a docs-only preflight. The 3h write rehearsal has not been run.
+
+Implementation boundary confirmed from the current CLI:
+
+- `detect:geckoterminal:new-pools --write` evaluates GeckoTerminal new-pool
+  candidates and, for accepted candidates, delegates to `importMint`.
+- `importMint` reads by unique `Token.mint`; if the mint already exists, it
+  returns the existing Token without creating another row.
+- If the mint is new, `importMint` creates one `Token` with
+  `metadataStatus=mint_only`, `source`, `importedAt`, and an
+  `entrySnapshot.firstSeenSourceSnapshot`.
+- The detect write path does not append `Metric` rows, create `Notification`
+  rows, touch `HolderSnapshot`, enrich, rescore, or call Telegram live send.
+- There is no `--notify` flag in this detect command. Existing Telegram
+  credentials, if present in the environment, are not used by this CLI path.
+
+DB boundary:
+
+- The DB write target is the active Prisma `DATABASE_URL`.
+- `--checkpointFile /tmp/...` isolates only the checkpoint side effect; it does
+  not move Token writes to a temporary database.
+- A current-DB rehearsal validates the real MVP accumulation loop because Token
+  counts can increase in the same DB used by later enrichment, Metric
+  accumulation, notification review, and outcome reporting.
+- An isolated rehearsal would require an explicit environment override such as
+  `DATABASE_URL=file:/tmp/<db>.db` plus schema preparation before the run. That
+  is safer for side-effect containment, but it does not validate current-DB
+  accumulation and is a different Red task.
+
+Checkpoint boundary:
+
+- `--checkpointFile` is supported only when both `--watch` and `--write` are
+  present.
+- Without `--checkpointFile`, watch write mode defaults to
+  `data/checkpoints/geckoterminal-new-pools.json`.
+- The Red rehearsal should use a fresh isolated `/tmp` checkpoint so existing
+  repo-local `data/checkpoints` files are not touched.
+- If the chosen `/tmp` checkpoint already exists, stop or explicitly decide to
+  reuse it before running, because an existing cursor can filter candidates.
+
+Current-DB rehearsal option:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal.json
+```
+
+Expected side effects if approved and run:
+
+- external GeckoTerminal fetches occur during the watch.
+- current `DATABASE_URL` may receive new `mint_only` Token rows.
+- existing mints may be counted as existing rather than imported.
+- the isolated `/tmp` checkpoint may be created or advanced.
+- no Metric, Notification, HolderSnapshot, Telegram live send, queue,
+  scheduler, systemd, schema, migration, `pnpm smoke`, enrichment, rescoring,
+  or outcome persistence is expected from this detect command.
+
+Isolated `/tmp` DB rehearsal option:
+
+- Use only if the operator wants DB side effects contained outside the current
+  DB.
+- Requires a separate approved setup step to point `DATABASE_URL` at a
+  temporary SQLite file and prepare the schema.
+- It can confirm CLI write mechanics, but it is not the same as validating the
+  current-DB MVP accumulation path.
+
+Recommended next Red execution:
+
+- Prefer the current-DB rehearsal above if the operator accepts durable
+  mint-only observations as the intended MVP validation.
+- Keep the checkpoint isolated in `/tmp`.
+- Capture before / after counts for Token, Metric, Notification, and
+  HolderSnapshot.
+- Stop on failed cycles, 429/rate-limit growth, unexpected Metric /
+  Notification / HolderSnapshot writes, Telegram output, raw response leakage,
+  checkpoint writes outside `/tmp`, or worktree/data-file drift.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for
