@@ -57,6 +57,13 @@ Recommended next Yellow implementation slice:
   `manualObservation.source` and `Token.source` as legacy fallbacks, and
   `Metric.source`, Notification `trigger` / `mode` / `status`,
   `contextCapture.*.source`, and `HolderSnapshot.source` stay separate;
+- `docs/design/metadata-status-policy.md` fixes the token metadata lifecycle:
+  operational values are `mint_only`, `partial`, `enriched`, and `unknown`
+  fallback; the normal lifecycle is `mint_only -> partial -> enriched`;
+  source-only updates do not imply `enriched` or an `enrichedAt` refresh; and
+  planners / reports / guards should treat `metadataStatus` as metadata
+  completeness rather than safety, score, source, notification, holder, or
+  outcome state;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;

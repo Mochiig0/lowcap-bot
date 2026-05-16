@@ -140,6 +140,17 @@ provenance. None of those are the same thing as the token-level current
 `Token.source`, `Metric.source`, `Notification.trigger`, or
 `HolderSnapshot.source`.
 
+## Metadata Status Boundary
+
+The full `Token.metadataStatus` lifecycle policy is fixed in
+`docs/design/metadata-status-policy.md`.
+
+`Token.entrySnapshot` may provide lightweight evidence for metadata
+completeness, especially through `firstSeenSourceSnapshot`,
+`manualObservation`, or sanitized `contextCapture`. It is not itself the
+metadata status and must not store lifecycle state as a substitute for
+`Token.metadataStatus`.
+
 ## Current Task Boundary
 
 This policy records the allowed namespaces and forbidden content only. It does
@@ -148,7 +159,6 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- `metadataStatus` lifecycle.
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.
 - `tokens:compare-report` outcomeBucket legacy policy.

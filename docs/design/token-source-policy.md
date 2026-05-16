@@ -267,6 +267,9 @@ invalid, and do not treat this list as a schema enum.
 `docs/design/token-entry-snapshot-policy.md` controls what may live inside
 `Token.entrySnapshot`.
 
+`docs/design/metadata-status-policy.md` controls token metadata completeness
+state. `Token.source` is source provenance, not metadata completeness.
+
 `docs/design/metric-result-field-policy.md` controls Metric result and outcome
 fields. Metric outcomes do not belong in `Token.source` or
 `Token.entrySnapshot`.
@@ -283,7 +286,6 @@ or any Metric / Notification / HolderSnapshot implementation.
 
 ## Next Docs-Only Candidates
 
-- `metadataStatus` lifecycle.
 - `tokens:compare-report` outcomeBucket legacy policy.
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.

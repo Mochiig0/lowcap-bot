@@ -439,6 +439,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   fallback. `Metric.source`, Notification `trigger` / `mode` / `status`,
   `entrySnapshot.contextCapture.*.source`, and `HolderSnapshot.source` are
   separate provenance concepts and must not be treated as interchangeable.
+- `Token.metadataStatus` lifecycle policy is fixed in
+  `docs/design/metadata-status-policy.md`. Operational values are `mint_only`,
+  `partial`, `enriched`, and `unknown` fallback. The basic lifecycle is
+  `mint_only -> partial -> enriched`, with forward movement only when metadata
+  completeness increases. Source-only updates do not make a token `enriched`
+  and should not update `enrichedAt`; `rescoredAt` remains scoring state, not
+  metadata lifecycle state. Reports / planners / guards should read
+  `metadataStatus` as metadata completeness, not safety, risk, source,
+  Notification status, HolderSnapshot status, or outcome label.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
