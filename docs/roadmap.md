@@ -46,6 +46,11 @@ Recommended next Yellow implementation slice:
   `peakFdv24h`, `maxMultiple15m`, `timeToPeakMinutes`, `alertedAt`, and
   `peakMultipleFromAlert` are computed outcome fields, not
   `metric:snapshot:geckoterminal` live snapshot write targets;
+- `docs/design/token-entry-snapshot-policy.md` fixes the
+  `Token.entrySnapshot` namespace boundary: `firstSeenSourceSnapshot`,
+  `manualObservation`, and sanitized `contextCapture` are allowed, while Metric
+  outcomes, HolderSnapshot bodies, Notification lifecycle state, raw provider
+  bodies, secrets, and retry / queue state stay out;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;

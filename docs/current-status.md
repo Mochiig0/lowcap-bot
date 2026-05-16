@@ -424,6 +424,13 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `metrics:window-report`, not live snapshot write targets for
   `metric:snapshot:geckoterminal`. Outcome persistence remains deferred until
   an `OutcomeSnapshot`, `AlertOutcome`, or equivalent design is approved.
+- `Token.entrySnapshot` namespace policy is fixed in
+  `docs/design/token-entry-snapshot-policy.md`. Allowed namespaces are
+  `firstSeenSourceSnapshot`, `manualObservation`, and `contextCapture`.
+  `contextCapture` explicitly covers the already-implemented lightweight
+  `geckoterminalTokenSnapshot` and `metaplexMetadataUri` records. It is
+  sanitized context only, not a provider full raw-body bucket, not Metric /
+  HolderSnapshot / Notification storage, and not an outcome-result store.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

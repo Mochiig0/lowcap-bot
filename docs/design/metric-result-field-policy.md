@@ -301,12 +301,16 @@ capability.
 
 ## Token Entry Snapshot Boundary
 
+The full `Token.entrySnapshot` namespace policy is fixed in
+`docs/design/token-entry-snapshot-policy.md`.
+
 Do not put too much into `Token.entrySnapshot`.
 
 Acceptable `entrySnapshot` content:
 
 - `firstSeenSourceSnapshot`
 - `manualObservation`
+- `contextCapture`
 
 Avoid putting these in `entrySnapshot`:
 
@@ -314,13 +318,18 @@ Avoid putting these in `entrySnapshot`:
 - Holder snapshot bodies.
 - raw provider responses.
 - Telegram send results.
+- Notification lifecycle fields.
+- retry, queue, worker, scheduler, or systemd state.
 
 Responsibility split:
 
 - Metric results belong to Metric history and outcome reports.
 - Holder information belongs to `HolderSnapshot`.
 - Telegram send results belong to `Notification`.
-- `entrySnapshot` should remain a lightweight entry-time snapshot.
+- lightweight provider context may live under `entrySnapshot.contextCapture`
+  only when it is sanitized and bounded.
+- `entrySnapshot` should remain a lightweight entry-time / manual /
+  context-capture snapshot.
 
 ## Current Source Of Truth
 
