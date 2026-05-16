@@ -508,6 +508,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   writes should move toward a small versioned shape with `schemaVersion`,
   `source`, optional `reviewerType`, `flags`, `note`, and `reviewedAt`, while
   unknown / legacy keys are read conservatively.
+- `Token.scoreBreakdown` versioning policy is fixed in
+  `docs/design/score-breakdown-policy.md`. `Token.scoreTotal`,
+  `Token.scoreRank`, and `Token.scoreBreakdown` are the latest score state and
+  latest score explanation, not immutable initial-import score history and not
+  notification-time score proof. Current persisted breakdown rows are
+  unversioned compatibility JSON with `totals.{core,learned,trend,combo}`,
+  `hits[]`, `trendFresh`, `trendCapped`, and `trendOnly`; future writes should
+  move toward `schemaVersion`, `scoringVersion`, `computedAt`, `components`,
+  optional `hardReject` summary, and lightweight trend metadata. Metric outcome,
+  review flags, metadata lifecycle, holder analysis, Notification lifecycle,
+  provider raw bodies, dictionaries, and full `data/trend.json` stay out.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

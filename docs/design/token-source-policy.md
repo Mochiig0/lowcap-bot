@@ -289,4 +289,4 @@ or any Metric / Notification / HolderSnapshot implementation.
 
 ## Next Docs-Only Candidates
 
-- `scoreBreakdown` versioning.
+- `groupKey` / `groupNote` manual grouping policy.

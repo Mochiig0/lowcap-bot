@@ -160,6 +160,15 @@ Review flags are Token-level lightweight review helper JSON. They do not belong
 inside `Token.entrySnapshot`, and `entrySnapshot` must not store review flag
 state as a substitute for `Token.reviewFlagsJson`.
 
+## Score Breakdown Boundary
+
+The full `Token.scoreBreakdown` shape policy is fixed in
+`docs/design/score-breakdown-policy.md`.
+
+`Token.scoreBreakdown` is the latest score explanation JSON on the Token row.
+`entrySnapshot.scoreBreakdown`, when present, is entry context for comparison,
+not the canonical latest score explanation and not score history.
+
 ## Current Task Boundary
 
 This policy records the allowed namespaces and forbidden content only. It does
@@ -168,4 +177,4 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- `scoreBreakdown` versioning.
+- `groupKey` / `groupNote` manual grouping policy.

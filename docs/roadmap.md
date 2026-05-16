@@ -87,6 +87,14 @@ Recommended next Yellow implementation slice:
   optional `reviewerType`, `flags`, `note`, and `reviewedAt`, while
   `reviewFlagsJson` stays separate from Metric outcome, `scoreBreakdown`,
   HolderSnapshot, Notification lifecycle, provider raw bodies, and buy signals;
+- `docs/design/score-breakdown-policy.md` fixes `Token.scoreBreakdown` as the
+  latest Token score explanation JSON. Current compatibility shape is
+  unversioned and uses `totals.{core,learned,trend,combo}`, `hits[]`,
+  `trendFresh`, `trendCapped`, and `trendOnly`; future writes should move
+  toward `schemaVersion`, `scoringVersion`, `computedAt`, `components`,
+  optional hard-reject summary, and lightweight trend metadata. Score fields
+  remain latest state, not immutable initial score history; strict score
+  history is deferred to a future `ScoreSnapshot` / `scoreHistory` design;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot

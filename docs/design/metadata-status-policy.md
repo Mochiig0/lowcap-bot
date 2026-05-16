@@ -329,6 +329,15 @@ coexist with any `metadataStatus` value, but they do not replace metadata
 completeness state and do not automatically update `metadataStatus`,
 `enrichedAt`, `scoreRank`, or `scoreBreakdown`.
 
+## Relationship To Score Breakdown
+
+`Token.scoreBreakdown` shape and versioning policy is fixed in
+`docs/design/score-breakdown-policy.md`.
+
+`scoreBreakdown` explains the latest scoring result. It may coexist with any
+`metadataStatus` value, but it does not replace metadata completeness state and
+does not automatically update `metadataStatus` or `enrichedAt`.
+
 ## Current Task Boundary
 
 This policy records the lifecycle only. It does not change code, schema,
@@ -337,6 +346,5 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- `scoreBreakdown` versioning.
 - `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.

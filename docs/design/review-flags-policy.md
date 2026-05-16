@@ -334,7 +334,6 @@ enrich-rescore behavior, reports, planners, enumization, or review workflow.
 
 ## Next Docs-Only Candidates
 
-- `scoreBreakdown` versioning.
 - `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.
 - `Dev.wallet` identity confidence policy.
