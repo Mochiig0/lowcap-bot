@@ -122,6 +122,9 @@ point in time.
 `alertedAt` is the time when score/risk evaluation has completed and the token
 has been confirmed as notification-worthy.
 
+The Notification event lifecycle policy is fixed in
+`docs/design/notification-event-policy.md`.
+
 Resolve `alertedAt` in this priority order:
 
 1. `Notification.sentAt`
@@ -131,6 +134,12 @@ Resolve `alertedAt` in this priority order:
 5. `Token.createdAt`
 
 The first available timestamp is the evaluation anchor.
+
+Use `Notification.sentAt` for successful live sends. Use
+`Notification.capturedAt` for capture-only / dry-run-equivalent notification
+records. If a Notification row is `failed` or has an unknown status, reports
+should surface that lifecycle state and use timestamps conservatively. When no
+suitable Notification timestamp exists, continue to the Token fallbacks.
 
 ## Valid FDV
 

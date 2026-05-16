@@ -70,6 +70,13 @@ Recommended next Yellow implementation slice:
   `maxMultiple15m`; canonical outcome review remains
   `metrics:window-report` window-level `outcomeLabel` based on FDV window
   maxima, `alertFdv`, and `peakMultipleFromAlert`;
+- `docs/design/notification-event-policy.md` fixes Notification lifecycle
+  fields: persisted `Notification` rows are event history with known
+  `status=captured|sent|failed`, `mode=capture_only|live_send`, and
+  `trigger=metric_appended`; ops preview triggers `token_completed` and
+  `loop_complete` remain separate from persisted DB rows unless a later task
+  adds those write paths; retry fields are manual retry foundation, not queue /
+  scheduler / systemd completion;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;

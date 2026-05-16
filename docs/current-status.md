@@ -455,6 +455,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   canonical outcome evaluation path. Current outcome review should prefer
   `metrics:window-report` window-level `outcomeLabel` based on FDV window
   maxima, `alertFdv`, and `peakMultipleFromAlert`.
+- `Notification` event policy is fixed in
+  `docs/design/notification-event-policy.md`. `Notification` is notification
+  event history, not Token / Metric / Holder source, not Metric outcome, and
+  not a queue system. Known persisted values are `status=captured|sent|failed`,
+  `mode=capture_only|live_send`, and `trigger=metric_appended`; ops preview /
+  capture flows also use `token_completed` and `loop_complete` as non-DB
+  triggers today. `tokenId` and `metricId` remain nullable without Prisma
+  relations; `metric_appended` expects a token and requires `metricId` for live
+  send / retry. Retry fields are manual retry foundation only, not scheduler /
+  systemd / always-on worker completion.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

@@ -114,6 +114,9 @@ as a basis for window outcome calculations.
 
 Notification fields describe the alert lifecycle, not token source.
 
+The full Notification event policy is fixed in
+`docs/design/notification-event-policy.md`.
+
 `Notification.trigger` is the reason or event type that produced a
 notification record. Current operational example:
 
@@ -288,4 +291,3 @@ or any Metric / Notification / HolderSnapshot implementation.
 
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.
-- Notification eventType-by-required-fields policy.
