@@ -301,6 +301,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   API keys / JWTs, `.env`, screenshots with wallet lists / secrets, DB writes,
   `holder:snapshot:add`, queue / scheduler / systemd, checkpoint updates,
   `--write`, `--watch`, and `pnpm smoke`.
+- Red Rugcheck summary endpoint preflight was run once for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`: HTTP status was `200`, JSON
+  shape parsing succeeded, and only sanitized shape output was printed. Top
+  level keys were limited to `tokenProgram`, `tokenType`, `risks`, `score`,
+  `score_normalised`, and `lpLockedPct`; the dangerous key scan found no
+  dangerous key categories. Candidate holder fields present were `lpLockedPct`,
+  `risks`, and `score`; `topHoldersPct`, `holderCount`, `lpLocked`, `rugged`,
+  `tokenMeta`, and `markets` were absent. Mapping decision is
+  `needs_more_source_review`: no raw response body was printed or saved, no raw
+  provider JSON fixture was created, no DB write or `holder:snapshot:add` was
+  run, and no real mapper or persistence path is approved.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

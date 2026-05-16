@@ -2712,6 +2712,16 @@ Manual retry closeout:
   sanitized field-shape summary, and safe-summary mapping feasibility; raw
   response bodies, wallet / owner addresses, auth material, `.env`, and
   screenshots containing wallet lists or secrets remain forbidden.
+- The bounded Red Rugcheck summary endpoint preflight has been run once for
+  `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump`. The summary endpoint returned
+  HTTP `200` and JSON shape parsing succeeded. Only sanitized output was
+  printed: top-level keys were `tokenProgram`, `tokenType`, `risks`, `score`,
+  `score_normalised`, and `lpLockedPct`; dangerous key categories were not
+  observed; candidate fields present were `lpLockedPct`, `risks`, and `score`.
+  `topHoldersPct`, `holderCount`, `lpLocked`, `rugged`, `tokenMeta`, and
+  `markets` were absent. The mapping decision is `needs_more_source_review`;
+  no raw response body, wallet / owner address, auth material, `.env`, raw
+  provider JSON fixture, DB write, or `holder:snapshot:add` occurred.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

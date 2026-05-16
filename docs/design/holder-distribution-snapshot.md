@@ -1433,6 +1433,57 @@ Post-preflight next steps:
 - any later persistence task needs a separate approval after a real mapper
   fixture is reviewed.
 
+## Rugcheck Summary Endpoint Preflight Result
+
+Red endpoint preflight was run once for mint
+`Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump` against the candidate summary
+endpoint on 2026-05-16. This was not external safe-summary capture, not
+`holder:snapshot:add`, and not a production DB write.
+
+Preflight boundary:
+
+- exactly one mint;
+- exactly one summary endpoint request;
+- no retry, batch, full-report fallback, insider graph, bulk endpoint, or
+  on-chain fetch;
+- no raw response body printed or saved;
+- no raw JSON dump, raw provider JSON fixture, screenshot, wallet / owner
+  address output, auth material output, `.env` output, or secret output;
+- no queue, scheduler, systemd, checkpoint update, `--write`, `--watch`, or
+  `pnpm smoke`.
+
+Sanitized result:
+
+- HTTP status: `200`;
+- JSON parse: ok;
+- top-level keys observed: `tokenProgram`, `tokenType`, `risks`, `score`,
+  `score_normalised`, `lpLockedPct`;
+- candidate holder fields present: `lpLockedPct`, `risks`, `score`;
+- candidate holder fields absent: `topHoldersPct`, `holderCount`, `lpLocked`,
+  `rugged`, `tokenMeta`, `markets`;
+- dangerous key categories present: none observed by key scan;
+- shallow shape only: `tokenProgram` / `tokenType` were strings, `risks` was an
+  empty array, and `score` / `score_normalised` / `lpLockedPct` were numbers.
+
+Mapping decision: `needs_more_source_review`.
+
+Reason:
+
+- no explicit `topHolderPct`, top-10 holder concentration, or `holderCount`
+  field was present in the sanitized shape;
+- `lpLockedPct` may be useful context later, but it is not enough to populate
+  `HolderDistributionSafeSummary` holder concentration fields;
+- provider score fields remain ignored for holder distribution storage unless a
+  separate risk contract is approved;
+- no real mapper, real response fixture, or persistence path is approved by
+  this preflight.
+
+Next step: keep the current synthetic mapper as the only implemented mapper.
+If Rugcheck-style support continues, do a source-specific mapper fixture design
+using only sanitized field names / shapes, or perform more source review before
+any real mapper implementation. Any persistence or safe-summary capture still
+requires a separate approval.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.
