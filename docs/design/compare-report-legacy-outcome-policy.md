@@ -203,6 +203,5 @@ This task does not implement any of those options. It does not rename
 
 ## Next Docs-Only Candidates
 
-- `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.
 - `Dev.wallet` identity confidence policy.

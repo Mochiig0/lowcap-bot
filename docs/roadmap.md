@@ -95,6 +95,11 @@ Recommended next Yellow implementation slice:
   optional hard-reject summary, and lightweight trend metadata. Score fields
   remain latest state, not immutable initial score history; strict score
   history is deferred to a future `ScoreSnapshot` / `scoreHistory` design;
+- `docs/design/grouping-policy.md` fixes `Token.groupKey` / `groupNote` as
+  manual grouping helpers only. They may label operator-chosen narratives,
+  themes, watchlists, campaigns, or batches for later comparison, but they are
+  not source provenance, dev identity proof, dedupe keys, score evidence,
+  Notification triggers, Metric outcomes, or buy signals;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot
@@ -166,7 +171,8 @@ Recommended next Yellow implementation slice:
   - import CLI behavior
 - Clarify how comparison reports should evolve before adding interpretation or alerts
 - Clarify ranking policy and dictionary maintenance workflow
-- Define how `groupKey` and `groupNote` should affect duplicate handling or review grouping
+- Keep `groupKey` and `groupNote` as manual grouping labels only until a
+  separate report / planner need justifies implementation work
 
 ## Longer-Term
 

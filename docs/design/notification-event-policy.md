@@ -298,6 +298,12 @@ Known safe error code examples observed in code:
 - latest Token score explanation JSON.
 - separate from Notification lifecycle, retry state, and send result.
 
+`Token.groupKey` / `groupNote`:
+
+- manual grouping helper fields.
+- separate from Notification trigger, mode, status, retry state, and send
+  result.
+
 Metric outcome:
 
 - `metrics:window-report` uses `Notification.sentAt` / `capturedAt` to compute
@@ -331,7 +337,6 @@ runtime.
 
 ## Next Docs-Only Candidates
 
-- `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.
 - `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.

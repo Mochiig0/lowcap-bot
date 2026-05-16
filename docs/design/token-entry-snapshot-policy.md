@@ -177,4 +177,4 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- `groupKey` / `groupNote` manual grouping policy.
+- Token time anchor policy.

@@ -519,6 +519,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   optional `hardReject` summary, and lightweight trend metadata. Metric outcome,
   review flags, metadata lifecycle, holder analysis, Notification lifecycle,
   provider raw bodies, dictionaries, and full `data/trend.json` stay out.
+- `Token.groupKey` / `groupNote` manual grouping policy is fixed in
+  `docs/design/grouping-policy.md`. They are manual analysis helpers for
+  operator-chosen narratives, themes, watchlists, campaigns, or batches.
+  `groupKey` is not Token source, origin source, dev identity, automatic
+  dedupe, score evidence, Notification trigger, Metric outcome, or a buy
+  signal. `groupNote` is a short human note and must not store secrets,
+  provider raw bodies, Metric outcomes, `scoreBreakdown` bodies,
+  HolderSnapshot bodies, Notification lifecycle state, or queue / scheduler /
+  worker state.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

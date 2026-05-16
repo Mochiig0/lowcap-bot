@@ -318,6 +318,9 @@ Policy:
 
 `metadataStatus` is metadata completeness state. It is not `scoreBreakdown`.
 
+`groupKey` / `groupNote` are manual grouping helpers. They are not
+`scoreBreakdown` and must not adjust score automatically.
+
 `scoreBreakdown` is scoring explanation JSON.
 
 These values may coexist:
@@ -382,7 +385,6 @@ rows, rank thresholds, dictionaries, trend data, reports, planners,
 
 ## Next Docs-Only Candidates
 
-- `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.
 - `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.

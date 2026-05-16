@@ -281,6 +281,10 @@ Outcome evaluation uses Metric history and Notification timestamps. It must not
 use Token current source as a substitute for Metric source, origin source, or
 notification reason.
 
+`docs/design/grouping-policy.md` controls `Token.groupKey` and
+`Token.groupNote`. Manual grouping labels are not Token source, origin source,
+Metric source, Notification trigger, or HolderSnapshot source.
+
 ## Current Task Boundary
 
 This policy records source responsibilities only. It does not change code,
@@ -289,4 +293,4 @@ or any Metric / Notification / HolderSnapshot implementation.
 
 ## Next Docs-Only Candidates
 
-- `groupKey` / `groupNote` manual grouping policy.
+- Token time anchor policy.

@@ -346,5 +346,4 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.
