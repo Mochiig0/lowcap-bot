@@ -431,6 +431,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `geckoterminalTokenSnapshot` and `metaplexMetadataUri` records. It is
   sanitized context only, not a provider full raw-body bucket, not Metric /
   HolderSnapshot / Notification storage, and not an outcome-result store.
+- `Token.source` policy is fixed in
+  `docs/design/token-source-policy.md`. `Token.source` is the token-level
+  current / latest source label and may differ from immutable origin. Origin
+  source should read `entrySnapshot.firstSeenSourceSnapshot.source`, then
+  `entrySnapshot.manualObservation.source`, then `Token.source` as legacy
+  fallback. `Metric.source`, Notification `trigger` / `mode` / `status`,
+  `entrySnapshot.contextCapture.*.source`, and `HolderSnapshot.source` are
+  separate provenance concepts and must not be treated as interchangeable.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

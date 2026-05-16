@@ -128,6 +128,18 @@ Outcome evaluation is computed read-only by `metrics:window-report` from Metric
 history. `Token.entrySnapshot` is not an outcome storage location and must stay
 limited to entry-time / manual / lightweight context namespaces.
 
+## Source Boundary
+
+The full source-term policy is fixed in
+`docs/design/token-source-policy.md`.
+
+Inside `Token.entrySnapshot`, `firstSeenSourceSnapshot.source` is the preferred
+origin-source field, `manualObservation.source` is the manual / legacy
+observation source, and `contextCapture.*.source` is context-capture
+provenance. None of those are the same thing as the token-level current
+`Token.source`, `Metric.source`, `Notification.trigger`, or
+`HolderSnapshot.source`.
+
 ## Current Task Boundary
 
 This policy records the allowed namespaces and forbidden content only. It does
@@ -136,7 +148,6 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- `Token.source` policy.
 - `metadataStatus` lifecycle.
 - `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.

@@ -304,6 +304,9 @@ capability.
 The full `Token.entrySnapshot` namespace policy is fixed in
 `docs/design/token-entry-snapshot-policy.md`.
 
+The full `Token.source` / origin-source / Metric-source boundary is fixed in
+`docs/design/token-source-policy.md`.
+
 Do not put too much into `Token.entrySnapshot`.
 
 Acceptable `entrySnapshot` content:
@@ -326,6 +329,10 @@ Responsibility split:
 - Metric results belong to Metric history and outcome reports.
 - Holder information belongs to `HolderSnapshot`.
 - Telegram send results belong to `Notification`.
+- `Token.source` is the token-level current source label, not Metric outcome
+  provenance.
+- `Metric.source` is per-observation provenance and remains the source field
+  used for Metric history / window report analysis.
 - lightweight provider context may live under `entrySnapshot.contextCapture`
   only when it is sanitized and bounded.
 - `entrySnapshot` should remain a lightweight entry-time / manual /

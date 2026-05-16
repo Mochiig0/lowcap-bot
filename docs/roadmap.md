@@ -51,6 +51,12 @@ Recommended next Yellow implementation slice:
   `manualObservation`, and sanitized `contextCapture` are allowed, while Metric
   outcomes, HolderSnapshot bodies, Notification lifecycle state, raw provider
   bodies, secrets, and retry / queue state stay out;
+- `docs/design/token-source-policy.md` fixes the source-term boundary:
+  `Token.source` is the token-level current / latest source label, origin
+  source comes from `entrySnapshot.firstSeenSourceSnapshot.source` with
+  `manualObservation.source` and `Token.source` as legacy fallbacks, and
+  `Metric.source`, Notification `trigger` / `mode` / `status`,
+  `contextCapture.*.source`, and `HolderSnapshot.source` stay separate;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;
