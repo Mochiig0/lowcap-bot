@@ -1219,6 +1219,91 @@ exit guidance, and it must not become a holder score or trading recommendation.
 Future real source capture needs a separate source / endpoint / raw-boundary
 approval task before any Red external safe-summary capture.
 
+## Real Source Contract Review
+
+Reviewed public Rugcheck-style documentation only. No real Rugcheck API request,
+on-chain request, production DB write, or `holder:snapshot:add` was run.
+
+Sources reviewed:
+
+- FluxRPC RugCheck docs: base URL `https://api.rugcheck.xyz`, token report,
+  token report summary, bulk summary, and insider graph endpoint listings.
+- ScreenerBot RugCheck API guide: public examples for full report, summary
+  report, holder analysis, and integration practices.
+- AgentiPy RugCheck tool docs: confirms token report summary / detailed report
+  concepts and warns that availability, rate limits, and API key requirements
+  depend on Rugcheck.
+
+Endpoint candidates:
+
+| Candidate | Docs status | Raw payload risk | First-use suitability |
+| --- | --- | --- | --- |
+| `GET /v1/tokens/{mint}/report/summary` | documented by public guides as a short token report summary | medium: still may include `risks[]`, provider-specific scoring, and undocumented fields | best candidate for a future Red preflight if endpoint / auth / response fields are approved |
+| `GET /v1/tokens/{mint}/report` | documented as the full token report | high: public examples include `topHolders[]`, markets, token metadata, and broad risk details | defer; do not use as first source unless a raw-free mapper can discard wallet lists before persistence |
+| `GET /v1/tokens/{mint}/insiders/graph` | documented as an insider-network graph and as potentially large | very high: graph/network data is likely raw relationship payload | reject for MVP safe summary capture |
+| bulk summary endpoint | documented as summarized reports for many mints | medium plus batch scope risk | defer; the holder loop is one-token-first and should not start with batch capture |
+
+Public docs indicate a possible summary field such as `topHoldersPct` and LP
+fields such as `lpLocked` / `lpLockedPct`. They also show full-report
+`topHolders[]` wallet entries and risk arrays. That makes the summary endpoint
+plausible for raw-free mapping, but the exact real response contract remains
+unresolved until a separate approved preflight confirms the live schema without
+persisting raw payload.
+
+Auth / rate-limit status is unresolved. One public guide describes basic
+endpoints as usable without an API key, while FluxRPC documentation says most
+endpoints require a FluxRPC API key or RugCheck JWT token. Treat auth as
+unknown until a future Red preflight explicitly approves the credential
+boundary. Do not add `.env` fields, print secrets, or assume anonymous access.
+
+Safe-summary mapping possibility:
+
+| `HolderDistributionSafeSummary` field | Rugcheck-style mapping status |
+| --- | --- |
+| `topHolderPct` | unresolved; leave `null` unless the real summary has an explicit single top-holder percentage field |
+| `top10HolderPct` | possible only if a documented field is explicitly top-10 holder concentration; do not map ambiguous `topHoldersPct` until semantics are confirmed |
+| `holderCount` | unresolved; leave `null` unless the summary exposes a holder count |
+| `freshWalletCount` | unresolved; leave `null` unless the summary exposes a fresh-wallet count |
+| `bundlerSignal` | unresolved; keep `unknown` unless a source-labeled bundling field or approved risk-name mapping exists |
+| `sameFundingOriginSignal` | unresolved; keep `unknown`; do not use insider graph payload for MVP |
+| `lpWalletExcluded` | unresolved; keep `null` unless the response explicitly states holder concentration excludes LP / pool wallets |
+| `source` | future real mapper should use a specific label such as `rugcheck.safe_summary` only after endpoint approval |
+| `observedAt` | use capture time only if the source does not provide a reliable observation timestamp |
+| `confidence` | source confidence only; not trading confidence |
+| `rawFree` / `secretFree` | must remain literal `true` after mapper validation |
+
+Fields to ignore or reject:
+
+- ignore provider scores / risk levels for holder distribution storage unless a
+  separate risk contract is approved;
+- reject `topHolders`, `holders`, `wallets`, wallet addresses, owner addresses,
+  raw response bodies, raw JSON, request URLs, auth headers, API keys, JWTs, and
+  chat IDs;
+- ignore free-form risk descriptions unless a narrow source-specific enum
+  mapping is approved;
+- never store raw response fixtures in the repo.
+
+Real endpoint contract status: unresolved. The synthetic mapper remains the
+only implemented mapper. `mapRugcheckRealResponseToSafeSummary` is not
+implemented, and no real response fixture exists. A future task must approve:
+
+- exact endpoint URL and method;
+- whether auth is required and how secrets stay out of output/logs;
+- rate-limit and terms boundary;
+- exact response fields and whether `topHoldersPct` means top holder, top 10
+  holders, or another provider-defined aggregate;
+- whether holder percentages exclude LP / pool wallets;
+- whether risks can be mapped to `bundlerSignal` or
+  `sameFundingOriginSignal` without parsing free text;
+- sanitized one-token preflight output shape that stores only
+  `HolderDistributionSafeSummary`.
+
+Stop before Red external capture if endpoint docs or terms are unclear, auth is
+unknown, rate limits are unknown, the response requires wallet-list
+persistence, `topHoldersPct` semantics are ambiguous, a mapper would need
+free-text risk inference, output starts reading like buy / sell / position /
+exit guidance, or raw payload / secrets would need to be logged.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

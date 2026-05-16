@@ -283,6 +283,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   secret-like keys without printing raw values. This is not a real Rugcheck API
   integration, performs no external or on-chain fetch, writes no production DB
   state, and is not a buy signal.
+- Real Rugcheck-style source contract review is docs-only and remains
+  unresolved for capture: public docs identify `GET /v1/tokens/{mint}/report`
+  and `GET /v1/tokens/{mint}/report/summary` style endpoints, but auth / rate
+  limits and exact holder-field semantics still need a separate approved
+  preflight. The summary endpoint is the only plausible first candidate because
+  full reports can include raw `topHolders[]` wallet payload. The implemented
+  mapper stays synthetic; `mapRugcheckRealResponseToSafeSummary` and real
+  response fixtures are not implemented, no raw provider JSON is stored, no
+  fetch was run, and Red external capture is not approved yet.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

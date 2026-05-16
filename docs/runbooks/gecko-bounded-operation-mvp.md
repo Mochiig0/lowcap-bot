@@ -2696,6 +2696,13 @@ Manual retry closeout:
   request URLs, and secret-like keys without printing raw values. This is not a
   real Rugcheck API fetch and does not approve an endpoint, source credential,
   production write, queue / scheduler / systemd, or trading signal.
+- Real Rugcheck-style source contract review is docs-only. Public docs point to
+  report and report-summary endpoints, but the real capture contract is not
+  approved because auth / rate limits and exact holder-field semantics remain
+  unresolved. If this source moves forward, start with a one-token summary
+  endpoint preflight only after approval; avoid full reports that expose
+  `topHolders[]` / wallet-list payload, do not store raw provider JSON, and keep
+  the real-response mapper separate from the current synthetic fixture mapper.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future
