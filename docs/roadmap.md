@@ -139,10 +139,16 @@ Recommended next Yellow implementation slice:
   touch HolderSnapshot, enrich / rescore, or send Telegram. Checkpoint updates
   occur only under `--watch --write`, and the Red rehearsal should use a fresh
   `/tmp` checkpoint. DB writes still target `DATABASE_URL`;
-- next operating step is a separately approved current-DB 3h write rehearsal if
-  the operator accepts durable mint-only observations, or an isolated `/tmp` DB
-  rehearsal if the goal is side-effect containment rather than MVP current-DB
-  accumulation validation;
+- the current-DB 3h write rehearsal is complete: 180 cycles, `failedCount=0`,
+  `rateLimitRetryCount=0`, `importedCount=180`, `existingCount=0`, Token count
+  `1116 -> 1296`, and Metric / Notification / HolderSnapshot counts unchanged
+  at `191 / 6 / 1`. The only checkpoint side effect was
+  `/tmp/lowcap-bot-gecko-write-rehearsal.json`; repo-local `data/checkpoints`
+  and `data/trend.json` stayed unchanged;
+- next operating step is a separate Metric accumulation / Notification
+  accumulation slice. The completed 3h write rehearsal confirms mint-only Token
+  accumulation, not metric snapshot writes, notification capture, Telegram live
+  send, scoring completion, or outcome evaluation;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

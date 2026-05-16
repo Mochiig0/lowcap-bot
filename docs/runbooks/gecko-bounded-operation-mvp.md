@@ -4314,6 +4314,61 @@ Recommended next Red execution:
   Notification / HolderSnapshot writes, Telegram output, raw response leakage,
   checkpoint writes outside `/tmp`, or worktree/data-file drift.
 
+### Three Hour Write Rehearsal Result
+
+The current-DB 3h write rehearsal completed as the approved Red task. Exact
+command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal.json
+```
+
+Runtime / command summary:
+
+- duration: roughly three hours, naturally stopped at `maxIterations=180`.
+- `dryRun=false`, `writeEnabled=true`, `watchEnabled=true`,
+  `checkpointEnabled=true`.
+- `checkpointFile=/tmp/lowcap-bot-gecko-write-rehearsal.json`.
+- `cycleCount=180`, `inputCount=3600`, `processedCount=180`,
+  `selectedCount=180`, `acceptedCount=180`, `rejectedCount=0`.
+- `importedCount=180`, `existingCount=0`.
+- `failedCount=0`, `rateLimitRetryCount=0`,
+  `rateLimitRetrySuccessCount=0`, `failureCooldownCount=0`.
+- The final `/tmp` checkpoint cursor was
+  `poolCreatedAt=2026-05-16T17:10:57.000Z`.
+
+DB count confirmation:
+
+| Table | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Token | 1116 | 1296 | +180 |
+| Metric | 191 | 191 | 0 |
+| Notification | 6 | 6 | 0 |
+| HolderSnapshot | 1 | 1 | 0 |
+
+Boundary confirmation:
+
+- The rehearsal confirmed current-DB mint-only Token accumulation through
+  `detect:geckoterminal:new-pools --watch --write`.
+- It did not confirm Metric accumulation, Notification capture, Telegram live
+  send, enrich / rescore, holder snapshot capture, or outcome persistence.
+- No Telegram live send was observed.
+- The checkpoint side effect was isolated to
+  `/tmp/lowcap-bot-gecko-write-rehearsal.json`.
+- Repo-local `data/checkpoints` stayed unchanged; only the existing
+  DexScreener checkpoint file was present after the run.
+- `data/trend.json` stayed unchanged.
+- The CLI output included detector / handoff / import summaries, not raw
+  provider response bodies or secrets.
+
+Next boundary:
+
+- Treat Metric accumulation as a separate slice, likely via a bounded
+  `metric:snapshot:geckoterminal` preflight / Red task.
+- Treat Notification accumulation / Telegram live send as a separate slice.
+- Do not fold Metric, Notification, Telegram, queue, scheduler, systemd, or
+  outcome persistence into the detect write command.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

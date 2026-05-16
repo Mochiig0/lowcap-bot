@@ -446,6 +446,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   1 --maxIterations 180 --intervalSeconds 60 --checkpointFile
   /tmp/lowcap-bot-gecko-write-rehearsal.json`. Confirm the checkpoint path is
   fresh or intentionally reused before running.
+- The 3h current-DB GeckoTerminal write rehearsal has now completed. Command:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly
+  --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile
+  /tmp/lowcap-bot-gecko-write-rehearsal.json`. It ran 180 cycles over roughly
+  three hours with `dryRun=false`, `writeEnabled=true`,
+  `checkpointEnabled=true`, `failedCount=0`, `rateLimitRetryCount=0`,
+  `rateLimitRetrySuccessCount=0`, `failureCooldownCount=0`, `inputCount=3600`,
+  `processedCount=180`, `selectedCount=180`, `acceptedCount=180`,
+  `rejectedCount=0`, `importedCount=180`, and `existingCount=0`. Counts moved
+  from Token / Metric / Notification / HolderSnapshot `1116 / 191 / 6 / 1` to
+  `1296 / 191 / 6 / 1`: this confirms mint-only Token accumulation only.
+  Metric, Notification, and HolderSnapshot counts did not change, and no
+  Telegram live send was observed. The checkpoint side effect was limited to
+  `/tmp/lowcap-bot-gecko-write-rehearsal.json`, ending at
+  `poolCreatedAt=2026-05-16T17:10:57.000Z`; `data/checkpoints` stayed limited
+  to the existing DexScreener checkpoint and `data/trend.json` stayed
+  unchanged. Next accumulation work must treat Metric accumulation and
+  Notification accumulation as separate slices, not as part of detect write.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider
