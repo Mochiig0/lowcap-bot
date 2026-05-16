@@ -4203,6 +4203,34 @@ The next step after a clean readiness report is still a separate approval for a
 Red tasks. Scheduler / systemd work waits until after the 3h/6h monitored-run
 path has been verified.
 
+## Metric Window Peak Report
+
+`pnpm metrics:window-report -- --mint <MINT>` is the read-only report for
+checking whether accumulated Metric history later showed a 30m / 60m / 24h
+FDV peak after candidate detection or notification. It uses the token entry
+anchor in this order: `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`,
+then `Token.importedAt`, then `Token.createdAt`; operators can override that
+with `--entryAt <ISO>`.
+
+The report computes each window as `max(fdv)` over observed Metric rows inside
+the window. The 24h peak is not a single 24h-later snapshot; it is the observed
+maximum across the full 24h window, so a short-lived early pump can still be
+counted by later review. If a window has Metric rows but no FDV candidate
+field, `sampleCount` still counts the rows while `fdvSampleCount=0` and
+`peakFdv=null`.
+
+Allowed read-only use:
+
+```bash
+pnpm -s metrics:window-report -- --mint <MINT>
+pnpm -s metrics:window-report -- --mint <MINT> --entryAt 2026-05-16T00:00:00.000Z --windows 30,60,1440
+```
+
+The report does not print provider payload values, write DB rows, fetch
+external APIs, send Telegram, update checkpoints, execute `--write` /
+`--watch`, or run `pnpm smoke`. It is notification / score verification
+context, not automatic trading or buy-signal output.
+
 ## Daily Operator Order
 
 Use this order when continuing bounded Gecko candidate accumulation.

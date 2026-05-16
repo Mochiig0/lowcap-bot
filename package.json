@@ -52,6 +52,7 @@
     "token:compare": "tsx src/cli/tokenCompare.ts",
     "metric:add": "tsx src/cli/metricAdd.ts",
     "metric:snapshot:geckoterminal": "tsx src/cli/metricSnapshotGeckoterminal.ts",
+    "metrics:window-report": "node --import tsx src/cli/metricsWindowReport.ts",
     "tokens:report": "tsx src/cli/tokensReport.ts",
     "tokens:compare-report": "tsx src/cli/tokensCompareReport.ts",
     "metric:show": "tsx src/cli/metricShow.ts",

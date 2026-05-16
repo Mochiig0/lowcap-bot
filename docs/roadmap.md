@@ -33,6 +33,9 @@ Recommended next Yellow implementation slice:
 - use it to keep Pro API / paid holder source work parked while moving toward
   candidate detection, mint persistence, score/risk review, Metric
   accumulation, Telegram notification boundaries, and later outcome review;
+- `pnpm metrics:window-report` is now the read-only outcome verification helper
+  for accumulated Metric history: it computes 30m / 60m / 24h peak FDV as the
+  observed max inside each window, not as one 24h-later point;
 - next operating step after the readiness report is a separately approved 3h
   dry-run, then a separately approved 3h write rehearsal only if the dry-run is
   acceptable;

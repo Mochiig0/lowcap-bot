@@ -400,6 +400,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   and later outcome review, not automatic trading or buy-signal output.
   Scheduler / systemd remain post-3h/6h monitored-run work, and Pro API /
   paid holder source work remains parked.
+- `pnpm metrics:window-report -- --mint <MINT>` is now the read-only Metric
+  history peak report for notification / scoring verification after bounded
+  monitoring data accumulates. It computes 30m / 60m / 24h peak FDV as
+  `max(fdv)` over observed Metric rows inside each window, using only internal
+  FDV candidate extraction from provider payload fields and without printing
+  provider payload values. The 24h value is not a single 24h-later snapshot; it
+  is the observed maximum across the 24h window, so short-lived pumps inside
+  the window remain visible. The report performs no DB write, fetch, Telegram
+  send, checkpoint update, `--write`, `--watch`, or `pnpm smoke`, and it is
+  verification context rather than automatic trading or buy-signal output.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
