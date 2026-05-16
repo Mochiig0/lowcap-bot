@@ -203,5 +203,4 @@ This task does not implement any of those options. It does not rename
 
 ## Next Docs-Only Candidates
 
-- Token time anchor policy.
 - `Dev.wallet` identity confidence policy.

@@ -528,6 +528,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   provider raw bodies, Metric outcomes, `scoreBreakdown` bodies,
   HolderSnapshot bodies, Notification lifecycle state, or queue / scheduler /
   worker state.
+- Token time anchor policy is fixed in
+  `docs/design/time-anchor-policy.md`. DB lifecycle timestamps
+  (`createdAt`, `updatedAt`), Token intake (`importedAt`), metadata lifecycle
+  (`enrichedAt`), score lifecycle (`rescoredAt`), source detection
+  (`entrySnapshot.firstSeenSourceSnapshot.detectedAt`), Metric observation
+  (`Metric.observedAt`), Notification lifecycle (`sentAt`, `capturedAt`), and
+  report evaluation (`reportGeneratedAt`, `evaluationAt`) are separate.
+  `metrics:window-report` resolves `alertedAt` as `--entryAt`, then
+  Notification sent/captured time, then firstSeen / imported / created Token
+  fallbacks; `evaluationAt` remains report execution time in the MVP.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

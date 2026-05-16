@@ -292,6 +292,9 @@ Policy:
 
 ## Rescore Relationship
 
+The broader timestamp meaning policy is fixed in
+`docs/design/time-anchor-policy.md`.
+
 Rescore may update:
 
 - `Token.normalizedText`
@@ -385,7 +388,6 @@ rows, rank thresholds, dictionaries, trend data, reports, planners,
 
 ## Next Docs-Only Candidates
 
-- Token time anchor policy.
 - `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.
 - HolderSnapshot real source capture policy.

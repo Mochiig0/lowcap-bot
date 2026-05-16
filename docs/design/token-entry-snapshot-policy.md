@@ -169,6 +169,15 @@ The full `Token.scoreBreakdown` shape policy is fixed in
 `entrySnapshot.scoreBreakdown`, when present, is entry context for comparison,
 not the canonical latest score explanation and not score history.
 
+## Time Anchor Boundary
+
+The full timestamp meaning policy is fixed in
+`docs/design/time-anchor-policy.md`.
+
+`entrySnapshot.firstSeenSourceSnapshot.detectedAt` is origin-source detection
+time when present. It is not Token row creation time, Notification send time,
+Metric observation time, or guaranteed market launch time.
+
 ## Current Task Boundary
 
 This policy records the allowed namespaces and forbidden content only. It does
@@ -177,4 +186,4 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- Token time anchor policy.
+- `Dev.wallet` identity confidence policy.

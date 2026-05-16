@@ -100,6 +100,14 @@ Recommended next Yellow implementation slice:
   themes, watchlists, campaigns, or batches for later comparison, but they are
   not source provenance, dev identity proof, dedupe keys, score evidence,
   Notification triggers, Metric outcomes, or buy signals;
+- `docs/design/time-anchor-policy.md` fixes timestamp meanings across Token,
+  Metric, Notification, and reports: DB lifecycle timestamps, Token import,
+  metadata enrichment, score rescore, source first-seen, Metric observation,
+  Notification sent / captured time, and report evaluation are separate.
+  `metrics:window-report` anchors outcome windows at computed `alertedAt`
+  (`--entryAt`, Notification, firstSeen, imported, created fallback order) and
+  uses `evaluationAt=reportGeneratedAt` for MVP completion / latest-FDV
+  evaluation;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot

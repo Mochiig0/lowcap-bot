@@ -171,14 +171,16 @@ manual trigger is added later, define its required fields in the same table.
 
 Metric outcome evaluation resolves `alertedAt` in this priority order:
 
-1. `Notification.sentAt`
-2. `Notification.capturedAt`
-3. `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`
-4. `Token.importedAt`
-5. `Token.createdAt`
+1. `--entryAt <ISO>` CLI override in `metrics:window-report`
+2. `Notification.sentAt`
+3. `Notification.capturedAt`
+4. `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`
+5. `Token.importedAt`
+6. `Token.createdAt`
 
 Policy:
 
+- explicit `--entryAt` should be treated as an operator override.
 - successful live send should prefer `Notification.sentAt`.
 - capture-only / dry-run-equivalent records should prefer
   `Notification.capturedAt`.
@@ -191,6 +193,9 @@ Policy:
 
 `alertedAt` is not written directly to Metric rows in the MVP. Read-only
 outcome reports compute it from Notification / Token state.
+
+The broader timestamp meaning policy is fixed in
+`docs/design/time-anchor-policy.md`.
 
 ## Notification Key And Dedupe
 
@@ -337,6 +342,5 @@ runtime.
 
 ## Next Docs-Only Candidates
 
-- Token time anchor policy.
 - `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.

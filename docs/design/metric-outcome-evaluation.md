@@ -140,19 +140,24 @@ The Notification event lifecycle policy is fixed in
 
 Resolve `alertedAt` in this priority order:
 
-1. `Notification.sentAt`
-2. `Notification.capturedAt`
-3. `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`
-4. `Token.importedAt`
-5. `Token.createdAt`
+1. `--entryAt <ISO>` CLI override (`cli_entryAt`)
+2. `Notification.sentAt`
+3. `Notification.capturedAt`
+4. `Token.entrySnapshot.firstSeenSourceSnapshot.detectedAt`
+5. `Token.importedAt`
+6. `Token.createdAt`
 
 The first available timestamp is the evaluation anchor.
 
-Use `Notification.sentAt` for successful live sends. Use
+Use `--entryAt` only as an explicit operator override. Use
+`Notification.sentAt` for successful live sends. Use
 `Notification.capturedAt` for capture-only / dry-run-equivalent notification
 records. If a Notification row is `failed` or has an unknown status, reports
 should surface that lifecycle state and use timestamps conservatively. When no
 suitable Notification timestamp exists, continue to the Token fallbacks.
+
+The broader timestamp meaning policy is fixed in
+`docs/design/time-anchor-policy.md`.
 
 ## Valid FDV
 

@@ -218,6 +218,9 @@ current implementation.
 
 ## Timestamp Relationship
 
+The broader timestamp meaning policy is fixed in
+`docs/design/time-anchor-policy.md`.
+
 ### `enrichedAt`
 
 `enrichedAt` is the time the token reached enriched-equivalent metadata
@@ -346,4 +349,4 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- Token time anchor policy.
+- `Dev.wallet` identity confidence policy.
