@@ -359,6 +359,29 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `holder:snapshot:add`, no mapper implementation, and no `pnpm smoke`. The
   command sketch requires `COINGECKO_PRO_API_KEY` in env and forbids echoing the
   key, headers, `.env`, secret-bearing URLs, or raw response body.
+- CoinGecko Pro API / paid holder-source work is parked for MVP completion.
+  The Red preflight stopped before request execution because
+  `COINGECKO_PRO_API_KEY` was not available; no CoinGecko fetch, external
+  fetch, DB write, `holder:snapshot:add`, mapper implementation, raw response
+  persistence, Top Token Holders request, or `pnpm smoke` occurred. Paid holder
+  source capture is not an MVP blocker. The HolderSnapshot MVP loop is closed
+  only for storage / parser / one-row write-path / read-path validation, while
+  real holder analysis and paid-source capture remain future enhancements.
+  Continue `manual_holder_review` and external-report-only review until budget,
+  API key, terms, rate-limit, and secret-boundary approval make paid source
+  work worth resuming.
+- MVP completion is now defined around the existing free / repo-local
+  CLI-first research OS: mint candidate intake, scoring / hard-reject and
+  narrative context persistence, Metric / observation accumulation, bounded
+  Telegram notification operation, read-only `token:observation` and gap
+  planners, and minimal manual/community/holder review visibility. It does not
+  require paid holder analysis, generic scheduler / queue / systemd operation,
+  always-on execution, automatic trading, or buy-signal output.
+- Next implementation candidate should be a Yellow read-only MVP status slice:
+  add `pnpm mvp:status` to report DB / migration / key command availability,
+  core row counts, observation-loop coverage, and remaining blockers without
+  fetches, writes, Telegram sends, or schema changes; pair it with runbook
+  consolidation for the current manual operation command order.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,

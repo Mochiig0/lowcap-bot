@@ -9,16 +9,24 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Next Minimal Task
 
-Keep the current DexScreener and GeckoTerminal source-specific runtime narrow, reliable, and documented before adding another adapter or broader runtime concept.
+Complete the CLI-first MVP operating picture before adding paid holder sources,
+another adapter, or broader runtime concepts.
 
 Why this is now the most natural next step:
 
-- `pnpm import:mint:file` now exists as a thin batch mint-only ingest wrapper over `pnpm import:mint`
-- `pnpm import:mint:source-file` now exists as a thin source-specific adapter runtime that normalizes one raw source event into `{ mint, source? }` before delegating to `pnpm import:mint`
-- `pnpm detect:dexscreener:token-profiles` and `pnpm detect:geckoterminal:new-pools` now cover the current narrow source-specific detect/watch surface
-- `pnpm token:enrich-rescore:geckoterminal`, `pnpm metric:snapshot:geckoterminal`, and `pnpm ops:summary:geckoterminal` now cover the current Gecko follow-up and read-only ops surface
-- these entrypoints still keep scoring, notify, metric, enrich, and rescore responsibilities separated from mint-only ingest
-- the next safe step is to preserve those boundaries, sync stale docs, and wait for a real new source need before adding broader runtime concepts
+- `pnpm import:mint:file` and `pnpm import:mint:source-file` already cover thin mint-first intake boundaries.
+- `pnpm detect:dexscreener:token-profiles` and `pnpm detect:geckoterminal:new-pools` already cover the current narrow source-specific detect surface.
+- `pnpm token:enrich-rescore:geckoterminal`, `pnpm metric:snapshot:geckoterminal`, and `pnpm ops:summary:geckoterminal` already cover the current Gecko follow-up and read-only ops surface.
+- `token:observation`, gap planners, manual observation, community review, and HolderSnapshot storage/read paths now provide the minimum research OS review context.
+- CoinGecko Pro / paid holder-source work is parked: it is useful later, but not an MVP blocker.
+- The next safe step is a read-only `mvp:status` report plus a consolidated manual-operation command order, so operators can see readiness and blockers without fetches, writes, Telegram sends, or runtime expansion.
+
+Recommended next Yellow implementation slice:
+
+- add `pnpm mvp:status` as a read-only CLI;
+- report DB / migration / key command availability, core row counts, observation-loop coverage, and known blockers;
+- update the bounded operation runbook with the current manual command order;
+- do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
 ## Short-Term
 
@@ -47,6 +55,11 @@ Why this is now the most natural next step:
   - do not keep adding token-deep context to `metric:show`
   - expand read-only fields, filters, or summaries again only when a real operating bottleneck appears
 - Keep docs and hand-off material synced with the live repo before adding another detector-shaped entrypoint or external-source adapter
+- Park paid holder source work until budget, API key, terms, rate-limit, and
+  secret-boundary approval are available:
+  - CoinGecko Token Info preflight is deferred
+  - manual holder review and external-report-only review continue as fallback
+  - HolderSnapshot is complete only for storage / parser / one-row write / read validation
 - Stabilize the current Gecko runner operating picture:
   - detect first
   - enrich-rescore-notify second

@@ -1900,6 +1900,32 @@ Script requirements for the later Red task:
 - stop if the Token Info response requires raw body inspection, Top Token
   Holders, a retry, batch request, persistence, or mapper implementation.
 
+## Paid Holder Source Parking Decision
+
+The CoinGecko Pro API / paid holder-source path is parked for MVP completion.
+The latest Red preflight stopped before request execution because
+`COINGECKO_PRO_API_KEY` was not available in the environment. No CoinGecko API
+fetch, external API fetch, on-chain fetch, production DB write,
+`holder:snapshot:add`, mapper implementation, raw response persistence, Top
+Token Holders request, or `pnpm smoke` was run.
+
+Parking decision:
+
+- CoinGecko Token Info preflight is deferred;
+- paid holder sources are not MVP blockers;
+- the HolderSnapshot MVP loop is considered complete only for storage, parser,
+  one-row write-path, and read-path validation;
+- real holder analysis, paid-source capture, and aggregate-source mapper
+  implementation remain future enhancements;
+- continue `manual_holder_review` and external-report-only review as the
+  current raw-free holder context fallback;
+- resume paid holder source work only after budget, API key, paid-plan terms,
+  rate-limit, secret boundary, and exact Red preflight approval are available.
+
+This parking decision must not be read as holder analysis completion or source
+approval. Holder distribution remains review context only, not buy / sell /
+position / exit guidance.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

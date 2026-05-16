@@ -2767,6 +2767,25 @@ Manual retry closeout:
   `holder:snapshot:add`, no mapper implementation, and no `pnpm smoke`. The
   future command sketch reads `COINGECKO_PRO_API_KEY` from env and must not
   print the key, headers, `.env`, secret-bearing URLs, or raw response body.
+- CoinGecko Pro API / paid holder-source work is parked for MVP completion.
+  The attempted Red preflight stopped before request execution because
+  `COINGECKO_PRO_API_KEY` was unavailable. Paid holder capture is not an MVP
+  blocker: HolderSnapshot is complete only as storage / parser / one-row write
+  / read validation, while real holder analysis remains future work. Continue
+  `manual_holder_review` and external-report-only review. Resume paid holder
+  source work only after budget, API key, paid-plan terms, rate-limit, and
+  secret-boundary approval are ready.
+- MVP completion now means the free / existing-source CLI-first research loop
+  is operable: candidate intake, scoring / hard-reject persistence, bounded
+  Gecko follow-up, Metric accumulation, limited Telegram operation, read-only
+  observation / gap review, and minimal manual/community/holder context
+  visibility. Scheduler, queue, systemd, paid holder capture, always-on
+  operation, and trading guidance are post-MVP.
+- Recommended next Yellow slice: implement a read-only `pnpm mvp:status` report
+  and consolidate the runbook command order for manual operation. It should
+  inspect DB / migration / command availability, core counts, observation-loop
+  coverage, and blockers without fetches, writes, Telegram sends, schema
+  changes, `--write`, `--watch`, or `pnpm smoke`.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future
