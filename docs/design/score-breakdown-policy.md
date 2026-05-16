@@ -388,6 +388,5 @@ rows, rank thresholds, dictionaries, trend data, reports, planners,
 
 ## Next Docs-Only Candidates
 
-- `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.
 - HolderSnapshot real source capture policy.

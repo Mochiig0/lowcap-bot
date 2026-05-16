@@ -161,6 +161,7 @@ Origin source:
 - separate from `groupKey`.
 - a `groupKey` such as `same-dev/foo` is only manual grouping, not dev identity
   proof.
+- controlled by `docs/design/dev-wallet-policy.md`.
 
 Metric outcome:
 
@@ -237,7 +238,6 @@ behavior, dedupe logic, score logic, reports, planners, or automatic grouping.
 
 ## Next Docs-Only Candidates
 
-- `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.
 - HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.

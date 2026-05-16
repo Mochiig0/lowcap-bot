@@ -399,7 +399,6 @@ rows, or timestamp normalization.
 
 ## Next Docs-Only Candidates
 
-- `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.
 - HolderSnapshot real source capture policy.
 - `ScoreSnapshot` / `scoreHistory` future policy.

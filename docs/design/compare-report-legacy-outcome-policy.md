@@ -203,4 +203,4 @@ This task does not implement any of those options. It does not rename
 
 ## Next Docs-Only Candidates
 
-- `Dev.wallet` identity confidence policy.
+- `metric:show` rawJson inspect policy.

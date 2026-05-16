@@ -108,6 +108,13 @@ Recommended next Yellow implementation slice:
   (`--entryAt`, Notification, firstSeen, imported, created fallback order) and
   uses `evaluationAt=reportGeneratedAt` for MVP completion / latest-FDV
   evaluation;
+- `docs/design/dev-wallet-policy.md` fixes `Dev.wallet` as a dev / creator /
+  deployer-like wallet label from source or manual input. It is an exact stored
+  string grouping key for display, filtering, and future Dev-level comparison,
+  not confirmed person / team identity, scam proof, score evidence,
+  HolderSnapshot evidence, funding-origin proof, bundle proof, Metric outcome,
+  Notification lifecycle, or a buy signal. Wallet normalization, validation,
+  confidence fields, and Dev-based scoring remain future design work;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot

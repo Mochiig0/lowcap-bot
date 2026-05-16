@@ -342,5 +342,4 @@ runtime.
 
 ## Next Docs-Only Candidates
 
-- `Dev.wallet` identity confidence policy.
 - `metric:show` rawJson inspect policy.

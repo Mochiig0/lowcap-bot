@@ -424,11 +424,14 @@ Schema-change gate:
 
 ### Dev
 
-`Dev` stores a developer wallet and links it to imported tokens.
+`Dev` stores a dev / creator / deployer-like wallet label and links it to
+imported tokens. The detailed identity-confidence boundary is fixed in
+`docs/design/dev-wallet-policy.md`: `Dev.wallet` is a candidate label, not
+confirmed person or team identity.
 
 Current use:
 
-- optional relation from imported tokens to a developer wallet
+- optional relation from imported tokens to a Dev wallet label
 
 ### Token
 

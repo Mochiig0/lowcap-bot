@@ -349,4 +349,4 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- `Dev.wallet` identity confidence policy.
+- `metric:show` rawJson inspect policy.

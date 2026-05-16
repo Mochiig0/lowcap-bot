@@ -538,6 +538,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `metrics:window-report` resolves `alertedAt` as `--entryAt`, then
   Notification sent/captured time, then firstSeen / imported / created Token
   fallbacks; `evaluationAt` remains report execution time in the MVP.
+- `Dev.wallet` identity confidence policy is fixed in
+  `docs/design/dev-wallet-policy.md`. `Dev.wallet` is a dev / creator /
+  deployer-like wallet label from source or manual input and is treated as an
+  exact stored string grouping key, not confirmed person or team identity.
+  `Token.devId` links a Token to that wallet label for display, filtering, and
+  future comparison, but it is not score evidence, scam confirmation,
+  HolderSnapshot evidence, funding-origin proof, bundle proof, Metric outcome,
+  Notification lifecycle, or a buy signal. `Dev.note` remains optional manual
+  memo text and must not store secrets, provider raw bodies, outcomes, holder
+  bodies, notification state, or queue / scheduler / worker state.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
