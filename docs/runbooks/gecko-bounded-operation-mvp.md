@@ -4619,6 +4619,101 @@ Next boundary:
   explicit Red approval; do not jump directly to the remaining full cohort
   without another boundary check.
 
+### Metric Appended Notification Capture Preflight
+
+This is a read-only / docs-only preflight. Exact `--mint` mode Notification
+capture has not been run.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot counts are
+  `1296 / 194 / 6 / 1`.
+- `review:queue:geckoterminal -- --pumpOnly` reports
+  `metricPendingCount=177`.
+- AW7 / G4 / P3 from the previous Metric accumulation steps now each have
+  `metricsCount=1` and no Notification row; they are not the preferred target
+  for this preflight because `--minGapMinutes 60` can skip existing recent
+  Metrics before fetch.
+
+Implementation boundary confirmed from `metric:snapshot:geckoterminal`:
+
+- `--mint <MINT>` selects exactly one existing Token and sets mode `single`.
+- `--pumpOnly`, `--limit`, and `--sinceMinutes` are batch-selection options
+  and are not needed for exact `--mint` mode.
+- `--minGapMinutes` is applied before fetch for both batch and exact modes. If
+  the latest Metric for the same token and source is still inside the gap, the
+  result is `skipped_recent_metric`.
+- `skipped_recent_metric` creates no Metric and no Notification.
+- With `--write`, a successful fetch / parse creates one Metric row.
+- Only when `args.mint` is present and a Metric was created does the CLI call
+  `maybeCreateByNotificationKey`.
+- The captured Notification key is `<mint>:metric_appended:<metricId>`.
+- The captured Notification uses:
+  - `eventType=metric_appended`
+  - `trigger=metric_appended`
+  - `status=captured`
+  - `mode=capture_only`
+  - `source=metric:snapshot:geckoterminal`
+  - `tokenId=<target token id>`
+  - `metricId=<created Metric id>`
+  - `rawJsonFree=true`
+  - `secretFree=true`
+- The CLI imports no Telegram sender and has no live-send call in this path.
+  `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` presence therefore does not cause a
+  send from this command.
+- The command does not update Token rows, HolderSnapshot rows, checkpoints,
+  enrich / rescore state, queue / scheduler / systemd, or Telegram state.
+
+Recommended target mint:
+
+```text
+ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump
+```
+
+Selection reason:
+
+- Token id `5376`.
+- GeckoTerminal-origin pump token from the 3h write rehearsal cohort.
+- `metadataStatus=mint_only`.
+- `metricsCount=0`.
+- `notificationCount=0`.
+- Appears in the current `metricPending` queue.
+- Avoids the min-gap skip risk of the already-written AW7 / G4 / P3 mints.
+
+Candidate Red command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --minGapMinutes 60 --write
+```
+
+Expected result if separately approved and run:
+
+- one live GeckoTerminal token snapshot fetch;
+- Metric count `+1`;
+- Notification count `+1`;
+- Notification `status=captured`;
+- Notification `mode=capture_only`;
+- Notification `trigger=metric_appended`;
+- Notification `metricId` points to the created Metric;
+- Notification `tokenId` points to Token `5376`;
+- Token count unchanged;
+- HolderSnapshot count unchanged;
+- no Telegram live send;
+- no Token enrich / rescore;
+- no checkpoint update;
+- no detect / import / queue / scheduler / systemd / `pnpm smoke`.
+
+Stop before Red execution if:
+
+- target mint already has a recent Metric that would trigger min-gap skip;
+- target mint gains a Notification row before execution;
+- the command shape would add `--watch`, `--pumpOnly`, `--limit`, detect /
+  import / enrich / rescore, Telegram, queue, scheduler, systemd, or
+  `pnpm smoke`;
+- raw provider body, secrets, `.env`, Telegram token / chat id, or rawJson would
+  be displayed;
+- Notification capture is expected without a successful Metric write.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

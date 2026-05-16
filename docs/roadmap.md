@@ -174,6 +174,17 @@ Recommended next Yellow implementation slice:
   `1296 / 192 / 6 / 1` to `1296 / 194 / 6 / 1`, and
   `metricPendingCount` moved 179 to 177. Notification / Telegram /
   HolderSnapshot / Token enrich-rescore remained untouched;
+- exact `--mint` mode Notification capture remains unexecuted but is now ready
+  for a separate Red task. The preflight target is
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`, a GeckoTerminal-origin
+  `mint_only` pump token with no Metric and no Notification. Candidate
+  command:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --minGapMinutes 60 --write`.
+  Expected side effects are one Metric row and one `status=captured`,
+  `mode=capture_only`, `trigger=metric_appended` Notification row only; no
+  Telegram live send, Token update, HolderSnapshot write, checkpoint,
+  scheduler, or systemd action is expected;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

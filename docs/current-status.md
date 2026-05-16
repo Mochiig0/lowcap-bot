@@ -522,6 +522,29 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   not update Token fields, did not enrich / rescore, and did not touch
   checkpoints. `metrics:window-report` for both newly written mints stayed
   read-only and confirmed one valid FDV sample in the 24h window.
+- Exact `--mint` mode Notification capture preflight is now documented, but the
+  capture has not been run. Code inspection shows
+  `metric:snapshot:geckoterminal -- --mint <MINT> --write` selects exactly one
+  existing Token, applies `--minGapMinutes` before fetch when provided, fetches
+  one GeckoTerminal token snapshot, writes one Metric on success, and only
+  then creates a capture-only Notification through
+  `maybeCreateByNotificationKey`. The Notification uses
+  `eventType=metric_appended`, `trigger=metric_appended`, `status=captured`,
+  `mode=capture_only`, `source=metric:snapshot:geckoterminal`, and includes the
+  target `tokenId` plus created `metricId`. The CLI imports no Telegram sender
+  and does not call live send; Token, HolderSnapshot, enrich / rescore,
+  checkpoint, queue, scheduler, and systemd are outside this path. A
+  `skipped_recent_metric` result creates neither Metric nor Notification.
+  Recommended Red target is
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump` because it is a
+  GeckoTerminal-origin pump `mint_only` Token from the 3h write rehearsal with
+  `metricsCount=0` and `notificationCount=0`; the already-written AW7 / G4 /
+  P3 mints are avoided for this preflight because existing Metrics can trigger
+  the min-gap skip path. Candidate command:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --minGapMinutes 60 --write`.
+  Expected Red result is Metric `+1`, Notification `+1`, Token / HolderSnapshot
+  unchanged, Telegram send `0`, and no raw provider body or secret output.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider
