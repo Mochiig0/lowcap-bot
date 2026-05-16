@@ -319,6 +319,16 @@ metadata context. It must not become a provider complete raw body store.
 Source labels and metadata status can change independently. Keep source
 provenance policy in `docs/design/token-source-policy.md`.
 
+## Relationship To Review Flags
+
+`Token.reviewFlagsJson` shape and boundaries are fixed in
+`docs/design/review-flags-policy.md`.
+
+Review flags are lightweight human / review-process helper context. They may
+coexist with any `metadataStatus` value, but they do not replace metadata
+completeness state and do not automatically update `metadataStatus`,
+`enrichedAt`, `scoreRank`, or `scoreBreakdown`.
+
 ## Current Task Boundary
 
 This policy records the lifecycle only. It does not change code, schema,
@@ -327,7 +337,6 @@ migrations, existing rows, write paths, planner / report behavior,
 
 ## Next Docs-Only Candidates
 
-- `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.
 - `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.

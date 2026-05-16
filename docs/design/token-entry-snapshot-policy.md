@@ -151,6 +151,15 @@ completeness, especially through `firstSeenSourceSnapshot`,
 metadata status and must not store lifecycle state as a substitute for
 `Token.metadataStatus`.
 
+## Review Flags Boundary
+
+The full `Token.reviewFlagsJson` shape policy is fixed in
+`docs/design/review-flags-policy.md`.
+
+Review flags are Token-level lightweight review helper JSON. They do not belong
+inside `Token.entrySnapshot`, and `entrySnapshot` must not store review flag
+state as a substitute for `Token.reviewFlagsJson`.
+
 ## Current Task Boundary
 
 This policy records the allowed namespaces and forbidden content only. It does
@@ -159,5 +168,4 @@ not migrate existing rows, change code, change schema, or change the current
 
 ## Next Docs-Only Candidates
 
-- `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.

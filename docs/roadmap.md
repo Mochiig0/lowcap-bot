@@ -77,6 +77,15 @@ Recommended next Yellow implementation slice:
   `loop_complete` remain separate from persisted DB rows unless a later task
   adds those write paths; retry fields are manual retry foundation, not queue /
   scheduler / systemd completion;
+- `docs/design/review-flags-policy.md` fixes `Token.reviewFlagsJson` as
+  lightweight Token review helper JSON. Current compatibility keys are
+  `hasWebsite`, `hasX`, `hasTelegram`, `metaplexHit`, `descriptionPresent`,
+  and `linkCount`, with `community:review` provenance such as
+  `source=manual_community_review`, `reviewedAt`, and `operatorNote` when
+  present. Future writes should move toward `schemaVersion`, `source`,
+  optional `reviewerType`, `flags`, `note`, and `reviewedAt`, while
+  `reviewFlagsJson` stays separate from Metric outcome, `scoreBreakdown`,
+  HolderSnapshot, Notification lifecycle, provider raw bodies, and buy signals;
 - the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
   `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
   `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot

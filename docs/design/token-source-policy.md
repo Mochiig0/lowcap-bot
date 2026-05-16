@@ -289,5 +289,4 @@ or any Metric / Notification / HolderSnapshot implementation.
 
 ## Next Docs-Only Candidates
 
-- `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.

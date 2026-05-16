@@ -288,6 +288,11 @@ Known safe error code examples observed in code:
 - lightweight first detection / manual observation / context capture.
 - do not store Notification lifecycle state there.
 
+`Token.reviewFlagsJson`:
+
+- lightweight Token review helper JSON.
+- separate from Notification lifecycle, retry state, and send result.
+
 Metric outcome:
 
 - `metrics:window-report` uses `Notification.sentAt` / `capturedAt` to compute
@@ -321,7 +326,6 @@ runtime.
 
 ## Next Docs-Only Candidates
 
-- `reviewFlagsJson` shape policy.
 - `scoreBreakdown` versioning.
 - `groupKey` / `groupNote` manual grouping policy.
 - Token time anchor policy.

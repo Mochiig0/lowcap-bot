@@ -479,6 +479,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   relations; `metric_appended` expects a token and requires `metricId` for live
   send / retry. Retry fields are manual retry foundation only, not scheduler /
   systemd / always-on worker completion.
+- `Token.reviewFlagsJson` shape policy is fixed in
+  `docs/design/review-flags-policy.md`. It is lightweight Token review helper
+  JSON, not Metric outcome, `scoreBreakdown`, HolderSnapshot body,
+  Notification lifecycle state, provider raw body, or a buy signal. Current
+  compatibility keys are `hasWebsite`, `hasX`, `hasTelegram`, `metaplexHit`,
+  `descriptionPresent`, and `linkCount`; `community:review` may also record
+  `source=manual_community_review`, `reviewedAt`, and `operatorNote`. Future
+  writes should move toward a small versioned shape with `schemaVersion`,
+  `source`, optional `reviewerType`, `flags`, `note`, and `reviewedAt`, while
+  unknown / legacy keys are read conservatively.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
