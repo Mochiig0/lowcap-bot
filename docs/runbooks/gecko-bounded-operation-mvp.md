@@ -2730,6 +2730,16 @@ Manual retry closeout:
   fields only as possible future risk / liquidity context under a separate
   contract; avoid full-report preflight by default because `topHolders[]` /
   wallet payload risk is high.
+- Alternative holder source review is docs-only and leaves real holder
+  concentration source approval unresolved. Birdeye holder distribution and
+  CoinGecko / GeckoTerminal Onchain Token Info are possible aggregate-first
+  preflight candidates only after separate auth / terms / rate-limit approval:
+  Birdeye must be constrained to no wallet list output, and CoinGecko /
+  GeckoTerminal holder data is Pro API / beta. Solscan and Bubblemaps are
+  deferred because the reviewed docs point toward holder-list or graph payloads,
+  while DEX Screener / current GeckoTerminal public API docs do not expose the
+  needed aggregate fields. Continue manual holder review or external-report-only
+  review until an aggregate source is approved.
 - The holder distribution follow-up planner is `pnpm holder:gaps:plan --
   [--limit <N>] [--sinceHours <N>] [--pumpOnly] [--rank <S|A|B|C>]`. It is
   read-only and lists tokens with `holder_distribution_not_recorded` as future

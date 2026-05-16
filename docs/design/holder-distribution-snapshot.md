@@ -1532,6 +1532,80 @@ Future options:
 Do not treat this closeout as source approval, safe-summary capture readiness,
 or holder-derived trading guidance.
 
+## Alternative Holder Source Candidate Review
+
+Reviewed public documentation only. No external API request, on-chain request,
+production DB write, `holder:snapshot:add`, mapper implementation, schema
+change, queue, scheduler, systemd, checkpoint update, `--write`, `--watch`, or
+`pnpm smoke` was run.
+
+Source docs reviewed:
+
+- Birdeye `GET /holder/v1/distribution`: documented as holder distribution
+  statistics with an `include_list` option that defaults to returning the
+  holder list.
+- Solscan Pro `GET /v1.0/token/holders`: documented as a token holders list
+  endpoint with API-key authorization and pagination.
+- DEX Screener public API reference: pair / token / profile endpoints are
+  market and metadata focused; no holder concentration aggregate endpoint was
+  found in the public reference reviewed here.
+- GeckoTerminal / CoinGecko docs: GeckoTerminal public API is market / pool /
+  liquidity focused, while CoinGecko Onchain Token Info docs show beta holder
+  count and top-holder distribution percentage fields behind Pro API auth.
+- Bubblemaps B2B docs: iFrame and Data API are available for holder / transfer
+  / cluster data, but the reviewed public docs describe visualization / API
+  product boundaries rather than a raw-free holder concentration aggregate
+  contract.
+- Existing manual operator review / external report only path in this repo.
+
+Candidate comparison:
+
+| Source candidate | Explicit `topHolderPct` | Explicit `top10HolderPct` | `holderCount` | Fresh / bundler / same-funding fields | Raw wallet list risk | Auth / terms risk | Shape-only preflight fit | Raw-free mapping feasibility | MVP suitability |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Birdeye holder distribution | not confirmed in docs reviewed | plausible but not confirmed; endpoint supports top holder distribution by supply percent | not confirmed from reviewed docs | not documented for this endpoint | medium: `include_list` defaults to `true`, so any future request must explicitly set `include_list=false` and stop if list fields appear | medium-high: API key required; 401 / 403 / 429 documented | possible only with explicit `include_list=false` and one-request shape-only output | unresolved; do not approve until response shape confirms aggregate-only percentages and no wallet list | possible next docs-first preflight candidate, not approved source |
+| CoinGecko / GeckoTerminal Onchain Token Info | no single top holder field documented | yes: `holders.distribution_percentage.top_10` documented | yes: `holders.count` documented | no fresh / bundler / same-funding fields; GT score holder subscore is not a holder concentration field | low-medium for Token Info aggregate; separate Top Holders endpoint is raw wallet-address data and should be avoided | high: Pro API key required; holders data is beta with coverage / quality caveats | possible as one-token shape-only preflight with Pro key boundary approval | plausible for `top10HolderPct` / `holderCount` only if auth, beta-quality, and field semantics are approved; `topHolderPct` remains `null` | strongest aggregate candidate, but not approved because auth / beta / terms boundary needs a separate task |
+| Solscan token holders | no | no | not confirmed as aggregate in reviewed endpoint | no | high: endpoint is holder-list oriented, max 50 records per request | high: API key required; 429 documented | poor for raw-free summary because it is a list endpoint | not suitable without client-side aggregation, which would require wallet-list handling | reject for current MVP safe-summary source |
+| DEX Screener / current GeckoTerminal public API | no holder concentration aggregate found in reviewed API docs | no holder concentration aggregate found in reviewed API docs | no holder count aggregate found in reviewed API docs | no | low for documented market endpoints, but no needed holder fields | low-medium rate-limit risk on market endpoints; no useful holder source | not useful for holder distribution | not feasible for `HolderDistributionSafeSummary` holder fields | not a holder source |
+| Bubblemaps public / B2B API | no raw-free aggregate field confirmed | no raw-free aggregate field confirmed | not confirmed | likely cluster / relationship context, not this safe summary | high for Data API: holders, transfers, clusters imply relationship / wallet graph payload | high: B2B product / commercial terms and API boundary need approval | poor until exact aggregate-only contract is documented | unresolved; do not use without explicit aggregate-only response contract | defer; avoid for MVP holder summary |
+| Manual operator review | can be entered only when operator has raw-free aggregate evidence | can be entered only when operator has raw-free aggregate evidence | can be entered only when operator has raw-free aggregate evidence | can be entered as `unknown` unless explicitly reviewed | low if operator records only safe summary values and does not paste wallet lists | low internal process risk | already proven as manual safe-summary row path | feasible but low confidence if values remain `null` / `unknown` | continue as fallback |
+| External report only continuation | only if report provides aggregate percentages without wallet list | only if report provides aggregate percentages without wallet list | only if report provides count without wallet list | usually unknown | medium: reports may include wallet lists or screenshots | medium: source provenance and reuse terms vary | possible as manual transcription of aggregate fields only | feasible only under manual review with raw-free citation / notes, not raw payload | continue as fallback, not automated source |
+
+Recommended source decision:
+
+- no approved real holder concentration source yet;
+- keep `manual_holder_review` and external-report-only manual review as the
+  current fallback paths;
+- do not implement a real holder mapper from these candidates yet;
+- do not use wallet-list endpoints that require client-side aggregation for
+  this MVP;
+- the next source preflight should target a source with explicit aggregate
+  concentration fields, not a wallet-list endpoint;
+- if a Red preflight is approved, prefer aggregate-first candidates:
+  1. CoinGecko / GeckoTerminal Onchain Token Info, because docs show
+     `holders.count` and `holders.distribution_percentage.top_10`, but only
+     after Pro API auth / beta-quality / terms boundaries are approved.
+  2. Birdeye holder distribution, only if the exact request can force
+     `include_list=false` and shape-only output confirms aggregate fields
+     without wallet-list payload.
+
+Unresolved items:
+
+- whether Birdeye's response can provide aggregate top-10 concentration without
+  returning holder list fields;
+- whether CoinGecko / GeckoTerminal holders beta data is acceptable for this
+  repo's confidence / coverage boundary;
+- whether paid API keys can be used without exposing request URLs, headers, or
+  secret material;
+- whether either source excludes LP / pool / CEX / treasury wallets in a way
+  compatible with `lpWalletExcluded`;
+- whether any source provides `topHolderPct`, `freshWalletCount`,
+  `bundlerSignal`, or `sameFundingOriginSignal` as explicit aggregate fields.
+
+Stop before any Red preflight if auth / terms / rate limits are unclear, more
+than one request is needed, the response requires wallet-list persistence,
+shape-only output cannot answer field presence, or the output begins to read
+like buy / sell / position / exit guidance.
+
 Forbidden shortcuts:
 
 - Do not jump directly to scheduler, queue, or systemd.

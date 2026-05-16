@@ -320,6 +320,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   future risk-context inputs only after a separate risk-context contract; full
   report preflight remains avoided by default because wallet payload risk is
   high.
+- Alternative holder source review is docs-only and still does not approve a
+  real source. Birdeye holder distribution and CoinGecko / GeckoTerminal
+  Onchain Token Info are the only plausible aggregate-first preflight
+  candidates found: Birdeye must prove `include_list=false` avoids wallet-list
+  output, while CoinGecko / GeckoTerminal requires Pro API auth and beta holder
+  data acceptance before use. Solscan and Bubblemaps remain unsuitable for the
+  current MVP because the reviewed docs point toward holder-list or graph-style
+  payloads. DEX Screener / current GeckoTerminal public API docs did not expose
+  holder concentration aggregates. Continue `manual_holder_review` /
+  external-report-only paths until an aggregate source is separately approved.
 - `pnpm holder:gaps:plan` is the read-only planner for
   `holder_distribution_not_recorded`: it lists existing Token rows as future
   `holder_distribution_snapshot` candidates, carries through existing Metric,
