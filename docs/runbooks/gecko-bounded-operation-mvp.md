@@ -4203,6 +4203,39 @@ The next step after a clean readiness report is still a separate approval for a
 Red tasks. Scheduler / systemd work waits until after the 3h/6h monitored-run
 path has been verified.
 
+### Three Hour Dry-Run Result
+
+The first 3h GeckoTerminal detect watch dry-run completed on 2026-05-16:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60
+```
+
+Result summary:
+
+- duration: approximately 3 hours / 180 watch cycles.
+- `dryRun=true`, `writeEnabled=false`, `watchEnabled=true`,
+  `checkpointEnabled=false`.
+- `inputCount=3600`, `processedCount=180`, `selectedCount=180`,
+  `acceptedCount=180`, `rejectedCount=0`, `importedCount=0`,
+  `existingCount=0`.
+- `failedCount=0`, `rateLimitRetryCount=0`,
+  `rateLimitRetrySuccessCount=0`, `failureCooldownCount=0`.
+- Token / Metric / Notification / HolderSnapshot counts stayed
+  `1116 / 191 / 6 / 1` before and after.
+- The only checkpoint file present before and after was
+  `data/checkpoints/dexscreener-token-profiles-latest-v1.json`; no
+  GeckoTerminal checkpoint file was created or updated.
+- `data/trend.json` stayed unchanged and the worktree stayed clean before the
+  docs record.
+- The existing CLI printed detector candidate summaries in its final JSON, but
+  no raw provider response body, environment variable, API key, or Telegram
+  secret was recorded.
+
+This result is sufficient to consider a separately approved 3h write rehearsal
+or narrower bounded write rehearsal. It is not approval for scheduler /
+systemd, queue, unbounded watch, Telegram live send, or checkpoint promotion.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

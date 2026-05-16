@@ -413,6 +413,20 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   performs no DB write, fetch, Telegram send, checkpoint update, `--write`,
   `--watch`, or `pnpm smoke`, and it is verification context rather than
   automatic trading or buy-signal output.
+- The first 3h GeckoTerminal detect watch dry-run completed on 2026-05-16 with
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1
+  --maxIterations 180 --intervalSeconds 60`. It ran 180 cycles with
+  `dryRun=true`, `writeEnabled=false`, `checkpointEnabled=false`,
+  `failedCount=0`, `rateLimitRetryCount=0`, `failureCooldownCount=0`,
+  `inputCount=3600`, `processedCount=180`, `selectedCount=180`,
+  `acceptedCount=180`, `rejectedCount=0`, `importedCount=0`, and
+  `existingCount=0`. Token / Metric / Notification / HolderSnapshot counts
+  stayed `1116 / 191 / 6 / 1` before and after, `data/trend.json` stayed
+  unchanged, and no checkpoint file was updated. The existing CLI printed
+  detector candidate summaries but not raw provider response bodies or secrets,
+  and no Telegram send, DB write, queue, scheduler, systemd, `--write`, or
+  checkpoint update occurred. The next step is not scheduler / systemd; it is a
+  separately approved 3h write rehearsal or narrower bounded write rehearsal.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

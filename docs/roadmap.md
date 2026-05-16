@@ -77,9 +77,12 @@ Recommended next Yellow implementation slice:
   `loop_complete` remain separate from persisted DB rows unless a later task
   adds those write paths; retry fields are manual retry foundation, not queue /
   scheduler / systemd completion;
-- next operating step after the readiness report is a separately approved 3h
-  dry-run, then a separately approved 3h write rehearsal only if the dry-run is
-  acceptable;
+- the first 3h GeckoTerminal detect watch dry-run completed 180 cycles with
+  `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`, and
+  `checkpointEnabled=false`; Token / Metric / Notification / HolderSnapshot
+  counts stayed unchanged at `1116 / 191 / 6 / 1`;
+- next operating step is a separately approved 3h write rehearsal or a narrower
+  bounded write rehearsal only if the operator accepts the dry-run result;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
