@@ -166,6 +166,14 @@ Recommended next Yellow implementation slice:
   HolderSnapshot counts stayed unchanged, no Telegram send occurred, no
   checkpoint was touched, and exact `--mint` Notification capture remains a
   separate slice;
+- the bounded Metric accumulation Red run has also passed at `--limit 3` in
+  batch mode. The prior AW7 mint was skipped by `minGapMinutes=60`; two new
+  Metrics were appended for
+  `G4qJ2GcVBkSEGa9D4Z7FhbHcZFSPaKxFyKiaw7K2pump` (`id=1275`) and
+  `P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump` (`id=1276`). Counts moved
+  `1296 / 192 / 6 / 1` to `1296 / 194 / 6 / 1`, and
+  `metricPendingCount` moved 179 to 177. Notification / Telegram /
+  HolderSnapshot / Token enrich-rescore remained untouched;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

@@ -4539,6 +4539,86 @@ Next boundary:
   does not confirm Telegram live send, HolderSnapshot real-source capture,
   enrich / rescore, scheduler / systemd operation, or outcome persistence.
 
+### Bounded Metric Accumulation Limit 3 Result
+
+The second bounded Metric accumulation Red task expanded the same recent batch
+mode to `--limit 3`. Exact command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 3 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Selection and write summary:
+
+| Token id | Mint | Status | Metric id | observedAt |
+| ---: | --- | --- | ---: | --- |
+| 5379 | `AW7QAFFfEiGg5o4EfB6yUg4EB8ML3N74F3A2F4uepump` | `skipped_recent_metric` | null | latest Metric `2026-05-16T20:39:48.499Z` |
+| 5378 | `G4qJ2GcVBkSEGa9D4Z7FhbHcZFSPaKxFyKiaw7K2pump` | `ok` | 1275 | `2026-05-16T21:00:33.409Z` |
+| 5377 | `P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump` | `ok` | 1276 | `2026-05-16T21:00:33.842Z` |
+
+Command summary:
+
+- `selectedCount=3`, `okCount=2`, `skippedCount=1`, `errorCount=0`,
+  `writtenCount=2`.
+- `minGapMinutes=60` was active and correctly skipped the prior AW7 Metric
+  row.
+- The two written rows used source `geckoterminal.token_snapshot`.
+- Both written rows reported `volume24h=0` and safe-summary presence for
+  price, FDV, reserve, and top pool.
+- No fetch error, rate-limit retry, failure cooldown, or destructive operation
+  was observed.
+
+DB count confirmation:
+
+| Table | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Token | 1296 | 1296 | 0 |
+| Metric | 192 | 194 | +2 |
+| Notification | 6 | 6 | 0 |
+| HolderSnapshot | 1 | 1 | 0 |
+
+Queue confirmation:
+
+- `review:queue:geckoterminal -- --pumpOnly` moved `metricPendingCount` from
+  179 to 177.
+- The two newly written mints now have `metricsCount=1` and
+  `latestMetricSource=geckoterminal.token_snapshot`.
+- The next metric-pending preview starts after those written tokens.
+
+Read-only report confirmation:
+
+- `metrics:window-report -- --mint
+  G4qJ2GcVBkSEGa9D4Z7FhbHcZFSPaKxFyKiaw7K2pump --windows 30,60,1440`
+  returned `metricCount=1`, `fdvMetricCount=1`,
+  `latestFdv=2613.4820446808`, and one thin 24h FDV sample.
+- `metrics:window-report -- --mint
+  P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump --windows 30,60,1440`
+  returned `metricCount=1`, `fdvMetricCount=1`,
+  `latestFdv=2433.7898164111`, and one thin 24h FDV sample.
+- The 30m and 60m windows remained `no_data` for both mints because their first
+  Metrics were observed outside those windows.
+
+Boundary confirmation:
+
+- This was batch mode; exact `--mint` mode was not used.
+- Notification capture was not part of this task, and Notification count stayed
+  unchanged.
+- Telegram live send did not occur.
+- HolderSnapshot count stayed unchanged.
+- Token enrich / rescore did not run, and Token count stayed unchanged.
+- No checkpoint file was created or updated by this command.
+- No detect / import / queue / scheduler / systemd / `pnpm smoke` command was
+  run.
+
+Next boundary:
+
+- Exact `--mint` mode Notification capture needs a separate preflight because
+  it can create a capture-only `metric_appended` Notification after a
+  successful Metric write.
+- Further Metric accumulation can be considered in small bounded batches after
+  explicit Red approval; do not jump directly to the remaining full cohort
+  without another boundary check.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

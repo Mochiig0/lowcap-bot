@@ -503,6 +503,25 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   remained read-only and confirmed one valid FDV sample in the 24h window;
   30m / 60m windows remained `no_data` because the first Metric was observed
   outside those windows.
+- The second bounded Metric accumulation Red execution expanded the same batch
+  path to `--limit 3`. Command:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 3 --sinceMinutes
+  1440 --minGapMinutes 60 --write`. It selected three tokens: the prior
+  `AW7QAFFfEiGg5o4EfB6yUg4EB8ML3N74F3A2F4uepump` row was skipped as
+  `skipped_recent_metric` under `minGapMinutes=60`, while
+  `G4qJ2GcVBkSEGa9D4Z7FhbHcZFSPaKxFyKiaw7K2pump` appended Metric `id=1275`
+  at `observedAt=2026-05-16T21:00:33.409Z` and
+  `P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump` appended Metric `id=1276` at
+  `observedAt=2026-05-16T21:00:33.842Z`. Counts moved from Token / Metric /
+  Notification / HolderSnapshot `1296 / 192 / 6 / 1` to
+  `1296 / 194 / 6 / 1`; `review:queue:geckoterminal -- --pumpOnly` moved
+  `metricPendingCount` from 179 to 177. The run had `selectedCount=3`,
+  `okCount=2`, `skippedCount=1`, `errorCount=0`, and `writtenCount=2`; no
+  rate-limit / retry condition was observed. Batch mode again created no
+  Notification rows, sent no Telegram message, wrote no HolderSnapshot, did
+  not update Token fields, did not enrich / rescore, and did not touch
+  checkpoints. `metrics:window-report` for both newly written mints stayed
+  read-only and confirmed one valid FDV sample in the 24h window.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider
