@@ -637,6 +637,38 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `peakMultipleFromAlert=1`, `timeToPeakMinutes=2.4285666666666668`,
   `outcomeIsProvisional=true`, and `outcomeLabel=flat`, confirming that
   immediate post-alert Metric append can populate short-window outcome values.
+- Telegram live-send preflight for captured `metric_appended` Notifications is
+  docs-only complete; no `notification:send`, retry, resend, Telegram, or DB
+  write command was executed. Current counts are Token / Metric / Notification
+  / HolderSnapshot `1296 / 198 / 8 / 1`. Notification `id=7` and `id=8` are
+  both `eventType=metric_appended`, `trigger=metric_appended`,
+  `status=captured`, `mode=capture_only`, `sentAt=null`, `failedAt=null`,
+  `retryCount=0`, `nextRetryAt=null`, `lastAttemptAt=null`,
+  `leaseUntil=null`, `workerId=null`, `rawJsonFree=true`, and
+  `secretFree=true`. The recommended first Telegram live-send Red target is
+  Notification `id=8` because it is the latest captured row tied to the
+  short-window outcome check:
+  `notificationKey=EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279`,
+  `tokenId=5375`, `metricId=1279`. The candidate command is `pnpm -s
+  notification:send -- --notificationKey
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279
+  --trigger metric_appended --live`. `notification:send` is dry-run by
+  default, calls the Telegram sender only with explicit `--live`, supports
+  only `metric_appended`, blocks already-sent rows, and requires
+  `--retryFailed` only for `failed` / `live_send` retry rows. On success it
+  updates the existing row to `status=sent`, `mode=live_send`, sets `sentAt`
+  and `lastAttemptAt`, and clears `failedAt`, `errorCode`, `reason`,
+  `nextRetryAt`, `leaseUntil`, and `workerId`. On failure it updates the
+  existing row to `status=failed`, `mode=live_send`, sets `failedAt`,
+  `lastAttemptAt`, safe `errorCode`, and `reason=ops_notify_send_failed`, and
+  clears `leaseUntil` / `workerId`. It does not create Notification, Token,
+  Metric, or HolderSnapshot rows. `retryCount` is not incremented by
+  `notification:send`; retry claim / lease helpers are separate and are not
+  part of this Red command. The message sent is the stored safe
+  `messagePreview` only: event type, mint, metric id, source, status, and
+  trigger. `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are present in the
+  environment, but values were not displayed and must not be printed in the Red
+  task.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

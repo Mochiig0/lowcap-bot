@@ -217,6 +217,14 @@ Recommended next Yellow implementation slice:
   windows each have `fdvSampleCount=1`, `peakMultipleFromAlert=1`,
   `timeToPeakMinutes=2.4285666666666668`, provisional `outcomeLabel=flat`, and
   `fdvSampleCoverageLabel=thin`;
+- Telegram live-send preflight is docs-only complete. The recommended Red
+  target is captured Notification `id=8` with notification key
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279`.
+  Candidate command: `pnpm -s notification:send -- --notificationKey
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279 --trigger
+  metric_appended --live`. Expected upper bound is Telegram send max 1 and
+  Notification update max 1; Token / Metric / HolderSnapshot writes stay 0.
+  Secrets are env-only and must not be printed;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

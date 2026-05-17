@@ -5088,6 +5088,119 @@ Boundary confirmation:
 - No rate-limit, retry, fetch error, or `skipped_recent_metric` condition was
   observed.
 
+### Telegram Metric Appended Live Send Preflight
+
+This is a read-only / docs-only preflight. No Telegram send, `notification:send`,
+retry, resend, DB write, external fetch, queue, scheduler, or systemd command
+was executed.
+
+Current counts:
+
+| Table | Count |
+| --- | ---: |
+| Token | 1296 |
+| Metric | 198 |
+| Notification | 8 |
+| HolderSnapshot | 1 |
+
+Captured notification state:
+
+| id | notificationKey | tokenId | metricId | status | mode | sentAt | failedAt | retryCount |
+| ---: | --- | ---: | ---: | --- | --- | --- | --- | ---: |
+| 7 | `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277` | 5376 | 1277 | `captured` | `capture_only` | null | null | 0 |
+| 8 | `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279` | 5375 | 1279 | `captured` | `capture_only` | null | null | 0 |
+
+Both rows are `eventType=metric_appended`, `trigger=metric_appended`,
+`rawJsonFree=true`, `secretFree=true`, `nextRetryAt=null`,
+`lastAttemptAt=null`, `leaseUntil=null`, and `workerId=null`.
+
+Recommended Red target:
+
+- Use Notification `id=8`.
+- Reason: it is the latest captured `metric_appended` row and is tied to the
+  completed short-window outcome check.
+- Do not use `id=7` for the first Red live-send check unless the operator
+  explicitly wants the older ENRA row instead.
+
+Exact Red command candidate:
+
+```bash
+pnpm -s notification:send -- --notificationKey EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279 --trigger metric_appended --live
+```
+
+Implementation boundary:
+
+- Script: `pnpm notification:send`.
+- Default is dry-run lookup; the sender is called only with explicit `--live`.
+- Only `metric_appended` is supported.
+- A normal send requires the row to be `status=captured` and
+  `mode=capture_only`.
+- `--retryFailed` is only for a `failed` / `live_send` retry row and should not
+  be used for Notification `id=8`.
+- Already `sent` rows are blocked from resend.
+- Missing `mint` or `metricId` blocks send.
+- The CLI looks up exactly one row by `notificationKey`.
+
+Message boundary:
+
+- The live-send message is the stored safe `messagePreview`.
+- For Notification `id=8`, it contains only event type, mint, metric id,
+  source, status, and trigger.
+- It does not include raw provider JSON, raw response body, wallet list,
+  Telegram response body, `.env`, API keys, bot token, chat id, or request URL.
+
+Secret boundary:
+
+- `sendOpsTelegramNotification` reads `TELEGRAM_BOT_TOKEN` and
+  `TELEGRAM_CHAT_ID` from environment.
+- This preflight confirmed presence only; values were not displayed.
+- Red execution must not print env values, auth headers, request path with bot
+  token, Telegram response body, or `.env`.
+
+DB update boundary:
+
+- Success path calls `markNotificationSent` on the existing row:
+  - `status=sent`
+  - `mode=live_send`
+  - `sentAt=<send time>`
+  - `lastAttemptAt=<send time>`
+  - `failedAt=null`
+  - `errorCode=null`
+  - `reason=null`
+  - `nextRetryAt=null`
+  - `leaseUntil=null`
+  - `workerId=null`
+- Failure path calls `markNotificationFailed` on the existing row:
+  - `status=failed`
+  - `mode=live_send`
+  - `failedAt=<failure time>`
+  - `lastAttemptAt=<failure time>`
+  - safe `errorCode`
+  - `reason=ops_notify_send_failed`
+  - `leaseUntil=null`
+  - `workerId=null`
+  - `nextRetryAt` is not set by this direct send path unless explicitly passed
+    by a caller; current `notification:send` does not pass one.
+- `retryCount` is not incremented by `notification:send`.
+- Retry claim / lease helpers can increment `retryCount` and set
+  `leaseUntil` / `workerId`, but those helpers are not invoked by this Red
+  command candidate.
+- Notification create max: 0.
+- Token write max: 0.
+- Metric write max: 0.
+- HolderSnapshot write max: 0.
+
+Stop conditions for Red execution:
+
+- Notification `id=8` is no longer `captured` / `capture_only`.
+- Notification `id=8` has `sentAt` or `status=sent`.
+- `notificationKey`, `mint`, or `metricId` no longer match the preflight row.
+- `TELEGRAM_BOT_TOKEN` or `TELEGRAM_CHAT_ID` is missing.
+- The command would use `--retryFailed`.
+- The command would target a different notification key.
+- Secrets, Telegram response body, auth path, or `.env` would be printed.
+- Queue / scheduler / systemd / retry claim path would be started.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for
