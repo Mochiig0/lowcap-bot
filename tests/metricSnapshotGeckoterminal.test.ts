@@ -83,6 +83,15 @@ type MetricSnapshotGeckoterminalOutput = {
       dryRun: boolean;
       wouldCreateMetric: boolean;
       metricId: number | null;
+      notificationCaptureEnabled: boolean;
+      notificationCreated: boolean;
+      notificationId: number | null;
+      notificationSkippedReason:
+        | "disabled_by_option"
+        | "dry_run"
+        | "metric_not_created"
+        | "not_single_mint_mode"
+        | null;
     };
     latestObservedAt?: string;
     minGapMinutes?: number;
@@ -415,6 +424,7 @@ async function readNotifications(
   mint: string,
 ): Promise<
   Array<{
+    id: number;
     notificationKey: string;
     eventType: string;
     mint: string;
@@ -443,6 +453,7 @@ async function readNotifications(
         mint,
       },
       select: {
+        id: true,
         notificationKey: true,
         eventType: true,
         mint: true,
@@ -558,6 +569,10 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       assert.equal(parsed.items[0]?.writeSummary.dryRun, true);
       assert.equal(parsed.items[0]?.writeSummary.wouldCreateMetric, true);
       assert.equal(parsed.items[0]?.writeSummary.metricId, null);
+      assert.equal(parsed.items[0]?.writeSummary.notificationCaptureEnabled, true);
+      assert.equal(parsed.items[0]?.writeSummary.notificationCreated, false);
+      assert.equal(parsed.items[0]?.writeSummary.notificationId, null);
+      assert.equal(parsed.items[0]?.writeSummary.notificationSkippedReason, "dry_run");
       assert.equal(result.stdout.includes("rawJson"), false);
       assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
       assert.equal(result.stdout.includes("metric_snapshot_pool"), false);
@@ -599,12 +614,16 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       });
       const metricId = parsed.items[0]?.writeSummary.metricId;
       assert.equal(typeof metricId, "number");
+      assert.equal(parsed.items[0]?.writeSummary.notificationCaptureEnabled, true);
+      assert.equal(parsed.items[0]?.writeSummary.notificationCreated, true);
+      assert.equal(parsed.items[0]?.writeSummary.notificationSkippedReason, null);
       assert.equal(result.stdout.includes("rawJson"), false);
       assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
       assert.equal(result.stdout.includes("metric_snapshot_pool"), false);
 
       const notifications = await readNotifications(databaseUrl, mint);
       assert.equal(notifications.length, 1);
+      assert.equal(parsed.items[0]?.writeSummary.notificationId, notifications[0]?.id);
       assert.equal(
         notifications[0]?.notificationKey,
         `${mint}:metric_appended:${metricId}`,
@@ -642,6 +661,97 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       assert.equal(savedToken?.name, "Metric Snapshot Token");
       assert.equal(savedToken?.symbol, "MST");
       assert.equal(savedTopPool?.address, "metric_snapshot_pool");
+    });
+  });
+
+  await t.test("supports exact mint metric write without notification capture", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "write-no-notification.db")}`;
+      const mint = "MetricSnapshotNoCapture111111111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-no-notification-snapshot.json");
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--mint", mint, "--write", "--noNotificationCapture"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "single");
+      assert.equal(parsed.dryRun, false);
+      assert.equal(parsed.writeEnabled, true);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.summary.okCount, 1);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.summary.writtenCount, 1);
+      assert.equal(typeof parsed.items[0]?.writeSummary.metricId, "number");
+      assert.equal(parsed.items[0]?.writeSummary.notificationCaptureEnabled, false);
+      assert.equal(parsed.items[0]?.writeSummary.notificationCreated, false);
+      assert.equal(parsed.items[0]?.writeSummary.notificationId, null);
+      assert.equal(
+        parsed.items[0]?.writeSummary.notificationSkippedReason,
+        "disabled_by_option",
+      );
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
+      assert.equal(result.stdout.includes("metric_snapshot_pool"), false);
+
+      const metrics = await readMetrics(databaseUrl, mint);
+      assert.equal(metrics.length, 1);
+      assert.equal(metrics[0]?.source, METRIC_SOURCE);
+      assert.equal(metrics[0]?.volume24h, 1234);
+
+      const notifications = await readNotifications(databaseUrl, mint);
+      assert.deepEqual(notifications, []);
+    });
+  });
+
+  await t.test("keeps recent batch writes notification-free", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "batch-write-no-notification.db")}`;
+      const mint = "MetricSnapshotBatch1111111111111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-batch-write-snapshot.json");
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint,
+        createdAt: new Date(),
+        metadataStatus: "mint_only",
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10", "--write"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.dryRun, false);
+      assert.equal(parsed.writeEnabled, true);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.summary.okCount, 1);
+      assert.equal(parsed.summary.writtenCount, 1);
+      assert.equal(parsed.items[0]?.token.mint, mint);
+      assert.equal(typeof parsed.items[0]?.writeSummary.metricId, "number");
+      assert.equal(parsed.items[0]?.writeSummary.notificationCaptureEnabled, false);
+      assert.equal(parsed.items[0]?.writeSummary.notificationCreated, false);
+      assert.equal(parsed.items[0]?.writeSummary.notificationId, null);
+      assert.equal(
+        parsed.items[0]?.writeSummary.notificationSkippedReason,
+        "not_single_mint_mode",
+      );
+
+      const metrics = await readMetrics(databaseUrl, mint);
+      assert.equal(metrics.length, 1);
+
+      const notifications = await readNotifications(databaseUrl, mint);
+      assert.deepEqual(notifications, []);
     });
   });
 
@@ -767,7 +877,7 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--intervalSeconds and --maxIterations require --watch/);
     assert.match(
       result.stderr,
-      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--source <SOURCE>\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
+      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--source <SOURCE>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
     );
   });
 

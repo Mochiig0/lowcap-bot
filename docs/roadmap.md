@@ -197,16 +197,15 @@ Recommended next Yellow implementation slice:
 - post-alert Metric outcome preflight is docs-only complete. The existing
   alert anchor is Notification `id=7`, while Metric `id=1277` is 14ms before
   `capturedAt`, so it can provide `alertFdv` but not a post-alert window
-  sample. Current windows remain `outcomeLabel=no_data`. Existing CLIs do not
-  provide targeted exact-mint Metric append without Notification capture:
-  exact `--mint --write` creates a new capture-only Notification per new
-  Metric, batch mode cannot target this mint, and `--minGapMinutes 0` is
-  invalid. If an additional capture-only Notification is acceptable, the next
-  Red command is
-  `pnpm -s metric:snapshot:geckoterminal -- --mint
-  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --write`; if Notification `+0`
-  is required, add a small Yellow option such as `--noNotificationCapture`
-  first;
+  sample. Current windows remain `outcomeLabel=no_data`.
+  `metric:snapshot:geckoterminal` now supports exact `--mint --write
+  --noNotificationCapture`, which appends the post-alert Metric without adding
+  another capture-only `metric_appended` Notification. Default exact `--mint
+  --write` still captures Notification rows after successful Metric writes.
+  Batch mode still cannot target this mint, and `--minGapMinutes 0` remains
+  invalid. The next Red command candidate is `pnpm -s
+  metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture --write`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

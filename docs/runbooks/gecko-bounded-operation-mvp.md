@@ -4872,8 +4872,11 @@ Implementation boundary confirmed from existing CLIs:
 - The Notification key is `<mint>:metric_appended:<metricId>`, so a new Metric
   id means a new Notification row. The prior Notification `id=7` does not
   dedupe a later post-alert Metric Notification.
-- The CLI has no `--noNotification`, `--noNotificationCapture`,
-  `--captureNotification false`, or `--noCapture` option.
+- The CLI now has `--noNotificationCapture` for exact `--mint` mode. With that
+  option, a successful Metric write still creates the Metric row but skips the
+  capture-only `metric_appended` Notification. Without the option, default
+  exact `--mint --write` behavior is unchanged and still captures one
+  Notification after each successful Metric create.
 - The CLI imports no Telegram sender and does not call live send.
 - Batch mode does not create Notification rows, but it cannot target a specific
   mint and has no option to select this exact existing-Metric target.
@@ -4885,28 +4888,26 @@ Red execution options:
 
 | Option | Shape | Pros | Cons / boundary |
 | --- | --- | --- | --- |
-| A: exact `--mint` re-run | `metric:snapshot:geckoterminal -- --mint <TARGET> --write` | Targets the same mint exactly; should append one live post-alert Metric; no Telegram live send | Also creates a second capture-only Notification because exact mode captures per Metric |
+| A: exact `--mint` re-run with no capture | `metric:snapshot:geckoterminal -- --mint <TARGET> --noNotificationCapture --write` | Targets the same mint exactly; should append one live post-alert Metric; no Telegram live send; Notification count should stay unchanged | Requires the explicit no-capture option; default exact `--mint --write` still captures Notification |
 | B: batch mode | `metric:snapshot:geckoterminal -- --pumpOnly ... --write` | Batch mode does not create Notification rows | Cannot target the ENRA mint; selection is recent Gecko-origin ordering and may skip / write other tokens |
-| C: small Yellow implementation first | Add an explicit no-capture option or split Metric append from Notification capture | Allows Metric `+1` with Notification `+0` | Requires code / tests / docs before Red execution |
+| C: default exact `--mint` re-run | `metric:snapshot:geckoterminal -- --mint <TARGET> --write` | Targets the same mint exactly; should append one live post-alert Metric; no Telegram live send | Also creates a second capture-only Notification because default exact mode captures per Metric |
 
 Recommended next Red path:
 
-- If the operator accepts an additional capture-only Notification, use option A
-  without `--minGapMinutes` so the post-alert Metric is not skipped by the
-  current recent Metric.
+- Use option A without `--minGapMinutes` so the post-alert Metric is not
+  skipped by the current recent Metric and no second capture-only Notification
+  is added.
 - Exact command candidate:
 
 ```bash
-pnpm -s metric:snapshot:geckoterminal -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --write
+pnpm -s metric:snapshot:geckoterminal -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture --write
 ```
 
 Expected result for option A:
 
 - one live GeckoTerminal token snapshot fetch;
 - Metric count `+1`;
-- Notification count `+1`;
-- Notification remains `status=captured`, `mode=capture_only`,
-  `trigger=metric_appended`;
+- Notification count `+0`;
 - Telegram live send `0`;
 - Token count unchanged;
 - HolderSnapshot count unchanged;
@@ -4919,8 +4920,8 @@ Expected result for option A:
   Metric lacks valid FDV or is not after `alertedAt`, the label can remain
   `no_data`.
 
-If Notification `+0` is required, do not run option A. Pause for a Yellow
-implementation that adds an explicit no-capture path, then re-preflight.
+Default exact `--mint --write` remains valid only when an additional
+capture-only Notification is explicitly accepted.
 
 ## Metric Window Peak Report
 

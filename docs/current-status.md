@@ -577,15 +577,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   re-execution will create another Metric and then another capture-only
   `metric_appended` Notification because the notification key includes the new
   `metricId`; it is not deduped against the prior Notification. There is no
-  existing `--noNotification`, `--noCapture`, or targeted batch-mode option.
-  `--minGapMinutes 0` is invalid because the parser requires a positive
-  integer. Recommended next Red path, if an additional capture-only
-  Notification is acceptable, is:
+  targeted batch-mode option, and `--minGapMinutes 0` is invalid because the
+  parser requires a positive integer. The exact `--mint --write
+  --noNotificationCapture` option is now available for the post-alert Metric
+  check when Notification `+0` is required. Recommended next Red path is:
   `pnpm -s metric:snapshot:geckoterminal -- --mint
-  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --write`. Expected result:
-  Metric `+1`, Notification `+1`, Telegram `0`, Token / HolderSnapshot `0`.
-  If Notification `+0` is required, pause and add a separate Yellow
-  implementation such as a `--noNotificationCapture` option before running.
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture
+  --write`. Expected result: Metric `+1`, Notification `+0`, Telegram `0`,
+  Token / HolderSnapshot `0`.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider
@@ -2366,7 +2365,14 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   Notification count `0 -> 1`, Metric `1264`, and Notification key
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264`;
   `Notification_notificationKey_key` remained present, rollback was not
-  needed, and restore was not executed. Batch / limit mode Notification writes,
+  needed, and restore was not executed. Exact `--mint --write
+  --noNotificationCapture` now keeps the Metric write path but suppresses the
+  capture-only `metric_appended` Notification row. Default exact `--mint
+  --write` behavior is unchanged. The option is for post-alert Metric outcome
+  checks where a second Metric is needed for `metrics:window-report` but another
+  capture-only Notification is not. It is not a Telegram live-send control, and
+  the Metric snapshot CLI still does not call the Telegram sender. Batch /
+  limit mode Notification writes,
   real Telegram live-loop execution, failed-send retry, queue / systemd,
   default checkpoint operation, automatic Red execution, and always-on bot
   operation remain unimplemented. Commit `2d83b05` adds the

@@ -55,6 +55,13 @@ output based on older Metric result fields. It is not the canonical outcome
 evaluation path. Use this document's window-level `outcomeLabel` policy for
 current outcome review.
 
+For post-alert outcome checks on a mint that already has a capture-only
+`metric_appended` Notification anchor, `metric:snapshot:geckoterminal` supports
+exact `--mint --write --noNotificationCapture`. That path appends the live
+Metric needed by `metrics:window-report` without adding another capture-only
+Notification. Default exact `--mint --write` behavior still captures
+`metric_appended` after a successful Metric create.
+
 ## Peak FDV Window Policy
 
 Peak FDV is the maximum valid FDV observed in `Metric` history inside each

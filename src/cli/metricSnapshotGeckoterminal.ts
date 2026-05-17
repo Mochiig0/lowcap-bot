@@ -25,6 +25,7 @@ function getTokenApiUrl(): string {
 type MetricSnapshotArgs = {
   write: boolean;
   watch: boolean;
+  noNotificationCapture: boolean;
   mint?: string;
   limit: number;
   sinceMinutes: number;
@@ -99,6 +100,12 @@ type MetricCandidate = {
   safeSummary: SafeMetricSummary;
 };
 
+type NotificationSkippedReason =
+  | "disabled_by_option"
+  | "dry_run"
+  | "metric_not_created"
+  | "not_single_mint_mode";
+
 type ProcessedTokenResult = {
   token: {
     id: number;
@@ -117,6 +124,10 @@ type ProcessedTokenResult = {
     dryRun: boolean;
     wouldCreateMetric: boolean;
     metricId: number | null;
+    notificationCaptureEnabled: boolean;
+    notificationCreated: boolean;
+    notificationId: number | null;
+    notificationSkippedReason: NotificationSkippedReason | null;
   };
   latestObservedAt?: string;
   minGapMinutes?: number;
@@ -234,7 +245,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
@@ -245,6 +256,7 @@ function getUsageText(): string {
     `- recent batch mode may also prefer non-mint_only and review-flagged rows via experimental --prioritizeRichPending; default selection order stays unchanged when omitted`,
     `- skips a token before fetch only when --minGapMinutes is set and the latest Metric for the same token+source is still recent`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
+    `- single --mint write mode captures a metric_appended Notification by default; --noNotificationCapture suppresses that capture record without changing Metric writes`,
     `- loops only when --watch is set`,
     `- waits --intervalSeconds ${DEFAULT_INTERVAL_SECONDS} between watch cycles`,
     `- persists observedAt, source, rawJson, and volume24h only when the source clearly exposes 24h volume`,
@@ -275,6 +287,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
   const out: MetricSnapshotArgs = {
     write: false,
     watch: false,
+    noNotificationCapture: false,
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     pumpOnly: false,
@@ -290,11 +303,18 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
       throw new CliUsageError("");
     }
 
-    if (key === "--write" || key === "--watch" || key === "--prioritizeRichPending") {
+    if (
+      key === "--write" ||
+      key === "--watch" ||
+      key === "--prioritizeRichPending" ||
+      key === "--noNotificationCapture"
+    ) {
       if (key === "--write") {
         out.write = true;
       } else if (key === "--watch") {
         out.watch = true;
+      } else if (key === "--noNotificationCapture") {
+        out.noNotificationCapture = true;
       } else {
         out.prioritizeRichPending = true;
       }
@@ -648,6 +668,51 @@ function buildMetricAppendedMessagePreview(input: {
   ].join(" ");
 }
 
+function isNotificationCaptureEnabled(args: MetricSnapshotArgs): boolean {
+  return Boolean(args.mint) && !args.noNotificationCapture;
+}
+
+function getNotificationSkippedReason(
+  args: MetricSnapshotArgs,
+  metricId: number | null,
+): NotificationSkippedReason | null {
+  if (!args.write) {
+    return "dry_run";
+  }
+
+  if (!args.mint) {
+    return "not_single_mint_mode";
+  }
+
+  if (args.noNotificationCapture) {
+    return "disabled_by_option";
+  }
+
+  if (metricId === null) {
+    return "metric_not_created";
+  }
+
+  return null;
+}
+
+function buildWriteSummary(input: {
+  args: MetricSnapshotArgs;
+  wouldCreateMetric: boolean;
+  metricId: number | null;
+  notificationId?: number | null;
+  notificationCreated?: boolean;
+}): ProcessedTokenResult["writeSummary"] {
+  return {
+    dryRun: !input.args.write,
+    wouldCreateMetric: input.wouldCreateMetric,
+    metricId: input.metricId,
+    notificationCaptureEnabled: isNotificationCaptureEnabled(input.args),
+    notificationCreated: input.notificationCreated ?? false,
+    notificationId: input.notificationId ?? null,
+    notificationSkippedReason: getNotificationSkippedReason(input.args, input.metricId),
+  };
+}
+
 async function selectTokens(args: MetricSnapshotArgs): Promise<{
   mode: "single" | "recent_batch";
   selectedTokens: SelectedToken[];
@@ -893,11 +958,11 @@ async function processToken(
             },
             metricSource: args.source,
             status: "skipped_recent_metric",
-            writeSummary: {
-              dryRun: !args.write,
+            writeSummary: buildWriteSummary({
+              args,
               wouldCreateMetric: false,
               metricId: null,
-            },
+            }),
             latestObservedAt,
             minGapMinutes: args.minGapMinutes,
           };
@@ -916,6 +981,8 @@ async function processToken(
     };
 
     let metricId: number | null = null;
+    let notificationId: number | null = null;
+    let notificationCreated = false;
     if (args.write) {
       const created = await db.metric.create({
         data: {
@@ -931,8 +998,8 @@ async function processToken(
       });
       metricId = created.id;
 
-      if (args.mint) {
-        await maybeCreateByNotificationKey(db, {
+      if (isNotificationCaptureEnabled(args)) {
+        const notificationResult = await maybeCreateByNotificationKey(db, {
           notificationKey: buildMetricAppendedNotificationKey(token.mint, metricId),
           eventType: "metric_appended",
           mint: token.mint,
@@ -946,6 +1013,8 @@ async function processToken(
           }),
           source: METRIC_SNAPSHOT_NOTIFICATION_SOURCE,
         });
+        notificationId = notificationResult.notification.id;
+        notificationCreated = notificationResult.created;
       }
     }
 
@@ -963,11 +1032,13 @@ async function processToken(
       metricSource: args.source,
       status: "ok",
       metricCandidate,
-      writeSummary: {
-        dryRun: !args.write,
+      writeSummary: buildWriteSummary({
+        args,
         wouldCreateMetric: true,
         metricId,
-      },
+        notificationId,
+        notificationCreated,
+      }),
     };
   } catch (error) {
     return {
@@ -983,11 +1054,11 @@ async function processToken(
       },
       metricSource: args.source,
       status: "error",
-      writeSummary: {
-        dryRun: !args.write,
+      writeSummary: buildWriteSummary({
+        args,
         wouldCreateMetric: false,
         metricId: null,
-      },
+      }),
       error: error instanceof Error ? error.message : String(error),
     };
   }

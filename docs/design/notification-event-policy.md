@@ -215,6 +215,11 @@ Known persisted `metric_appended` key shape:
 ```
 
 This policy does not change key construction.
+`metric:snapshot:geckoterminal -- --mint <MINT> --write` creates this
+capture-only record by default after a successful Metric create. The
+`--noNotificationCapture` option suppresses only that capture record for
+post-alert Metric outcome checks; it does not alter Telegram live-send policy,
+retry policy, or the key shape used when capture is enabled.
 
 ## Retry Fields
 
