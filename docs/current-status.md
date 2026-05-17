@@ -2500,6 +2500,24 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   limited to event type, mint, metric id, source, status, and trigger; Telegram
   token, chat id, `DATABASE_URL`, rawJson, and Telegram response body were not
   displayed or stored.
+- `notification:send` failure-path preflight is complete as a read-only /
+  docs-only audit. The audit inspected `notification:send`, the live-send
+  service, Notification repository, retry planner, Telegram sender, schema,
+  and tests without running `notification:send`, sending Telegram, writing DB
+  state, or fetching externally. Current Notification rows are
+  `captured/capture_only=5`, `sent/live_send=3`, `failed=0`, with retry
+  candidates `0`. Failure marking would update one existing eligible row to
+  `status=failed`, `mode=live_send`, set `failedAt` and `lastAttemptAt`, store
+  only a safe normalized `errorCode`, and set `reason=ops_notify_send_failed`;
+  direct `notification:send` does not increment `retryCount`, and retry
+  planning only considers failed `metric_appended` live-send rows with safe
+  flags, due retry time, and no active lease. Sent Notification `id=8` is
+  blocked from resend; captured Notification `id=7` is a possible first
+  live-send target but not a retry candidate. A production Red failure
+  rehearsal is not recommended yet because it would require a real live sender
+  failure or intentionally invalid Telegram environment and would mutate a
+  production captured row; prefer a later Yellow simulated-failure or isolated
+  temp-DB harness if failure-path execution evidence is needed.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

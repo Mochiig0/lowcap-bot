@@ -235,6 +235,14 @@ Recommended next Yellow implementation slice:
   unsent as `captured` / `capture_only`. Retry, batch send, scheduler,
   systemd, watch, metric snapshot, detect, import, enrich, and rescore were not
   executed, and no secret / Telegram response body was printed;
+- `notification:send` failure-path preflight is complete as read-only /
+  docs-only. Current DB has no failed Notifications and no retry candidates.
+  Code and tests show failed sender results update one existing row to
+  `failed/live_send` with safe `errorCode`, `reason=ops_notify_send_failed`,
+  `failedAt`, and `lastAttemptAt`; sent rows are blocked from resend and
+  captured rows are not retry candidates. Do not run a production Red failure
+  rehearsal yet; add a simulated-failure or isolated-temp-DB harness first if
+  execution evidence is needed;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
