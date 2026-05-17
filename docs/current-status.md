@@ -545,6 +545,25 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --minGapMinutes 60 --write`.
   Expected Red result is Metric `+1`, Notification `+1`, Token / HolderSnapshot
   unchanged, Telegram send `0`, and no raw provider body or secret output.
+- The exact `--mint` Notification capture Red execution has now completed for
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`. Command:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --minGapMinutes 60 --write`.
+  The command ran in `mode=single`, selected Token `id=5376`, wrote Metric
+  `id=1277` at `observedAt=2026-05-16T23:58:13.695Z` with source
+  `geckoterminal.token_snapshot` and `volume24h=1015875.57780311`, then
+  created Notification `id=7` with
+  `notificationKey=ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277`,
+  `eventType=metric_appended`, `trigger=metric_appended`, `status=captured`,
+  `mode=capture_only`, `tokenId=5376`, `metricId=1277`,
+  `rawJsonFree=true`, `secretFree=true`, and
+  `source=metric:snapshot:geckoterminal`. Counts moved from Token / Metric /
+  Notification / HolderSnapshot `1296 / 194 / 6 / 1` to
+  `1296 / 195 / 7 / 1`, and `metricPendingCount` moved from 177 to 176.
+  `skippedCount=0`, `errorCount=0`, and no rate-limit / retry condition was
+  observed. Telegram live send did not occur; Token, HolderSnapshot, enrich /
+  rescore, checkpoint, queue, scheduler, systemd, and `pnpm smoke` were not
+  invoked.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

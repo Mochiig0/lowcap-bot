@@ -4714,6 +4714,100 @@ Stop before Red execution if:
   be displayed;
 - Notification capture is expected without a successful Metric write.
 
+### Metric Appended Notification Capture Result
+
+The first exact `--mint` mode Notification capture Red task completed for the
+preflight target. Exact command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --minGapMinutes 60 --write
+```
+
+Execution summary:
+
+- mode: `single`
+- selected mint: `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`
+- selected Token id: `5376`
+- `selectedCount=1`, `okCount=1`, `skippedCount=0`, `errorCount=0`,
+  `writtenCount=1`
+- `minGapMinutes=60` was active and did not skip the target.
+- No fetch error, rate-limit retry, failure cooldown, or destructive operation
+  was observed.
+
+Metric write result:
+
+- Metric id: `1277`
+- `observedAt=2026-05-16T23:58:13.695Z`
+- `source=geckoterminal.token_snapshot`
+- `volume24h=1015875.57780311`
+- safe-summary presence reported price, FDV, reserve, and top pool fields.
+
+Notification capture result:
+
+- Notification id: `7`
+- `notificationKey=ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277`
+- `eventType=metric_appended`
+- `trigger=metric_appended`
+- `status=captured`
+- `mode=capture_only`
+- `tokenId=5376`
+- `metricId=1277`
+- `capturedAt=2026-05-16T23:58:13.709Z`
+- `sentAt=null`
+- `failedAt=null`
+- `rawJsonFree=true`
+- `secretFree=true`
+- `source=metric:snapshot:geckoterminal`
+
+DB count confirmation:
+
+| Table | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Token | 1296 | 1296 | 0 |
+| Metric | 194 | 195 | +1 |
+| Notification | 6 | 7 | +1 |
+| HolderSnapshot | 1 | 1 | 0 |
+
+Queue confirmation:
+
+- `review:queue:geckoterminal -- --pumpOnly` moved `metricPendingCount` from
+  177 to 176.
+- The target mint now has `metricsCount=1`,
+  `latestMetricObservedAt=2026-05-16T23:58:13.695Z`, and
+  `latestMetricSource=geckoterminal.token_snapshot`.
+
+Read-only report confirmation:
+
+- `metrics:window-report -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --windows 30,60,1440`
+  returned `metricCount=1`, `fdvMetricCount=1`,
+  `alertNotificationId=7`, `alertedAtSource=notification_captured_at`,
+  `alertFdv=223702.038226584`, and `latestFdv=223702.038226584`.
+- The newly captured Notification became the alert anchor. Because the Metric
+  observedAt was 14 milliseconds before `capturedAt`, it was used as
+  `alertFdv` via `metric_before_alert`; the 30m / 60m / 24h post-alert windows
+  had no included samples yet and stayed `no_data`.
+
+Boundary confirmation:
+
+- This was exact `--mint` mode; batch mode was not used.
+- Exactly one Metric row and one capture-only Notification row were created.
+- Telegram live send did not occur.
+- Token count stayed unchanged, and no Token enrich / rescore ran.
+- HolderSnapshot count stayed unchanged.
+- No checkpoint file was created or updated by this command.
+- No detect / import / queue / scheduler / systemd / `pnpm smoke` command was
+  run.
+
+Next boundary:
+
+- Notification capture can be expanded only through another small Red preflight
+  / execution pair.
+- Telegram live send remains separate from capture-only Notification rows and
+  needs its own preflight before any live send.
+- `metrics:window-report` can now use the captured Notification as an alert
+  anchor for later outcome review once additional post-alert Metrics exist.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

@@ -185,6 +185,15 @@ Recommended next Yellow implementation slice:
   `mode=capture_only`, `trigger=metric_appended` Notification row only; no
   Telegram live send, Token update, HolderSnapshot write, checkpoint,
   scheduler, or systemd action is expected;
+- the first exact `--mint` Notification capture Red run is complete for
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`. It appended Metric
+  `id=1277` and created Notification `id=7` with
+  `status=captured`, `mode=capture_only`, `trigger=metric_appended`,
+  `tokenId=5376`, and `metricId=1277`. Counts moved
+  `1296 / 194 / 6 / 1` to `1296 / 195 / 7 / 1`, and
+  `metricPendingCount` moved 177 to 176. Telegram live send, Token update,
+  HolderSnapshot write, enrich / rescore, checkpoint, queue, scheduler, and
+  systemd remained untouched;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
