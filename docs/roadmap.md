@@ -257,6 +257,12 @@ Recommended next Yellow implementation slice:
   `lastAttemptAt`, safe `errorCode`, and `reason`, keeps `sentAt=null`, creates
   no Notification rows, and leaves Token / Metric / HolderSnapshot counts
   unchanged;
+- `notification:retry:plan` now has a current production DB read-only
+  no-candidate confirmation. With failed rows at `0`, captured `id=7` and sent
+  `id=8` were both excluded, and `pnpm -s notification:retry:plan` returned
+  `status=stop`, `candidateCount=0`, `selected=null`, `nextRedCommand=null`,
+  and `stopConditionCodes=[no_failed_retry_candidate]` without DB writes or
+  Telegram sender calls;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

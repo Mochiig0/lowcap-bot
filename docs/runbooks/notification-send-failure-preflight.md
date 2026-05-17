@@ -156,6 +156,24 @@ The retry planner is read-only and selects only rows matching all of:
 
 Current DB has no failed rows and no retry candidates.
 
+Current DB confirmation on 2026-05-17:
+
+- Counts: Token / Metric / Notification / HolderSnapshot =
+  `1296 / 198 / 8 / 1`.
+- Notification status counts: `captured/capture_only=5`,
+  `sent/live_send=3`, `failed=0`.
+- Notification `id=7` is `captured/capture_only` with `metricId=1277`,
+  `sentAt=null`, and is not a retry candidate.
+- Notification `id=8` is `sent/live_send` with `metricId=1279`,
+  `sentAt=2026-05-17T02:20:23.560Z`, and is not a retry candidate.
+- `pnpm -s notification:retry:plan` returned `status=stop`,
+  `mode=read_only_retry_planner`, `willExecute=false`, `executor=none`,
+  `candidateCount=0`, `selectedCount=0`, `selected=null`,
+  `nextRedCommand=null`, and
+  `stopConditionCodes=[no_failed_retry_candidate]`.
+- The plan command did not call Telegram, update DB state, execute retry,
+  create Notifications, start worker / scheduler paths, or expose secrets.
+
 Manual retry command shape, if a failed row exists and a separate Red approval
 is granted:
 

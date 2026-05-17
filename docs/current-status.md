@@ -2539,6 +2539,21 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `workerId=null`. Token / Metric / Notification / HolderSnapshot counts stay
   unchanged, no new Notification is created, and unsafe sender error details,
   Telegram response body, rawJson, or secret markers are not stored.
+- `notification:retry:plan` was confirmed against the current production DB as
+  a read-only retry planner. At HEAD
+  `fac9a8d6588b3f7ff4b1e1aa35d31997b1d6cf4e`, with a clean working tree, the
+  DB state was Token / Metric / Notification / HolderSnapshot =
+  `1296 / 198 / 8 / 1`, Notification status counts were
+  `captured/capture_only=5`, `sent/live_send=3`, and `failed=0`.
+  Notification `id=7` remained `captured/capture_only` with `metricId=1277`
+  and `sentAt=null`; Notification `id=8` remained `sent/live_send` with
+  `metricId=1279` and `sentAt=2026-05-17T02:20:23.560Z`. Running
+  `pnpm -s notification:retry:plan` returned `status=stop`,
+  `mode=read_only_retry_planner`, `willExecute=false`, `executor=none`,
+  `candidateCount=0`, `selectedCount=0`, `selected=null`,
+  `nextRedCommand=null`, and `stopConditionCodes=[no_failed_retry_candidate]`.
+  It did not call a Telegram sender, update Notifications, write DB state,
+  start retry / worker / scheduler paths, or expose secrets.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through
