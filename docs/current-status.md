@@ -565,8 +565,8 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   rescore, checkpoint, queue, scheduler, systemd, and `pnpm smoke` were not
   invoked.
 - Post-alert Metric outcome preflight is now documented, but no post-alert
-  Metric has been added. Current counts are Token / Metric / Notification /
-  HolderSnapshot `1296 / 195 / 7 / 1`. The target mint
+  Metric had been added at that point. Current counts before the Red check were
+  Token / Metric / Notification / HolderSnapshot `1296 / 195 / 7 / 1`. The target mint
   `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump` has Token `id=5376`, Metric
   `id=1277` at `observedAt=2026-05-16T23:58:13.695Z`, and Notification `id=7`
   at `capturedAt=2026-05-16T23:58:13.709Z`. `metrics:window-report` uses
@@ -585,6 +585,30 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture
   --write`. Expected result: Metric `+1`, Notification `+0`, Telegram `0`,
   Token / HolderSnapshot `0`.
+- The post-alert Metric outcome Red check is complete for the ENRA mint. The
+  prior attempt stopped before fetch/write because `--minGapMinutes 0` is
+  invalid. The successful command omitted `--minGapMinutes` and ran
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture
+  --write`. It selected Token `id=5376`, fetched one GeckoTerminal token
+  snapshot, and wrote Metric `id=1278` at
+  `observedAt=2026-05-17T01:15:43.366Z` with
+  `volume24h=1059163.39836359`. The write summary reported
+  `notificationCaptureEnabled=false`, `notificationCreated=false`, and
+  `notificationSkippedReason=disabled_by_option`. Counts moved from
+  `1296 / 195 / 7 / 1` to `1296 / 196 / 7 / 1`, so Notification stayed at 7
+  and HolderSnapshot stayed at 1. Telegram send, Token enrich / rescore, queue,
+  scheduler, systemd, checkpoint update, and `pnpm smoke` were not run. The
+  follow-up `metrics:window-report -- --mint ... --windows 30,60,1440` still
+  uses Notification `id=7` as the alert anchor. Metric count is 2 and FDV
+  Metric count is 2. The 30m and 60m windows remain `outcomeLabel=no_data`
+  because the new Metric arrived after those completed windows. The 24h window
+  now includes one post-alert valid FDV sample with
+  `peakFdv=243145.21885292`,
+  `peakMultipleFromAlert=1.0869155273705746`,
+  `timeToPeakMinutes=77.49428333333333`,
+  `fdvSampleCoverageLabel=thin`, `isWindowComplete=false`,
+  `outcomeIsProvisional=true`, and `outcomeLabel=flat`.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider

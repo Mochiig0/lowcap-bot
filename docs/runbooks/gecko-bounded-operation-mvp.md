@@ -4923,6 +4923,74 @@ Expected result for option A:
 Default exact `--mint --write` remains valid only when an additional
 capture-only Notification is explicitly accepted.
 
+### Post-Alert Metric Outcome Check Result
+
+The post-alert Metric Red check completed for the ENRA mint.
+
+Prior stop:
+
+- The first attempt stopped before fetch/write because `--minGapMinutes 0` is
+  invalid in the current parser.
+- No Metric, Notification, external fetch, or DB write happened in that stop.
+
+Executed command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture --write
+```
+
+Execution result:
+
+- `--minGapMinutes` was omitted.
+- The command selected Token `id=5376` only.
+- It fetched one GeckoTerminal token snapshot.
+- It wrote Metric `id=1278` at `observedAt=2026-05-17T01:15:43.366Z`.
+- `volume24h=1059163.39836359`.
+- `notificationCaptureEnabled=false`.
+- `notificationCreated=false`.
+- `notificationSkippedReason=disabled_by_option`.
+- No Notification row was created.
+- No Telegram live send occurred.
+- No Token enrich / rescore, HolderSnapshot write, queue, scheduler, systemd,
+  checkpoint update, or `pnpm smoke` command ran.
+- No external fetch error, rate limit, retry, or `skipped_recent_metric`
+  occurred.
+
+Counts:
+
+| Table | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Token | 1296 | 1296 | 0 |
+| Metric | 195 | 196 | +1 |
+| Notification | 7 | 7 | 0 |
+| HolderSnapshot | 1 | 1 | 0 |
+
+Read-only outcome confirmation:
+
+- `metrics:window-report -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --windows 30,60,1440`
+  still uses Notification `id=7` as `alertNotificationId`.
+- `metricCount=2`.
+- `fdvMetricCount=2`.
+- `alertFdv=223702.038226584`.
+- `latestFdv=243145.21885292`.
+- 30m window: `fdvSampleCount=0`, `isWindowComplete=true`,
+  `outcomeIsProvisional=false`, `outcomeLabel=no_data`.
+- 60m window: `fdvSampleCount=0`, `isWindowComplete=true`,
+  `outcomeIsProvisional=false`, `outcomeLabel=no_data`.
+- 24h window: `fdvSampleCount=1`, `fdvSampleCoverageLabel=thin`,
+  `peakFdv=243145.21885292`,
+  `peakMultipleFromAlert=1.0869155273705746`,
+  `timeToPeakMinutes=77.49428333333333`, `isWindowComplete=false`,
+  `outcomeIsProvisional=true`, and `outcomeLabel=flat`.
+
+Interpretation:
+
+- The post-alert Metric sample landed after the already-complete 30m and 60m
+  windows, so those windows correctly remain `no_data`.
+- The 24h window is still provisional and now has one valid post-alert FDV
+  sample, enough to compute a provisional `flat` label.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

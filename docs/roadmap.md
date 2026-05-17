@@ -194,18 +194,20 @@ Recommended next Yellow implementation slice:
   `metricPendingCount` moved 177 to 176. Telegram live send, Token update,
   HolderSnapshot write, enrich / rescore, checkpoint, queue, scheduler, and
   systemd remained untouched;
-- post-alert Metric outcome preflight is docs-only complete. The existing
+- post-alert Metric outcome check is complete. The preflight confirmed the
   alert anchor is Notification `id=7`, while Metric `id=1277` is 14ms before
   `capturedAt`, so it can provide `alertFdv` but not a post-alert window
-  sample. Current windows remain `outcomeLabel=no_data`.
-  `metric:snapshot:geckoterminal` now supports exact `--mint --write
-  --noNotificationCapture`, which appends the post-alert Metric without adding
-  another capture-only `metric_appended` Notification. Default exact `--mint
-  --write` still captures Notification rows after successful Metric writes.
-  Batch mode still cannot target this mint, and `--minGapMinutes 0` remains
-  invalid. The next Red command candidate is `pnpm -s
-  metric:snapshot:geckoterminal -- --mint
-  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture --write`;
+  sample. `metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --noNotificationCapture
+  --write` then appended Metric `id=1278` without adding Notification. Counts
+  moved `1296 / 195 / 7 / 1` to `1296 / 196 / 7 / 1`, with Telegram,
+  HolderSnapshot, enrich / rescore, queue, scheduler, systemd, and checkpoint
+  untouched. `metrics:window-report` now shows Metric count 2 and FDV Metric
+  count 2; 30m / 60m remain `no_data` because the new Metric arrived after
+  those windows, while 24h has one post-alert valid FDV sample,
+  `peakMultipleFromAlert=1.0869155273705746`,
+  `timeToPeakMinutes=77.49428333333333`, provisional `outcomeLabel=flat`, and
+  `fdvSampleCoverageLabel=thin`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 
