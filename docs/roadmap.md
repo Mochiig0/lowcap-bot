@@ -194,6 +194,19 @@ Recommended next Yellow implementation slice:
   `metricPendingCount` moved 177 to 176. Telegram live send, Token update,
   HolderSnapshot write, enrich / rescore, checkpoint, queue, scheduler, and
   systemd remained untouched;
+- post-alert Metric outcome preflight is docs-only complete. The existing
+  alert anchor is Notification `id=7`, while Metric `id=1277` is 14ms before
+  `capturedAt`, so it can provide `alertFdv` but not a post-alert window
+  sample. Current windows remain `outcomeLabel=no_data`. Existing CLIs do not
+  provide targeted exact-mint Metric append without Notification capture:
+  exact `--mint --write` creates a new capture-only Notification per new
+  Metric, batch mode cannot target this mint, and `--minGapMinutes 0` is
+  invalid. If an additional capture-only Notification is acceptable, the next
+  Red command is
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --write`; if Notification `+0`
+  is required, add a small Yellow option such as `--noNotificationCapture`
+  first;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

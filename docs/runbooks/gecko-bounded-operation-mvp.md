@@ -4808,6 +4808,120 @@ Next boundary:
 - `metrics:window-report` can now use the captured Notification as an alert
   anchor for later outcome review once additional post-alert Metrics exist.
 
+### Post-Alert Metric Outcome Preflight
+
+This is a read-only / docs-only preflight. No post-alert Metric has been added.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot counts are
+  `1296 / 195 / 7 / 1`.
+- Target mint:
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`.
+- Token id: `5376`.
+- The target has one Metric:
+  - Metric id `1277`
+  - `observedAt=2026-05-16T23:58:13.695Z`
+  - `source=geckoterminal.token_snapshot`
+  - `volume24h=1015875.57780311`
+- The target has one Notification:
+  - Notification id `7`
+  - `eventType=metric_appended`
+  - `trigger=metric_appended`
+  - `status=captured`
+  - `mode=capture_only`
+  - `capturedAt=2026-05-16T23:58:13.709Z`
+  - `tokenId=5376`
+  - `metricId=1277`
+
+Current `metrics:window-report` state:
+
+- `alertNotificationId=7`.
+- `alertedAtSource=notification_captured_at`.
+- `alertFdv=223702.038226584`.
+- `alertFdvObservedAt=2026-05-16T23:58:13.695Z`.
+- `alertFdvSource=metric_before_alert`.
+- `alertFdvFreshnessSeconds=0.014`.
+- `metricCount=1`, `fdvMetricCount=1`.
+- 30m / 60m / 24h windows currently have `fdvSampleCount=0`,
+  `peakFdv=null`, `peakMultipleFromAlert=null`, `timeToPeakMinutes=null`, and
+  `outcomeLabel=no_data`.
+
+Why a post-alert Metric is needed:
+
+- `metrics:window-report` starts outcome windows at `alertedAt`.
+- The current Metric was observed 14 milliseconds before
+  `Notification.capturedAt`; it is close enough to provide `alertFdv`, but it
+  is before the post-alert window start.
+- Window peak, `peakMultipleFromAlert`, `timeToPeakMinutes`, and
+  `outcomeLabel` need at least one valid FDV Metric with
+  `observedAt >= alertedAt`.
+
+Implementation boundary confirmed from existing CLIs:
+
+- `metric:snapshot:geckoterminal -- --mint <MINT> --write` selects exactly one
+  existing Token and can add another live GeckoTerminal Metric to the same
+  mint.
+- If `--minGapMinutes` is supplied, it is checked before fetch against the
+  latest Metric for the same token and source.
+- `--minGapMinutes 0` is not valid; the parser requires a positive integer.
+- If min-gap is still active, the command returns `skipped_recent_metric` and
+  writes no Metric and no Notification.
+- If a new Metric is written in exact `--mint` mode, the CLI creates a
+  capture-only `metric_appended` Notification after the Metric write.
+- The Notification key is `<mint>:metric_appended:<metricId>`, so a new Metric
+  id means a new Notification row. The prior Notification `id=7` does not
+  dedupe a later post-alert Metric Notification.
+- The CLI has no `--noNotification`, `--noNotificationCapture`,
+  `--captureNotification false`, or `--noCapture` option.
+- The CLI imports no Telegram sender and does not call live send.
+- Batch mode does not create Notification rows, but it cannot target a specific
+  mint and has no option to select this exact existing-Metric target.
+- `metric:add` can create manual Metric rows from operator-provided values, but
+  it does not fetch a live GeckoTerminal snapshot and is not appropriate for
+  validating live post-alert snapshot behavior.
+
+Red execution options:
+
+| Option | Shape | Pros | Cons / boundary |
+| --- | --- | --- | --- |
+| A: exact `--mint` re-run | `metric:snapshot:geckoterminal -- --mint <TARGET> --write` | Targets the same mint exactly; should append one live post-alert Metric; no Telegram live send | Also creates a second capture-only Notification because exact mode captures per Metric |
+| B: batch mode | `metric:snapshot:geckoterminal -- --pumpOnly ... --write` | Batch mode does not create Notification rows | Cannot target the ENRA mint; selection is recent Gecko-origin ordering and may skip / write other tokens |
+| C: small Yellow implementation first | Add an explicit no-capture option or split Metric append from Notification capture | Allows Metric `+1` with Notification `+0` | Requires code / tests / docs before Red execution |
+
+Recommended next Red path:
+
+- If the operator accepts an additional capture-only Notification, use option A
+  without `--minGapMinutes` so the post-alert Metric is not skipped by the
+  current recent Metric.
+- Exact command candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --write
+```
+
+Expected result for option A:
+
+- one live GeckoTerminal token snapshot fetch;
+- Metric count `+1`;
+- Notification count `+1`;
+- Notification remains `status=captured`, `mode=capture_only`,
+  `trigger=metric_appended`;
+- Telegram live send `0`;
+- Token count unchanged;
+- HolderSnapshot count unchanged;
+- no Token enrich / rescore;
+- no checkpoint update;
+- `metrics:window-report` should then include at least one post-alert valid FDV
+  sample in the 30m / 60m / 24h windows.
+- `outcomeLabel` may move from `no_data` to `flat`, `small_win`, `hit`, or
+  `big_hit` depending on the new FDV and `peakMultipleFromAlert`; if the new
+  Metric lacks valid FDV or is not after `alertedAt`, the label can remain
+  `no_data`.
+
+If Notification `+0` is required, do not run option A. Pause for a Yellow
+implementation that adds an explicit no-capture path, then re-preflight.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

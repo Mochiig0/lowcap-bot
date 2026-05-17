@@ -564,6 +564,28 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   observed. Telegram live send did not occur; Token, HolderSnapshot, enrich /
   rescore, checkpoint, queue, scheduler, systemd, and `pnpm smoke` were not
   invoked.
+- Post-alert Metric outcome preflight is now documented, but no post-alert
+  Metric has been added. Current counts are Token / Metric / Notification /
+  HolderSnapshot `1296 / 195 / 7 / 1`. The target mint
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump` has Token `id=5376`, Metric
+  `id=1277` at `observedAt=2026-05-16T23:58:13.695Z`, and Notification `id=7`
+  at `capturedAt=2026-05-16T23:58:13.709Z`. `metrics:window-report` uses
+  Notification `id=7` as the alert anchor and uses Metric `id=1277` as
+  `alertFdv`, but the current 30m / 60m / 24h post-alert windows have
+  `fdvSampleCount=0` and `outcomeLabel=no_data` because the only Metric is 14ms
+  before `capturedAt`. Code inspection shows exact `--mint --write`
+  re-execution will create another Metric and then another capture-only
+  `metric_appended` Notification because the notification key includes the new
+  `metricId`; it is not deduped against the prior Notification. There is no
+  existing `--noNotification`, `--noCapture`, or targeted batch-mode option.
+  `--minGapMinutes 0` is invalid because the parser requires a positive
+  integer. Recommended next Red path, if an additional capture-only
+  Notification is acceptable, is:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --write`. Expected result:
+  Metric `+1`, Notification `+1`, Telegram `0`, Token / HolderSnapshot `0`.
+  If Notification `+0` is required, pause and add a separate Yellow
+  implementation such as a `--noNotificationCapture` option before running.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider
