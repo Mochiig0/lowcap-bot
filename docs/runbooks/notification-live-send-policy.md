@@ -24,8 +24,8 @@ this policy update.
 - Production failed Notification rows: `0`.
 - Notification `id=7` remains `captured` / `capture_only` and unsent.
 - Notification `id=8` is `sent` / `live_send`.
-- The 6h Gecko dry-run is not a completed stability proof; it stopped at the
-  authentication boundary and remains unresolved.
+- The 6h Gecko dry-run is not a completed stability proof; it was manually
+  stopped by the user and remains unresolved.
 
 ## Existing Notification Paths
 
@@ -81,7 +81,7 @@ Current prohibitions:
 - Do not automatically advance captured Notifications to sent.
 - Do not treat capture-only rows as standing permission to send.
 - Do not enable always-on notification delivery while the 6h dry-run remains
-  unresolved.
+  incomplete.
 
 ## Future Auto Live Send Unlock Conditions
 

@@ -261,8 +261,9 @@ Auto live send is not enabled. Do not run batch send, worker, scheduler,
 systemd, automatic retry execution, or automatic captured-to-sent advancement.
 Notification `id=7` remains on hold as `captured` / `capture_only`;
 Notification `id=8` is already `sent` / `live_send`; failed rows are `0`. The
-6h dry-run authentication stop remains unresolved, so always-on notification
-delivery is not ready. See `docs/runbooks/notification-live-send-policy.md`.
+6h dry-run was manually stopped by the user and remains incomplete, so
+always-on notification delivery is not ready. See
+`docs/runbooks/notification-live-send-policy.md`.
 
 ## Not Executed
 

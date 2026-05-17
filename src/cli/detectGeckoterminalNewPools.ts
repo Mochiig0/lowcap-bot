@@ -27,6 +27,7 @@ const DEFAULT_CHECKPOINT_FILE = "data/checkpoints/geckoterminal-new-pools.json";
 const LOG_PREFIX = "[detect:geckoterminal:new-pools]";
 const RATE_LIMIT_RETRY_DELAY_MS = 3_000;
 const DEFAULT_FAILURE_COOLDOWN_MS = 30_000;
+const WATCH_INTERRUPT_SIGNALS = ["SIGINT", "SIGTERM"] as const;
 
 let injectedFetchErrorConsumed = false;
 let injectedFetchErrorRemainingCount: number | undefined;
@@ -90,6 +91,24 @@ type DetectItemResult = {
 type CheckpointCursorView = {
   poolCreatedAt: string;
   poolAddress: string;
+};
+
+type WatchInterruptSignal = (typeof WATCH_INTERRUPT_SIGNALS)[number];
+
+type WatchInterruptState = {
+  interrupted: boolean;
+  signal: WatchInterruptSignal | null;
+  requestedAt: string | null;
+};
+
+type WatchStopState = {
+  status: "ok" | "interrupted";
+  stopReason: "completed" | "user_interrupted";
+  interruptedBySignal: WatchInterruptSignal | null;
+  interruptedAt: string | null;
+  startedAt: string;
+  finishedAt: string;
+  elapsedMs: number;
 };
 
 type DetectCycleResult = LoadedInput & {
@@ -280,9 +299,32 @@ function parseArgs(argv: string[]): DetectGeckoterminalNewPoolsArgs {
   return out as DetectGeckoterminalNewPoolsArgs;
 }
 
-function sleep(ms: number): Promise<void> {
+function sleep(ms: number, interruptState?: WatchInterruptState): Promise<void> {
+  if (interruptState?.interrupted) {
+    return Promise.resolve();
+  }
+
   return new Promise((resolveSleep) => {
-    setTimeout(resolveSleep, ms);
+    let poll: NodeJS.Timeout | undefined;
+    const timeout = setTimeout(() => {
+      if (poll) {
+        clearInterval(poll);
+      }
+      resolveSleep();
+    }, ms);
+
+    if (!interruptState) {
+      return;
+    }
+
+    poll = setInterval(() => {
+      if (!interruptState.interrupted) {
+        return;
+      }
+      clearTimeout(timeout);
+      clearInterval(poll);
+      resolveSleep();
+    }, 100);
   });
 }
 
@@ -371,6 +413,40 @@ function compareCursor(left: CursorValue, right: CursorValue): number {
 
 function formatCursorForLog(cursor?: CheckpointCursorView): string {
   return cursor ? `${cursor.poolCreatedAt}|${cursor.poolAddress}` : "none";
+}
+
+function createWatchInterruptState(): {
+  state: WatchInterruptState;
+  cleanup: () => void;
+} {
+  const state: WatchInterruptState = {
+    interrupted: false,
+    signal: null,
+    requestedAt: null,
+  };
+  const handlers = new Map<WatchInterruptSignal, () => void>();
+
+  for (const signal of WATCH_INTERRUPT_SIGNALS) {
+    const handler = (): void => {
+      if (!state.interrupted) {
+        state.interrupted = true;
+        state.signal = signal;
+        state.requestedAt = new Date().toISOString();
+        console.error(`${LOG_PREFIX} stopReason=user_interrupted signal=${signal}`);
+      }
+    };
+    handlers.set(signal, handler);
+    process.once(signal, handler);
+  }
+
+  return {
+    state,
+    cleanup: () => {
+      for (const [signal, handler] of handlers) {
+        process.off(signal, handler);
+      }
+    },
+  };
 }
 
 function getApiUrl(): string {
@@ -907,12 +983,22 @@ function buildWatchOutput(
   checkpointFilePath: string | undefined,
   initialCheckpointCursor: CheckpointCursorView | undefined,
   finalCheckpointCursor: CheckpointCursorView | undefined,
+  stopState: WatchStopState,
 ): Record<string, unknown> {
   const flattenedItems = cycles.flatMap((cycle) => cycle.items);
   const firstCycle = cycles[0];
   const checkpointEnabled = isCheckpointEnabled(args);
 
   return {
+    status: stopState.status,
+    stopReason: stopState.stopReason,
+    interrupted: stopState.status === "interrupted",
+    interruptedBySignal: stopState.interruptedBySignal,
+    interruptedAt: stopState.interruptedAt,
+    startedAt: stopState.startedAt,
+    finishedAt: stopState.finishedAt,
+    elapsedMs: stopState.elapsedMs,
+    completedIterations: cycles.length,
     dryRun: !args.write,
     writeEnabled: args.write,
     watchEnabled: args.watch,
@@ -979,6 +1065,10 @@ function buildWatchOutput(
 }
 
 async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<string, unknown>> {
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const { state: interruptState, cleanup: cleanupInterruptHandlers } =
+    createWatchInterruptState();
   const cycles: DetectCycleResult[] = [];
   const shouldCollectCycles = args.maxIterations !== undefined;
   const watchIterationCount = args.maxIterations ?? Number.POSITIVE_INFINITY;
@@ -990,97 +1080,125 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
     : undefined;
   const initialCheckpointCursor = toCheckpointCursorView(checkpointCursor);
 
-  for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
-    let result: DetectCycleResult;
-
-    try {
-      result = await runCycle(args, cycle, checkpointCursor);
-
-      if (
-        checkpointEnabled &&
-        checkpointFilePath &&
-        result.checkpointAfter &&
-        (
-          checkpointCursor === undefined ||
-          compareCursor(
-            normalizeCursorValue(
-              result.checkpointAfter.poolCreatedAt,
-              result.checkpointAfter.poolAddress,
-              checkpointFilePath,
-            ),
-            checkpointCursor,
-          ) > 0
-        )
-      ) {
-        checkpointCursor = normalizeCursorValue(
-          result.checkpointAfter.poolCreatedAt,
-          result.checkpointAfter.poolAddress,
-          checkpointFilePath,
-        );
-        await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
+  try {
+    for (let cycle = 1; cycle <= watchIterationCount; cycle += 1) {
+      if (interruptState.interrupted) {
+        break;
       }
-    } catch (error) {
-      if (!args.file && isRetryableWatchErrorMessage(formatErrorMessage(error))) {
-        await sleep(RATE_LIMIT_RETRY_DELAY_MS);
 
-        try {
-          result = await runCycle(args, cycle, checkpointCursor);
-          result.rateLimitRetried = true;
-          result.rateLimitRetrySucceeded = true;
+      let result: DetectCycleResult;
 
-          if (
-            checkpointEnabled &&
-            checkpointFilePath &&
-            result.checkpointAfter &&
-            (
-              checkpointCursor === undefined ||
-              compareCursor(
-                normalizeCursorValue(
-                  result.checkpointAfter.poolCreatedAt,
-                  result.checkpointAfter.poolAddress,
-                  checkpointFilePath,
-                ),
-                checkpointCursor,
-              ) > 0
-            )
-          ) {
-            checkpointCursor = normalizeCursorValue(
-              result.checkpointAfter.poolCreatedAt,
-              result.checkpointAfter.poolAddress,
-              checkpointFilePath,
-            );
-            await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
-          }
-        } catch (retryError) {
-          result = createFailedCycleResult(args, cycle, checkpointCursor, retryError);
-          result.rateLimitRetried = true;
-          result.rateLimitRetrySucceeded = false;
+      try {
+        result = await runCycle(args, cycle, checkpointCursor);
+
+        if (
+          checkpointEnabled &&
+          checkpointFilePath &&
+          result.checkpointAfter &&
+          (
+            checkpointCursor === undefined ||
+            compareCursor(
+              normalizeCursorValue(
+                result.checkpointAfter.poolCreatedAt,
+                result.checkpointAfter.poolAddress,
+                checkpointFilePath,
+              ),
+              checkpointCursor,
+            ) > 0
+          )
+        ) {
+          checkpointCursor = normalizeCursorValue(
+            result.checkpointAfter.poolCreatedAt,
+            result.checkpointAfter.poolAddress,
+            checkpointFilePath,
+          );
+          await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
         }
-      } else {
-        result = createFailedCycleResult(args, cycle, checkpointCursor, error);
+      } catch (error) {
+        if (!args.file && isRetryableWatchErrorMessage(formatErrorMessage(error))) {
+          await sleep(RATE_LIMIT_RETRY_DELAY_MS, interruptState);
+
+          if (interruptState.interrupted) {
+            break;
+          }
+
+          try {
+            result = await runCycle(args, cycle, checkpointCursor);
+            result.rateLimitRetried = true;
+            result.rateLimitRetrySucceeded = true;
+
+            if (
+              checkpointEnabled &&
+              checkpointFilePath &&
+              result.checkpointAfter &&
+              (
+                checkpointCursor === undefined ||
+                compareCursor(
+                  normalizeCursorValue(
+                    result.checkpointAfter.poolCreatedAt,
+                    result.checkpointAfter.poolAddress,
+                    checkpointFilePath,
+                  ),
+                  checkpointCursor,
+                ) > 0
+              )
+            ) {
+              checkpointCursor = normalizeCursorValue(
+                result.checkpointAfter.poolCreatedAt,
+                result.checkpointAfter.poolAddress,
+                checkpointFilePath,
+              );
+              await writeCheckpointCursor(checkpointFilePath, checkpointCursor);
+            }
+          } catch (retryError) {
+            result = createFailedCycleResult(args, cycle, checkpointCursor, retryError);
+            result.rateLimitRetried = true;
+            result.rateLimitRetrySucceeded = false;
+          }
+        } else {
+          result = createFailedCycleResult(args, cycle, checkpointCursor, error);
+        }
       }
+
+      if (interruptState.interrupted) {
+        break;
+      }
+
+      if (result.failed && isFailureCooldownErrorMessage(result.errorMessage)) {
+        result.failureCooldownApplied = true;
+        result.failureCooldownSeconds = failureCooldownMs / 1000;
+      }
+
+      if (shouldCollectCycles) {
+        cycles.push(result);
+      }
+
+      logCycleSummary(result);
+
+      if (cycle === watchIterationCount) {
+        break;
+      }
+
+      await sleep(
+        args.intervalSeconds * 1000 +
+          (result.failureCooldownApplied ? failureCooldownMs : 0),
+        interruptState,
+      );
     }
-
-    if (result.failed && isFailureCooldownErrorMessage(result.errorMessage)) {
-      result.failureCooldownApplied = true;
-      result.failureCooldownSeconds = failureCooldownMs / 1000;
-    }
-
-    if (shouldCollectCycles) {
-      cycles.push(result);
-    }
-
-    logCycleSummary(result);
-
-    if (cycle === watchIterationCount) {
-      break;
-    }
-
-    await sleep(
-      args.intervalSeconds * 1000 +
-        (result.failureCooldownApplied ? failureCooldownMs : 0),
-    );
+  } finally {
+    cleanupInterruptHandlers();
   }
+
+  const finishedAtMs = Date.now();
+  const stopState: WatchStopState = {
+    status: interruptState.interrupted ? "interrupted" : "ok",
+    stopReason: interruptState.interrupted ? "user_interrupted" : "completed",
+    interruptedBySignal: interruptState.signal,
+    interruptedAt: interruptState.requestedAt,
+    startedAt,
+    finishedAt: new Date(finishedAtMs).toISOString(),
+    elapsedMs: finishedAtMs - startedAtMs,
+  };
 
   return buildWatchOutput(
     args,
@@ -1088,6 +1206,7 @@ async function runWatch(args: DetectGeckoterminalNewPoolsArgs): Promise<Record<s
     checkpointFilePath,
     initialCheckpointCursor,
     toCheckpointCursorView(checkpointCursor),
+    stopState,
   );
 }
 

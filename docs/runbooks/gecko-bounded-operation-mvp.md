@@ -5389,9 +5389,18 @@ Auto live send remains locked. Do not batch-send captured Notifications, do not
 send from scheduler / worker / systemd, and do not automatically advance
 captured rows to sent. Notification `id=7` remains on hold as
 `captured` / `capture_only`; `id=8` is already `sent` / `live_send`; failed
-rows are `0`. The 6h dry-run stopped at the authentication boundary and is not
-a completed stability proof, so always-on notification delivery must not be
+rows are `0`. The 6h dry-run was manually stopped by the user and is not a
+completed stability proof, so always-on notification delivery must not be
 enabled. Full policy: `docs/runbooks/notification-live-send-policy.md`.
+
+### Gecko Watch Manual Interrupt Handling
+
+`detect:geckoterminal:new-pools --watch` now treats SIGINT / SIGTERM as
+`status=interrupted` with `stopReason=user_interrupted` in the final JSON
+summary. Manual interrupt is distinct from `failedCount`, so a partial run can
+report completed cycles, rate-limit retries, imports / existing counts, dry-run
+or write mode, and checkpoint status without being confused with a failed
+cycle. Details: `docs/runbooks/gecko-watch-interrupt-handling.md`.
 
 ## Proven Command Examples
 

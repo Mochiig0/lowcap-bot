@@ -2574,8 +2574,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   this boundary remains Token / Metric / Notification / HolderSnapshot =
   `1296 / 198 / 8 / 1`; Notification `id=7` remains on hold as
   `captured` / `capture_only`, `id=8` is `sent` / `live_send`, and failed rows
-  are `0`. The 6h dry-run stopped at the authentication boundary and is not a
+  are `0`. The 6h dry-run was manually stopped by the user and is not a
   completed stability proof.
+- GeckoTerminal new-pools watch interrupt handling is now explicit:
+  `detect:geckoterminal:new-pools --watch` handles SIGINT / SIGTERM by printing
+  a final JSON summary with `status=interrupted`,
+  `stopReason=user_interrupted`, signal metadata, elapsed time, and
+  `completedIterations` while preserving existing `cycleCount`,
+  `failedCount`, `rateLimitRetryCount`, imported / existing counts, dry-run /
+  write mode, and checkpoint fields. Manual interrupt is not counted as a
+  failed cycle. The implementation is covered by a file-backed SIGINT test and
+  did not run live watch, external fetch, production DB write, Telegram,
+  notification retry, scheduler / systemd, metric snapshot, import, enrich, or
+  rescore.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through
