@@ -24,6 +24,8 @@ export type NotificationLiveSendResult = {
   mint: string | null;
   metricId: number | null;
   errorCode: string | null;
+  notificationStatus?: string | null;
+  sentAtPresent?: boolean | null;
 };
 
 export type SendNotificationByKeyInput = {
@@ -53,6 +55,8 @@ function blocked(input: {
   notificationId?: number | null;
   mint?: string | null;
   metricId?: number | null;
+  notificationStatus?: string | null;
+  sentAtPresent?: boolean | null;
 }): NotificationLiveSendResult {
   return {
     notificationKey: input.notificationKey,
@@ -66,6 +70,8 @@ function blocked(input: {
     mint: input.mint ?? null,
     metricId: input.metricId ?? null,
     errorCode: null,
+    notificationStatus: input.notificationStatus ?? null,
+    sentAtPresent: input.sentAtPresent ?? null,
   };
 }
 
@@ -105,6 +111,8 @@ export async function sendNotificationByKey(
     notificationId: notification.id,
     mint: notification.mint,
     metricId: notification.metricId,
+    notificationStatus: notification.status,
+    sentAtPresent: notification.sentAt !== null,
   };
 
   if (
@@ -128,7 +136,7 @@ export async function sendNotificationByKey(
     });
   }
 
-  if (notification.status === "sent") {
+  if (notification.status === "sent" || notification.sentAt !== null) {
     return blocked({
       ...base,
       blockedBy: ["notification_already_sent"],

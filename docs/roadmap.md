@@ -243,6 +243,14 @@ Recommended next Yellow implementation slice:
   captured rows are not retry candidates. Do not run a production Red failure
   rehearsal yet; add a simulated-failure or isolated-temp-DB harness first if
   execution evidence is needed;
+- sent-row resend prevention is now explicit for both normal and inconsistent
+  sent state: `notification:send` blocks before sender call when
+  `status=sent` or `sentAt` is present, returns `notification_already_sent`
+  with safe `notificationStatus` / `sentAtPresent` markers, and performs no DB
+  update. This was implemented with a focused temp-SQLite test; no production
+  notification send, retry, scheduler, systemd, watch, metric snapshot, detect,
+  import, enrich, or rescore command was run. The interrupted 6h dry-run was
+  not a completed stability result;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

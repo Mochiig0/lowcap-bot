@@ -2518,6 +2518,17 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   failure or intentionally invalid Telegram environment and would mutate a
   production captured row; prefer a later Yellow simulated-failure or isolated
   temp-DB harness if failure-path execution evidence is needed.
+- `notification:send` sent-row dedupe guard audit found that `status=sent`
+  rows were already blocked before sender call, but the inconsistent case where
+  `sentAt` is present while status is not `sent` was not explicitly guarded.
+  The live-send service now treats either `status=sent` or `sentAt != null` as
+  `notification_already_sent`, returns safe blocked output with
+  `notificationStatus` and `sentAtPresent`, does not call the Telegram sender,
+  and does not update DB state. A temp-SQLite test covers the inconsistent
+  `sentAt` case. No production `notification:send`, Telegram send, retry,
+  watch, metric snapshot, detect, import, enrich, rescore, schema, or migration
+  action was run. The interrupted 6h Gecko dry-run did not complete; the
+  leftover watch process was terminated before this audit.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

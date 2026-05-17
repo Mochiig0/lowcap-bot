@@ -189,6 +189,15 @@ secrets.
   batch send, scheduler, systemd, watch, metric snapshot, detect, import,
   enrich, and rescore were not executed, and the output did not show secrets,
   rawJson, `DATABASE_URL`, Telegram token / chat id, or Telegram response body.
+- `notification:send` resend prevention is explicit before any scheduler /
+  retry / worker expansion: rows with `status=sent` or any non-null `sentAt`
+  are blocked as `notification_already_sent` before sender call. The blocked
+  result includes only safe markers such as `notificationStatus` and
+  `sentAtPresent`, and produces no DB update. This guard was tightened after a
+  read-only audit of sent Notification `id=8` and captured Notification `id=7`;
+  it is covered by a temp-SQLite test for the inconsistent `sentAt`-present
+  case. The interrupted 6h dry-run did not complete and should not be treated
+  as a stability pass.
 - User systemd is blocked in this environment, the default GeckoTerminal detect
   checkpoint is still unused, and always-on / scheduler / queue worker /
   unbounded watch operation is not implemented.

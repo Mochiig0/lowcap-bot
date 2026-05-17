@@ -65,6 +65,7 @@ async function seedNotification(input: {
   notificationKey?: string;
   errorCode?: string | null;
   reason?: string | null;
+  sentAt?: Date | null;
 }): Promise<string> {
   const notificationKey =
     input.notificationKey ??
@@ -87,7 +88,12 @@ async function seedNotification(input: {
         "status: metric_appended",
       ].join("\n"),
       capturedAt: new Date("2026-05-09T00:00:00.000Z"),
-      sentAt: input.status === "sent" ? new Date("2026-05-09T00:01:00.000Z") : null,
+      sentAt:
+        input.sentAt !== undefined
+          ? input.sentAt
+          : input.status === "sent"
+            ? new Date("2026-05-09T00:01:00.000Z")
+            : null,
       failedAt: input.status === "failed" ? new Date("2026-05-09T00:01:00.000Z") : null,
       errorCode: input.errorCode ?? null,
       reason: input.reason ?? null,
@@ -259,6 +265,53 @@ test("notification live send blocks already sent rows", async () => {
       },
     });
     assert.equal(notification?.status, "sent");
+  });
+});
+
+test("notification live send blocks rows with sentAt even if status is inconsistent", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "LiveSendSentAtPresent111111111111111111pump";
+    const metricId = 1273;
+    const notificationKey = await seedNotification({
+      client,
+      mint,
+      metricId,
+      notificationKey: keyFor(mint, metricId),
+      status: "captured",
+      mode: "capture_only",
+      sentAt: new Date("2026-05-09T00:01:00.000Z"),
+    });
+    const senderCalls: OpsNotificationSenderInput[] = [];
+
+    const result = await sendNotificationByKey({
+      client,
+      notificationKey,
+      trigger: "metric_appended",
+      live: true,
+      sender: async (input) => {
+        senderCalls.push(input);
+        return { status: "sent" };
+      },
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.deepEqual(result.blockedBy, ["notification_already_sent"]);
+    assert.equal(result.notificationStatus, "captured");
+    assert.equal(result.sentAtPresent, true);
+    assert.equal(result.senderCalled, false);
+    assert.equal(result.updatedCount, 0);
+    assert.equal(senderCalls.length, 0);
+    assert.equal(await client.notification.count(), 1);
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey,
+      },
+    });
+    assert.equal(notification?.status, "captured");
+    assert.equal(notification?.mode, "capture_only");
+    assert.ok(notification?.sentAt);
+    assert.equal(notification?.lastAttemptAt, null);
   });
 });
 

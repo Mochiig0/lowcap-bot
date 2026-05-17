@@ -163,6 +163,12 @@ This command is not approved by this preflight.
 
 - Sent rows are blocked before sender call, so Notification `id=8` is not a
   resend candidate through normal `notification:send`.
+- The resend guard has been tightened after this audit: any row with non-null
+  `sentAt` is also blocked before sender call, even if the status is
+  inconsistent and not `sent`.
+- Blocked resend output is a safe summary only and can include
+  `notificationStatus` plus `sentAtPresent`; it does not include Telegram
+  response bodies, rawJson, env values, or secrets.
 - Captured rows such as Notification `id=7` can be a first live-send target,
   but are not retry candidates until a live-send failure marks them
   `failed/live_send`.
