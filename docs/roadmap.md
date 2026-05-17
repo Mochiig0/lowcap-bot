@@ -286,6 +286,12 @@ Recommended next Yellow implementation slice:
   repo-local data side effects. The timeout wrapper did not stop the
   `pnpm` / `tsx` child tree at the expected 90s boundary, so another long live
   run should first account for process-tree timeout behavior;
+- process-tree signal policy is now fixed for GeckoTerminal watch: do not use
+  `timeout + pnpm + tsx` as the long-run stop mechanism. Use bounded
+  `--maxIterations` / `--intervalSeconds` for natural completion and direct
+  Ctrl+C or process-group SIGINT / SIGTERM for manual stop. A file-backed
+  interrupt test confirms SIGINT during watch sleep records one completed
+  cycle, does not start the next cycle, and keeps `failedCount=0`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

@@ -5424,6 +5424,37 @@ data diff was observed. The 6h dry-run remains incomplete; before another long
 live run, use a separate Yellow check or approved wrapper adjustment for
 process-tree timeout behavior.
 
+Follow-up signal boundary audit:
+
+- Do not use `timeout --foreground ... pnpm -s ...` as the operating stop
+  mechanism for long GeckoTerminal watch runs.
+- `--intervalSeconds` is a positive integer number of seconds and is applied
+  between recorded watch cycles; failure cooldown can add extra delay after
+  cooldown-worthy failed cycles.
+- `completedIterations` is the number of recorded completed cycles and should
+  match `cycleCount`.
+- SIGINT / SIGTERM during interval sleep stops the loop without starting the
+  next cycle. SIGINT / SIGTERM during an in-flight fetch may wait for that
+  fetch to settle, then stops before the next cycle.
+- The Red `completedIterations=5` result was caused by the timeout wrapper not
+  stopping the `pnpm` / `tsx` process tree; it is not evidence that
+  `--intervalSeconds 300` was ignored.
+- A file-backed CLI test now covers SIGINT during watch sleep and asserts
+  `status=interrupted`, `stopReason=user_interrupted`,
+  `interruptedBySignal=SIGINT`, one completed cycle, no cycle 2, and
+  `failedCount=0`.
+
+If approved later, the next 6h dry-run command should rely on the runner's own
+bounded loop and omit timeout:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60
+```
+
+This remains Red because it performs live external fetches. It must still omit
+`--write`, `--live`, notification send / retry, metric snapshot, import,
+enrich, rescore, scheduler, and systemd.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission

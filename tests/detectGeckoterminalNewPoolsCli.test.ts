@@ -118,6 +118,80 @@ async function runDetectGeckoterminalNewPools(
   }
 }
 
+async function runFileBackedWatchUntilInterrupt(args: string[]): Promise<{
+  code: number;
+  stdout: string;
+  stderr: string;
+}> {
+  const stdoutPath = join(
+    tmpdir(),
+    `detect-gecko-cli-test-${process.pid}-${Date.now()}-interrupt-stdout.log`,
+  );
+  const stderrPath = join(
+    tmpdir(),
+    `detect-gecko-cli-test-${process.pid}-${Date.now()}-interrupt-stderr.log`,
+  );
+  const codePath = join(
+    tmpdir(),
+    `detect-gecko-cli-test-${process.pid}-${Date.now()}-interrupt-code.txt`,
+  );
+
+  try {
+    const command = [
+      "node --import tsx src/cli/detectGeckoterminalNewPools.ts",
+      ...args.map(shellEscape),
+      `> ${shellEscape(stdoutPath)}`,
+      `2> ${shellEscape(stderrPath)}`,
+    ].join(" ");
+
+    await execFileAsync(
+      "bash",
+      [
+        "-lc",
+        [
+          "set -m",
+          `${command} &`,
+          "child=$!",
+          "saw_cycle=0",
+          "for _ in {1..300}; do",
+          `if grep -q 'cycle=1' ${shellEscape(stderrPath)}; then saw_cycle=1; break; fi`,
+          "sleep 0.1",
+          "done",
+          "if [ \"$saw_cycle\" -ne 1 ]; then",
+          "kill -KILL -- -\"$child\" 2>/dev/null || kill -KILL \"$child\" 2>/dev/null || true",
+          "wait \"$child\" 2>/dev/null || true",
+          `echo 124 > ${shellEscape(codePath)}`,
+          "exit 0",
+          "fi",
+          "kill -INT -- -\"$child\" 2>/dev/null || kill -INT \"$child\"",
+          "wait \"$child\"",
+          `echo $? > ${shellEscape(codePath)}`,
+        ].join("\n"),
+      ],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+      },
+    );
+
+    const [stdout, stderr, codeText] = await Promise.all([
+      readFile(stdoutPath, "utf-8").catch(() => ""),
+      readFile(stderrPath, "utf-8").catch(() => ""),
+      readFile(codePath, "utf-8"),
+    ]);
+
+    return {
+      code: Number.parseInt(codeText.trim(), 10),
+      stdout: stdout.trim(),
+      stderr: stderr.trim(),
+    };
+  } finally {
+    await rm(stdoutPath, { force: true });
+    await rm(stderrPath, { force: true });
+    await rm(codePath, { force: true });
+  }
+}
+
 test("detectGeckoterminalNewPools CLI boundary", async (t) => {
   await t.test("exits non-zero when an unsupported arg widens the boundary", async () => {
     const result = await runDetectGeckoterminalNewPools([
@@ -276,6 +350,79 @@ test("detectGeckoterminalNewPools CLI boundary", async (t) => {
         "2RM11G7NBt4HVKWtNGxx1WBtetdUykKuGmXDHBWFpump",
       );
       assert.equal("importResult" in (parsed.items[0] ?? {}), false);
+    } finally {
+      await rm(filePath, { force: true });
+    }
+  });
+
+  await t.test("prints an interrupted summary without starting another file-backed watch cycle", async () => {
+    const pumpRaw = JSON.parse(
+      await readFile(
+        "fixtures/source-events/geckoterminal-new-pools.solana-wtf-first-item.json",
+        "utf-8",
+      ),
+    ) as JsonObject;
+    const filePath = join(
+      tmpdir(),
+      `detect-gecko-cli-test-${process.pid}-${Date.now()}-interrupt-page.json`,
+    );
+
+    try {
+      await writeFile(filePath, JSON.stringify(pumpRaw, null, 2), "utf-8");
+
+      const result = await runFileBackedWatchUntilInterrupt([
+        "--file",
+        filePath,
+        "--watch",
+        "--pumpOnly",
+        "--limit",
+        "1",
+        "--maxIterations",
+        "3",
+        "--intervalSeconds",
+        "5",
+      ]);
+
+      assert.equal(result.code, 0);
+      assert.match(result.stderr, /cycle=1/);
+      assert.doesNotMatch(result.stderr, /cycle=2/);
+      assert.match(result.stderr, /stopReason=user_interrupted signal=SIGINT/);
+
+      const parsed = JSON.parse(result.stdout) as {
+        status: string;
+        stopReason: string;
+        interrupted: boolean;
+        interruptedBySignal: string | null;
+        interruptedAt: string | null;
+        completedIterations: number;
+        cycleCount: number;
+        maxIterations: number;
+        intervalSeconds: number;
+        failedCount: number;
+        rateLimitRetryCount: number;
+        importedCount: number;
+        existingCount: number;
+        dryRun: boolean;
+        writeEnabled: boolean;
+        checkpointEnabled: boolean;
+      };
+
+      assert.equal(parsed.status, "interrupted");
+      assert.equal(parsed.stopReason, "user_interrupted");
+      assert.equal(parsed.interrupted, true);
+      assert.equal(parsed.interruptedBySignal, "SIGINT");
+      assert.equal(typeof parsed.interruptedAt, "string");
+      assert.equal(parsed.completedIterations, 1);
+      assert.equal(parsed.cycleCount, 1);
+      assert.equal(parsed.maxIterations, 3);
+      assert.equal(parsed.intervalSeconds, 5);
+      assert.equal(parsed.failedCount, 0);
+      assert.equal(parsed.rateLimitRetryCount, 0);
+      assert.equal(parsed.importedCount, 0);
+      assert.equal(parsed.existingCount, 0);
+      assert.equal(parsed.dryRun, true);
+      assert.equal(parsed.writeEnabled, false);
+      assert.equal(parsed.checkpointEnabled, false);
     } finally {
       await rm(filePath, { force: true });
     }

@@ -2602,6 +2602,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   or repo-local data diff was observed. The 6h dry-run remains incomplete, and
   the next live long-run should first address or explicitly account for
   process-tree timeout behavior.
+- A follow-up Yellow audit fixed the operating boundary: do not rely on
+  `timeout --foreground ... pnpm -s ...` as the stop mechanism for long
+  GeckoTerminal watch runs. `--intervalSeconds` is a positive integer number of
+  seconds and is used between recorded cycles; the `completedIterations=5`
+  Red result is consistent with the process continuing for roughly four
+  300-second intervals after the timeout wrapper failed to signal the child
+  tree. `completedIterations` means recorded completed cycles and should match
+  `cycleCount`. The runner already checks the interrupted flag before starting
+  another cycle and its sleep path is interrupt-aware. A new file-backed CLI
+  test covers SIGINT during watch sleep: it records one completed cycle,
+  emits `status=interrupted`, leaves `failedCount=0`, and does not start
+  cycle 2. Future 6h dry-run approval should use the runner's own bounded
+  `--maxIterations 360 --intervalSeconds 60` command without `timeout`.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through
