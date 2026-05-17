@@ -225,6 +225,16 @@ Recommended next Yellow implementation slice:
   metric_appended --live`. Expected upper bound is Telegram send max 1 and
   Notification update max 1; Token / Metric / HolderSnapshot writes stay 0.
   Secrets are env-only and must not be printed;
+- Telegram live-send Red rehearsal is complete for Notification `id=8`.
+  The exact command above ran once and returned `status=sent`, `sentCount=1`,
+  `updatedCount=1`, `senderCalled=true`, `notificationId=8`, and
+  `errorCode=null`. Counts stayed `1296 / 198 / 8 / 1`; the existing row moved
+  from `status=captured`, `mode=capture_only`, `sentAt=null` to
+  `status=sent`, `mode=live_send`, `sentAt=2026-05-17T02:20:23.560Z`, and
+  `lastAttemptAt=2026-05-17T02:20:23.560Z`. Notification `id=7` remained
+  unsent as `captured` / `capture_only`. Retry, batch send, scheduler,
+  systemd, watch, metric snapshot, detect, import, enrich, and rescore were not
+  executed, and no secret / Telegram response body was printed;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

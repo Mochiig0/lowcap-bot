@@ -2477,6 +2477,29 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `Metric=192`, and `Notification=1`, the existing row now has
   `status=sent`, `mode=live_send`, and `sentAt=1778339880613`, and rollback
   was not needed.
+- the current 3h / 6h monitoring MVP path has also confirmed one
+  notificationKey-specified real Telegram live send for the short-window
+  `metric_appended` capture record. On 2026-05-17, with HEAD
+  `faa0eaafef50098c7a2c5c65c37950e57942cdfd` and a clean working tree,
+  `pnpm -s notification:send -- --notificationKey
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279 --trigger
+  metric_appended --live` ran once for Notification `id=8`. Before the send,
+  counts were Token / Metric / Notification / HolderSnapshot =
+  `1296 / 198 / 8 / 1`; the target row was `status=captured`,
+  `mode=capture_only`, `trigger=metric_appended`, `metricId=1279`,
+  `sentAt=null`, `rawJsonFree=true`, and `secretFree=true`. The command
+  returned `status=sent`, `sentCount=1`, `updatedCount=1`,
+  `senderCalled=true`, `notificationId=8`, and `errorCode=null`; after the
+  send, counts were still `1296 / 198 / 8 / 1`, the target row was
+  `status=sent`, `mode=live_send`,
+  `sentAt=2026-05-17T02:20:23.560Z`, and
+  `lastAttemptAt=2026-05-17T02:20:23.560Z` with `failedAt=null`.
+  Notification `id=7` remained unsent as `captured` / `capture_only`.
+  Retry, batch send, scheduler, systemd, watch, metric snapshot, detect,
+  import, enrich, and rescore were not executed. The safe message summary was
+  limited to event type, mint, metric id, source, status, and trigger; Telegram
+  token, chat id, `DATABASE_URL`, rawJson, and Telegram response body were not
+  displayed or stored.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

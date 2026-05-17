@@ -175,6 +175,20 @@ secrets.
   systemd.
 - `metrics:report`, `token:compare`, and `tokens:compare-report` can confirm
   saved Metric state without showing Metric rawJson.
+- A notificationKey-scoped Telegram live-send Red rehearsal has now passed for
+  the short-window `metric_appended` capture record. Exact command:
+  `pnpm -s notification:send -- --notificationKey
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279 --trigger
+  metric_appended --live`. It targeted Notification `id=8`, ran once, and
+  returned `status=sent`, `sentCount=1`, `updatedCount=1`,
+  `senderCalled=true`, and `errorCode=null`. Counts stayed
+  `1296 / 198 / 8 / 1`; the existing row moved from `captured` /
+  `capture_only` with `sentAt=null` to `sent` / `live_send` with
+  `sentAt=2026-05-17T02:20:23.560Z` and matching `lastAttemptAt`.
+  Notification `id=7` stayed unsent as `captured` / `capture_only`. Retry,
+  batch send, scheduler, systemd, watch, metric snapshot, detect, import,
+  enrich, and rescore were not executed, and the output did not show secrets,
+  rawJson, `DATABASE_URL`, Telegram token / chat id, or Telegram response body.
 - User systemd is blocked in this environment, the default GeckoTerminal detect
   checkpoint is still unused, and always-on / scheduler / queue worker /
   unbounded watch operation is not implemented.
