@@ -268,6 +268,13 @@ Recommended next Yellow implementation slice:
   selects only one failed `metric_appended` row, leaves all rows unchanged, and
   emits a safe human-gated `notification:send --live --retryFailed` command
   string without secret / env / raw payload markers;
+- manual approved live send is the only currently allowed Telegram live-send
+  mode. Auto live send remains locked: no batch send, worker, scheduler,
+  systemd, or automatic captured-to-sent advancement. `id=7` stays held as
+  `captured` / `capture_only`, `id=8` is already `sent` / `live_send`, failed
+  rows are `0`, and the 6h dry-run authentication stop means always-on
+  notification delivery is not ready. See
+  `docs/runbooks/notification-live-send-policy.md`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

@@ -2563,6 +2563,19 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `--trigger metric_appended --live --retryFailed`. The command string is
   checked to exclude env / secret / raw payload markers, and all Notification
   rows remain unchanged after planning.
+- Manual approved live send versus auto live send is now fixed in
+  `docs/runbooks/notification-live-send-policy.md`. The only live-send mode
+  allowed today is one human-approved `notification:send --live` command for a
+  confirmed `captured` / `capture_only` Notification with `sentAt=null` and a
+  reviewed safe message preview. `notification:retry:plan` remains read-only;
+  retry execution requires a separate one-row Red approval. Auto live send,
+  batch send, scheduler / worker / systemd Telegram delivery, and automatic
+  captured-to-sent advancement are not enabled. Read-only DB confirmation at
+  this boundary remains Token / Metric / Notification / HolderSnapshot =
+  `1296 / 198 / 8 / 1`; Notification `id=7` remains on hold as
+  `captured` / `capture_only`, `id=8` is `sent` / `live_send`, and failed rows
+  are `0`. The 6h dry-run stopped at the authentication boundary and is not a
+  completed stability proof.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

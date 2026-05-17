@@ -5376,6 +5376,23 @@ Red tasks:
 Red commands must be exact, one-at-a-time, and explicitly approved before
 execution.
 
+## Notification Live Send Boundary
+
+Manual approved live send is the only Telegram live-send mode allowed today.
+The operator must confirm one `notificationKey`, `trigger=metric_appended`,
+`captured` / `capture_only`, `sentAt=null`, and a safe message preview before
+running exactly one `notification:send --live` Red command. Retry execution is
+also manual-only and must start from the read-only `notification:retry:plan`
+`nextRedCommand` for one failed row.
+
+Auto live send remains locked. Do not batch-send captured Notifications, do not
+send from scheduler / worker / systemd, and do not automatically advance
+captured rows to sent. Notification `id=7` remains on hold as
+`captured` / `capture_only`; `id=8` is already `sent` / `live_send`; failed
+rows are `0`. The 6h dry-run stopped at the authentication boundary and is not
+a completed stability proof, so always-on notification delivery must not be
+enabled. Full policy: `docs/runbooks/notification-live-send-policy.md`.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission

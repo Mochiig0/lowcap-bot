@@ -241,6 +241,29 @@ Recommended next step if failure rehearsal is still needed:
 
 No production Red failure exact command is approved by this preflight.
 
+## Manual Versus Auto Live Send Boundary
+
+Manual approved live send is the only live-send path currently allowed:
+
+- one human-confirmed `notificationKey`;
+- `trigger=metric_appended`;
+- target row is `captured` / `capture_only`;
+- `sentAt=null` and not already sent;
+- safe message preview reviewed;
+- one exact `notification:send --live` command;
+- docs record after execution.
+
+Retry remains human-gated. `notification:retry:plan` is read-only, and a failed
+row's `nextRedCommand` is only a candidate for a separately approved Red
+execution with `--retryFailed`.
+
+Auto live send is not enabled. Do not run batch send, worker, scheduler,
+systemd, automatic retry execution, or automatic captured-to-sent advancement.
+Notification `id=7` remains on hold as `captured` / `capture_only`;
+Notification `id=8` is already `sent` / `live_send`; failed rows are `0`. The
+6h dry-run authentication stop remains unresolved, so always-on notification
+delivery is not ready. See `docs/runbooks/notification-live-send-policy.md`.
+
 ## Not Executed
 
 - `notification:send`
