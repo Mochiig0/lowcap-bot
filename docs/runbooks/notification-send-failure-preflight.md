@@ -174,6 +174,21 @@ Current DB confirmation on 2026-05-17:
 - The plan command did not call Telegram, update DB state, execute retry,
   create Notifications, start worker / scheduler paths, or expose secrets.
 
+Temp DB retry candidate fixture confirmation:
+
+- A temp-SQLite test now creates one `failed/live_send` `metric_appended` row,
+  one `captured/capture_only` row, and one `sent/live_send` row.
+- The planner returns `candidateCount=1`, `selectedCount=1`, and selects only
+  the failed row.
+- The planner remains `willExecute=false` and `executor=human`; it does not
+  execute retry or call a Telegram sender.
+- The generated `nextRedCommand` is limited to
+  `pnpm -s notification:send -- --notificationKey <FAILED_KEY> --trigger
+  metric_appended --live --retryFailed`.
+- The command string is asserted not to contain env names, secret markers,
+  rawJson, or response-body markers.
+- All fixture Notification rows remain unchanged after planning.
+
 Manual retry command shape, if a failed row exists and a separate Red approval
 is granted:
 

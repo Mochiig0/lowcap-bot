@@ -263,6 +263,11 @@ Recommended next Yellow implementation slice:
   `status=stop`, `candidateCount=0`, `selected=null`, `nextRedCommand=null`,
   and `stopConditionCodes=[no_failed_retry_candidate]` without DB writes or
   Telegram sender calls;
+- retry candidate selection is now covered in temp SQLite: with failed,
+  captured, and sent fixtures present together, `notification:retry:plan`
+  selects only one failed `metric_appended` row, leaves all rows unchanged, and
+  emits a safe human-gated `notification:send --live --retryFailed` command
+  string without secret / env / raw payload markers;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

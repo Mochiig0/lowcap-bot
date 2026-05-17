@@ -101,6 +101,47 @@ async function seedNotification(input: {
   });
 }
 
+async function readNotificationRetryAuditRows(client: PrismaClient): Promise<
+  Array<{
+    notificationKey: string;
+    status: string;
+    mode: string;
+    eventType: string;
+    trigger: string;
+    mint: string;
+    metricId: number | null;
+    retryCount: number;
+    nextRetryAt: string | null;
+    leaseUntil: string | null;
+    workerId: string | null;
+  }>
+> {
+  const rows = await client.notification.findMany({
+    orderBy: {
+      notificationKey: "asc",
+    },
+    select: {
+      notificationKey: true,
+      status: true,
+      mode: true,
+      eventType: true,
+      trigger: true,
+      mint: true,
+      metricId: true,
+      retryCount: true,
+      nextRetryAt: true,
+      leaseUntil: true,
+      workerId: true,
+    },
+  });
+
+  return rows.map((row) => ({
+    ...row,
+    nextRetryAt: row.nextRetryAt?.toISOString() ?? null,
+    leaseUntil: row.leaseUntil?.toISOString() ?? null,
+  }));
+}
+
 test("notification retry planner selects one failed metric_appended row and returns a human-gated command", async () => {
   await withTempDb(async ({ client }) => {
     const notificationKey =
@@ -145,6 +186,83 @@ test("notification retry planner selects one failed metric_appended row and retu
     });
     assert.deepEqual(result.stopConditionCodes, []);
     assert.equal(await client.notification.count(), beforeCount);
+  });
+});
+
+test("notification retry planner selects only a failed row among captured and sent rows without mutation", async () => {
+  await withTempDb(async ({ client }) => {
+    const failedKey =
+      "RetryPlanMixedFailed111111111111111111pump:metric_appended:1274";
+    await seedNotification({
+      client,
+      notificationKey: failedKey,
+      mint: "RetryPlanMixedFailed111111111111111111pump",
+      metricId: 1274,
+      status: "failed",
+      mode: "live_send",
+      failedAt: new Date("2026-05-09T00:02:00.000Z"),
+      errorCode: "telegram_network_error",
+    });
+    await seedNotification({
+      client,
+      notificationKey:
+        "RetryPlanMixedCaptured111111111111111pump:metric_appended:1275",
+      mint: "RetryPlanMixedCaptured111111111111111pump",
+      metricId: 1275,
+      status: "captured",
+      mode: "capture_only",
+      failedAt: null,
+      errorCode: null,
+    });
+    await seedNotification({
+      client,
+      notificationKey: "RetryPlanMixedSent111111111111111111pump:metric_appended:1276",
+      mint: "RetryPlanMixedSent111111111111111111pump",
+      metricId: 1276,
+      status: "sent",
+      mode: "live_send",
+      failedAt: null,
+      errorCode: null,
+    });
+
+    const beforeRows = await readNotificationRetryAuditRows(client);
+
+    const result = await buildNotificationRetryPlan(client);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.mode, "read_only_retry_planner");
+    assert.equal(result.willExecute, false);
+    assert.equal(result.executor, "human");
+    assert.equal(result.requiresHumanApproval, true);
+    assert.equal(result.candidateCount, 1);
+    assert.equal(result.selectedCount, 1);
+    assert.equal(result.selected?.notificationKey, failedKey);
+    assert.equal(result.selected?.status, "failed");
+    assert.equal(result.selected?.mode, "live_send");
+    assert.equal(result.selected?.metricId, 1274);
+    assert.equal(
+      result.nextRedCommand,
+      `pnpm -s notification:send -- --notificationKey ${failedKey} --trigger metric_appended --live --retryFailed`,
+    );
+    assert.ok(result.nextRedCommand);
+    assert.equal(result.nextRedCommand.includes("--retryFailed"), true);
+    assert.equal(result.nextRedCommand.includes("TELEGRAM_BOT_TOKEN"), false);
+    assert.equal(result.nextRedCommand.includes("TELEGRAM_CHAT_ID"), false);
+    assert.equal(result.nextRedCommand.includes("DATABASE_URL"), false);
+    assert.equal(result.nextRedCommand.includes("rawJson"), false);
+    assert.equal(result.nextRedCommand.includes("responseBody"), false);
+    assert.deepEqual(result.sideEffectUpperBoundSpec, {
+      telegramSendMax: 1,
+      notificationUpdateMax: 1,
+      notificationCreateMax: 0,
+      tokenWriteMax: 0,
+      metricWriteMax: 0,
+      checkpointWrite: false,
+      queue: false,
+      systemd: false,
+    });
+    assert.deepEqual(result.stopConditionCodes, []);
+    assert.deepEqual(await readNotificationRetryAuditRows(client), beforeRows);
   });
 });
 

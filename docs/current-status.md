@@ -2554,6 +2554,15 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `nextRedCommand=null`, and `stopConditionCodes=[no_failed_retry_candidate]`.
   It did not call a Telegram sender, update Notifications, write DB state,
   start retry / worker / scheduler paths, or expose secrets.
+- `notification:retry:plan` candidate selection is now fixed by temp-SQLite
+  tests without production DB or Telegram. The added mixed-fixture test creates
+  one `failed/live_send` `metric_appended` row, one `captured/capture_only`
+  row, and one `sent/live_send` row; the planner returns `candidateCount=1`,
+  `selectedCount=1`, selects only the failed row, keeps `willExecute=false`,
+  `executor=human`, and builds a safe `nextRedCommand` with
+  `--trigger metric_appended --live --retryFailed`. The command string is
+  checked to exclude env / secret / raw payload markers, and all Notification
+  rows remain unchanged after planning.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through
