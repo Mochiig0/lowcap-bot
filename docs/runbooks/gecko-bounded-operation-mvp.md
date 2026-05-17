@@ -4991,6 +4991,103 @@ Interpretation:
 - The 24h window is still provisional and now has one valid post-alert FDV
   sample, enough to compute a provisional `flat` label.
 
+### Short-Window Outcome Check Result
+
+The short-window outcome Red check completed on a second mint.
+
+Target selection:
+
+- Target mint:
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`.
+- Token id: `5375`.
+- Selected from `review:queue:geckoterminal -- --pumpOnly`.
+- It was GeckoTerminal-origin, pump, `metadataStatus=mint_only`,
+  `metricsCount=0`, `latestMetricObservedAt=null`, and in `metricPending`.
+- ENRA / AW7 / G4 / P3 were avoided because they had already been used.
+
+Before counts:
+
+| Table | Count |
+| --- | ---: |
+| Token | 1296 |
+| Metric | 196 |
+| Notification | 7 |
+| HolderSnapshot | 1 |
+
+First command, capture-only Notification anchor:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --write
+```
+
+Result:
+
+- Metric `id=1279` created.
+- `observedAt=2026-05-17T01:55:13.760Z`.
+- `volume24h=30140.6185417119`.
+- Notification `id=8` created.
+- `notificationCaptureEnabled=true`.
+- `notificationCreated=true`.
+- Telegram live send did not occur.
+
+Second command, post-alert Metric only:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --noNotificationCapture --write
+```
+
+Result:
+
+- Metric `id=1280` created.
+- `observedAt=2026-05-17T01:57:39.489Z`.
+- `volume24h=30201.9694862166`.
+- `notificationCaptureEnabled=false`.
+- `notificationCreated=false`.
+- `notificationSkippedReason=disabled_by_option`.
+- Notification count did not increase.
+- Telegram live send did not occur.
+
+After counts:
+
+| Table | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Token | 1296 | 1296 | 0 |
+| Metric | 196 | 198 | +2 |
+| Notification | 7 | 8 | +1 |
+| HolderSnapshot | 1 | 1 | 0 |
+
+Read-only outcome confirmation:
+
+- `metrics:window-report -- --mint
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --windows 30,60,1440`
+  uses Notification `id=8` as `alertNotificationId`.
+- `alertFdv=99417.806703657`.
+- `alertFdvSource=metric_before_alert`.
+- `alertFdvFreshnessSeconds=0.015`.
+- `metricCount=2`.
+- `fdvMetricCount=2`.
+- `latestFdv=99417.806703657`.
+- 30m window: `fdvSampleCount=1`, `fdvSampleCoverageLabel=thin`,
+  `peakFdv=99417.806703657`, `peakMultipleFromAlert=1`,
+  `timeToPeakMinutes=2.4285666666666668`, `isWindowComplete=false`,
+  `outcomeIsProvisional=true`, `outcomeLabel=flat`.
+- 60m window: `fdvSampleCount=1`, `fdvSampleCoverageLabel=thin`,
+  `peakFdv=99417.806703657`, `peakMultipleFromAlert=1`,
+  `timeToPeakMinutes=2.4285666666666668`, `isWindowComplete=false`,
+  `outcomeIsProvisional=true`, `outcomeLabel=flat`.
+- 24h window: same single post-alert sample, provisional `outcomeLabel=flat`.
+
+Boundary confirmation:
+
+- No detect / import / enrich / rescore command ran.
+- No HolderSnapshot write occurred.
+- No Telegram live send occurred.
+- No queue / scheduler / systemd command ran.
+- No checkpoint update occurred.
+- No `pnpm smoke` command ran.
+- No rate-limit, retry, fetch error, or `skipped_recent_metric` condition was
+  observed.
+
 ## Metric Window Peak Report
 
 `pnpm metrics:window-report -- --mint <MINT>` is the read-only report for

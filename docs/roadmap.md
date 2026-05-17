@@ -208,6 +208,15 @@ Recommended next Yellow implementation slice:
   `peakMultipleFromAlert=1.0869155273705746`,
   `timeToPeakMinutes=77.49428333333333`, provisional `outcomeLabel=flat`, and
   `fdvSampleCoverageLabel=thin`;
+- short-window outcome check is complete on a second mint:
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`. Exact `--mint --write`
+  created Metric `1279` and capture-only Notification `8`; immediate exact
+  `--mint --noNotificationCapture --write` created Metric `1280` without a
+  second Notification. Counts moved `1296 / 196 / 7 / 1` to
+  `1296 / 198 / 8 / 1`. `metrics:window-report` now confirms 30m / 60m / 24h
+  windows each have `fdvSampleCount=1`, `peakMultipleFromAlert=1`,
+  `timeToPeakMinutes=2.4285666666666668`, provisional `outcomeLabel=flat`, and
+  `fdvSampleCoverageLabel=thin`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

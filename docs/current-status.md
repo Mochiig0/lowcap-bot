@@ -609,6 +609,34 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `timeToPeakMinutes=77.49428333333333`,
   `fdvSampleCoverageLabel=thin`, `isWindowComplete=false`,
   `outcomeIsProvisional=true`, and `outcomeLabel=flat`.
+- Short-window post-alert Metric outcome Red check is complete for a second
+  mint. Target mint `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump` was selected
+  from the GeckoTerminal-origin pump `metricPending` queue because it was
+  `mint_only`, had `metricsCount=0`, and was not one of ENRA / AW7 / G4 / P3.
+  The first exact command,
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --write`, selected Token
+  `id=5375`, wrote Metric `id=1279` at
+  `observedAt=2026-05-17T01:55:13.760Z`, and created capture-only
+  Notification `id=8` with `notificationCaptureEnabled=true` and
+  `notificationCreated=true`. The second exact command,
+  `pnpm -s metric:snapshot:geckoterminal -- --mint
+  EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --noNotificationCapture
+  --write`, wrote Metric `id=1280` at
+  `observedAt=2026-05-17T01:57:39.489Z` with
+  `notificationCaptureEnabled=false`, `notificationCreated=false`, and
+  `notificationSkippedReason=disabled_by_option`. Counts moved from
+  `1296 / 196 / 7 / 1` to `1296 / 198 / 8 / 1`; Token and HolderSnapshot counts
+  stayed unchanged. Telegram send, HolderSnapshot write, Token enrich / rescore,
+  detect, import, queue, scheduler, systemd, checkpoint update, and `pnpm
+  smoke` did not run. `metrics:window-report -- --mint ... --windows
+  30,60,1440` uses Notification `id=8` as the alert anchor, has
+  `metricCount=2`, `fdvMetricCount=2`, `alertFdv=99417.806703657`, and
+  `latestFdv=99417.806703657`. The 30m / 60m / 24h windows each have
+  `fdvSampleCount=1`, `fdvSampleCoverageLabel=thin`,
+  `peakMultipleFromAlert=1`, `timeToPeakMinutes=2.4285666666666668`,
+  `outcomeIsProvisional=true`, and `outcomeLabel=flat`, confirming that
+  immediate post-alert Metric append can populate short-window outcome values.
 - Metric result-field policy is fixed in
   `docs/design/metric-result-field-policy.md`. In the MVP, `Metric` rows are
   append-only-ish observation snapshots (`observedAt`, `source`, provider
