@@ -251,6 +251,12 @@ Recommended next Yellow implementation slice:
   notification send, retry, scheduler, systemd, watch, metric snapshot, detect,
   import, enrich, or rescore command was run. The interrupted 6h dry-run was
   not a completed stability result;
+- failure marking is now covered by temp-SQLite / mocked-sender tests without
+  production DB or Telegram: a throwing sender updates one existing captured
+  `metric_appended` row to `failed/live_send`, sets `failedAt`,
+  `lastAttemptAt`, safe `errorCode`, and `reason`, keeps `sentAt=null`, creates
+  no Notification rows, and leaves Token / Metric / HolderSnapshot counts
+  unchanged;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

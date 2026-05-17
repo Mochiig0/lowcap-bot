@@ -130,6 +130,12 @@ Safe error code behavior:
 - Unknown / unsafe sender error codes are normalized to
   `ops_notify_sender_failed`.
 - Tests confirm unsafe sender output is not copied into stored fields.
+- Temp-SQLite / mocked-sender tests now also cover a sender throw. The expected
+  result is one existing Notification row updated to `failed/live_send`,
+  `failedAt` and `lastAttemptAt` set, `errorCode=ops_notify_sender_threw`,
+  `reason=ops_notify_send_failed`, `sentAt=null`, no new Notification rows, and
+  unchanged Token / Metric / HolderSnapshot counts. The thrown error text is
+  not stored.
 
 ## Retry Eligibility
 

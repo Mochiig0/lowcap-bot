@@ -2529,6 +2529,16 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   watch, metric snapshot, detect, import, enrich, rescore, schema, or migration
   action was run. The interrupted 6h Gecko dry-run did not complete; the
   leftover watch process was terminated before this audit.
+- `notification:send` failure marking is now fixed by temp-SQLite / mocked
+  sender tests without touching production DB or Telegram. The added test
+  covers a captured `metric_appended` row whose injected sender throws: the
+  existing row is updated to `status=failed`, `mode=live_send`, with
+  `failedAt` and `lastAttemptAt` set to the same timestamp,
+  `errorCode=ops_notify_sender_threw`, `reason=ops_notify_send_failed`,
+  `sentAt=null`, `retryCount=0`, `nextRetryAt=null`, `leaseUntil=null`, and
+  `workerId=null`. Token / Metric / Notification / HolderSnapshot counts stay
+  unchanged, no new Notification is created, and unsafe sender error details,
+  Telegram response body, rawJson, or secret markers are not stored.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

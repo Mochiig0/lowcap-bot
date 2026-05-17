@@ -54,6 +54,28 @@ function keyFor(mint: string, metricId: number): string {
   return `${mint}:metric_appended:${metricId}`;
 }
 
+async function readCoreCounts(client: PrismaClient): Promise<{
+  tokenCount: number;
+  metricCount: number;
+  notificationCount: number;
+  holderSnapshotCount: number;
+}> {
+  const [tokenCount, metricCount, notificationCount, holderSnapshotCount] =
+    await Promise.all([
+      client.token.count(),
+      client.metric.count(),
+      client.notification.count(),
+      client.holderSnapshot.count(),
+    ]);
+
+  return {
+    tokenCount,
+    metricCount,
+    notificationCount,
+    holderSnapshotCount,
+  };
+}
+
 async function seedNotification(input: {
   client: PrismaClient;
   mint: string;
@@ -198,6 +220,73 @@ test("notification live send marks a captured metric_appended row failed safely"
     assert.equal(notification?.reason, "ops_notify_send_failed");
 
     const serialized = JSON.stringify(notification);
+    assert.equal(serialized.includes("telegram response body"), false);
+    assert.equal(serialized.includes("botToken"), false);
+    assert.equal(serialized.includes("chatId"), false);
+    assert.equal(serialized.includes("DATABASE_URL"), false);
+    assert.equal(serialized.includes("TELEGRAM_BOT_TOKEN"), false);
+    assert.equal(serialized.includes("TELEGRAM_CHAT_ID"), false);
+  });
+});
+
+test("notification live send marks a captured row failed safely when sender throws", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "LiveSendThrowFailed1111111111111111111pump";
+    const metricId = 1274;
+    const notificationKey = await seedNotification({
+      client,
+      mint,
+      metricId,
+      notificationKey: keyFor(mint, metricId),
+    });
+    const beforeCounts = await readCoreCounts(client);
+    const senderCalls: OpsNotificationSenderInput[] = [];
+
+    const result = await sendNotificationByKey({
+      client,
+      notificationKey,
+      trigger: "metric_appended",
+      live: true,
+      sender: async (input) => {
+        senderCalls.push(input);
+        throw new Error("simulated sender failure with unsafe details");
+      },
+    });
+
+    assert.equal(result.status, "failed");
+    assert.equal(result.sentCount, 0);
+    assert.equal(result.updatedCount, 1);
+    assert.equal(result.senderCalled, true);
+    assert.equal(result.errorCode, "ops_notify_sender_threw");
+    assert.equal(senderCalls.length, 1);
+    assert.equal(senderCalls[0]?.trigger, "metric_appended");
+    assert.equal(senderCalls[0]?.mint, mint);
+    assert.equal(senderCalls[0]?.metricId, metricId);
+    assert.deepEqual(await readCoreCounts(client), beforeCounts);
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey,
+      },
+    });
+    assert.equal(notification?.status, "failed");
+    assert.equal(notification?.mode, "live_send");
+    assert.ok(notification?.failedAt);
+    assert.ok(notification?.lastAttemptAt);
+    assert.equal(
+      notification?.lastAttemptAt?.toISOString(),
+      notification?.failedAt?.toISOString(),
+    );
+    assert.equal(notification?.sentAt, null);
+    assert.equal(notification?.errorCode, "ops_notify_sender_threw");
+    assert.equal(notification?.reason, "ops_notify_send_failed");
+    assert.equal(notification?.retryCount, 0);
+    assert.equal(notification?.nextRetryAt, null);
+    assert.equal(notification?.leaseUntil, null);
+    assert.equal(notification?.workerId, null);
+
+    const serialized = JSON.stringify(notification);
+    assert.equal(serialized.includes("unsafe details"), false);
     assert.equal(serialized.includes("telegram response body"), false);
     assert.equal(serialized.includes("botToken"), false);
     assert.equal(serialized.includes("chatId"), false);
