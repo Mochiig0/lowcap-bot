@@ -277,6 +277,15 @@ Recommended next Yellow implementation slice:
   now emits `status=interrupted` / `stopReason=user_interrupted` summaries for
   SIGINT / SIGTERM. See
   `docs/runbooks/notification-live-send-policy.md`;
+- short live SIGINT confirmation for GeckoTerminal new-pools watch is now
+  recorded. The 2026-05-17 Red dry-run summary reported
+  `status=interrupted`, `stopReason=user_interrupted`,
+  `interruptedBySignal=SIGINT`, `completedIterations=5`, `failedCount=0`, and
+  `rateLimitRetryCount=0`, with DB counts unchanged at
+  `1296 / 198 / 8 / 1` and no Telegram, Notification, Metric, checkpoint, or
+  repo-local data side effects. The timeout wrapper did not stop the
+  `pnpm` / `tsx` child tree at the expected 90s boundary, so another long live
+  run should first account for process-tree timeout behavior;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

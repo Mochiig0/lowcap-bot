@@ -2587,6 +2587,21 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   did not run live watch, external fetch, production DB write, Telegram,
   notification retry, scheduler / systemd, metric snapshot, import, enrich, or
   rescore.
+- A short Red live dry-run confirmation on 2026-05-17 ran:
+  `timeout --foreground -s INT --preserve-status 90s pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 10 --intervalSeconds 300`.
+  The timeout wrapper did not stop the `pnpm` / `tsx` process tree at the
+  expected 90s boundary, so the operator sent SIGINT to the watch process group
+  to stop further fetches. The final summary confirmed
+  `status=interrupted`, `stopReason=user_interrupted`,
+  `interruptedBySignal=SIGINT`, `completedIterations=5`, `cycleCount=5`,
+  `failedCount=0`, `rateLimitRetryCount=0`, `importedCount=0`,
+  `existingCount=0`, `dryRun=true`, `writeEnabled=false`, and
+  `checkpointEnabled=false`. Counts stayed
+  `Token=1296`, `Metric=198`, `Notification=8`, `HolderSnapshot=1`; no DB
+  write, Telegram send, Notification update, Metric create, checkpoint update,
+  or repo-local data diff was observed. The 6h dry-run remains incomplete, and
+  the next live long-run should first address or explicitly account for
+  process-tree timeout behavior.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

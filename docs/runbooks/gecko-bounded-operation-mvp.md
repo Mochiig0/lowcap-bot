@@ -5402,6 +5402,28 @@ report completed cycles, rate-limit retries, imports / existing counts, dry-run
 or write mode, and checkpoint status without being confused with a failed
 cycle. Details: `docs/runbooks/gecko-watch-interrupt-handling.md`.
 
+On 2026-05-17, a short Red live dry-run confirmation used:
+
+```bash
+timeout --foreground -s INT --preserve-status 90s pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 10 --intervalSeconds 300
+```
+
+The command was dry-run only and did not include `--write` or `--live`. The
+timeout wrapper did not stop the `pnpm` / `tsx` process tree at the expected
+90s boundary, so the operator sent SIGINT to the watch process group to stop
+additional fetch cycles. The final summary confirmed `status=interrupted`,
+`stopReason=user_interrupted`, `interruptedBySignal=SIGINT`,
+`completedIterations=5`, `cycleCount=5`, `failedCount=0`,
+`rateLimitRetryCount=0`, `importedCount=0`, `existingCount=0`, `dryRun=true`,
+`writeEnabled=false`, and `checkpointEnabled=false`.
+
+Before / after counts remained `Token=1296`, `Metric=198`,
+`Notification=8`, `HolderSnapshot=1`. No DB write, Telegram send,
+Notification create/update, Metric create, checkpoint update, or repo-local
+data diff was observed. The 6h dry-run remains incomplete; before another long
+live run, use a separate Yellow check or approved wrapper adjustment for
+process-tree timeout behavior.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission
