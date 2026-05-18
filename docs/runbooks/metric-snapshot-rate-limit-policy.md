@@ -388,6 +388,26 @@ selection fix kept `skipped_recent_metric` at zero. Since the pacing and
 selection behavior are now proven through limit 75, the next step should be
 read-only report validation rather than immediate further batch expansion.
 
+## Report Readiness After Limit 75
+
+Date: 2026-05-19
+
+The next step after limit 75 was read-only report validation, not another batch
+increase. Report checks confirmed:
+
+- DB counts stayed `1536 / 388 / 8 / 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+- `review:queue:geckoterminal -- --pumpOnly --limit 20` still reported
+  `metricPendingCount=85`
+- `metrics:window-report` reads accumulated Metric history and Notification
+  anchors without writes or external fetches
+- `metrics:report` and `tokens:compare-report` provide rawJson-free Metric
+  summaries for single-token and cohort review
+
+This confirms the rate-limit-safe accumulation path feeds the read-only report
+lane. Continue with outcome / cohort report review before considering more
+Metric batch expansion.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

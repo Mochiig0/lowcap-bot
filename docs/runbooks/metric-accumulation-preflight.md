@@ -651,3 +651,27 @@ Interpretation: recent-Metric exclusion stayed effective at limit 75 and the
 Notification / HolderSnapshot, Telegram was not sent, repo-local data stayed
 clean, and no rawJson or secrets were displayed. The next slice should lean
 toward read-only report validation over further immediate batch expansion.
+
+## Metric Report Readiness After Limit 75
+
+Date: 2026-05-19
+
+Read-only report checks confirmed that the accumulated Metrics are visible
+without more writes:
+
+- Token / Metric / Notification / HolderSnapshot remained `1536 / 388 / 8 / 1`
+- Token Metric distribution is `0=1222`, `1=261`, `2+=53`
+- GeckoTerminal-origin pump `mint_only` coverage is Metric `0=260`, `1=128`,
+  `2+=32`
+- `review:queue:geckoterminal -- --pumpOnly --limit 20` reported
+  `metricPendingCount=85`
+- `metrics:window-report` read Notification id `8`, Metric 3, and Metric 1
+  sample tokens with `readOnly=true`, `willWrite=false`, `willFetch=false`, and
+  `willSendTelegram=false`
+- `metrics:report` and `tokens:compare-report` displayed rawJson-free Metric
+  summaries and latest Metric safe-summary booleans
+- no DB write, external fetch, Telegram send, Notification update, repo-local
+  data diff, rawJson full dump, or secret display occurred
+
+Detailed command output interpretation is recorded in
+`docs/runbooks/metric-report-readiness.md`.

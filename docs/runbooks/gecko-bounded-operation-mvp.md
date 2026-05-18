@@ -6030,3 +6030,34 @@ not sent, Notification rows were not created or updated, Token and
 HolderSnapshot rows were not changed, and repo-local data stayed clean. Compared
 with improved delayed limit 50, `writtenCount` moved from 50 to 75 while
 `skippedCount` and `errorCount` stayed at 0.
+
+### Metric Report Readiness After Limit 75
+
+Checked on 2026-05-19 with read-only commands only.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 388 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=261`, `2+=53`
+- GeckoTerminal-origin pump `mint_only` coverage: Metric `0=260`, `1=128`,
+  `2+=32`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+- `metricPendingCount=85`
+
+Report checks:
+
+- `metrics:window-report` read Notification id `8` and Metric sample tokens
+  with explicit read-only flags and no rawJson full dump
+- `metrics:report` showed the three Metric rows for
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump` with all rawJson-free
+  market-data presence booleans true
+- `tokens:compare-report` showed GeckoTerminal `mint_only` rows with
+  `metricsCount=3`, latest Metric source `geckoterminal.token_snapshot`, and
+  rawJson-free latest Metric presence booleans true
+- Notification id `8` is recognized by `metrics:window-report`, but its current
+  windows are `no_data` because the stored Metrics predate the live-send
+  `sentAt` anchor
+
+No Metric snapshot, detect watch, DB write, external fetch, Telegram send,
+Notification update, repo-local data diff, schema / migration change, or rawJson
+full dump occurred.

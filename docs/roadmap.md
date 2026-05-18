@@ -524,3 +524,24 @@ The recent-Metric exclusion and Metric-only write boundary held at limit 75.
 Rather than continuing to enlarge batches immediately, the next near-term slice
 should move back to read-only reporting, such as validating
 `metrics:window-report` or cohort reports against the accumulated Metrics.
+
+## Operating Update: Metric Report Readiness
+
+Date: 2026-05-19
+
+The accumulated GeckoTerminal Metrics were validated through read-only report
+commands after limit 75:
+
+- `metrics:window-report`
+- `metrics:report`
+- `tokens:compare-report`
+- `review:queue:geckoterminal`
+
+The latest counts remained Token / Metric / Notification / HolderSnapshot
+`1536 / 388 / 8 / 1` after report execution, with Notification statuses
+`captured=5`, `sent=3`, `failed=0`. `metrics:window-report` correctly read the
+sent Notification id `8`, Metric 3 sample rows, and Metric 1 sample rows without
+DB writes, external fetches, Telegram sends, or rawJson full dumps.
+
+Next work should stay on read-only outcome / cohort review before any further
+Metric batch expansion.

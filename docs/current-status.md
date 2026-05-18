@@ -3549,3 +3549,51 @@ clean, and no rawJson or secrets were displayed. After this successful
 expansion, the next task should shift toward read-only report validation, such
 as `metrics:window-report` or cohort reporting, instead of continuing batch-size
 expansion.
+
+## Metric Report Readiness Confirmation
+
+Date: 2026-05-19
+
+After improved Metric accumulation through limit 75, read-only report readiness
+was confirmed without additional Metric snapshot, detect watch, DB write,
+external fetch, Telegram send, or rawJson dump.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 388 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=261`, `2+=53`
+- GeckoTerminal-origin pump `mint_only` coverage: Metric `0=260`, `1=128`,
+  `2+=32`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+- `review:queue:geckoterminal -- --pumpOnly --limit 20` reported
+  `metricPendingCount=85`
+
+Read-only commands executed:
+
+- `metrics:window-report` for Notification id `8` token
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`
+- `metrics:window-report` for Metric 3 token
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`
+- `metrics:window-report` for Metric 1 token
+  `CyUWWFVU892Zj7AXhedRUrgprhFknwH4idhda741pump`
+- `metrics:report -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --limit 3`
+- `tokens:compare-report -- --source geckoterminal.new_pools --metadataStatus mint_only --hasMetrics true --minMetricsCount 1 --latestMetricSource geckoterminal.token_snapshot --limit 5`
+
+Findings:
+
+- `metrics:window-report` is explicitly read-only:
+  `readOnly=true`, `willWrite=false`, `willFetch=false`,
+  `willSendTelegram=false`
+- Notification id `8` is read as `alertNotificationId=8` with
+  `alertedAtSource=notification_sent_at`; its windows are `no_data` because the
+  two Metrics predate the live-send `sentAt` anchor
+- the Metric 3 token reports `metricCount=3`, `fdvMetricCount=3`, short-window
+  FDV samples, and 24h `fdvSampleCoverageLabel=partial`
+- the Metric 1 token reports `metricCount=1`, `fdvMetricCount=1`, and 24h
+  `fdvSampleCoverageLabel=thin`
+- `metrics:report` and `tokens:compare-report` show rawJson-free market-data
+  presence booleans and latest Metric summaries
+- no rawJson full dump, secrets, DB write, external fetch, Telegram send, or
+  repo-local data changes occurred
+
+Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
