@@ -387,6 +387,13 @@ Recommended next Yellow implementation slice:
   clean, but the 50% skip ratio means the next step should be candidate
   selection that excludes recent Metrics before applying `--limit`, not another
   batch-size increase;
+- `metric:snapshot:geckoterminal` batch selection now excludes recent Metric
+  rows before applying `--limit` when `--minGapMinutes` is provided. Exact
+  `--mint` mode keeps its existing min-gap skip behavior. `--interItemDelayMs`,
+  429 handling, Notification / Telegram behavior, Token writes, and
+  HolderSnapshot behavior are unchanged. The next Red candidate is the same
+  delayed limit 30 command, now expected to spend the limit on eligible
+  candidates rather than recent-Metric skips;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

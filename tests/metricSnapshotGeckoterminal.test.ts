@@ -908,7 +908,97 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     });
   });
 
-  await t.test("skips a selected token before fetch when minGapMinutes is newer than the latest metric", async () => {
+  await t.test("excludes recent batch metrics before applying limit", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "batch-min-gap-before-limit.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-batch-min-gap-before-limit.json");
+      const now = Date.now();
+      const recentMints = [
+        "MetricSnapshotRecentA11111111111111111111111111pump",
+        "MetricSnapshotRecentB11111111111111111111111111pump",
+      ];
+      const eligibleMints = [
+        "MetricSnapshotEligibleA111111111111111111111111pump",
+        "MetricSnapshotEligibleB111111111111111111111111pump",
+      ];
+      const allMints = [...recentMints, ...eligibleMints];
+
+      await runDbPush(databaseUrl);
+      for (let index = 0; index < allMints.length; index += 1) {
+        await seedMetricSelectionToken(databaseUrl, {
+          mint: allMints[index] ?? "",
+          createdAt: new Date(now - index * 1_000),
+          metadataStatus: "mint_only",
+        });
+      }
+      for (const mint of recentMints) {
+        await seedRecentMetric(databaseUrl, {
+          mint,
+          observedAt: new Date(now - 60 * 1_000),
+        });
+      }
+      await writeSnapshotFixture(geckoSnapshotFile, eligibleMints[0] ?? "");
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--limit", "2", "--sinceMinutes", "10", "--minGapMinutes", "60"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 2);
+      assert.equal(parsed.summary.selectedCount, 2);
+      assert.equal(parsed.summary.okCount, 2);
+      assert.equal(parsed.summary.skippedCount, 0);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.deepEqual(
+        parsed.items.map((item) => item.token.mint),
+        eligibleMints,
+      );
+      assert.equal(parsed.items.every((item) => item.status === "ok"), true);
+      assert.equal(result.stdout.includes("rawJson"), false);
+    });
+  });
+
+  await t.test("keeps old batch metrics eligible before applying limit", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "batch-old-metric-eligible.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-batch-old-metric-eligible.json");
+      const oldMetricMint = "MetricSnapshotOldEligible1111111111111111111111pump";
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: oldMetricMint,
+        createdAt: new Date(now - 2 * 60 * 1_000),
+        metadataStatus: "mint_only",
+      });
+      await seedRecentMetric(databaseUrl, {
+        mint: oldMetricMint,
+        observedAt: new Date(now - 2 * 60 * 60_000),
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, oldMetricMint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10", "--minGapMinutes", "60"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 1);
+      assert.equal(parsed.summary.selectedCount, 1);
+      assert.equal(parsed.summary.okCount, 1);
+      assert.equal(parsed.summary.skippedCount, 0);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.items[0]?.token.mint, oldMetricMint);
+      assert.equal(parsed.items[0]?.status, "ok");
+    });
+  });
+
+  await t.test("skips an exact mint before fetch when minGapMinutes is newer than the latest metric", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "min-gap.db")}`;
       const geckoSnapshotFile = join(dir, "gecko-min-gap-snapshot.json");
@@ -928,13 +1018,13 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       await writeSnapshotFixture(geckoSnapshotFile, skippedMint);
 
       const result = await runMetricSnapshotGeckoterminal(
-        ["--limit", "1", "--sinceMinutes", "10", "--minGapMinutes", "5"],
+        ["--mint", skippedMint, "--minGapMinutes", "5"],
         { databaseUrl, geckoSnapshotFile },
       );
       assert.equal(result.ok, true);
 
       const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
-      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.mode, "single");
       assert.equal(parsed.selection.selectedCount, 1);
       assert.equal(parsed.summary.selectedCount, 1);
       assert.equal(parsed.summary.okCount, 0);

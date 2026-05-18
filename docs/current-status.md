@@ -3377,3 +3377,35 @@ Telegram send occurred, repo-local data stayed clean, and no rawJson or secrets
 were displayed. The skip ratio remained 50%, so the next step should be a
 Yellow candidate-selection improvement that excludes recent Metrics before
 applying `--limit`, rather than another batch-size expansion.
+
+## Metric Snapshot Candidate Selection Improvement
+
+Date: 2026-05-19
+
+`metric:snapshot:geckoterminal` batch mode now excludes recent Metric rows
+before applying `--limit` when `--minGapMinutes <N>` is provided. The selection
+order is now:
+
+1. select recent GeckoTerminal-origin tokens inside `--sinceMinutes`;
+2. apply `--pumpOnly` when requested;
+3. exclude tokens whose latest Metric for the target metric source is newer
+   than `now - minGapMinutes`;
+4. apply `--prioritizeRichPending` when requested;
+5. apply `--limit`.
+
+This keeps `--limit` focused on tokens that can actually be processed, reducing
+the repeated `skipped_recent_metric` waste observed in delayed limit 10/20/30
+runs. Exact `--mint` mode keeps the existing behavior: it can still return
+`skipped_recent_metric` when the target mint is inside the min-gap window.
+`--interItemDelayMs`, 429 item-error behavior, Notification capture, Telegram,
+Token writes, and HolderSnapshot behavior are unchanged.
+
+The next Red candidate, not yet executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected result: `selectedCount=30`, `skipped_recent_metric` greatly reduced
+and ideally zero, `errorCount=0`, no 429, Metric up to +30, and Token /
+Notification / HolderSnapshot unchanged.

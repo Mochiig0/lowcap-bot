@@ -261,7 +261,7 @@ function getUsageText(): string {
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     `- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter`,
     `- recent batch mode may also prefer non-mint_only and review-flagged rows via experimental --prioritizeRichPending; default selection order stays unchanged when omitted`,
-    `- skips a token before fetch only when --minGapMinutes is set and the latest Metric for the same token+source is still recent`,
+    `- batch mode excludes recent Metric rows before --limit when --minGapMinutes is set; exact --mint mode still skips before fetch when the latest Metric for the same token+source is still recent`,
     `- waits --interItemDelayMs between selected batch items when set; default is 0 and exact --mint mode is not delayed`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
     `- single --mint write mode captures a metric_appended Notification by default; --noNotificationCapture suppresses that capture record without changing Metric writes`,
@@ -666,6 +666,27 @@ function prioritizeRichPendingTokens(tokens: SelectedToken[]): SelectedToken[] {
     .map(({ token }) => token);
 }
 
+async function excludeRecentlyMeasuredTokensBeforeLimit(
+  tokens: SelectedToken[],
+  args: MetricSnapshotArgs,
+): Promise<SelectedToken[]> {
+  if (args.minGapMinutes === undefined) {
+    return tokens;
+  }
+
+  const minObservedAtMs = Date.now() - args.minGapMinutes * 60_000;
+  const eligibleTokens: SelectedToken[] = [];
+
+  for (const token of tokens) {
+    const latestObservedAt = await findLatestMetricObservedAt(token.id, args.source);
+    if (latestObservedAt === null || Date.parse(latestObservedAt) <= minObservedAtMs) {
+      eligibleTokens.push(token);
+    }
+  }
+
+  return eligibleTokens;
+}
+
 function isPumpMint(mint: string): boolean {
   return mint.endsWith("pump");
 }
@@ -803,9 +824,13 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
   const pumpEligibleTokens = args.pumpOnly
     ? recentGeckoTokens.filter((token) => isPumpMint(token.mint))
     : recentGeckoTokens;
+  const gapEligibleTokens = await excludeRecentlyMeasuredTokensBeforeLimit(
+    pumpEligibleTokens,
+    args,
+  );
   const orderedTokens = args.prioritizeRichPending
-    ? prioritizeRichPendingTokens(pumpEligibleTokens)
-    : pumpEligibleTokens;
+    ? prioritizeRichPendingTokens(gapEligibleTokens)
+    : gapEligibleTokens;
   const selectedTokens = orderedTokens.slice(0, args.limit);
 
   return {

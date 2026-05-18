@@ -5824,6 +5824,29 @@ Compared with delayed `limit 20`, the delayed `limit 30` run preserved
 `skipped_recent_metric` rows. Prefer a candidate-selection improvement before
 another batch-size expansion.
 
+### Metric Snapshot Candidate Selection Improvement
+
+Implemented on 2026-05-19.
+
+`metric:snapshot:geckoterminal` batch mode now excludes recent Metrics before
+applying `--limit` when `--minGapMinutes` is set. This keeps the batch limit
+focused on candidates that can actually be fetched and written.
+
+Unchanged boundaries:
+
+- exact `--mint` mode can still skip by min-gap;
+- `--interItemDelayMs` still controls item pacing;
+- 429 handling is unchanged;
+- batch mode does not create Notification rows;
+- Telegram is not sent;
+- Token and HolderSnapshot rows are not updated by Metric snapshot writes.
+
+Next Red candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission

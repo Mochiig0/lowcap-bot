@@ -238,6 +238,33 @@ now selection quality rather than pacing: half of the selected rows were
 candidate-selection improvement so recent Metrics are excluded before `--limit`
 is applied.
 
+## Candidate Selection Improvement
+
+Date: 2026-05-19
+
+The Metric snapshot batch selector now excludes recent Metric rows before
+applying `--limit` whenever `--minGapMinutes` is provided. This addresses the
+50% `skipped_recent_metric` ratio seen in delayed limit 10/20/30 runs without
+changing pacing or rate-limit behavior.
+
+Boundary:
+
+- `--interItemDelayMs` remains the pacing tool;
+- 429 item-error behavior is unchanged;
+- exact `--mint` mode still performs its existing min-gap check at processing
+  time;
+- batch mode remains Notification-free and Telegram-free;
+- Token and HolderSnapshot writes are unchanged.
+
+Next Red candidate, not yet executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Success should show `selectedCount=30`, a much lower `skipped_recent_metric`
+count, no 429, and Metric-only DB writes.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

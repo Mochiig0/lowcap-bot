@@ -448,3 +448,43 @@ increase would mostly spend selection slots on known skips. The next task
 should be a Yellow candidate-selection improvement that filters out recent
 Metric rows before applying `--limit`, while keeping the delayed pacing and
 batch-mode Notification boundary unchanged.
+
+## Batch Candidate Selection Improvement
+
+Date: 2026-05-19
+
+`metric:snapshot:geckoterminal` batch mode now applies the `--minGapMinutes`
+recent-Metric filter before `--limit`. Recent Metric rows are excluded from the
+candidate set when the latest Metric for the same token and metric source is
+newer than `now - minGapMinutes`.
+
+Selection order:
+
+1. recent GeckoTerminal-origin token cohort from `--sinceMinutes`;
+2. optional `--pumpOnly` filter;
+3. optional min-gap eligibility filter;
+4. optional `--prioritizeRichPending` ordering;
+5. `--limit`.
+
+Expected effects:
+
+- `selectedCount` should represent tokens eligible for fetch/write, not rows
+  that are immediately discarded as `skipped_recent_metric`;
+- batch `skipped_recent_metric` should be greatly reduced, ideally zero when
+  enough eligible candidates exist;
+- exact `--mint` mode remains unchanged and may still skip the target mint by
+  min-gap;
+- `--interItemDelayMs` behavior is unchanged;
+- 429 handling is unchanged;
+- batch mode still does not create Notification rows or send Telegram;
+- Token and HolderSnapshot writes are unchanged.
+
+Next Red candidate, not yet executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected result: `selectedCount=30`, `skipped_recent_metric` near zero,
+`errorCount=0`, no 429, Metric up to +30, and Token / Notification /
+HolderSnapshot unchanged.
