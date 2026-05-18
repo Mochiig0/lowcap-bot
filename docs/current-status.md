@@ -3181,3 +3181,34 @@ or secret display was observed.
 Because the run hit `429` for half of the selected items, do not expand the
 batch size yet. The next step should be a rate-limit-aware Metric accumulation
 preflight or a smaller / delayed Red rerun plan, not a larger batch.
+
+## Metric Snapshot Rate Limit Preflight
+
+Date: 2026-05-19
+
+Read-only / docs-only preflight was completed for the partial `limit 10`
+Metric accumulation result. Current DB state is:
+
+- Token: `1536`
+- Metric: `203`
+- Notification: `8`
+- HolderSnapshot: `1`
+- Token rows with zero Metrics: `1372`
+- `review:queue:geckoterminal -- --pumpOnly --limit 10` reports
+  `metricPendingCount=235`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Code inspection confirmed the current one-shot batch path is sequential, but
+has no item-to-item delay. Each selected token performs one GeckoTerminal token
+snapshot request. A `429 Too Many Requests` response is handled as an item-level
+error: no Metric row is created for that item, Token / Notification /
+HolderSnapshot rows are not changed, and the failed mint remains a future
+Metric candidate because it still has `metricsCount=0`. The CLI can exit `0`
+while reporting `errorCount>0`; this is partial success, not a fully Green
+batch expansion signal.
+
+Do not expand Metric batch size while this pacing gap exists. The recommended
+next task is a Yellow implementation of a batch pacing option, preferably
+`--interItemDelayMs <N>`, with default behavior unchanged and Notification /
+Telegram semantics untouched. Full policy:
+`docs/runbooks/metric-snapshot-rate-limit-policy.md`.

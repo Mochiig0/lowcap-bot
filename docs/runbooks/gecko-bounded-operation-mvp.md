@@ -5672,6 +5672,34 @@ Metric batch size yet and do not immediately rerun. The next slice should define
 rate-limit-aware Metric snapshot pacing, such as smaller batches, delay between
 items, or a bounded watch-style Metric accumulation preflight.
 
+### Metric Snapshot Rate Limit Policy
+
+Read-only / docs-only preflight on 2026-05-19 confirmed the `limit 10` partial
+success should not be treated as a fully Green larger-batch signal.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 203 / 8 / 1`
+- zero-Metric Token count: `1372`
+- `metricPendingCount=235`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Current one-shot batch behavior:
+
+- selected tokens are processed sequentially;
+- no item-to-item delay exists;
+- `429` creates an item-level error only;
+- no Metric row is written for a `429` item;
+- failed `429` mints remain future Metric candidates;
+- Token / Notification / HolderSnapshot are not mutated by batch errors;
+- Telegram is not involved;
+- exit code `0` with `errorCount>0` means partial success.
+
+Next recommendation: do not run a larger Red Metric batch yet. Add a small
+Yellow implementation for `metric:snapshot:geckoterminal` pacing, preferably
+`--interItemDelayMs <N>`, before the next Red Metric accumulation. Full details:
+`docs/runbooks/metric-snapshot-rate-limit-policy.md`.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission

@@ -343,6 +343,17 @@ Recommended next Yellow implementation slice:
   `sent=3`, `failed=0`. The five errors were `429 Too Many Requests`, so the
   next step should address Metric snapshot rate-limit pacing before any larger
   batch expansion;
+- Metric snapshot rate-limit preflight is now docs-only complete. Current DB
+  state is Token / Metric / Notification / HolderSnapshot `1536 / 203 / 8 / 1`,
+  zero-Metric Token count `1372`, `metricPendingCount=235`, and Notification
+  statuses `captured=5`, `sent=3`, `failed=0`. The current batch
+  `metric:snapshot:geckoterminal` path processes selected tokens sequentially
+  but has no item-to-item delay; `429` responses become item-level errors, do
+  not write Metric rows, do not mutate Token / Notification / HolderSnapshot,
+  and leave the failed mints in the future pending queue. Treat exit code 0
+  with `errorCount>0` as partial success only. The next recommended slice is
+  Yellow implementation of `--interItemDelayMs` before another larger Red
+  Metric batch;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

@@ -220,3 +220,45 @@ Follow-up: because half the batch hit `429`, stop expansion. Do not immediately
 rerun. Before another Metric accumulation Red task, define a rate-limit-aware
 plan for this CLI path, for example a smaller batch, explicit inter-item delay,
 or a bounded watch-style Metric accumulation design.
+
+## Rate Limit Aware Follow-Up Preflight
+
+Date: 2026-05-19
+
+Read-only / docs-only follow-up was completed after the `limit 10` partial
+success. Current DB state is:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 203 / 8 / 1`
+- Token rows with zero Metrics: `1372`
+- `review:queue:geckoterminal -- --pumpOnly --limit 10`:
+  `metricPendingCount=235`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Implementation audit:
+
+- one-shot batch mode is sequential, not parallel;
+- there is no item-to-item delay;
+- each item fetches one GeckoTerminal token snapshot;
+- non-OK responses log only safe status / statusText text, not provider bodies
+  or headers;
+- `429 Too Many Requests` is returned as an item-level `status=error`;
+- the command can exit `0` while reporting `errorCount>0`;
+- failed `429` items do not create Metric rows and remain pending because they
+  still have `metricsCount=0`;
+- successful items append Metric rows only;
+- batch mode does not create Notifications and does not send Telegram.
+
+Policy:
+
+- treat `errorCount>0` as partial success, not a fully Green batch expansion;
+- do not immediately rerun to compensate for errored items;
+- do not increase batch size until rate-limit pacing is addressed;
+- keep Token / Notification / HolderSnapshot and Telegram out of the Metric
+  batch path.
+
+Recommendation: choose Yellow implementation of an item pacing option before
+the next Red Metric accumulation. Preferred shape:
+`--interItemDelayMs <N>`, positive integer, default disabled, applied between
+selected items in batch / watch cycles, with no change to Metric write,
+Notification capture, or Telegram semantics. Detailed policy:
+`docs/runbooks/metric-snapshot-rate-limit-policy.md`.
