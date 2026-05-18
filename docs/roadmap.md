@@ -394,6 +394,14 @@ Recommended next Yellow implementation slice:
   HolderSnapshot behavior are unchanged. The next Red candidate is the same
   delayed limit 30 command, now expected to spend the limit on eligible
   candidates rather than recent-Metric skips;
+- improved delayed Metric accumulation `limit 30` was executed once on
+  2026-05-19 after the selection change. It selected 30, skipped 0, wrote 30
+  Metrics (`1316` through `1345`), and reported `errorCount=0`,
+  `interItemDelayCount=29`, and no `429`. Counts moved
+  `1536 / 233 / 8 / 1` to `1536 / 263 / 8 / 1`; Notification statuses stayed
+  `captured=5`, `sent=3`, `failed=0`. This confirms the recent-Metric
+  exclusion is effective; next expansion should still be incremental, for
+  example improved delayed limit 50;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

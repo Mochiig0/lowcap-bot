@@ -265,6 +265,47 @@ pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 14
 Success should show `selectedCount=30`, a much lower `skipped_recent_metric`
 count, no 429, and Metric-only DB writes.
 
+## Improved Limit 30 Result
+
+Date: 2026-05-19
+
+The improved delayed `limit 30` command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- exit code: `0`
+- `selectedCount=30`
+- `okCount=30`
+- `writtenCount=30`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=29`
+- no `429 Too Many Requests`
+- written Metric ids: `1316` through `1345`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `233 -> 263`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Comparison with the previous delayed `limit 30` result:
+
+- previous delayed `limit 30`: `writtenCount=15`, `skippedCount=15`,
+  `errorCount=0`;
+- improved delayed `limit 30`: `writtenCount=30`, `skippedCount=0`,
+  `errorCount=0`.
+
+The pacing stayed rate-limit clean and the selection fix removed the
+`skipped_recent_metric` waste for this batch. Continue incremental expansion;
+do not jump directly to a very large limit.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

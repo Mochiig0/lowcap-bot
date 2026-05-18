@@ -3409,3 +3409,53 @@ pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 14
 Expected result: `selectedCount=30`, `skipped_recent_metric` greatly reduced
 and ideally zero, `errorCount=0`, no 429, Metric up to +30, and Token /
 Notification / HolderSnapshot unchanged.
+
+## Improved Metric Accumulation Limit 30
+
+Date: 2026-05-19
+
+After the candidate-selection improvement, the delayed limit 30 Red command was
+executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Queue precheck immediately before execution reported:
+
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=210`
+- `queues.metricPending` contained GeckoTerminal-origin pump `mint_only` Tokens
+  with `metricsCount=0`
+- the generic queue preview still included some enrich-pending rows with recent
+  Metrics, but those are not the improved Metric snapshot execution selection
+
+Result:
+
+- exit code: `0`
+- `selectedCount=30`
+- `writtenCount=30`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=29`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1316` through `1345`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `233 -> 263`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Compared with the prior delayed limit 30 run (`writtenCount=15`,
+`skippedCount=15`, `errorCount=0`), the improved limit 30 run produced
+`writtenCount=30`, `skippedCount=0`, and `errorCount=0`. The recent-Metric
+exclusion before `--limit` is confirmed effective. Token / Notification /
+HolderSnapshot stayed unchanged, Telegram was not sent, repo-local data stayed
+clean, and no rawJson or secrets were displayed. The next expansion should
+remain incremental, such as improved delayed limit 50, rather than jumping to a
+large batch.

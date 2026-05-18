@@ -5847,6 +5847,40 @@ Next Red candidate:
 pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
 ```
 
+### Improved Delayed Metric Accumulation Limit 30
+
+Executed once on 2026-05-19 after recent-Metric exclusion moved before
+`--limit`:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- `selectedCount=30`
+- `writtenCount=30`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=29`
+- no 429 / rate-limit errors
+- written Metric ids: `1316` through `1345`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `233 -> 263`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Notification statuses stayed `captured=5`, `sent=3`, `failed=0`. Telegram was
+not sent, Notification rows were not created or updated, Token and
+HolderSnapshot rows were not changed, and repo-local data stayed clean.
+
+Compared with the prior delayed `limit 30`, `skipped_recent_metric` moved from
+15 to 0 and `writtenCount` moved from 15 to 30.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission
