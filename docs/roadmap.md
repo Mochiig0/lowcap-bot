@@ -311,6 +311,17 @@ Recommended next Yellow implementation slice:
   mint-only Token rows through `importMint`, uses `/tmp` checkpoint isolation,
   and keeps Metric / Notification / HolderSnapshot writes plus Telegram sends
   out of scope;
+- the 240-cycle GeckoTerminal new-pools write rehearsal completed on
+  2026-05-18 with `--maxIterations 240 --intervalSeconds 60` and checkpoint
+  isolation under `/tmp`. It reported `status=ok`, `stopReason=completed`,
+  `completedIterations=240`, `cycleCount=240`, `failedCount=0`,
+  `rateLimitRetryCount=1`, `rateLimitRetrySuccessCount=1`,
+  `importedCount=240`, `existingCount=0`, `dryRun=false`,
+  `writeEnabled=true`, `checkpointEnabled=true`, and `elapsedMs=16148551`
+  (about `4.49h`). Token count increased `1296 -> 1536`; Metric /
+  Notification / HolderSnapshot stayed `198 / 8 / 1`; Notification status
+  counts stayed `captured=5`, `sent=3`, `failed=0`; Telegram send and
+  repo-local data diffs were not observed;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

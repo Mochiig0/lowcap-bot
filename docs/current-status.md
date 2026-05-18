@@ -3061,3 +3061,39 @@ Notes:
 - Branch: `master`
 - Untracked at the time of inspection: `.codex`
 - Recent commits show the repo is still at MVP scaffold stage
+
+## GeckoTerminal 240-Cycle Write Rehearsal
+
+Date: 2026-05-18
+
+The wall-clock 6h approximation write rehearsal was executed with the approved
+single command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 240 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260518-240.json
+```
+
+Result:
+
+- `status=ok`, `stopReason=completed`
+- `cycleCount=240`, `completedIterations=240`
+- `failedCount=0`
+- `rateLimitRetryCount=1`, `rateLimitRetrySuccessCount=1`
+- `importedCount=240`, `existingCount=0`
+- `dryRun=false`, `writeEnabled=true`, `checkpointEnabled=true`
+- `elapsedMs=16148551` (about 4h 29m 8.551s)
+- checkpoint was written only to
+  `/tmp/lowcap-bot-gecko-write-rehearsal-20260518-240.json`
+
+Counts before / after:
+
+- Token: `1296 -> 1536` (`+240`)
+- Metric: `198 -> 198` (`+0`)
+- Notification: `8 -> 8` (`+0`)
+- HolderSnapshot: `1 -> 1` (`+0`)
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+This confirms the write boundary for this command: mint-only Token rows were
+created, while Metric / Notification / HolderSnapshot rows were not created or
+updated. No Telegram send was performed. Repo-local `data/trend.json` and
+`data/checkpoints` stayed unchanged.

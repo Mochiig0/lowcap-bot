@@ -5528,6 +5528,50 @@ and decide whether to keep it as resume state or replace it before starting.
 Do not silently reuse stale checkpoint state. Full preflight:
 `docs/runbooks/gecko-write-rehearsal-preflight.md`.
 
+### 240-Cycle Write Rehearsal Result
+
+The wall-clock 6h approximation write rehearsal was executed on 2026-05-18 with
+the dedicated `/tmp` checkpoint file:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 240 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260518-240.json
+```
+
+Result:
+
+- `status=ok`
+- `stopReason=completed`
+- `cycleCount=240`
+- `completedIterations=240`
+- `failedCount=0`
+- `rateLimitRetryCount=1`
+- `rateLimitRetrySuccessCount=1`
+- `importedCount=240`
+- `existingCount=0`
+- `dryRun=false`
+- `writeEnabled=true`
+- `checkpointEnabled=true`
+- `elapsedMs=16148551` (about 4h 29m 8.551s)
+
+Counts before / after:
+
+- Token: `1296 -> 1536`
+- Metric: `198 -> 198`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+The command created mint-only Token rows only. It did not create or update
+Metric, Notification, or HolderSnapshot rows. It did not send Telegram. The
+checkpoint update was isolated to
+`/tmp/lowcap-bot-gecko-write-rehearsal-20260518-240.json`; repo-local
+`data/checkpoints` and `data/trend.json` stayed unchanged.
+
+The preflight selected 240 cycles as a wall-clock 6h approximation based on the
+previous 360-cycle dry-run average, but this run completed in about 4.49h. Treat
+the result as a successful 240-cycle write-boundary rehearsal, not as proof that
+240 cycles always consume 6h wall-clock.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission

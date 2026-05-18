@@ -171,3 +171,55 @@ Stop before Red execution if any of these are true:
 - metric snapshot;
 - import / enrich / rescore;
 - schema / migration / app code change.
+
+## 240-Cycle Write Rehearsal Result
+
+Date: 2026-05-18
+
+The Red write rehearsal was executed after this preflight with the exact
+dedicated-checkpoint command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 240 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260518-240.json
+```
+
+Result:
+
+- exit code: `0`
+- `status=ok`
+- `stopReason=completed`
+- `cycleCount=240`
+- `completedIterations=240`
+- `failedCount=0`
+- `rateLimitRetryCount=1`
+- `rateLimitRetrySuccessCount=1`
+- `importedCount=240`
+- `existingCount=0`
+- `dryRun=false`
+- `writeEnabled=true`
+- `checkpointEnabled=true`
+- `checkpointUpdated=true`
+- checkpoint file:
+  `/tmp/lowcap-bot-gecko-write-rehearsal-20260518-240.json`
+- `elapsedMs=16148551` (about 4h 29m 8.551s)
+
+Counts before / after:
+
+- Token: `1296 -> 1536` (`+240`)
+- Metric: `198 -> 198` (`+0`)
+- Notification: `8 -> 8` (`+0`)
+- HolderSnapshot: `1 -> 1` (`+0`)
+- Notification statuses remained `captured=5`, `sent=3`, `failed=0`
+
+Confirmed boundary:
+
+- DB write occurred only through mint-only Token creation.
+- Metric, Notification, and HolderSnapshot rows were not created or updated.
+- Telegram live send was not executed.
+- The only checkpoint update was the `/tmp` file above.
+- Repo-local `data/checkpoints` and `data/trend.json` had no diff.
+
+Timing note: the run used 240 cycles as a wall-clock 6h approximation based on
+the previous 360-cycle dry-run average (`32632518ms`, about `9.06h`). This
+write rehearsal finished faster, in about `4.49h`; therefore it proves a
+240-cycle write boundary, not a fixed 6h wall-clock duration.
