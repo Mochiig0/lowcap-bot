@@ -257,8 +257,36 @@ Policy:
   batch path.
 
 Recommendation: choose Yellow implementation of an item pacing option before
-the next Red Metric accumulation. Preferred shape:
-`--interItemDelayMs <N>`, positive integer, default disabled, applied between
+the next Red Metric accumulation. Implemented shape:
+`--interItemDelayMs <N>`, non-negative integer, default `0`, applied between
 selected items in batch / watch cycles, with no change to Metric write,
 Notification capture, or Telegram semantics. Detailed policy:
 `docs/runbooks/metric-snapshot-rate-limit-policy.md`.
+
+## Inter-Item Delay Implementation
+
+Date: 2026-05-19
+
+`metric:snapshot:geckoterminal` now supports:
+
+```bash
+--interItemDelayMs <N>
+```
+
+Behavior:
+
+- default is `0`, so existing commands keep their prior pacing;
+- `N` must be a non-negative integer;
+- delay applies only between selected batch items;
+- there is no delay before the first item or after the last item;
+- exact `--mint` mode does not delay;
+- dry-run and `--write` batch mode use the same pacing;
+- summary output includes `interItemDelayMs` and `interItemDelayCount`;
+- Metric write, Notification capture, Telegram, Token, HolderSnapshot, and 429
+  handling are unchanged.
+
+Next Red candidate, not yet executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```

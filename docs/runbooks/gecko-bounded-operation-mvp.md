@@ -5700,6 +5700,26 @@ Yellow implementation for `metric:snapshot:geckoterminal` pacing, preferably
 `--interItemDelayMs <N>`, before the next Red Metric accumulation. Full details:
 `docs/runbooks/metric-snapshot-rate-limit-policy.md`.
 
+### Metric Snapshot Inter-Item Delay
+
+`metric:snapshot:geckoterminal` now supports `--interItemDelayMs <N>`.
+
+Operational boundary:
+
+- default `0` preserves the previous no-delay behavior;
+- `N` is validated as a non-negative integer;
+- delay applies only between selected batch items;
+- exact `--mint` mode is not delayed;
+- summary output includes `interItemDelayMs` and `interItemDelayCount`;
+- Metric write, Notification capture, Telegram, Token, HolderSnapshot, and 429
+  item-error behavior are unchanged.
+
+Next Red candidate, not yet executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission

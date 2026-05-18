@@ -75,7 +75,7 @@ pnpm metric:add -- --mint <MINT> [--source <SOURCE>] [--launchPrice <NUM>] [--pe
 ```
 
 ```bash
-pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--source <SOURCE>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
+pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
 ```
 
 ```bash
@@ -3212,3 +3212,25 @@ next task is a Yellow implementation of a batch pacing option, preferably
 `--interItemDelayMs <N>`, with default behavior unchanged and Notification /
 Telegram semantics untouched. Full policy:
 `docs/runbooks/metric-snapshot-rate-limit-policy.md`.
+
+## Metric Snapshot Inter-Item Delay
+
+Date: 2026-05-19
+
+`metric:snapshot:geckoterminal` now supports `--interItemDelayMs <N>` for
+batch pacing. The default is `0`, preserving existing behavior. The option
+accepts a non-negative integer, is reported in the JSON summary, and delays
+only between selected batch items. There is no delay before the first item, no
+delay after the final item, and exact `--mint` mode is not delayed even if the
+option is present.
+
+This change does not alter Metric write semantics, Notification capture,
+Telegram live send behavior, Token / HolderSnapshot behavior, or 429 handling.
+`429 Too Many Requests` remains an item-level error with no Metric row for that
+item and unchanged CLI exit-code policy.
+
+Next Red candidate, not yet executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```

@@ -56,6 +56,8 @@ type MetricSnapshotGeckoterminalOutput = {
     skippedCount: number;
     errorCount: number;
     writtenCount: number;
+    interItemDelayMs: number;
+    interItemDelayCount: number;
   };
   items: Array<{
     token: {
@@ -549,6 +551,8 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.skippedCount, 0);
       assert.equal(parsed.summary.errorCount, 0);
       assert.equal(parsed.summary.writtenCount, 0);
+      assert.equal(parsed.summary.interItemDelayMs, 0);
+      assert.equal(parsed.summary.interItemDelayCount, 0);
       assert.equal(parsed.items.length, 1);
       assert.equal(parsed.items[0]?.token.mint, mint);
       assert.equal(parsed.items[0]?.token.currentSource, GECKO_ORIGIN_SOURCE);
@@ -755,6 +759,95 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     });
   });
 
+  await t.test("accepts interItemDelayMs and delays only between batch items", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "batch-inter-item-delay.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-batch-delay-snapshot.json");
+      const now = Date.now();
+      const mints = [
+        "MetricSnapshotDelayA111111111111111111111111111pump",
+        "MetricSnapshotDelayB111111111111111111111111111pump",
+        "MetricSnapshotDelayC111111111111111111111111111pump",
+      ];
+
+      await runDbPush(databaseUrl);
+      for (let index = 0; index < mints.length; index += 1) {
+        await seedMetricSelectionToken(databaseUrl, {
+          mint: mints[index] ?? "",
+          createdAt: new Date(now - index * 1_000),
+          metadataStatus: "mint_only",
+        });
+      }
+      await writeSnapshotFixture(geckoSnapshotFile, mints[0] ?? "");
+
+      const result = await runMetricSnapshotGeckoterminal(
+        [
+          "--limit",
+          "3",
+          "--sinceMinutes",
+          "10",
+          "--interItemDelayMs",
+          "1",
+        ],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.selection.selectedCount, 3);
+      assert.equal(parsed.summary.selectedCount, 3);
+      assert.equal(parsed.summary.okCount, 3);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.summary.writtenCount, 0);
+      assert.equal(parsed.summary.interItemDelayMs, 1);
+      assert.equal(parsed.summary.interItemDelayCount, 2);
+    });
+  });
+
+  await t.test("does not delay exact mint mode even when interItemDelayMs is set", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "single-inter-item-delay.db")}`;
+      const mint = "MetricSnapshotSingleDelay111111111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-single-delay-snapshot.json");
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--mint", mint, "--interItemDelayMs", "15000"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "single");
+      assert.equal(parsed.selection.selectedCount, 1);
+      assert.equal(parsed.summary.interItemDelayMs, 15000);
+      assert.equal(parsed.summary.interItemDelayCount, 0);
+    });
+  });
+
+  await t.test("rejects invalid interItemDelayMs values", async () => {
+    for (const invalidValue of ["-1", "1.5", "abc", "NaN"]) {
+      const result = await runMetricSnapshotGeckoterminal([
+        "--interItemDelayMs",
+        invalidValue,
+      ]);
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 1);
+      assert.equal(result.stdout, "");
+      assert.match(
+        result.stderr,
+        new RegExp(
+          `Invalid non-negative integer for --interItemDelayMs: ${invalidValue.replace(".", "\\.")}`,
+        ),
+      );
+    }
+  });
+
   await t.test("prioritizeRichPending changes recent batch selection order toward richer pending rows", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "priority.db")}`;
@@ -877,7 +970,7 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--intervalSeconds and --maxIterations require --watch/);
     assert.match(
       result.stderr,
-      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--source <SOURCE>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
+      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
     );
   });
 

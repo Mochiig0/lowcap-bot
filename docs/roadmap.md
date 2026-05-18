@@ -354,6 +354,13 @@ Recommended next Yellow implementation slice:
   with `errorCount>0` as partial success only. The next recommended slice is
   Yellow implementation of `--interItemDelayMs` before another larger Red
   Metric batch;
+- `metric:snapshot:geckoterminal` now has `--interItemDelayMs <N>` for
+  batch-item pacing. The default is `0`; the value must be a non-negative
+  integer; delay is applied only between selected batch items and is reported
+  in summary output. Exact `--mint` mode is not delayed. Metric write,
+  Notification capture, Telegram live send, Token / HolderSnapshot behavior,
+  and 429 item-error handling are unchanged. The next Red candidate is:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

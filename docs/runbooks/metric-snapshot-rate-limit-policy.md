@@ -77,8 +77,8 @@ second command.
 
 ## Recommendation
 
-Choose **B: inter-item delay Yellow implementation** before the next Red Metric
-accumulation.
+The chosen follow-up is **B: inter-item delay Yellow implementation** before
+the next Red Metric accumulation.
 
 Reason:
 
@@ -91,29 +91,30 @@ Reason:
   in the limit 10 run while preserving the existing batch mode and write
   boundary.
 
-Recommended Yellow implementation shape:
+Implemented Yellow shape:
 
-- add a batch-compatible CLI option, preferably `--interItemDelayMs <N>`;
-- require a positive integer, matching existing parser style;
-- default to no delay to preserve existing behavior;
-- apply the delay between selected items in one-shot and watch cycles;
-- do not delay before the first item;
-- keep dry-run and write behavior identical except for pacing;
-- keep Notification / Telegram behavior unchanged;
-- add focused tests for parser propagation and delayed processing using
-  fixture-backed / mocked fetch, not production DB or live Telegram;
-- update docs with the new pacing option and Red command template.
+- added batch-compatible CLI option `--interItemDelayMs <N>`;
+- `N` is a non-negative integer;
+- default `0` preserves existing behavior;
+- delay is applied between selected batch items in one-shot and watch cycles;
+- there is no delay before the first item or after the last item;
+- exact `--mint` mode is not delayed;
+- dry-run and write behavior are identical except for pacing;
+- Notification / Telegram / Token / HolderSnapshot behavior is unchanged;
+- 429 handling is unchanged;
+- summary output includes `interItemDelayMs` and `interItemDelayCount`;
+- focused tests cover parsing, invalid values, batch delay count, last-item
+  behavior, and exact `--mint` no-delay behavior without production DB or live
+  Telegram.
 
-Proposed next Yellow task:
+Proposed next Red command, not yet executed:
 
-```text
-Implement --interItemDelayMs for metric:snapshot:geckoterminal and test that
-batch mode waits between items without changing Metric / Notification /
-Telegram semantics.
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
 ```
 
-Do not proceed to a larger Metric batch until this is implemented or a separate
-operator decision explicitly accepts repeated `429` risk.
+Do not proceed to a larger Metric batch until the delayed `limit 10` Red result
+is recorded.
 
 ## Stop Conditions Before Next Red
 
@@ -123,7 +124,7 @@ Stop before the next Metric accumulation Red task if:
 - `metricPendingCount` is unexpectedly low or no longer matches the cohort;
 - selected rows are not GeckoTerminal-origin pump Tokens;
 - selected rows already have recent Metrics and would be mostly skipped;
-- pacing is not implemented and the planned limit is greater than 5;
+- `--interItemDelayMs` is omitted for a planned limit greater than 5;
 - Telegram / Notification paths appear in batch mode;
 - Token or HolderSnapshot writes appear in the path;
 - raw provider response bodies, `.env`, API keys, Telegram token / chat id, or

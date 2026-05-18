@@ -32,6 +32,7 @@ type MetricSnapshotArgs = {
   pumpOnly: boolean;
   prioritizeRichPending: boolean;
   minGapMinutes?: number;
+  interItemDelayMs: number;
   intervalSeconds: number;
   maxIterations?: number;
   source: string;
@@ -164,6 +165,8 @@ type CliOutput = {
     skippedCount: number;
     errorCount: number;
     writtenCount: number;
+    interItemDelayMs: number;
+    interItemDelayCount: number;
   };
   items: ProcessedTokenResult[];
 };
@@ -194,6 +197,8 @@ type WatchCycleResult = {
     rateLimitedCount: number;
     abortedDueToRateLimit: boolean;
     skippedAfterRateLimit: number;
+    interItemDelayMs: number;
+    interItemDelayCount: number;
   };
   items: ProcessedTokenResult[];
 };
@@ -204,6 +209,7 @@ type WatchOutput = {
   writeEnabled: boolean;
   watchEnabled: boolean;
   intervalSeconds: number;
+  interItemDelayMs: number;
   maxIterations?: number;
   metricSource: string;
   originSource: string;
@@ -226,6 +232,7 @@ type WatchOutput = {
   rateLimitedCount: number;
   abortedDueToRateLimit: boolean;
   skippedAfterRateLimit: number;
+  interItemDelayCount: number;
   items: ProcessedTokenResult[];
   cycles: WatchCycleResult[];
 };
@@ -245,7 +252,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
@@ -255,6 +262,7 @@ function getUsageText(): string {
     `- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter`,
     `- recent batch mode may also prefer non-mint_only and review-flagged rows via experimental --prioritizeRichPending; default selection order stays unchanged when omitted`,
     `- skips a token before fetch only when --minGapMinutes is set and the latest Metric for the same token+source is still recent`,
+    `- waits --interItemDelayMs between selected batch items when set; default is 0 and exact --mint mode is not delayed`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
     `- single --mint write mode captures a metric_appended Notification by default; --noNotificationCapture suppresses that capture record without changing Metric writes`,
     `- loops only when --watch is set`,
@@ -277,6 +285,15 @@ function parsePositiveIntegerArg(value: string, key: string): number {
   return parsed;
 }
 
+function parseNonNegativeIntegerArg(value: string, key: string): number {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new CliUsageError(`Invalid non-negative integer for ${key}: ${value}`);
+  }
+
+  return Number(trimmed);
+}
+
 function parseOptionalStringArg(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
@@ -292,6 +309,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     pumpOnly: false,
     prioritizeRichPending: false,
+    interItemDelayMs: 0,
     intervalSeconds: DEFAULT_INTERVAL_SECONDS,
     source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
   };
@@ -343,6 +361,9 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
         break;
       case "--minGapMinutes":
         out.minGapMinutes = parsePositiveIntegerArg(value, key);
+        break;
+      case "--interItemDelayMs":
+        out.interItemDelayMs = parseNonNegativeIntegerArg(value, key);
         break;
       case "--intervalSeconds":
         out.intervalSeconds = parsePositiveIntegerArg(value, key);
@@ -1074,6 +1095,7 @@ type SnapshotExecutionResult = {
   rateLimitedCount: number;
   abortedDueToRateLimit: boolean;
   skippedAfterRateLimit: number;
+  interItemDelayCount: number;
 };
 
 async function executeSnapshotCycle(
@@ -1085,6 +1107,7 @@ async function executeSnapshotCycle(
   let rateLimitedCount = 0;
   let abortedDueToRateLimit = false;
   let skippedAfterRateLimit = 0;
+  let interItemDelayCount = 0;
 
   for (let index = 0; index < selection.selectedTokens.length; index += 1) {
     const token = selection.selectedTokens[index];
@@ -1098,6 +1121,11 @@ async function executeSnapshotCycle(
       skippedAfterRateLimit = selection.selectedTokens.length - index - 1;
       break;
     }
+
+    if (!args.mint && args.interItemDelayMs > 0 && index < selection.selectedTokens.length - 1) {
+      interItemDelayCount += 1;
+      await sleep(args.interItemDelayMs);
+    }
   }
 
   return {
@@ -1110,6 +1138,7 @@ async function executeSnapshotCycle(
     rateLimitedCount,
     abortedDueToRateLimit,
     skippedAfterRateLimit,
+    interItemDelayCount,
   };
 }
 
@@ -1140,6 +1169,8 @@ function buildOneShotOutput(
       skippedCount: execution.items.filter((item) => item.status === "skipped_recent_metric").length,
       errorCount: execution.items.filter((item) => item.status === "error").length,
       writtenCount: execution.items.filter((item) => item.writeSummary.metricId !== null).length,
+      interItemDelayMs: args.interItemDelayMs,
+      interItemDelayCount: execution.interItemDelayCount,
     },
     items: execution.items,
   };
@@ -1176,6 +1207,8 @@ function createFailedCycleResult(
       rateLimitedCount: 0,
       abortedDueToRateLimit: false,
       skippedAfterRateLimit: 0,
+      interItemDelayMs: args.interItemDelayMs,
+      interItemDelayCount: 0,
     },
     items: [],
   };
@@ -1211,6 +1244,8 @@ function buildWatchCycleResult(
       rateLimitedCount: execution.rateLimitedCount,
       abortedDueToRateLimit: execution.abortedDueToRateLimit,
       skippedAfterRateLimit: execution.skippedAfterRateLimit,
+      interItemDelayMs: args.interItemDelayMs,
+      interItemDelayCount: execution.interItemDelayCount,
     },
     items: execution.items,
   };
@@ -1230,6 +1265,8 @@ function logWatchCycleSummary(cycle: WatchCycleResult): void {
       `rateLimitedCount=${cycle.summary.rateLimitedCount}`,
       `abortedDueToRateLimit=${cycle.summary.abortedDueToRateLimit}`,
       `skippedAfterRateLimit=${cycle.summary.skippedAfterRateLimit}`,
+      `interItemDelayMs=${cycle.summary.interItemDelayMs}`,
+      `interItemDelayCount=${cycle.summary.interItemDelayCount}`,
       ...(cycle.errorMessage ? [`errorMessage=${JSON.stringify(cycle.errorMessage)}`] : []),
     ].join(" "),
   );
@@ -1247,6 +1284,7 @@ function buildWatchOutput(
     writeEnabled: args.write,
     watchEnabled: args.watch,
     intervalSeconds: args.intervalSeconds,
+    interItemDelayMs: args.interItemDelayMs,
     ...(args.maxIterations ? { maxIterations: args.maxIterations } : {}),
     metricSource: args.source,
     originSource: GECKOTERMINAL_NEW_POOLS_SOURCE,
@@ -1285,6 +1323,10 @@ function buildWatchOutput(
     abortedDueToRateLimit: cycles.some((cycle) => cycle.summary.abortedDueToRateLimit),
     skippedAfterRateLimit: cycles.reduce(
       (sum, cycle) => sum + cycle.summary.skippedAfterRateLimit,
+      0,
+    ),
+    interItemDelayCount: cycles.reduce(
+      (sum, cycle) => sum + cycle.summary.interItemDelayCount,
       0,
     ),
     items: flattenedItems,
