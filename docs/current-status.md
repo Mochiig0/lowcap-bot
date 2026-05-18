@@ -3234,3 +3234,51 @@ Next Red candidate, not yet executed:
 ```bash
 pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
 ```
+
+## Delayed Metric Accumulation Limit 10
+
+Date: 2026-05-19
+
+The delayed Metric accumulation Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Queue precheck immediately before execution reported:
+
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=235`
+- candidate rows were GeckoTerminal-origin pump `mint_only` Tokens
+- the first five preview rows already had recent Metrics and were expected to
+  be skipped by `minGapMinutes=60`
+
+Result:
+
+- exit code: `0`
+- `selectedCount=10`
+- `writtenCount=5`
+- `skippedCount=5`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=9`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1286`, `1287`, `1288`, `1289`, `1290`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `203 -> 208`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Compared with the prior no-delay limit 10 run (`writtenCount=5`,
+`errorCount=5`, five `429` errors), the delayed run produced
+`writtenCount=5`, `skippedCount=5`, and `errorCount=0`. Because five selected
+rows were skipped by `minGapMinutes=60`, this confirms delayed pacing removed
+429s for the fetched pending items, but it was not a full 10-fetch comparison.
+No Telegram send, Notification create/update, Token update/create,
+HolderSnapshot write, repo-local data diff, rawJson dump, or secret display was
+observed.

@@ -116,6 +116,47 @@ pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 14
 Do not proceed to a larger Metric batch until the delayed `limit 10` Red result
 is recorded.
 
+## Delayed Limit 10 Result
+
+Date: 2026-05-19
+
+The delayed command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- exit code: `0`
+- `selectedCount=10`
+- `okCount=5`
+- `writtenCount=5`
+- `skippedCount=5`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=9`
+- no `429 Too Many Requests`
+- written Metric ids: `1286`, `1287`, `1288`, `1289`, `1290`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `203 -> 208`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+The prior no-delay `limit 10` run had `writtenCount=5`, `errorCount=5`, and
+five `429` item errors. The delayed run had `errorCount=0`, but five selected
+rows were skipped by `minGapMinutes=60` because they already had recent Metrics
+from the previous run. Therefore, this confirms the delay shape is safe and
+improved the fetched pending subset; it does not prove that a 10-fetch delayed
+batch is always clean.
+
+Next expansion should stay modest. Prefer one more Red at `limit 20` with
+`--interItemDelayMs 15000`, or add a pending-only selection mode before larger
+batch accounting.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

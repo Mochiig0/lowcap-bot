@@ -361,6 +361,15 @@ Recommended next Yellow implementation slice:
   Notification capture, Telegram live send, Token / HolderSnapshot behavior,
   and 429 item-error handling are unchanged. The next Red candidate is:
   `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write`;
+- delayed Metric accumulation `limit 10` with `--interItemDelayMs 15000` was
+  executed once on 2026-05-19. It selected 10, skipped 5 via
+  `minGapMinutes=60`, wrote 5 Metrics (`1286` through `1290`), and reported
+  `errorCount=0`, `interItemDelayCount=9`, and no `429`. Counts moved
+  `1536 / 203 / 8 / 1` to `1536 / 208 / 8 / 1`; Notification statuses stayed
+  `captured=5`, `sent=3`, `failed=0`. This improves the prior no-delay
+  `limit 10` run (`written=5`, `error=5`, five 429s), but because five
+  selected rows were recent-Metric skips, treat it as a successful delayed
+  small-batch confirmation rather than approval for a large jump;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

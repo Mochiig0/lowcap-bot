@@ -290,3 +290,57 @@ Next Red candidate, not yet executed:
 ```bash
 pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
 ```
+
+## Delayed Limit 10 Red Result
+
+Date: 2026-05-19
+
+The delayed Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Immediate queue precheck:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 10`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=235`
+- candidate rows were GeckoTerminal-origin pump `mint_only` Tokens
+- the first five preview rows had recent Metrics and were expected
+  `skipped_recent_metric` rows under `minGapMinutes=60`
+
+Run result:
+
+- exit code: `0`
+- `selectedCount=10`
+- `okCount=5`
+- `writtenCount=5`
+- `skippedCount=5`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=9`
+- no 429 / rate-limit errors
+- no provider errors
+- written Metric ids: `1286`, `1287`, `1288`, `1289`, `1290`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `203 -> 208`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Comparison:
+
+- prior no-delay `limit 10`: `writtenCount=5`, `skippedCount=0`,
+  `errorCount=5`, five `429 Too Many Requests`;
+- delayed `limit 10`: `writtenCount=5`, `skippedCount=5`, `errorCount=0`,
+  no `429`.
+
+Interpretation: delayed pacing improved the fetched pending items, but this run
+only fetched five items because five selected rows were recent-Metric skips.
+Do not jump directly to a large batch. The next Red should either use a modest
+larger limit such as 20 with the same delay, or first adjust selection to focus
+only Metric-pending rows if the operator wants cleaner batch accounting.
