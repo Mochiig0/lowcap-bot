@@ -3134,3 +3134,50 @@ Expected upper bound: Token `+0`, Metric up to `+10`, Notification `+0`,
 HolderSnapshot `+0`, Telegram send `0`. Because `sinceMinutes 1440` is
 time-relative, rerun the read-only queue check immediately before Red execution
 and stop if the candidate set no longer matches the 240-token cohort.
+
+## Bounded Metric Accumulation Limit 10
+
+Date: 2026-05-19
+
+The bounded Metric accumulation Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Queue precheck immediately before execution:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 10`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=240`
+- selected preview rows were GeckoTerminal-origin pump `mint_only` Tokens with
+  `metricsCount=0`
+
+Result:
+
+- exit code: `0`
+- `selectedCount=10`
+- `writtenCount=5`
+- `skippedCount=0`
+- `errorCount=5`
+- no `skipped_recent_metric`
+- five item errors were `429 Too Many Requests`
+- written Metric ids: `1281`, `1282`, `1283`, `1284`, `1285`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `198 -> 203`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+This confirms the batch Metric write boundary for successful items: Metric rows
+were appended and Notification capture stayed disabled in batch mode
+(`notificationSkippedReason=not_single_mint_mode`). No Telegram send, Token
+create/update, HolderSnapshot create/update, repo-local data diff, rawJson dump,
+or secret display was observed.
+
+Because the run hit `429` for half of the selected items, do not expand the
+batch size yet. The next step should be a rate-limit-aware Metric accumulation
+preflight or a smaller / delayed Red rerun plan, not a larger batch.

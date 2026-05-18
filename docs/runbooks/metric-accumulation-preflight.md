@@ -166,3 +166,57 @@ Stop before Red execution if any of these are true:
 - scheduler / systemd;
 - import / enrich / rescore;
 - schema / migration / app code change.
+
+## Limit 10 Red Result
+
+Date: 2026-05-19
+
+The approved Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Queue precheck:
+
+- command: `pnpm -s review:queue:geckoterminal -- --pumpOnly --limit 10`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=240`
+- `notifyCandidateCount=0`
+- preview rows were GeckoTerminal-origin pump `mint_only` Tokens with
+  `metricsCount=0`
+
+Run result:
+
+- exit code: `0`
+- `selectedCount=10`
+- `okCount=5`
+- `writtenCount=5`
+- `skippedCount=0`
+- `errorCount=5`
+- no `skipped_recent_metric`
+- five selected items returned `GeckoTerminal token snapshot request failed:
+  429 Too Many Requests`
+- written Metric ids: `1281`, `1282`, `1283`, `1284`, `1285`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `198 -> 203`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Boundary confirmed:
+
+- Metric rows were appended for successful items only.
+- Batch mode did not create Notification rows.
+- Telegram live send did not run.
+- Token and HolderSnapshot rows were not created or updated.
+- Repo-local `data/trend.json` and `data/checkpoints` had no diff.
+- Full rawJson, environment values, and secrets were not displayed.
+
+Follow-up: because half the batch hit `429`, stop expansion. Do not immediately
+rerun. Before another Metric accumulation Red task, define a rate-limit-aware
+plan for this CLI path, for example a smaller batch, explicit inter-item delay,
+or a bounded watch-style Metric accumulation design.

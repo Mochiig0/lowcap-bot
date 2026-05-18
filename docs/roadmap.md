@@ -333,6 +333,16 @@ Recommended next Yellow implementation slice:
   `--mint` mode is the Notification-capture path. The next Red candidate is
   a small batch Metric write:
   `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write`;
+- bounded Metric accumulation `limit 10` was executed once on 2026-05-19.
+  Queue precheck reported `geckoOriginTokenCount=240` and
+  `metricPendingCount=240`; selected preview rows matched GeckoTerminal-origin
+  pump `mint_only` Tokens with `metricsCount=0`. The command exited 0 with
+  `selectedCount=10`, `writtenCount=5`, `skippedCount=0`, and `errorCount=5`.
+  Metric count moved `198 -> 203`; Token / Notification / HolderSnapshot
+  stayed `1536 / 8 / 1`; Notification statuses stayed `captured=5`,
+  `sent=3`, `failed=0`. The five errors were `429 Too Many Requests`, so the
+  next step should address Metric snapshot rate-limit pacing before any larger
+  batch expansion;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

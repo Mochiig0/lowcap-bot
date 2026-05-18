@@ -5627,6 +5627,51 @@ run reports `errorCount>0` or a `429` item error, record the safe summary and do
 not rerun or expand the batch in the same task. Full preflight:
 `docs/runbooks/metric-accumulation-preflight.md`.
 
+### Bounded Metric Accumulation Limit 10 Result
+
+Executed on 2026-05-19:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Immediate queue precheck:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 10`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=240`
+- preview rows were GeckoTerminal-origin pump `mint_only` Tokens with
+  `metricsCount=0`
+
+Run result:
+
+- exit code: `0`
+- `selectedCount=10`
+- `writtenCount=5`
+- `skippedCount=0`
+- `errorCount=5`
+- `skipped_recent_metric`: none
+- rate-limit / provider errors: five `429 Too Many Requests`
+- written Metric ids: `1281`, `1282`, `1283`, `1284`, `1285`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `198 -> 203`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+The successful items confirmed that batch mode appends Metric rows without
+Notification capture (`notificationSkippedReason=not_single_mint_mode`), without
+Telegram send, without Token / HolderSnapshot writes, and without repo-local
+data diffs. Full rawJson was not displayed.
+
+Because `errorCount=5` was caused by `429 Too Many Requests`, do not expand the
+Metric batch size yet and do not immediately rerun. The next slice should define
+rate-limit-aware Metric snapshot pacing, such as smaller batches, delay between
+items, or a bounded watch-style Metric accumulation preflight.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission
