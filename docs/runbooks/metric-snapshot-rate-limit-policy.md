@@ -197,6 +197,47 @@ pending subset. Because selected rows still include recent-Metric skips, expand
 only modestly next, such as delayed `limit 30`, or design a pending-only batch
 selection option before using much larger limits.
 
+## Delayed Limit 30 Result
+
+Date: 2026-05-19
+
+The delayed `limit 30` command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- exit code: `0`
+- `selectedCount=30`
+- `okCount=15`
+- `writtenCount=15`
+- `skippedCount=15`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=29`
+- no `429 Too Many Requests`
+- written Metric ids: `1301` through `1315`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `218 -> 233`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Comparison with the delayed `limit 20` result:
+
+- delayed `limit 20`: `writtenCount=10`, `skippedCount=10`, `errorCount=0`;
+- delayed `limit 30`: `writtenCount=15`, `skippedCount=15`, `errorCount=0`.
+
+The 15-second inter-item delay continued to avoid 429s. The limiting issue is
+now selection quality rather than pacing: half of the selected rows were
+`skipped_recent_metric`. Before expanding beyond limit 30, add or preflight a
+candidate-selection improvement so recent Metrics are excluded before `--limit`
+is applied.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

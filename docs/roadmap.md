@@ -378,6 +378,15 @@ Recommended next Yellow implementation slice:
   `captured=5`, `sent=3`, `failed=0`. This keeps the delayed path Green at a
   modestly wider scope; next expansion should still be incremental, such as
   delayed limit 30, before larger batches;
+- delayed Metric accumulation `limit 30` with the same `--interItemDelayMs
+  15000` was executed once on 2026-05-19. It selected 30, skipped 15 via
+  `minGapMinutes=60`, wrote 15 Metrics (`1301` through `1315`), and reported
+  `errorCount=0`, `interItemDelayCount=29`, and no `429`. Counts moved
+  `1536 / 218 / 8 / 1` to `1536 / 233 / 8 / 1`; Notification statuses stayed
+  `captured=5`, `sent=3`, `failed=0`. The delayed path remains rate-limit
+  clean, but the 50% skip ratio means the next step should be candidate
+  selection that excludes recent Metrics before applying `--limit`, not another
+  batch-size increase;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

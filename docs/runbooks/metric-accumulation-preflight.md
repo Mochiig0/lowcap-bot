@@ -395,3 +395,56 @@ Interpretation: 15-second item pacing remained clean at limit 20. The run
 still included recent-Metric skips, so continue incremental expansion rather
 than jumping directly to a large batch. A reasonable next Red is delayed
 `limit 30` with the same pacing and stop conditions.
+
+## Delayed Limit 30 Red Result
+
+Date: 2026-05-19
+
+The delayed limit 30 Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Immediate queue precheck:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 30`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=220`
+- candidate rows were GeckoTerminal-origin pump `mint_only` Tokens
+- recent Metric rows were mixed into the selected window and expected
+  `skipped_recent_metric` rows under `minGapMinutes=60`
+
+Run result:
+
+- exit code: `0`
+- `selectedCount=30`
+- `okCount=15`
+- `writtenCount=15`
+- `skippedCount=15`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=29`
+- no 429 / rate-limit errors
+- no provider errors
+- written Metric ids: `1301` through `1315`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `218 -> 233`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Comparison:
+
+- delayed `limit 20`: `writtenCount=10`, `skippedCount=10`, `errorCount=0`;
+- delayed `limit 30`: `writtenCount=15`, `skippedCount=15`, `errorCount=0`.
+
+Interpretation: 15-second item pacing remained clean at limit 30. The selected
+set still had a 50% `skipped_recent_metric` ratio, so another batch-size
+increase would mostly spend selection slots on known skips. The next task
+should be a Yellow candidate-selection improvement that filters out recent
+Metric rows before applying `--limit`, while keeping the delayed pacing and
+batch-mode Notification boundary unchanged.

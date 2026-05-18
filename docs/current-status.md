@@ -3329,3 +3329,51 @@ writing 10 Metrics. Token / Notification / HolderSnapshot stayed unchanged, no
 Telegram send occurred, repo-local data stayed clean, and no rawJson or secrets
 were displayed. Next expansion should still be modest, for example delayed
 limit 30, rather than a large batch jump.
+
+## Delayed Metric Accumulation Limit 30
+
+Date: 2026-05-19
+
+The delayed Metric accumulation Red command was expanded to limit 30 and
+executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 30 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Queue precheck immediately before execution reported:
+
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=220`
+- candidate rows were GeckoTerminal-origin pump `mint_only` Tokens
+- recent Metric rows were mixed into the selected window and expected to be
+  skipped by `minGapMinutes=60`
+
+Result:
+
+- exit code: `0`
+- `selectedCount=30`
+- `writtenCount=15`
+- `skippedCount=15`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=29`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1301` through `1315`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `218 -> 233`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Compared with delayed limit 20 (`writtenCount=10`, `skippedCount=10`,
+`errorCount=0`), delayed limit 30 maintained zero errors and zero 429s while
+writing 15 Metrics. Token / Notification / HolderSnapshot stayed unchanged, no
+Telegram send occurred, repo-local data stayed clean, and no rawJson or secrets
+were displayed. The skip ratio remained 50%, so the next step should be a
+Yellow candidate-selection improvement that excludes recent Metrics before
+applying `--limit`, rather than another batch-size expansion.
