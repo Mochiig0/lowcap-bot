@@ -91,8 +91,8 @@ The final summary confirmed graceful interrupt handling:
 Before / after counts stayed `Token=1296`, `Metric=198`,
 `Notification=8`, and `HolderSnapshot=1`. No DB write, Telegram send,
 Notification create/update, Metric create, checkpoint update, or repo-local
-data diff was observed. The 6h dry-run remains incomplete and should not be
-treated as a stability proof.
+data diff was observed. At that point the 6h dry-run was still incomplete and
+should not have been treated as a stability proof.
 
 Follow-up: before another live long-run attempt, prefer a Yellow check or small
 wrapper adjustment for process-tree timeout behavior so operator SIGINT does
@@ -117,11 +117,11 @@ SIGINT was delivered.
 - Do not promote scheduler / systemd / always-on operation until process-tree
   stop behavior has been explicitly checked in that runtime.
 
-## Next Short Confirmation Candidate
+## Historical Short Confirmation Candidate
 
-Do not rerun the 6h dry-run yet. The interrupt summary is confirmed, but the
-timeout wrapper did not stop the child process tree at the expected boundary in
-the 2026-05-17 live check.
+Before the 2026-05-18 timeout-free 6h confirmation, the interrupt summary was
+confirmed but the timeout wrapper did not stop the child process tree at the
+expected boundary in the 2026-05-17 live check.
 
 Candidate shape for a future explicitly approved follow-up, not approved by
 this document:
@@ -145,11 +145,43 @@ This remains a Red command because it performs live external fetches for the
 run duration. It must omit `--write`, `--live`, notification send / retry,
 metric snapshot, import, enrich, rescore, scheduler, and systemd.
 
-## Not Executed
+## 6h Dry-Run Confirmation
 
-- 6h dry-run
-- detect watch
-- external fetch
+On 2026-05-18, the timeout-free 6h dry-run was rerun and completed using the
+runner's own bounded loop:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60
+```
+
+The command exited with code `0` and reported:
+
+- `status=ok`
+- `stopReason=completed`
+- `interrupted=false`
+- `completedIterations=360`
+- `cycleCount=360`
+- `failedCount=0`
+- `rateLimitRetryCount=0`
+- `importedCount=0`
+- `existingCount=0`
+- `dryRun=true`
+- `writeEnabled=false`
+- `checkpointEnabled=false`
+
+Before / after counts stayed `Token=1296`, `Metric=198`,
+`Notification=8`, and `HolderSnapshot=1`. No DB write, Telegram send,
+Notification create/update, Metric create, checkpoint update, or repo-local
+data diff was observed.
+
+The prior manually stopped 6h attempt remains correctly classified as
+interrupted history, but the 2026-05-18 timeout-free run is now the completed
+6h dry-run stability confirmation for the dry-run command shape. This does not
+promote write rehearsal, default checkpoint operation, scheduler / systemd, or
+automatic live notification delivery.
+
+## Still Not Executed Or Not Promoted
+
 - production DB write
 - Telegram live send
 - notification send / retry
@@ -157,3 +189,6 @@ metric snapshot, import, enrich, rescore, scheduler, and systemd.
 - metric snapshot
 - import / enrich / rescore
 - schema / migration
+- write rehearsal
+- default checkpoint operation
+- automatic live notification delivery

@@ -272,8 +272,10 @@ Recommended next Yellow implementation slice:
   mode. Auto live send remains locked: no batch send, worker, scheduler,
   systemd, or automatic captured-to-sent advancement. `id=7` stays held as
   `captured` / `capture_only`, `id=8` is already `sent` / `live_send`, failed
-  rows are `0`, and the manually stopped 6h dry-run means always-on
-  notification delivery is not ready. `detect:geckoterminal:new-pools --watch`
+  rows are `0`. The 6h dry-run has since completed, but always-on
+  notification delivery is still not ready because write rehearsal,
+  restart/dedupe behavior, scheduler / systemd stop policy, and automatic
+  captured-to-sent rules remain unpromoted. `detect:geckoterminal:new-pools --watch`
   now emits `status=interrupted` / `stopReason=user_interrupted` summaries for
   SIGINT / SIGTERM. See
   `docs/runbooks/notification-live-send-policy.md`;
@@ -292,6 +294,15 @@ Recommended next Yellow implementation slice:
   Ctrl+C or process-group SIGINT / SIGTERM for manual stop. A file-backed
   interrupt test confirms SIGINT during watch sleep records one completed
   cycle, does not start the next cycle, and keeps `failedCount=0`;
+- the timeout-free 6h GeckoTerminal new-pools dry-run completed on
+  2026-05-18 with `--maxIterations 360 --intervalSeconds 60`. It reported
+  `status=ok`, `stopReason=completed`, `completedIterations=360`,
+  `cycleCount=360`, `failedCount=0`, `rateLimitRetryCount=0`,
+  `importedCount=0`, `existingCount=0`, `dryRun=true`,
+  `writeEnabled=false`, and `checkpointEnabled=false`. Token / Metric /
+  Notification / HolderSnapshot counts stayed `1296 / 198 / 8 / 1`, and no
+  DB write, Telegram send, Notification create/update, Metric create,
+  checkpoint update, or repo-local data diff was observed;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

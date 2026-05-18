@@ -2599,9 +2599,9 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   `checkpointEnabled=false`. Counts stayed
   `Token=1296`, `Metric=198`, `Notification=8`, `HolderSnapshot=1`; no DB
   write, Telegram send, Notification update, Metric create, checkpoint update,
-  or repo-local data diff was observed. The 6h dry-run remains incomplete, and
-  the next live long-run should first address or explicitly account for
-  process-tree timeout behavior.
+  or repo-local data diff was observed. At that point the 6h dry-run was still
+  incomplete, and the next live long-run needed to address or explicitly
+  account for process-tree timeout behavior.
 - A follow-up Yellow audit fixed the operating boundary: do not rely on
   `timeout --foreground ... pnpm -s ...` as the stop mechanism for long
   GeckoTerminal watch runs. `--intervalSeconds` is a positive integer number of
@@ -2613,8 +2613,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   another cycle and its sleep path is interrupt-aware. A new file-backed CLI
   test covers SIGINT during watch sleep: it records one completed cycle,
   emits `status=interrupted`, leaves `failedCount=0`, and does not start
-  cycle 2. Future 6h dry-run approval should use the runner's own bounded
-  `--maxIterations 360 --intervalSeconds 60` command without `timeout`.
+  cycle 2. Future long bounded dry-run approval should use the runner's own
+  bounded `--maxIterations` / `--intervalSeconds` command without `timeout`.
+- The timeout-free 6h GeckoTerminal new-pools dry-run completed on 2026-05-18:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1
+  --maxIterations 360 --intervalSeconds 60`. The run exited with
+  `status=ok`, `stopReason=completed`, `completedIterations=360`,
+  `cycleCount=360`, `failedCount=0`, `rateLimitRetryCount=0`,
+  `importedCount=0`, `existingCount=0`, `dryRun=true`,
+  `writeEnabled=false`, and `checkpointEnabled=false`. Before / after counts
+  stayed `Token=1296`, `Metric=198`, `Notification=8`, and
+  `HolderSnapshot=1`; no DB write, Telegram send, Notification create/update,
+  Metric create, checkpoint update, or repo-local data diff was observed.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

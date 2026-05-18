@@ -5389,9 +5389,11 @@ Auto live send remains locked. Do not batch-send captured Notifications, do not
 send from scheduler / worker / systemd, and do not automatically advance
 captured rows to sent. Notification `id=7` remains on hold as
 `captured` / `capture_only`; `id=8` is already `sent` / `live_send`; failed
-rows are `0`. The 6h dry-run was manually stopped by the user and is not a
-completed stability proof, so always-on notification delivery must not be
-enabled. Full policy: `docs/runbooks/notification-live-send-policy.md`.
+rows are `0`. The later timeout-free 6h dry-run is now a completed dry-run
+stability proof, but always-on notification delivery must still not be enabled
+until write rehearsal, restart/dedupe behavior, scheduler / systemd stop
+policy, and automatic captured-to-sent rules are separately approved. Full
+policy: `docs/runbooks/notification-live-send-policy.md`.
 
 ### Gecko Watch Manual Interrupt Handling
 
@@ -5420,9 +5422,9 @@ additional fetch cycles. The final summary confirmed `status=interrupted`,
 Before / after counts remained `Token=1296`, `Metric=198`,
 `Notification=8`, `HolderSnapshot=1`. No DB write, Telegram send,
 Notification create/update, Metric create, checkpoint update, or repo-local
-data diff was observed. The 6h dry-run remains incomplete; before another long
-live run, use a separate Yellow check or approved wrapper adjustment for
-process-tree timeout behavior.
+data diff was observed. At that point the 6h dry-run was still incomplete;
+before another long live run, the process-tree timeout behavior needed to be
+accounted for.
 
 Follow-up signal boundary audit:
 
@@ -5444,8 +5446,8 @@ Follow-up signal boundary audit:
   `interruptedBySignal=SIGINT`, one completed cycle, no cycle 2, and
   `failedCount=0`.
 
-If approved later, the next 6h dry-run command should rely on the runner's own
-bounded loop and omit timeout:
+The later approved 6h dry-run command should rely on the runner's own bounded
+loop and omit timeout:
 
 ```bash
 pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60
@@ -5454,6 +5456,45 @@ pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIter
 This remains Red because it performs live external fetches. It must still omit
 `--write`, `--live`, notification send / retry, metric snapshot, import,
 enrich, rescore, scheduler, and systemd.
+
+### Timeout-Free 6h Dry-Run Result
+
+On 2026-05-18, the approved timeout-free 6h dry-run completed with the runner's
+own bounded loop:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60
+```
+
+Result summary:
+
+- exit code: `0`
+- `status=ok`
+- `stopReason=completed`
+- `completedIterations=360`
+- `cycleCount=360`
+- `failedCount=0`
+- `rateLimitRetryCount=0`
+- `importedCount=0`
+- `existingCount=0`
+- `dryRun=true`
+- `writeEnabled=false`
+- `checkpointEnabled=false`
+- before counts: Token / Metric / Notification / HolderSnapshot =
+  `1296 / 198 / 8 / 1`
+- after counts: Token / Metric / Notification / HolderSnapshot =
+  `1296 / 198 / 8 / 1`
+
+No DB write, Telegram send, Notification create/update, Metric create,
+checkpoint update, or repo-local data diff was observed. The run did not use
+`timeout`, `--write`, `--live`, notification send / retry, metric snapshot,
+import, enrich, rescore, scheduler, systemd, schema changes, migration, or app
+code changes.
+
+This confirms the 6h dry-run stability gate for the current dry-run shape. It
+does not approve 6h write rehearsal, Telegram auto live send, scheduler /
+systemd, default checkpoint operation, unbounded watch, or automatic Red
+execution.
 
 ## Proven Command Examples
 
@@ -5519,7 +5560,7 @@ For Metric confirmation, prefer:
 
 ## Out Of Scope / Still Unconfirmed
 
-- detect long-running watch.
+- detect long-running write/default-checkpoint watch.
 - default checkpoint operation.
 - systemd start / enable.
 - scheduler / queue worker.
