@@ -2625,6 +2625,18 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
   stayed `Token=1296`, `Metric=198`, `Notification=8`, and
   `HolderSnapshot=1`; no DB write, Telegram send, Notification create/update,
   Metric create, checkpoint update, or repo-local data diff was observed.
+- The 6h write rehearsal preflight is docs-only complete. The completed dry-run
+  elapsed `32632518ms`, about `9.06h`, or about `90.65s` per cycle. The watch
+  loop sleeps after each cycle completes, so `--intervalSeconds 60` is not a
+  strict cycle-start cadence and 360 cycles is a 360-fetch stability run rather
+  than a wall-clock 6h guarantee. The recommended next Red candidate is the
+  wall-clock 6h approximation with `--maxIterations 240`, `/tmp` checkpoint
+  isolation, and Token-only write upper bound of 240:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit
+  1 --maxIterations 240 --intervalSeconds 60 --checkpointFile
+  /tmp/lowcap-bot-gecko-write-rehearsal-6h.json`. Metric / Notification /
+  HolderSnapshot writes and Telegram sends remain out of scope. See
+  `docs/runbooks/gecko-write-rehearsal-preflight.md`.
 - the manual retry Red rehearsal is now complete for
   `Ffn2FhA6XzcdHG7ACEGNwFsQ1bPqg9RpqZAwtnH7pump:metric_appended:1264:retry_rehearsal_failed_1`
   through

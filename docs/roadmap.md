@@ -303,6 +303,14 @@ Recommended next Yellow implementation slice:
   Notification / HolderSnapshot counts stayed `1296 / 198 / 8 / 1`, and no
   DB write, Telegram send, Notification create/update, Metric create,
   checkpoint update, or repo-local data diff was observed;
+- 6h write rehearsal preflight is now fixed as docs-only policy. Because the
+  completed 360-cycle dry-run elapsed `32632518ms` (about `9.06h`, about
+  `90.65s` per cycle), the next Red write candidate should prioritize
+  wall-clock 6h and use the observed average to reduce the run to
+  `--maxIterations 240`. This is still a bounded estimate. It writes only
+  mint-only Token rows through `importMint`, uses `/tmp` checkpoint isolation,
+  and keeps Metric / Notification / HolderSnapshot writes plus Telegram sends
+  out of scope;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

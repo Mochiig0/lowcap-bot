@@ -5496,6 +5496,38 @@ does not approve 6h write rehearsal, Telegram auto live send, scheduler /
 systemd, default checkpoint operation, unbounded watch, or automatic Red
 execution.
 
+### 6h Write Rehearsal Preflight
+
+The completed 360-cycle dry-run is a stability proof, but it is not a strict
+wall-clock 6h timing proof. Its `elapsedMs=32632518`, or about `9.06h`, means
+the observed average was about `90.65s` per cycle.
+
+`--intervalSeconds 60` is applied after each cycle finishes; it is not a strict
+cycle-start cadence. A write rehearsal should therefore choose whether to
+prioritize cycle count or wall-clock target.
+
+Recommended next Red candidate: prioritize wall-clock 6h by using the observed
+average and reducing the run to 240 cycles.
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 240 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-6h.json
+```
+
+Boundary:
+
+- Token write upper bound: up to 240 mint-only Token rows.
+- Metric writes: 0.
+- Notification writes: 0.
+- HolderSnapshot writes: 0.
+- Telegram sends: 0.
+- Checkpoint: `/tmp/lowcap-bot-gecko-write-rehearsal-6h.json` only.
+- Repo-local `data/checkpoints` and `data/trend.json`: no diff expected.
+
+If the `/tmp` checkpoint already exists before execution, inspect its presence
+and decide whether to keep it as resume state or replace it before starting.
+Do not silently reuse stale checkpoint state. Full preflight:
+`docs/runbooks/gecko-write-rehearsal-preflight.md`.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission
