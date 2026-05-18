@@ -3097,3 +3097,40 @@ This confirms the write boundary for this command: mint-only Token rows were
 created, while Metric / Notification / HolderSnapshot rows were not created or
 updated. No Telegram send was performed. Repo-local `data/trend.json` and
 `data/checkpoints` stayed unchanged.
+
+## Bounded Metric Accumulation Preflight
+
+Date: 2026-05-19
+
+Read-only preflight was completed for the next Metric accumulation slice after
+the 240-cycle write rehearsal.
+
+Current DB state:
+
+- Token: `1536`
+- Metric: `198`
+- Notification: `8`
+- HolderSnapshot: `1`
+- `mint_only` Token count: `1373`
+- Token rows with zero Metrics: `1377`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+The likely 240-token write-rehearsal cohort is still identifiable as
+GeckoTerminal-origin pump mints with `metadataStatus=mint_only` and
+`metricsCount=0`. `review:queue:geckoterminal -- --pumpOnly --limit 10`
+reported `geckoOriginTokenCount=240`, `enrichPendingCount=240`, and
+`metricPendingCount=240`.
+
+Code inspection confirmed that `metric:snapshot:geckoterminal` batch mode
+(`--mint` omitted) does not capture `metric_appended` Notifications; exact
+`--mint --write` mode is the path that captures a Notification by default.
+The next Red candidate is a bounded batch Metric write:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Expected upper bound: Token `+0`, Metric up to `+10`, Notification `+0`,
+HolderSnapshot `+0`, Telegram send `0`. Because `sinceMinutes 1440` is
+time-relative, rerun the read-only queue check immediately before Red execution
+and stop if the candidate set no longer matches the 240-token cohort.

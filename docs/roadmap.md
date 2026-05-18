@@ -322,6 +322,17 @@ Recommended next Yellow implementation slice:
   Notification / HolderSnapshot stayed `198 / 8 / 1`; Notification status
   counts stayed `captured=5`, `sent=3`, `failed=0`; Telegram send and
   repo-local data diffs were not observed;
+- bounded Metric accumulation preflight for the new 240-token cohort completed
+  on 2026-05-19. The current DB state is Token / Metric / Notification /
+  HolderSnapshot `1536 / 198 / 8 / 1`; `mint_only=1373`; zero-Metric Token
+  count `1377`; Notification statuses `captured=5`, `sent=3`, `failed=0`.
+  `review:queue:geckoterminal -- --pumpOnly --limit 10` reports the new
+  GeckoTerminal pump cohort as `geckoOriginTokenCount=240`,
+  `enrichPendingCount=240`, and `metricPendingCount=240`. Batch
+  `metric:snapshot:geckoterminal` does not capture Notification rows; exact
+  `--mint` mode is the Notification-capture path. The next Red candidate is
+  a small batch Metric write:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write`;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

@@ -5572,6 +5572,61 @@ previous 360-cycle dry-run average, but this run completed in about 4.49h. Treat
 the result as a successful 240-cycle write-boundary rehearsal, not as proof that
 240 cycles always consume 6h wall-clock.
 
+### Bounded Metric Accumulation Preflight
+
+After the 240-cycle write rehearsal, read-only preflight on 2026-05-19 found the
+current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 198 / 8 / 1`
+- `metadataStatus` counts: `mint_only=1373`, `partial=150`, `enriched=13`
+- zero-Metric Token count: `1377`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+The recent 240-token write-rehearsal cohort is identifiable by:
+
+- GeckoTerminal origin (`geckoterminal.new_pools`)
+- pump mint
+- `metadataStatus=mint_only`
+- `metricsCount=0`
+- imported range `2026-05-18T11:07:00.853Z` to
+  `2026-05-18T15:36:09.128Z`
+
+`review:queue:geckoterminal -- --pumpOnly --limit 10` reports:
+
+- `geckoOriginTokenCount=240`
+- `enrichPendingCount=240`
+- `metricPendingCount=240`
+- `notifyCandidateCount=0`
+
+`metric:snapshot:geckoterminal` batch mode, where `--mint` is omitted, does not
+capture `metric_appended` Notification rows. Notification capture is enabled
+only in exact `--mint` mode unless `--noNotificationCapture` suppresses it.
+Therefore the next bounded Metric accumulation Red candidate can use batch mode
+without `--noNotificationCapture`.
+
+Recommended exact Red candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 10 --sinceMinutes 1440 --minGapMinutes 60 --write
+```
+
+Expected upper bound:
+
+- Token: `+0`
+- Metric: up to `+10`
+- Notification: `+0`
+- HolderSnapshot: `+0`
+- Telegram: no send
+- checkpoint: none
+- repo-local data: no diff
+
+`sinceMinutes 1440` is relative to execution time. Re-check the queue before the
+Red run and stop if the 240-token cohort has aged out or the selected rows are
+not GeckoTerminal-origin pump `mint_only` Tokens with no Metrics. If the Red
+run reports `errorCount>0` or a `429` item error, record the safe summary and do
+not rerun or expand the batch in the same task. Full preflight:
+`docs/runbooks/metric-accumulation-preflight.md`.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission
