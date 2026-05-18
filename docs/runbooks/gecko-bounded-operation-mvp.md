@@ -5997,3 +5997,36 @@ not sent, Notification rows were not created or updated, Token and
 HolderSnapshot rows were not changed, and repo-local data stayed clean. Compared
 with improved delayed limit 30, `writtenCount` moved from 30 to 50 while
 `skippedCount` and `errorCount` stayed at 0.
+
+### Improved Delayed Metric Accumulation Limit 75
+
+Executed once on 2026-05-19:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- `selectedCount=75`
+- `writtenCount=75`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=74`
+- no 429 / rate-limit errors
+- no provider errors
+- written Metric ids: `1396` through `1470`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `313 -> 388`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Notification statuses stayed `captured=5`, `sent=3`, `failed=0`. Telegram was
+not sent, Notification rows were not created or updated, Token and
+HolderSnapshot rows were not changed, and repo-local data stayed clean. Compared
+with improved delayed limit 50, `writtenCount` moved from 50 to 75 while
+`skippedCount` and `errorCount` stayed at 0.

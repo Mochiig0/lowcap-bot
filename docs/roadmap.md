@@ -503,3 +503,24 @@ This confirms the recent-Metric exclusion remains effective at limit 50 and the
 Metric write boundary still avoids Telegram, Notification, Token, and
 HolderSnapshot side effects. Continue incremental expansion; the next candidate
 is a limit 75 preflight or Red task rather than a large jump.
+
+## Operating Update: Improved Metric Accumulation Limit 75
+
+Date: 2026-05-19
+
+The same improved GeckoTerminal Metric snapshot path was validated at
+`limit 75` with 15-second item pacing:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result: `selectedCount=75`, `writtenCount=75`, `skippedCount=0`,
+`errorCount=0`, `interItemDelayMs=15000`, `interItemDelayCount=74`, and no 429.
+Counts moved only in `Metric`: Token / Metric / Notification / HolderSnapshot
+`1536 / 313 / 8 / 1 -> 1536 / 388 / 8 / 1`.
+
+The recent-Metric exclusion and Metric-only write boundary held at limit 75.
+Rather than continuing to enlarge batches immediately, the next near-term slice
+should move back to read-only reporting, such as validating
+`metrics:window-report` or cohort reports against the accumulated Metrics.

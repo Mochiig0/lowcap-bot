@@ -347,6 +347,47 @@ selection fix kept `skipped_recent_metric` at zero. Continue incremental
 expansion; use a limit 75 preflight or Red task before considering larger
 batches.
 
+## Improved Limit 75 Result
+
+Date: 2026-05-19
+
+The improved delayed `limit 75` command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- exit code: `0`
+- `selectedCount=75`
+- `okCount=75`
+- `writtenCount=75`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=74`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1396` through `1470`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `313 -> 388`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Comparison with improved `limit 50`:
+
+- improved `limit 50`: `writtenCount=50`, `skippedCount=0`, `errorCount=0`;
+- improved `limit 75`: `writtenCount=75`, `skippedCount=0`, `errorCount=0`.
+
+The 15-second pacing stayed rate-limit clean at limit 75, and the min-gap
+selection fix kept `skipped_recent_metric` at zero. Since the pacing and
+selection behavior are now proven through limit 75, the next step should be
+read-only report validation rather than immediate further batch expansion.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

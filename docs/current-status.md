@@ -3504,3 +3504,48 @@ HolderSnapshot stayed unchanged, Telegram was not sent, repo-local data stayed
 clean, and no rawJson or secrets were displayed. The next expansion should
 still be incremental, such as a limit 75 preflight or Red task, before any
 larger batch.
+
+## Improved Metric Accumulation Limit 75
+
+Date: 2026-05-19
+
+The improved delayed limit 75 Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Queue precheck immediately before execution reported `geckoOriginTokenCount=240`
+and `metricPendingCount=135`. `queues.metricPending` contained GeckoTerminal
+origin pump `mint_only` Tokens with `metricsCount=0`; enough pending candidates
+remained for a limit 75 run.
+
+Result:
+
+- exit code: `0`
+- `selectedCount=75`
+- `writtenCount=75`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=74`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1396` through `1470`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `313 -> 388`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Compared with improved limit 50 (`writtenCount=50`, `skippedCount=0`,
+`errorCount=0`), improved limit 75 kept `skipped_recent_metric` at zero, stayed
+429-free, and increased Metric rows by 75. Token / Notification /
+HolderSnapshot stayed unchanged, Telegram was not sent, repo-local data stayed
+clean, and no rawJson or secrets were displayed. After this successful
+expansion, the next task should shift toward read-only report validation, such
+as `metrics:window-report` or cohort reporting, instead of continuing batch-size
+expansion.
