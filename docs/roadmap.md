@@ -370,6 +370,14 @@ Recommended next Yellow implementation slice:
   `limit 10` run (`written=5`, `error=5`, five 429s), but because five
   selected rows were recent-Metric skips, treat it as a successful delayed
   small-batch confirmation rather than approval for a large jump;
+- delayed Metric accumulation `limit 20` with the same `--interItemDelayMs
+  15000` was executed once on 2026-05-19. It selected 20, skipped 10 via
+  `minGapMinutes=60`, wrote 10 Metrics (`1291` through `1300`), and reported
+  `errorCount=0`, `interItemDelayCount=19`, and no `429`. Counts moved
+  `1536 / 208 / 8 / 1` to `1536 / 218 / 8 / 1`; Notification statuses stayed
+  `captured=5`, `sent=3`, `failed=0`. This keeps the delayed path Green at a
+  modestly wider scope; next expansion should still be incremental, such as
+  delayed limit 30, before larger batches;
 - scheduler / systemd remain after 3h/6h monitored-run validation;
 - do not fetch external APIs, write production DB state, send Telegram, change schema, or introduce scheduler / queue / systemd behavior.
 

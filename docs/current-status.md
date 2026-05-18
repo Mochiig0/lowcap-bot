@@ -3282,3 +3282,50 @@ rows were skipped by `minGapMinutes=60`, this confirms delayed pacing removed
 No Telegram send, Notification create/update, Token update/create,
 HolderSnapshot write, repo-local data diff, rawJson dump, or secret display was
 observed.
+
+## Delayed Metric Accumulation Limit 20
+
+Date: 2026-05-19
+
+The delayed Metric accumulation Red command was expanded modestly to limit 20
+and executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Queue precheck immediately before execution reported:
+
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=230`
+- candidate rows were GeckoTerminal-origin pump `mint_only` Tokens
+- recent Metric rows were mixed into the selected window and expected to be
+  skipped by `minGapMinutes=60`
+
+Result:
+
+- exit code: `0`
+- `selectedCount=20`
+- `writtenCount=10`
+- `skippedCount=10`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=19`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1291` through `1300`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `208 -> 218`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Compared with delayed limit 10 (`writtenCount=5`, `skippedCount=5`,
+`errorCount=0`), delayed limit 20 maintained zero errors and zero 429s while
+writing 10 Metrics. Token / Notification / HolderSnapshot stayed unchanged, no
+Telegram send occurred, repo-local data stayed clean, and no rawJson or secrets
+were displayed. Next expansion should still be modest, for example delayed
+limit 30, rather than a large batch jump.

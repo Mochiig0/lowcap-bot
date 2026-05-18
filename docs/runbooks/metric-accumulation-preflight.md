@@ -344,3 +344,54 @@ only fetched five items because five selected rows were recent-Metric skips.
 Do not jump directly to a large batch. The next Red should either use a modest
 larger limit such as 20 with the same delay, or first adjust selection to focus
 only Metric-pending rows if the operator wants cleaner batch accounting.
+
+## Delayed Limit 20 Red Result
+
+Date: 2026-05-19
+
+The delayed limit 20 Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Immediate queue precheck:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 20`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=230`
+- candidate rows were GeckoTerminal-origin pump `mint_only` Tokens
+- recent Metric rows were mixed into the selected window and expected
+  `skipped_recent_metric` rows under `minGapMinutes=60`
+
+Run result:
+
+- exit code: `0`
+- `selectedCount=20`
+- `okCount=10`
+- `writtenCount=10`
+- `skippedCount=10`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=19`
+- no 429 / rate-limit errors
+- no provider errors
+- written Metric ids: `1291` through `1300`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `208 -> 218`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Comparison:
+
+- delayed `limit 10`: `writtenCount=5`, `skippedCount=5`, `errorCount=0`;
+- delayed `limit 20`: `writtenCount=10`, `skippedCount=10`, `errorCount=0`.
+
+Interpretation: 15-second item pacing remained clean at limit 20. The run
+still included recent-Metric skips, so continue incremental expansion rather
+than jumping directly to a large batch. A reasonable next Red is delayed
+`limit 30` with the same pacing and stop conditions.

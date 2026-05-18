@@ -5755,6 +5755,40 @@ to zero. Because the delayed run skipped five recent-Metric rows before fetch,
 the next expansion should remain modest rather than jumping directly to a large
 batch.
 
+### Delayed Metric Accumulation Limit 20
+
+Executed once on 2026-05-19:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- `selectedCount=20`
+- `writtenCount=10`
+- `skippedCount=10`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=19`
+- no 429 / rate-limit errors
+- written Metric ids: `1291` through `1300`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `208 -> 218`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Notification statuses stayed `captured=5`, `sent=3`, `failed=0`. Telegram was
+not sent, Notification rows were not created or updated, Token and
+HolderSnapshot rows were not changed, and repo-local data stayed clean.
+
+Compared with delayed `limit 10`, the delayed `limit 20` run doubled the Metric
+write count while keeping `errorCount=0`. Continue with small increments; do
+not jump directly to a large batch.
+
 ## Proven Command Examples
 
 These are examples of proven command shapes. They are not standing permission
