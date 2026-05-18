@@ -542,3 +542,58 @@ Interpretation: recent-Metric exclusion before `--limit` is confirmed. The
 same pacing remained 429-free, and Metric writes stayed isolated from Token /
 Notification / HolderSnapshot. Next expansion should remain modest, such as
 improved delayed `limit 50`, instead of jumping to a large batch.
+
+## Improved Limit 50 Red Result
+
+Date: 2026-05-19
+
+The improved delayed limit 50 Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Immediate queue precheck:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 50`
+- `geckoOriginTokenCount=240`
+- `metricPendingCount=180`
+- `queues.metricPending` contained GeckoTerminal-origin pump `mint_only` Tokens
+  with `metricsCount=0`
+- the generic preview still included enrich-pending recent-Metric rows, but the
+  Metric snapshot execution path applies min-gap before `--limit`
+
+Run result:
+
+- exit code: `0`
+- `selectedCount=50`
+- `okCount=50`
+- `writtenCount=50`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=49`
+- no 429 / rate-limit errors
+- no provider errors
+- written Metric ids: `1346` through `1395`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `263 -> 313`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+Comparison:
+
+- improved delayed `limit 30`: `writtenCount=30`, `skippedCount=0`,
+  `errorCount=0`;
+- improved delayed `limit 50`: `writtenCount=50`, `skippedCount=0`,
+  `errorCount=0`.
+
+Interpretation: recent-Metric exclusion stayed effective at limit 50 and the
+15-second pacing remained 429-free. Metric writes stayed isolated from Token /
+Notification / HolderSnapshot, Telegram was not sent, repo-local data stayed
+clean, and no rawJson or secrets were displayed. Next expansion should remain
+incremental, such as a limit 75 preflight or Red task.

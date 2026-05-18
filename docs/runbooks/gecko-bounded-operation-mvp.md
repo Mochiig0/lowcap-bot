@@ -5964,3 +5964,36 @@ procedure is the strict single-mint tmux single-run shape documented above and
 in `docs/runbooks/gecko-metric-tmux-bounded.md`. Batch/watch bounded metric
 operation remains a separate wider-bound option, and service-style operation
 waits for a user-systemd-capable environment.
+
+### Improved Delayed Metric Accumulation Limit 50
+
+Executed once on 2026-05-19:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- `selectedCount=50`
+- `writtenCount=50`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=49`
+- no 429 / rate-limit errors
+- no provider errors
+- written Metric ids: `1346` through `1395`
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `263 -> 313`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Notification statuses stayed `captured=5`, `sent=3`, `failed=0`. Telegram was
+not sent, Notification rows were not created or updated, Token and
+HolderSnapshot rows were not changed, and repo-local data stayed clean. Compared
+with improved delayed limit 30, `writtenCount` moved from 30 to 50 while
+`skippedCount` and `errorCount` stayed at 0.

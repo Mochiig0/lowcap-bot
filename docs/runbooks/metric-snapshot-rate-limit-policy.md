@@ -306,6 +306,47 @@ The pacing stayed rate-limit clean and the selection fix removed the
 `skipped_recent_metric` waste for this batch. Continue incremental expansion;
 do not jump directly to a very large limit.
 
+## Improved Limit 50 Result
+
+Date: 2026-05-19
+
+The improved delayed `limit 50` command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- exit code: `0`
+- `selectedCount=50`
+- `okCount=50`
+- `writtenCount=50`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=49`
+- no `429 Too Many Requests`
+- no provider errors
+- written Metric ids: `1346` through `1395`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `263 -> 313`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+Comparison with improved `limit 30`:
+
+- improved `limit 30`: `writtenCount=30`, `skippedCount=0`, `errorCount=0`;
+- improved `limit 50`: `writtenCount=50`, `skippedCount=0`, `errorCount=0`.
+
+The 15-second pacing stayed rate-limit clean at limit 50, and the min-gap
+selection fix kept `skipped_recent_metric` at zero. Continue incremental
+expansion; use a limit 75 preflight or Red task before considering larger
+batches.
+
 ## Stop Conditions Before Next Red
 
 Stop before the next Metric accumulation Red task if:

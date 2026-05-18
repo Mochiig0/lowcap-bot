@@ -482,3 +482,24 @@ Recommended next Yellow implementation slice:
 The codebase is not at that stage yet; the current roadmap should stay aligned with the existing mint-driven accumulation MVP.
 
 For deferred ideas with high later value, see `docs/future-features.md`.
+
+## Operating Update: Improved Metric Accumulation Limit 50
+
+Date: 2026-05-19
+
+The improved GeckoTerminal Metric snapshot batch selector was validated at
+`limit 50` with 15-second item pacing:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result: `selectedCount=50`, `writtenCount=50`, `skippedCount=0`,
+`errorCount=0`, `interItemDelayMs=15000`, `interItemDelayCount=49`, and no 429.
+Counts moved only in `Metric`: Token / Metric / Notification / HolderSnapshot
+`1536 / 263 / 8 / 1 -> 1536 / 313 / 8 / 1`.
+
+This confirms the recent-Metric exclusion remains effective at limit 50 and the
+Metric write boundary still avoids Telegram, Notification, Token, and
+HolderSnapshot side effects. Continue incremental expansion; the next candidate
+is a limit 75 preflight or Red task rather than a large jump.
