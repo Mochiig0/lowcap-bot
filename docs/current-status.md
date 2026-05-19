@@ -3775,6 +3775,89 @@ and `willSendTelegram=false`. No Metric snapshot, detect watch, external fetch,
 DB write, Telegram send, schema/migration change, or rawJson full dump was
 performed.
 
+## Entry Anchor Quality Cohort Review
+
+Date: 2026-05-20
+
+A read-only / docs-only cohort review used the new report-only `entryAnchor*`
+fields to decide whether mint-only fallback rows should move from Policy C
+into Policy D outcome calculation. No implementation, schema, migration,
+Metric snapshot, detect watch, external fetch, production DB write, Telegram
+send, Notification send/retry, or rawJson full dump was executed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Target cohort:
+
+- GeckoTerminal-origin pump `mint_only`
+- no Notification row
+- has Metric
+- has readable FDV Metric
+
+Read-only aggregation:
+
+- target token count: `158`
+- target Metric distribution: `Metric 1=99`, `Metric 2+=59`
+- strict ±5m `alertFdv` anchor found: `0`
+- strict anchor missing: `158`
+- `hasWindowFdvSamples=true`: `158`
+- `hasAlertFdvAnchor=false`: `158`
+
+`entryAnchorQuality` distribution:
+
+- `near_30m`: `5`
+- `delayed_120m`: `12`
+- `delayed_180m`: `22`
+- `late_360m`: `119`
+- `near_5m`, `acceptable_60m`, `none`, and `very_late_gt_360m`: `0`
+
+`entryAnchorLagMinutes` stats:
+
+- min `20.2184`
+- median `238.8762`
+- p75 `308.4780`
+- p90 `339.0626`
+- max `358.3537`
+
+Hypothetical Policy D comparison:
+
+- D30 (`near_5m` / `near_30m`) would make `5 / 158` rows calculable, all
+  hypothetical `flat`
+- D60 is the same as D30 in this cohort because no `acceptable_60m` rows exist
+- D180 would make `39 / 158` rows calculable but includes anchors up to about
+  `179m` late
+- D360 would make `158 / 158` rows calculable but mostly from delayed
+  first-observation baselines; median lag is about `239m`
+
+Representative runtime checks:
+
+- `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`: `near_30m`,
+  `entryAnchorLagMinutes=20.218433333333333`, `alertFdv=null`,
+  `outcomeLabel=no_data`
+- no `acceptable_60m` row was present
+- `FnNvePHJSYw1ec6nDSbXBQxo8couvRWButKN8Zwepump`: `delayed_180m`,
+  `entryAnchorLagMinutes=120.01455`, `alertFdv=null`,
+  `outcomeLabel=no_data`
+- `BCiYyqsMthUWhhSUA2ZBVGVXgLx99XnsroVrCn6Wpump`: `late_360m`,
+  `entryAnchorLagMinutes=358.35365`, `alertFdv=null`,
+  `outcomeLabel=no_data`
+- Notification id `8` remained `entryAnchorQuality=none` because no
+  post-`sentAt` FDV sample exists
+- Notification id `7` kept strict `alertFdv` and wider-window
+  `outcomeLabel=flat`; entry anchor remained report context only
+
+Decision: keep Policy C as the current policy. Do not promote `entryAnchor`
+into general outcome calculation, and do not implement D180 / D360. If a
+fallback outcome mode is implemented later, design it as a separate mint-only
+D30-limited path using only `near_5m` / `near_30m` anchors with explicit
+`entryAnchorLagMinutes` and `entryAnchorQuality`. Strict `alertFdv`,
+Notification-backed outcomes, and existing `outcomeLabel` semantics remain
+unchanged.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

@@ -539,3 +539,65 @@ pnpm -s metrics:window-report -- --help
 The runtime commands remained side-effect free: no DB write, external fetch,
 Telegram send, Token update, Notification update, HolderSnapshot write, or
 rawJson full dump.
+
+## Entry Anchor Quality Review
+
+Date: 2026-05-20
+
+A docs-only follow-up reviewed whether the report-only `entryAnchor*` fields
+are strong enough to become outcome baselines for no-Notification mint-only
+fallback rows.
+
+Target cohort:
+
+- GeckoTerminal-origin pump `mint_only`
+- no Notification row
+- has Metric
+- has readable FDV Metric
+
+Read-only aggregation result:
+
+- target token count: `158`
+- target Metric distribution: `1=99`, `2+=59`
+- strict ±5m `alertFdv` anchor found: `0`
+- strict anchor missing: `158`
+- `hasWindowFdvSamples=true`: `158`
+- `hasAlertFdvAnchor=false`: `158`
+
+Entry anchor quality:
+
+- `near_30m`: `5`
+- `delayed_120m`: `12`
+- `delayed_180m`: `22`
+- `late_360m`: `119`
+- no `near_5m`, `acceptable_60m`, `none`, or `very_late_gt_360m` rows in this
+  target cohort
+
+Lag statistics:
+
+- min `20.2184m`
+- median `238.8762m`
+- p75 `308.4780m`
+- p90 `339.0626m`
+- max `358.3537m`
+
+Hypothetical derived-baseline impact:
+
+- D30 and D60 would make only `5 / 158` rows calculable, all hypothetical
+  `flat`
+- D180 would make `39 / 158` rows calculable, but includes anchors up to about
+  `179m` after first seen
+- D360 would make `158 / 158` rows calculable, but most labels would rely on
+  late first-observation baselines around 3-6 hours after first seen
+
+Operator conclusion:
+
+- `entryAnchor*` is useful as report context and should stay report-only for
+  now.
+- Policy C remains the safe default: strict `alertFdv`, unchanged
+  `outcomeLabel`, and visible `entryAnchorQuality`.
+- A future Policy D should be a separate limited fallback outcome mode, if
+  implemented at all, and should start with only `near_5m` / `near_30m`
+  anchors. D180 / D360 should not be used for outcome labels without a separate
+  product decision because they would overstate late first-observation
+  baselines.
