@@ -3681,6 +3681,32 @@ remained `0`, and `notification:retry:plan` remained read-only with
 write, HolderSnapshot write, retry execution, scheduler, systemd, auto live
 send, rawJson full dump, and secret output did not occur.
 
+## Rehearsal Notification Exclusion Follow-Up
+
+Date: 2026-05-20
+
+A read-only follow-up confirmed that the Red-created REHEARSAL Notification id
+`9` remains safely excluded:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+
+Notification id `9` is still `captured` / `capture_only` with trigger
+`metric_appended`, `sentAt=null`, `failedAt=null`, and `errorCode=null`. Its
+key remains
+`REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:1530`,
+so it is covered by the smoke / rehearsal live-send and retry guards. Captured
+ids `3` through `6` remain `SMOKE_...` rehearsal rows, and sent ids `7` / `8`
+remain excluded by sent-row resend prevention.
+
+This closes the capture-only rehearsal slice. No DB write, external fetch,
+Telegram send, Notification update, Metric write, Token write, HolderSnapshot
+write, rawJson full dump, schema / migration change, or app code change
+occurred in the follow-up. Auto live send, scheduler, and systemd remain
+locked.
+
 ## Metric Report Readiness After Additional Limit 75
 
 Date: 2026-05-20

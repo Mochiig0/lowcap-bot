@@ -448,3 +448,54 @@ Safety result:
 - repo-local data stayed clean
 - rawJson full dump and secret output did not occur
 - auto live send, scheduler, and systemd remain locked
+
+## Rehearsal Exclusion Follow-Up
+
+Date: 2026-05-20
+
+This Green check re-verified that the Red-created REHEARSAL Notification remains
+excluded from manual live-send review and retry planning. No production DB
+write, external fetch, Telegram send, Notification create/update, Metric write,
+Token write, HolderSnapshot write, metric snapshot execution, notification send
+execution, retry execution, detector / ops catch-up execution, `--write`,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, or secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- `notification:retry:plan` candidate count: `0`
+
+Notification id `9`:
+
+- key:
+  `REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:1530`
+- event type / trigger: `metric_appended`
+- status / mode: `captured` / `capture_only`
+- `sentAt=null`
+- `failedAt=null`
+- `errorCode=null`
+- `retryCount=0`
+- `rawJsonFree=true`
+- `secretFree=true`
+- marker guarded: yes
+- manual live-send candidate: no
+
+Captured row breakdown:
+
+- ids `3` through `6`: `SMOKE_...` capture-only rehearsal rows; excluded by
+  smoke / rehearsal marker guard
+- id `9`: `REHEARSAL:...` capture-only rehearsal row; excluded by smoke /
+  rehearsal marker guard
+
+Sent row breakdown:
+
+- ids `1`, `2`, `7`, and `8` are `sent` / `live_send` rows with `sentAt`
+  present and are not resend candidates
+- ids `7` and `8` remain excluded by the existing sent-row resend guard
+
+Decision: the capture-only rehearsal slice can be treated as complete. Future
+work should stay manual-approved; auto live send, scheduler, and systemd remain
+locked.

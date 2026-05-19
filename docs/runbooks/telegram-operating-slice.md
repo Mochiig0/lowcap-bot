@@ -505,3 +505,28 @@ live-send candidate count remained `0`, and the retry planner remained
 detect watch, ops catch-up, scheduler, systemd, auto live send, schema /
 migration, app code changes, rawJson full dump, and secret output were not
 performed.
+
+## Rehearsal Notification Exclusion Check
+
+Date: 2026-05-20
+
+A read-only follow-up confirmed that Notification id `9` remains excluded from
+manual live-send and retry planning:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- `notification:retry:plan` candidate count: `0`
+
+Notification id `9` still has key
+`REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:1530`,
+status `captured`, mode `capture_only`, trigger `metric_appended`,
+`sentAt=null`, `failedAt=null`, and `errorCode=null`. It is excluded by the
+existing smoke / rehearsal guard. Captured ids `3` through `6` remain
+`SMOKE_...` rehearsal rows and are also excluded. Sent ids `7` and `8` remain
+sent-row resend-guarded.
+
+No DB write, external fetch, Telegram send, Notification update, Metric write,
+Token write, HolderSnapshot write, rawJson full dump, or secret output occurred
+in this follow-up. Auto live send, scheduler, and systemd remain locked; only
+manual-approved live send remains allowed.
