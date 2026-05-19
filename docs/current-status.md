@@ -3967,6 +3967,48 @@ Confirmed boundaries:
   was printed.
 - Auto live send remains unapproved.
 
+## Telegram Boundary After Manual Send
+
+Date: 2026-05-20
+
+A read-only / docs-only follow-up rechecked Notification state after
+Notification id `7` was manually sent. No `notification:send`, retry
+execution, Telegram send, Notification update, production DB write, external
+fetch, Metric snapshot, detect watch, scheduler/systemd, schema/migration
+change, application code change, or rawJson full dump was executed.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+
+Notification id `7` remains `sent/live_send` with
+`sentAt=2026-05-19T20:36:12.458Z`, `lastAttemptAt` present,
+`failedAt=null`, `errorCode=null`, and `reason=null`. It is not a retry or
+resend candidate.
+
+Notification id `8` remains `sent/live_send` and is also not a retry or resend
+candidate.
+
+Remaining captured rows are ids `3`, `4`, `5`, and `6`. They are all
+`metric_appended` / `capture_only` with `sentAt=null`, but their
+notification keys and mints are `SMOKE_...` rehearsal artifacts. They are now
+explicitly treated as out-of-scope for manual live send and must not be used as
+Red candidates.
+
+`notification:retry:plan` stayed read-only and returned
+`no_failed_retry_candidate` with `candidateCount=0`, `selectedCount=0`, and no
+`nextRedCommand`. Because failed count is `0`, retry execution is unnecessary.
+
+Current Telegram boundary:
+
+- manual approved live send remains the only allowed live-send mode
+- current manual live-send candidate: none
+- current retry candidate: none
+- sent-row resend prevention remains required for id `7` / id `8`
+- smoke/rehearsal captured rows id `3` through `6` are send-excluded
+- auto live send, scheduler, worker, queue, and systemd remain unapproved
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

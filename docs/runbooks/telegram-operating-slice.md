@@ -179,3 +179,62 @@ Confirmed non-effects:
 
 Auto live send remains locked. This was a single manual-approved live send, not
 permission to batch-send or automatically advance captured rows.
+
+## Post Manual Send Boundary Review
+
+Date: 2026-05-20
+
+This Green follow-up rechecked Notification state after the manual live send
+for Notification id `7`. It was read-only / docs-only. No `notification:send`,
+retry execution, Telegram send, Notification update, production DB write,
+external fetch, Metric snapshot, detect watch, scheduler, systemd, schema
+change, migration, application code change, or rawJson full dump was executed.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+
+Sent rows:
+
+- id `1`: `sent/live_send`
+- id `2`: `sent/live_send` retry rehearsal row
+- id `7`: `sent/live_send`,
+  `notificationKey=ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277`,
+  `sentAt=2026-05-19T20:36:12.458Z`,
+  `lastAttemptAt=2026-05-19T20:36:12.458Z`, `failedAt=null`,
+  `errorCode=null`, `reason=null`
+- id `8`: `sent/live_send`,
+  `notificationKey=EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump:metric_appended:1279`
+
+Captured rows remaining:
+
+| id | notificationKey | tokenId | metricId | status | mode | decision |
+| ---: | --- | ---: | ---: | --- | --- | --- |
+| `3` | `SMOKE_1778516915832_METRIC_SNAPSHOT:metric_appended:1265` | `5164` | `1265` | `captured` | `capture_only` | smoke/rehearsal row; do not send |
+| `4` | `SMOKE_1778516915832_METRIC_SNAPSHOT:metric_appended:1266` | `5164` | `1266` | `captured` | `capture_only` | smoke/rehearsal row; do not send |
+| `5` | `SMOKE_1778516915832_METRIC_SNAPSHOT:metric_appended:1267` | `5164` | `1267` | `captured` | `capture_only` | smoke/rehearsal row; do not send |
+| `6` | `SMOKE_1778516915832_METRIC_SNAPSHOT_GAP:metric_appended:1268` | `5172` | `1268` | `captured` | `capture_only` | smoke/rehearsal row; do not send |
+
+All four remaining captured rows are `metric_appended` / `capture_only`,
+`sentAt=null`, `retryCount=0`, `rawJsonFree=true`, and `secretFree=true`, but
+they are not manual live-send candidates because their keys and mints are
+smoke/rehearsal artifacts.
+
+`notification:retry:plan` remains read-only and returned:
+
+- `status=stop`
+- `candidateCount=0`
+- `selectedCount=0`
+- `nextRedCommand=null`
+- `stopConditionCodes=[no_failed_retry_candidate]`
+
+Operational boundary:
+
+- current manual live-send candidate: none
+- current retry candidate: none
+- sent rows id `7` and id `8` must not be resent; sent-row guard remains the
+  operational boundary
+- captured smoke/rehearsal rows id `3` through `6` are explicitly out of
+  scope for manual live send
+- auto live send, scheduler, worker, queue, and systemd remain disabled
