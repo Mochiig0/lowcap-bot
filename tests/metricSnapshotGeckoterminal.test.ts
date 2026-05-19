@@ -8,6 +8,8 @@ import { promisify } from "node:util";
 
 import { PrismaClient } from "@prisma/client";
 
+import { isRehearsalNotificationKey } from "../src/notifications/rehearsalNotificationGuard.js";
+
 const execFileAsync = promisify(execFile);
 
 const GECKO_ORIGIN_SOURCE = "geckoterminal.new_pools";
@@ -668,6 +670,45 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     });
   });
 
+  await t.test("supports rehearsal-tagged capture-only notification keys", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "write-rehearsal-notification.db")}`;
+      const mint = "MetricSnapshotRehearsal111111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-rehearsal-snapshot.json");
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--mint", mint, "--write", "--notificationRehearsalTag", "testtag"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      const metricId = parsed.items[0]?.writeSummary.metricId;
+      assert.equal(typeof metricId, "number");
+      assert.equal(parsed.items[0]?.writeSummary.notificationCaptureEnabled, true);
+      assert.equal(parsed.items[0]?.writeSummary.notificationCreated, true);
+      assert.equal(parsed.items[0]?.writeSummary.notificationSkippedReason, null);
+
+      const notifications = await readNotifications(databaseUrl, mint);
+      const expectedKey = `REHEARSAL:testtag:${mint}:metric_appended:${metricId}`;
+      assert.equal(notifications.length, 1);
+      assert.equal(notifications[0]?.notificationKey, expectedKey);
+      assert.equal(isRehearsalNotificationKey(expectedKey), true);
+      assert.equal(notifications[0]?.eventType, "metric_appended");
+      assert.equal(notifications[0]?.trigger, "metric_appended");
+      assert.equal(notifications[0]?.status, "captured");
+      assert.equal(notifications[0]?.mode, "capture_only");
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("TELEGRAM_BOT_TOKEN"), false);
+      assert.equal(result.stdout.includes("TELEGRAM_CHAT_ID"), false);
+      assert.equal(result.stdout.includes("DATABASE_URL"), false);
+    });
+  });
+
   await t.test("supports exact mint metric write without notification capture", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "write-no-notification.db")}`;
@@ -712,6 +753,118 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       const notifications = await readNotifications(databaseUrl, mint);
       assert.deepEqual(notifications, []);
     });
+  });
+
+  await t.test("rejects invalid rehearsal tags before DB writes", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "invalid-rehearsal-tag.db")}`;
+      const mint = "MetricSnapshotInvalidTag111111111111111111111pump";
+      const geckoSnapshotFile = join(dir, "gecko-invalid-tag-snapshot.json");
+
+      await runDbPush(databaseUrl);
+      await seedToken(databaseUrl, mint);
+      await writeSnapshotFixture(geckoSnapshotFile, mint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--mint", mint, "--write", "--notificationRehearsalTag", "bad/tag"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 1);
+      assert.equal(result.stdout, "");
+      assert.match(
+        result.stderr,
+        /--notificationRehearsalTag may contain only letters, numbers, underscore, and hyphen/,
+      );
+      assert.equal(result.stderr.includes("bad/tag"), false);
+      assert.equal(result.stderr.includes("TELEGRAM_BOT_TOKEN"), false);
+      assert.equal(result.stderr.includes("TELEGRAM_CHAT_ID"), false);
+      assert.equal(result.stderr.includes("DATABASE_URL"), false);
+
+      assert.deepEqual(await readMetrics(databaseUrl, mint), []);
+      assert.deepEqual(await readNotifications(databaseUrl, mint), []);
+    });
+  });
+
+  await t.test("rejects colon whitespace and long rehearsal tags", async () => {
+    const invalidTags = [
+      {
+        tag: "bad:tag",
+        pattern:
+          /--notificationRehearsalTag may contain only letters, numbers, underscore, and hyphen/,
+      },
+      {
+        tag: "bad tag",
+        pattern:
+          /--notificationRehearsalTag may contain only letters, numbers, underscore, and hyphen/,
+      },
+      {
+        tag: "a".repeat(41),
+        pattern: /--notificationRehearsalTag must be 40 characters or fewer/,
+      },
+    ];
+
+    for (const { tag, pattern } of invalidTags) {
+      const result = await runMetricSnapshotGeckoterminal([
+        "--mint",
+        "MetricSnapshotUnsafeTag11111111111111111111pump",
+        "--write",
+        "--notificationRehearsalTag",
+        tag,
+      ]);
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, pattern);
+      assert.equal(result.stderr.includes(tag), false);
+    }
+  });
+
+  await t.test("rejects rehearsal tag with no notification capture", async () => {
+    const result = await runMetricSnapshotGeckoterminal([
+      "--mint",
+      "MetricSnapshotNoCaptureRehearsal111111111111pump",
+      "--write",
+      "--notificationRehearsalTag",
+      "testtag",
+      "--noNotificationCapture",
+    ]);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /--notificationRehearsalTag cannot be used with --noNotificationCapture/,
+    );
+  });
+
+  await t.test("rejects rehearsal tag in batch mode", async () => {
+    const result = await runMetricSnapshotGeckoterminal([
+      "--write",
+      "--notificationRehearsalTag",
+      "testtag",
+    ]);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /--notificationRehearsalTag requires exact --mint mode/);
+  });
+
+  await t.test("rejects rehearsal tag without write mode", async () => {
+    const result = await runMetricSnapshotGeckoterminal([
+      "--mint",
+      "MetricSnapshotDryRunRehearsal111111111111pump",
+      "--notificationRehearsalTag",
+      "testtag",
+    ]);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /--notificationRehearsalTag requires --write/);
   });
 
   await t.test("keeps recent batch writes notification-free", async () => {
@@ -1060,7 +1213,7 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--intervalSeconds and --maxIterations require --watch/);
     assert.match(
       result.stderr,
-      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
+      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--notificationRehearsalTag <TAG>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
     );
   });
 

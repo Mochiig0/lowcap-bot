@@ -283,3 +283,40 @@ Next Yellow implementation candidate:
   `notification:send` and `notification:retry:plan`.
 - the option should stay single-mint and capture-only; it must not imply
   Telegram send, retry execution, scheduler, systemd, or auto live send.
+
+## Metric Snapshot Rehearsal Tag Option
+
+Date: 2026-05-20
+
+Yellow implementation added a narrow `metric:snapshot:geckoterminal` option:
+
+```bash
+--notificationRehearsalTag <TAG>
+```
+
+Behavior:
+
+- production default notification keys are unchanged:
+  `<mint>:metric_appended:<metricId>`
+- when the option is explicitly supplied for a single-mint capture write, the
+  capture-only Notification key becomes:
+  `REHEARSAL:<TAG>:<mint>:metric_appended:<metricId>`
+- `TAG` must be non-empty, 40 characters or fewer, and contain only letters,
+  numbers, underscore, or hyphen
+- colon, whitespace, slash, and longer values are rejected before Metric /
+  Notification writes
+- the option is allowed only with exact `--mint --write` one-shot mode
+- batch mode is rejected
+- dry-run / no-`--write` usage is rejected
+- `--noNotificationCapture` is rejected with the rehearsal tag because there
+  would be no capture-only Notification to mark
+- `--watch` is rejected with the rehearsal tag to keep rehearsal capture to one
+  explicit one-shot command
+
+The generated `REHEARSAL:` key is already covered by the existing
+`notification:send` and `notification:retry:plan` smoke / rehearsal guard, so
+future rehearsal rows remain excluded from manual live send and retry
+candidates. This Yellow did not execute a capture-only Red rehearsal, did not
+run `metric:snapshot:geckoterminal --write` against production, did not create
+or update production Notifications, did not fetch GeckoTerminal, did not send
+Telegram, and did not unlock auto live send, scheduler, or systemd.

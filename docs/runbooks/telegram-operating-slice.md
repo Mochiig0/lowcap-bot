@@ -398,3 +398,32 @@ The next useful Yellow is a small `metric:snapshot:geckoterminal` option for
 rehearsal capture, keeping the production default key unchanged and producing a
 `REHEARSAL:`-marked Notification key that the existing send / retry guard will
 exclude.
+
+## Metric Snapshot Rehearsal Tag
+
+Date: 2026-05-20
+
+`metric:snapshot:geckoterminal` now supports a narrow rehearsal marker option:
+
+```bash
+--notificationRehearsalTag <TAG>
+```
+
+It does not change the production default key
+`<mint>:metric_appended:<metricId>`. When explicitly used in exact
+`--mint --write` one-shot mode, the capture-only Notification key is
+`REHEARSAL:<TAG>:<mint>:metric_appended:<metricId>`.
+
+Constraints:
+
+- `TAG` is non-empty, max 40 characters, and limited to letters, numbers,
+  underscore, and hyphen
+- batch mode is rejected
+- no-`--write` dry-run usage is rejected
+- `--noNotificationCapture` is rejected
+- `--watch` is rejected
+
+The generated `REHEARSAL:` key is blocked by the existing live-send and retry
+guard. This implementation did not run a capture-only Red rehearsal, did not
+write production DB rows, did not fetch externally, did not send Telegram, and
+does not enable auto live send, scheduler, or systemd.

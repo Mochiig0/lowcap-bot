@@ -16,6 +16,8 @@ const DEFAULT_LIMIT = 20;
 const DEFAULT_SINCE_MINUTES = 180;
 const DEFAULT_INTERVAL_SECONDS = 60;
 const LOG_PREFIX = "[metric:snapshot:geckoterminal]";
+const MAX_NOTIFICATION_REHEARSAL_TAG_LENGTH = 40;
+const NOTIFICATION_REHEARSAL_TAG_PATTERN = /^[A-Za-z0-9_-]+$/;
 let injectedSnapshotErrorConsumed = false;
 
 function getTokenApiUrl(): string {
@@ -36,6 +38,7 @@ type MetricSnapshotArgs = {
   intervalSeconds: number;
   maxIterations?: number;
   source: string;
+  notificationRehearsalTag?: string;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -252,7 +255,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--notificationRehearsalTag <TAG>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
@@ -265,6 +268,7 @@ function getUsageText(): string {
     `- waits --interItemDelayMs between selected batch items when set; default is 0 and exact --mint mode is not delayed`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
     `- single --mint write mode captures a metric_appended Notification by default; --noNotificationCapture suppresses that capture record without changing Metric writes`,
+    `- --notificationRehearsalTag <TAG> is allowed only with exact --mint --write one-shot capture and prefixes the capture-only notificationKey with REHEARSAL:<TAG>:`,
     `- loops only when --watch is set`,
     `- waits --intervalSeconds ${DEFAULT_INTERVAL_SECONDS} between watch cycles`,
     `- persists observedAt, source, rawJson, and volume24h only when the source clearly exposes 24h volume`,
@@ -297,6 +301,27 @@ function parseNonNegativeIntegerArg(value: string, key: string): number {
 function parseOptionalStringArg(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
+}
+
+function parseNotificationRehearsalTagArg(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new CliUsageError("--notificationRehearsalTag must be non-empty");
+  }
+
+  if (trimmed.length > MAX_NOTIFICATION_REHEARSAL_TAG_LENGTH) {
+    throw new CliUsageError(
+      `--notificationRehearsalTag must be ${MAX_NOTIFICATION_REHEARSAL_TAG_LENGTH} characters or fewer`,
+    );
+  }
+
+  if (!NOTIFICATION_REHEARSAL_TAG_PATTERN.test(trimmed)) {
+    throw new CliUsageError(
+      "--notificationRehearsalTag may contain only letters, numbers, underscore, and hyphen",
+    );
+  }
+
+  return trimmed;
 }
 
 function parseArgs(argv: string[]): MetricSnapshotArgs {
@@ -374,6 +399,9 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
       case "--source":
         out.source = parseOptionalStringArg(value) ?? GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE;
         break;
+      case "--notificationRehearsalTag":
+        out.notificationRehearsalTag = parseNotificationRehearsalTagArg(value);
+        break;
       default:
         throw new CliUsageError(`Unknown arg: ${key}`);
     }
@@ -386,6 +414,26 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     (normalizedArgv.includes("--intervalSeconds") || normalizedArgv.includes("--maxIterations"))
   ) {
     throw new CliUsageError("--intervalSeconds and --maxIterations require --watch");
+  }
+
+  if (out.notificationRehearsalTag !== undefined) {
+    if (!out.write) {
+      throw new CliUsageError("--notificationRehearsalTag requires --write");
+    }
+
+    if (!out.mint) {
+      throw new CliUsageError("--notificationRehearsalTag requires exact --mint mode");
+    }
+
+    if (out.watch) {
+      throw new CliUsageError("--notificationRehearsalTag cannot be used with --watch");
+    }
+
+    if (out.noNotificationCapture) {
+      throw new CliUsageError(
+        "--notificationRehearsalTag cannot be used with --noNotificationCapture",
+      );
+    }
   }
 
   return out;
@@ -691,8 +739,15 @@ function isPumpMint(mint: string): boolean {
   return mint.endsWith("pump");
 }
 
-function buildMetricAppendedNotificationKey(mint: string, metricId: number): string {
-  return `${mint}:metric_appended:${metricId}`;
+function buildMetricAppendedNotificationKey(
+  mint: string,
+  metricId: number,
+  rehearsalTag?: string,
+): string {
+  const productionKey = `${mint}:metric_appended:${metricId}`;
+  return rehearsalTag === undefined
+    ? productionKey
+    : `REHEARSAL:${rehearsalTag}:${productionKey}`;
 }
 
 function buildMetricAppendedMessagePreview(input: {
@@ -1046,7 +1101,11 @@ async function processToken(
 
       if (isNotificationCaptureEnabled(args)) {
         const notificationResult = await maybeCreateByNotificationKey(db, {
-          notificationKey: buildMetricAppendedNotificationKey(token.mint, metricId),
+          notificationKey: buildMetricAppendedNotificationKey(
+            token.mint,
+            metricId,
+            args.notificationRehearsalTag,
+          ),
           eventType: "metric_appended",
           mint: token.mint,
           tokenId: token.id,

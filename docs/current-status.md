@@ -3598,6 +3598,29 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Metric Snapshot Rehearsal Tag Option
+
+Date: 2026-05-20
+
+`metric:snapshot:geckoterminal` now has a minimal
+`--notificationRehearsalTag <TAG>` option for future capture-only rehearsal
+rows. The production default key remains unchanged as
+`<mint>:metric_appended:<metricId>`. When explicitly used in exact
+`--mint --write` one-shot mode, the capture-only Notification key becomes
+`REHEARSAL:<TAG>:<mint>:metric_appended:<metricId>`.
+
+The tag must be non-empty, no longer than 40 characters, and limited to
+letters, numbers, underscore, and hyphen. Batch mode, no-`--write` dry-run
+usage, `--noNotificationCapture`, and `--watch` are rejected. Generated
+`REHEARSAL:` keys are covered by the existing live-send / retry smoke
+rehearsal guard, so they are excluded from manual live send and retry
+candidates.
+
+This was implementation and test work only: no capture-only Red rehearsal,
+production DB write, external fetch, Telegram send, Notification create/update,
+schema / migration change, scheduler, systemd, or auto live send unlock
+occurred.
+
 ## Metric Report Readiness After Additional Limit 75
 
 Date: 2026-05-20
