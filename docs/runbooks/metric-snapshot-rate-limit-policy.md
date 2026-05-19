@@ -425,6 +425,55 @@ Stop before the next Metric accumulation Red task if:
 - the next step cannot be expressed as one exact command or one small Yellow
   implementation task.
 
+## Limit 75 Re-Run Decision Preflight
+
+Date: 2026-05-19
+
+A read-only decision preflight was completed for a possible re-run of the
+already-stable limit-75 Metric accumulation command.
+
+Read-only command:
+
+```bash
+pnpm -s review:queue:geckoterminal -- --pumpOnly --limit 75
+```
+
+Result:
+
+- `readOnly=true`
+- `geckoOriginTokenCount=94`
+- `metricPendingCount=0`
+- queue rows were GeckoTerminal-origin pump `mint_only`
+- visible queue rows had existing Metrics and matched stale / enrich review,
+  not Metric-0 pending
+
+The current 24h queue has aged since the previous report-readiness check. A
+separate read-only candidate-shape check against the proposed
+`metric:snapshot:geckoterminal` filters showed about 93 eligible rows after
+`minGapMinutes=60`, with a limit-75 selection shaped as approximately
+`metric0=0`, `metric1=45`, and `metric2Plus=30`.
+
+Decision:
+
+- The next Red command can be considered as a controlled stable limit-75
+  re-run for additional observation points on already measured tokens.
+- It is not a Metric-0 pending cleanup run while `--sinceMinutes 1440` remains
+  in place and the current queue reports `metricPendingCount=0`.
+- Keep the proven pacing:
+  `--interItemDelayMs 15000`.
+- Human Red approval remains required because the command fetches
+  GeckoTerminal and writes production Metric rows.
+
+Candidate Red command, not executed in this preflight:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected side effects: up to 75 new `Metric` rows. Expected non-effects:
+Token, Notification, HolderSnapshot, Telegram, checkpoint, and repo-local data
+remain unchanged.
+
 ## Not Executed In This Preflight
 
 - `metric:snapshot:geckoterminal`;

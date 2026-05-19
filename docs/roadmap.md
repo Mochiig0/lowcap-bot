@@ -567,3 +567,25 @@ are visible without rawJson dumps.
 Next work can either run one more small read-only cohort review on a different
 sample or move to a docs-only decision point for the next bounded Metric /
 notification operating slice.
+
+## Operating Update: Metric Accumulation Decision Preflight
+
+Date: 2026-05-19
+
+A docs-only decision point checked whether to return to Telegram operations or
+run one more controlled Metric accumulation slice. The current 24h
+`review:queue:geckoterminal -- --pumpOnly --limit 75` result is read-only and
+shows `metricPendingCount=0`, so the proposed next Red is not a Metric-0
+pending cleanup. It is instead a repeat of the already stable limit-75 path to
+add additional Metric observations to recent GeckoTerminal-origin pump
+`mint_only` rows that already have Metrics and satisfy `minGapMinutes=60`.
+
+Candidate Red command, requiring human approval and not executed in the
+preflight:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected effect is Metric rows only; Token, Notification, HolderSnapshot,
+Telegram, checkpoint, and repo-local data should remain unchanged.

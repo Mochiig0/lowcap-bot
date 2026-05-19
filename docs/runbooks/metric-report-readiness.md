@@ -182,7 +182,74 @@ Confirmed after report execution:
 
 ## Next Candidate
 
-The next task should stay read-only and use the accumulated Metrics for a small
-cohort outcome/readiness review, for example comparing `metrics:window-report`
-results across a handful of Metric 2+ GeckoTerminal-origin pump `mint_only`
-Tokens before any further batch expansion.
+The next task should be a separately approved Red run only if the operator wants
+to add another bounded set of observation points. Because the latest 24h queue
+now has no Metric-0 pending candidates, that Red run should be treated as a
+stable limit-75 re-run for additional Metric samples on already measured
+GeckoTerminal-origin pump `mint_only` tokens, not as Metric-0 cleanup.
+
+Candidate command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+It still requires explicit human Red approval because it fetches GeckoTerminal
+and writes production Metric rows.
+
+## Metric Accumulation Decision Preflight
+
+Date: 2026-05-19
+
+This read-only decision point checked whether the already-stable limit-75 Metric
+accumulation command can be re-run before returning to Telegram operations.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 388 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=261`, `2+=53`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Read-only queue command:
+
+```bash
+pnpm -s review:queue:geckoterminal -- --pumpOnly --limit 75
+```
+
+Queue result:
+
+- `readOnly=true`
+- `geckoOriginTokenCount=94` inside the 24h queue window
+- `metricPendingCount=0`
+- queue rows were GeckoTerminal-origin pump `mint_only` rows
+- visible queue rows had existing Metrics and matched `staleReview` /
+  `enrichPending`, not `metricPending`
+
+Additional read-only candidate-shape check for the proposed Red command showed:
+
+- `geckoPumpOriginWithin24h=93`
+- `eligibleAfterMinGap60=93`
+- `selectedCountIfLimit75=75`
+- selected distribution would be approximately `metric0=0`, `metric1=45`,
+  `metric2Plus=30`
+- selected rows were `metadataStatus=mint_only`
+
+Decision:
+
+- Proceeding to a Red command is reasonable only as a controlled repeat of the
+  stable limit-75 Metric accumulation path.
+- It should not be described as processing the earlier `metricPendingCount=85`
+  cohort because the current 24h queue reports `metricPendingCount=0`.
+- The expected write target is up to 75 new `Metric` rows on already measured
+  GeckoTerminal-origin pump `mint_only` tokens.
+- `--interItemDelayMs 15000` should stay in place because it was the pacing
+  used for the rate-limit-clean limit 30 / 50 / 75 runs.
+- Expected non-effects remain: no Token update/create, no Notification
+  create/update in batch mode, no HolderSnapshot write, no Telegram send, no
+  checkpoint, and no repo-local data changes.
+
+Stop before Red execution if the queue no longer has enough eligible
+GeckoTerminal-origin pump `mint_only` rows, if Notification / Telegram /
+HolderSnapshot paths appear in batch mode, if raw provider bodies or secrets
+would be printed, or if the operator intent is specifically to fill Metric-0
+pending rows rather than add additional observations.
