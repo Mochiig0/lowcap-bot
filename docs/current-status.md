@@ -4009,6 +4009,57 @@ Current Telegram boundary:
 - smoke/rehearsal captured rows id `3` through `6` are send-excluded
 - auto live send, scheduler, worker, queue, and systemd remain unapproved
 
+## Auto Live Send Guardrails
+
+Date: 2026-05-20
+
+The manual Telegram live-send slice is now closed for current candidates.
+This docs-only policy pass did not execute `notification:send`, retry
+execution, Telegram send, Notification update, production DB write, external
+fetch, Metric snapshot, detect watch, scheduler/systemd, schema/migration
+change, application code change, or rawJson full dump.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- current manual live-send candidate: none
+- current retry candidate: none
+- remaining captured rows id `3` through `6` are smoke/rehearsal artifacts and
+  are send-excluded
+
+Auto live send remains unapproved. Before it can be considered, the project
+needs stable capture-only behavior for the intended source, active sent-row
+resend prevention, tested failure marking, read-only retry planning, explicit
+smoke/rehearsal exclusion, more than one manual live-send success, and a
+documented disable switch / kill switch.
+
+Initial future allowlist should be limited to one small scope:
+
+- `metric_appended` event / trigger
+- `captured` / `capture_only`
+- `sentAt=null` and `status!=sent`
+- expected `<mint>:metric_appended:<metricId>` key shape
+- not smoke/rehearsal
+- not failed and not retry
+- safe preview available
+- max one row per run, or another small explicit upper bound
+
+Stop conditions for any future auto live send include failed count greater
+than `0`, Telegram API/network/rate-limit errors, any `blockedBy` result, sent
+or `sentAt`-present candidates, smoke/rehearsal candidates, non-allowlisted
+trigger, duplicate or ambiguous identity, unsafe preview, disabled kill switch,
+write scope beyond the selected Notification row, Token / Metric /
+HolderSnapshot side effects, or any need to print rawJson / secrets.
+
+No dedicated auto-send env switch exists today. Current live-send protection is
+the CLI `--live` gate. Future implementation should evaluate explicit switch
+names such as `NOTIFICATION_AUTO_SEND_ENABLED=false`,
+`TELEGRAM_LIVE_SEND_ENABLED=false`, or `AUTO_LIVE_SEND_DISABLED=true` before
+any scheduler/systemd integration. Scheduler/systemd remain locked until
+candidate selection, disable behavior, restart duplicate-send risk, and
+failure handling are validated outside an always-on process.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

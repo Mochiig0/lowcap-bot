@@ -238,3 +238,85 @@ Operational boundary:
 - captured smoke/rehearsal rows id `3` through `6` are explicitly out of
   scope for manual live send
 - auto live send, scheduler, worker, queue, and systemd remain disabled
+
+## Auto Live Send Guardrails
+
+Date: 2026-05-20
+
+This docs-only policy closes the current manual live-send slice and defines the
+minimum guardrails before any future auto live send work. No Telegram send,
+production DB write, Notification update, external fetch, retry execution,
+Metric snapshot, detect watch, scheduler, systemd, schema change, migration,
+application code change, or rawJson full dump was executed.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- current manual live-send candidate: none
+- current retry candidate: none
+- remaining captured rows id `3` through `6` are smoke/rehearsal rows and are
+  send-excluded
+
+Auto live send remains locked until at least all of these are true:
+
+- capture-only creation path is stable for the intended production source
+- sent-row resend prevention remains tested and active
+- failed marking remains tested and active
+- `notification:retry:plan` remains read-only and stable
+- smoke/rehearsal rows are excluded by explicit policy and implementation
+- multiple manual live sends have succeeded without side effects
+- a disable switch / kill switch is implemented and documented
+- an operator can stop delivery with one command or config change
+- scheduler/systemd remain separated from the first auto-send validation
+
+Initial allowlist, if future auto live send is implemented:
+
+- `trigger=metric_appended`
+- `eventType=metric_appended`
+- `status=captured`
+- `mode=capture_only`
+- `sentAt=null`
+- `status!=sent`
+- `notificationKey` matches the expected
+  `<mint>:metric_appended:<metricId>` pattern
+- key and mint are not smoke/rehearsal artifacts
+- row is not `failed`
+- row is not a retry candidate
+- `metricId` and mint are present
+- safe preview is available without raw payloads or secrets
+- one run processes at most one row, or another small explicit upper bound
+- the same candidate can be observed in dry-run / plan output first
+
+Stop auto live send immediately if any of these are true:
+
+- failed Notification count is greater than `0`
+- Telegram API error, timeout, network error, or rate limit occurs
+- result contains any `blockedBy` reason
+- a sent row or `sentAt`-present row appears in candidates
+- smoke/rehearsal row appears in candidates
+- trigger or event type is not the allowlisted value
+- duplicate `notificationKey` or identity ambiguity appears
+- safe preview cannot be generated
+- disable switch is off
+- DB write scope expands beyond the selected Notification row
+- Token, Metric, or HolderSnapshot writes would occur
+- rawJson, Telegram response body, token, chat id, `.env`, or `DATABASE_URL`
+  output would be needed
+
+Disable switch / kill switch policy:
+
+- existing implementation has no dedicated auto-send env switch today
+- current live-send guard is CLI-level: sender is connected only with explicit
+  `--live`
+- future auto send must add an explicit switch before scheduler/systemd work
+- candidate names to evaluate later:
+  - `NOTIFICATION_AUTO_SEND_ENABLED=false`
+  - `TELEGRAM_LIVE_SEND_ENABLED=false`
+  - `AUTO_LIVE_SEND_DISABLED=true`
+- scheduler/systemd must not call `notification:send --live` until that switch
+  exists, defaults safe, and is verified in tests / dry-run
+
+Scheduler/systemd remain locked because auto candidate selection, disable
+switch behavior, restart duplicate-send behavior, and failure handling have not
+yet been validated in an always-on process.
