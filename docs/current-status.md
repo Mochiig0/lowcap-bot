@@ -3858,6 +3858,65 @@ D30-limited path using only `near_5m` / `near_30m` anchors with explicit
 Notification-backed outcomes, and existing `outcomeLabel` semantics remain
 unchanged.
 
+## Telegram Operating Slice Preflight
+
+Date: 2026-05-20
+
+Outcome/report work is paused at Policy C. Policy D remains a future candidate
+only, and no limited D30 fallback outcome mode is being implemented now. The
+next operating step can return to manual-approved Telegram work, while auto
+live send, scheduler, worker, queue, and systemd delivery remain locked.
+
+This preflight was read-only / docs-only. No `notification:send` execution,
+Telegram send, Notification update, production DB write, external fetch, Metric
+snapshot, detect watch, retry execution, schema/migration change, application
+code change, or rawJson full dump was performed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Notification scripts confirmed:
+
+- `notification:send`
+- `notification:retry:plan`
+
+`notification:send -- --help` confirmed the CLI requires one
+`--notificationKey`, `--trigger metric_appended`, and explicit `--live` before
+the sender is connected. Sent rows are blocked by `status=sent` or
+`sentAt != null`; failed rows require `--retryFailed`; success/failure updates
+only the existing selected Notification row.
+
+`notification:retry:plan` returned `status=stop`,
+`mode=read_only_retry_planner`, `willExecute=false`, `candidateCount=0`,
+`selectedCount=0`, and `stopConditionCodes=[no_failed_retry_candidate]`.
+Because failed rows are absent, retry execution is unnecessary.
+
+Captured rows:
+
+- ids `3`, `4`, `5`, and `6` are smoke/rehearsal `metric_appended` capture-only
+  rows and are not preferred live-send targets.
+- id `7` is the preferred manual candidate:
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277`,
+  `tokenId=5376`, `metricId=1277`, `status=captured`,
+  `mode=capture_only`, `sentAt=null`, `retryCount=0`, `rawJsonFree=true`,
+  and `secretFree=true`.
+- sent rows are ids `1`, `2`, and `8`; failed rows are `0`.
+
+Next Red candidate, not executed:
+
+```bash
+pnpm -s notification:send -- --notificationKey ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277 --trigger metric_appended --live
+```
+
+This requires explicit human approval. Expected side effects are at most one
+Telegram send and one update to existing Notification id `7`. Expected
+non-effects are no Notification create, no Token / Metric / HolderSnapshot
+write, no retry execution, no scheduler/systemd, and no raw provider or secret
+output.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

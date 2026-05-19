@@ -346,3 +346,7 @@ Recommendation:
 Next candidate: design a limited D30 fallback outcome mode before coding it, or
 return to the Telegram operating slice. A broad Policy D implementation is not
 recommended from the current cohort.
+
+Current decision: return to the Telegram operating slice first. Policy D stays
+as a future candidate; it should not be implemented until a separate limited
+D30 fallback mode is explicitly approved.
