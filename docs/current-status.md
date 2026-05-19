@@ -3917,6 +3917,56 @@ non-effects are no Notification create, no Token / Metric / HolderSnapshot
 write, no retry execution, no scheduler/systemd, and no raw provider or secret
 output.
 
+## Manual Telegram Live Send For Notification 7
+
+Date: 2026-05-20
+
+The human-approved manual live-send Red command for Notification id `7` was
+executed exactly once:
+
+```bash
+pnpm -s notification:send -- --notificationKey ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277 --trigger metric_appended --live
+```
+
+Result:
+
+- `status=sent`
+- `sentCount=1`
+- `updatedCount=1`
+- `senderCalled=true`
+- `blockedBy=[]`
+- `errorCode=null`
+
+Before execution:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+- Notification id `7`: `status=captured`, `mode=capture_only`,
+  `sentAt=null`, `trigger=metric_appended`, `notificationKey` matched
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277`
+
+After execution:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- Notification id `7`: `status=sent`, `mode=live_send`,
+  `sentAt=2026-05-19T20:36:12.458Z`,
+  `lastAttemptAt=2026-05-19T20:36:12.458Z`, `failedAt=null`,
+  `errorCode=null`, and `reason=null`
+
+Confirmed boundaries:
+
+- Telegram send occurred once for the selected Notification.
+- The existing Notification id `7` was updated once.
+- No Notification row was created.
+- Token / Metric / HolderSnapshot counts did not change.
+- Retry execution, second command, scheduler, systemd, metric snapshot, detect
+  watch, import, enrich, and rescore were not executed.
+- Repo-local data had no diff before docs update.
+- No rawJson full dump, Telegram credential, chat id, or `DATABASE_URL` value
+  was printed.
+- Auto live send remains unapproved.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

@@ -125,3 +125,57 @@ if message preview safety cannot be checked without printing secrets.
 - Auto live send: not enabled.
 - Scheduler/systemd: not enabled.
 - Captured rows are not standing permission to send.
+
+## Manual Live Send Result For Notification 7
+
+Date: 2026-05-20
+
+Human-approved Red execution ran exactly one live-send command:
+
+```bash
+pnpm -s notification:send -- --notificationKey ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump:metric_appended:1277 --trigger metric_appended --live
+```
+
+Command result:
+
+- `status=sent`
+- `sentCount=1`
+- `updatedCount=1`
+- `senderCalled=true`
+- `notificationId=7`
+- `metricId=1277`
+- `blockedBy=[]`
+- `errorCode=null`
+
+Before:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+- Notification id `7`: `status=captured`, `mode=capture_only`,
+  `sentAt=null`, `trigger=metric_appended`, `metricId=1277`,
+  `tokenId=5376`
+
+After:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- Notification id `7`: `status=sent`, `mode=live_send`,
+  `sentAt=2026-05-19T20:36:12.458Z`,
+  `lastAttemptAt=2026-05-19T20:36:12.458Z`, `failedAt=null`,
+  `errorCode=null`, `reason=null`, `retryCount=0`, `nextRetryAt=null`,
+  `leaseUntil=null`, `workerId=null`, `rawJsonFree=true`, and
+  `secretFree=true`
+
+Confirmed non-effects:
+
+- no Notification row was created
+- no Token write
+- no Metric write
+- no HolderSnapshot write
+- no retry execution
+- no scheduler / systemd / auto live send
+- no repo-local data diff before docs update
+- no rawJson full dump or secret value was printed
+
+Auto live send remains locked. This was a single manual-approved live send, not
+permission to batch-send or automatically advance captured rows.
