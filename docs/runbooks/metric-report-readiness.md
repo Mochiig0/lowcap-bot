@@ -476,3 +476,8 @@ Operator judgment:
   rows while `alertFdv=null`.
 - The next high-leverage task is an alert-FDV anchor policy / preflight for
   mint-only fallback rows, not another report-display tweak.
+
+See `docs/runbooks/alert-fdv-anchor-policy.md` for the read-only policy
+preflight. Its current recommendation is to keep `alertFdv` and
+`outcomeLabel` strict, then add report-only `entryAnchor*` baseline fields for
+mint-only fallback rows before considering any outcome-label change.

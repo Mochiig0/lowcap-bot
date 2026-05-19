@@ -3660,6 +3660,64 @@ itself create `flat` / `small_win` / `hit` / `big_hit` outcomes for rows with
 outcome-reporting path should next define alert-anchor behavior before more
 report display work.
 
+## Alert FDV Anchor Policy Preflight
+
+Date: 2026-05-20
+
+A read-only / docs-only preflight evaluated mint-only fallback tokens where
+`metrics:window-report` resolves `alertedAt` from
+`firstSeenSourceSnapshot.detectedAt` but cannot find a strict ±5m `alertFdv`.
+No implementation, schema, migration, external fetch, DB write, Metric
+snapshot, detect watch, Telegram send, or rawJson dump was executed.
+
+Target definition:
+
+- GeckoTerminal-origin pump `mint_only`
+- no Notification row
+- has Metric
+- has at least one FDV Metric
+
+Read-only aggregation result:
+
+- target token count: `158`
+- target Metric distribution: `Metric 1=99`, `Metric 2+=59`
+- strict ±5m anchor found: `0`
+- strict anchor missing: `158`
+- before-side FDV Metric present: `0`
+- after-side FDV Metric present: `158`
+
+First FDV Metric after `alertedAt` lag:
+
+- `<=5m`: `0`
+- `<=15m`: `0`
+- `<=30m`: `5`
+- `<=60m`: `5`
+- `<=120m`: `17`
+- `<=180m`: `39`
+- `<=360m`: `158`
+- `>360m`: `0`
+- no after Metric: `0`
+
+Policy conclusion:
+
+- Policy A, strict current behavior, is semantically clean but leaves all 158
+  target rows without `alertFdv`.
+- Policy B, widening mint-only fallback after-window, does not help enough at
+  60m (`5 / 158`) and needs up to 360m to recover all rows, which weakens the
+  meaning of alert-time FDV.
+- Policy C, keeping `alertFdv` strict and adding report-only derived baseline
+  fields, is the safest next implementation.
+- Policy D, using the first post-entry FDV Metric for outcome calculation, is
+  useful but too risky before operators review anchor lag / quality because
+  many anchors are 180m to 360m after first seen.
+
+Recommended next Yellow task: add report-only derived mint-only fallback anchor
+fields such as `entryAnchorFdv`, `entryAnchorObservedAt`,
+`entryAnchorLagMinutes`, `entryAnchorSource`, and `entryAnchorQuality` to
+`metrics:window-report`. Do not change `alertFdv`, strict ±5m lookup,
+`outcomeLabel`, Notification-backed token behavior, DB schema, or persisted
+data in that first implementation.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19
