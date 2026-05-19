@@ -3598,6 +3598,68 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## No-Data Reason Operator Review
+
+Date: 2026-05-20
+
+A read-only follow-up checked whether the new `metrics:window-report`
+explanation fields are enough for operator triage. No application code,
+schema, migration, Metric snapshot, detect watch, external fetch, Telegram
+send, or DB write was executed.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Cohort checked with `metrics:window-report -- --windows
+30,60,120,180,360,720,1440`:
+
+- Notification id `8` token:
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`
+- Notification id `7` token:
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`
+- no-Notification mint-only fallback with Metrics:
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`
+- Metric 0 mint-only sample:
+  `By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`
+- Metric 1 mint-only sample:
+  `DAMRNx1oheBNpy7WRtp6ptPGGzxZkiTjxq4ptHmdpump`
+- Metric 1 -> 2+ sample:
+  `CyUWWFVU892Zj7AXhedRUrgprhFknwH4idhda741pump`
+
+Findings:
+
+- Notification id `8` still resolves `alertedAtSource=notification_sent_at`
+  and `alertNotificationId=8`; its post-send windows show
+  `hasAlertFdvAnchor=false`, `hasWindowFdvSamples=false`, and
+  `noDataReasons` including `no_fdv_samples_in_window`, making the missing
+  post-send sample clear.
+- Notification id `7` remains the flat positive control. Wider windows show
+  `outcomeLabel=flat`, `hasAlertFdvAnchor=true`,
+  `hasWindowFdvSamples=true`, and `noDataReasons=[]`, so non-`no_data`
+  windows are not incorrectly annotated with no-data reasons.
+- no-Notification mint-only fallback rows with Metrics show
+  `hasWindowFdvSamples=true` but `hasAlertFdvAnchor=false`, with
+  `noDataReasons` narrowed to `no_alert_anchor_near_entry` and
+  `no_peak_multiple`. This separates "samples exist" from "no alert FDV
+  anchor".
+- Metric 0 rows show `hasWindowFdvSamples=false` and the full no-sample reason
+  set, including `no_fdv_samples_in_window`.
+- Metric 1 and Metric 1 -> 2+ rows show `thin` / `partial` coverage as sample
+  density improves, while still reporting `no_alert_anchor_near_entry` when no
+  alert FDV anchor exists.
+
+Judgment: the fields are sufficient for current operator decisions. They make
+the next bottleneck explicit: no-Notification mint-only fallback rows need an
+alert-FDV anchor policy if operators want outcome labels beyond `no_data`.
+Additional broad Metric accumulation can improve coverage, but it will not by
+itself create `flat` / `small_win` / `hit` / `big_hit` outcomes for rows with
+`alertFdv=null`. Telegram operating work can resume separately, but the
+outcome-reporting path should next define alert-anchor behavior before more
+report display work.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

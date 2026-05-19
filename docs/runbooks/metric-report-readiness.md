@@ -406,3 +406,73 @@ pnpm -s metrics:window-report -- --mint <MINT> --windows 30,60,120,180,360,720,1
 The checked cohort stayed side-effect free: no DB write, external fetch,
 Telegram send, Token update, Notification update, HolderSnapshot write, or
 rawJson full dump.
+
+## Operator Review of No-Data Reasons
+
+Date: 2026-05-20
+
+This Green follow-up rechecked the no-data explanation fields against a bounded
+cohort. The task stayed read-only and docs-only: no Metric snapshot, detect
+watch, external fetch, production DB write, Telegram send, Notification
+send/retry, schema change, migration, application code change, or rawJson full
+dump was executed.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Read-only commands:
+
+```bash
+pnpm -s mvp:status
+pnpm -s metrics:window-report -- --help
+pnpm -s metrics:window-report -- --mint EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint DAMRNx1oheBNpy7WRtp6ptPGGzxZkiTjxq4ptHmdpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint CyUWWFVU892Zj7AXhedRUrgprhFknwH4idhda741pump --windows 30,60,120,180,360,720,1440
+```
+
+Cohort:
+
+- Notification id `8`: sent/live-send alert anchor case
+- Notification id `7`: captured alert anchor and `flat` control case
+- no-Notification mint-only fallback with Metrics
+- Metric 0 mint-only row
+- Metric 1 mint-only row
+- Metric 1 -> 2+ mint-only row
+
+Review findings:
+
+- `no_alert_anchor_near_entry` is visible when Metrics exist but `alertFdv` is
+  unavailable. The no-Notification fallback samples have
+  `hasWindowFdvSamples=true`, `hasAlertFdvAnchor=false`, and reasons limited to
+  alert-anchor / peak-multiple gaps in windows where FDV samples exist.
+- `no_fdv_samples_in_window` is visible for true empty windows. The Metric 0
+  sample and Notification id `8` post-send windows both show
+  `hasWindowFdvSamples=false`.
+- `hasAlertFdvAnchor=false` plus `hasWindowFdvSamples=true` is readable in
+  fallback rows with Metrics, which tells the operator that more samples exist
+  but the alert anchor is the missing piece.
+- `hasAlertFdvAnchor=false` plus `hasWindowFdvSamples=false` is readable for
+  Metric 0 rows and Notification id `8` post-send windows, which tells the
+  operator there is no usable window sample.
+- Notification id `7` flat windows show `noDataReasons=[]`,
+  `hasAlertFdvAnchor=true`, and `hasWindowFdvSamples=true`, so no-data reasons
+  are not falsely attached to non-`no_data` windows.
+- Metric 1 and Metric 1 -> 2+ rows show the expected `thin` / `partial`
+  coverage changes while preserving no-alert-anchor explanations.
+
+Operator judgment:
+
+- The report is sufficient to distinguish no samples from no alert anchor.
+- It is also sufficient to explain why Notification id `8` remains `no_data`
+  after live send: the available Metrics are before the sent alert anchor.
+- Additional Metric accumulation can thicken `thin` / `partial` coverage, but
+  it will not produce alert-based outcome labels for no-Notification mint-only
+  rows while `alertFdv=null`.
+- The next high-leverage task is an alert-FDV anchor policy / preflight for
+  mint-only fallback rows, not another report-display tweak.
