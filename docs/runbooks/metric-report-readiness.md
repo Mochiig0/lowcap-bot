@@ -92,6 +92,81 @@ Cohort report:
 - Legacy `outcomeBucket` remained `unresolved` / `multiple_missing`, which is
   expected because canonical outcome review is `metrics:window-report`
 
+## Cohort Window Outcome Check
+
+Date: 2026-05-19
+
+After the first report-readiness pass, a smaller outcome cohort was checked
+side by side with `metrics:window-report` using windows
+`30,60,120,180,360,720,1440`. The cohort was intentionally bounded to seven
+tokens:
+
+- Notification id `8` token:
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`
+- Notification id `7` token:
+  `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`
+- Metric 2+ GeckoTerminal-origin pump `mint_only` samples without Notification:
+  `AvE4T5wvJsjr6Ro7q3gdPgEpDDPMYnh6dmqTafZPpump`,
+  `Dt1M9Cj7pEBuPf3dAbzLSFk1ft9YHmhCXs8vdyySpump`, and
+  `8b1rapy6vNuaoUHBSPhJoXNrU3CL1ZpRKpXLvX9apump`
+- Metric 1 sample:
+  `P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump`
+- Metric 0 pending sample:
+  `27GS5VLagjZdtdwPeBkyqkJDWn2ZoqjqBCN4LUB6pump`
+
+Read-only commands executed:
+
+```bash
+pnpm -s review:queue:geckoterminal -- --pumpOnly --limit 20
+pnpm -s metrics:window-report -- --mint EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint AvE4T5wvJsjr6Ro7q3gdPgEpDDPMYnh6dmqTafZPpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint Dt1M9Cj7pEBuPf3dAbzLSFk1ft9YHmhCXs8vdyySpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint 8b1rapy6vNuaoUHBSPhJoXNrU3CL1ZpRKpXLvX9apump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint 27GS5VLagjZdtdwPeBkyqkJDWn2ZoqjqBCN4LUB6pump --windows 30,60,120,180,360,720,1440
+```
+
+Current DB state during the cohort check stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 388 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=261`, `2+=53`
+- `review:queue:geckoterminal -- --pumpOnly --limit 20` still reported
+  `metricPendingCount=85`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Outcome findings:
+
+- Notification id `8` was recognized as `alertNotificationId=8` with
+  `alertedAtSource=notification_sent_at`, but all checked windows stayed
+  `outcomeLabel=no_data` because both Metrics predated `sentAt`, leaving no
+  post-alert FDV sample inside those windows.
+- Notification id `7` was recognized as `alertNotificationId=7` with
+  `alertedAtSource=notification_captured_at`. It had `alertFdv` from the
+  pre-alert Metric and a post-alert Metric in the 120m+ windows, producing
+  `peakMultipleFromAlert=1.0869155273705746`, `outcomeLabel=flat`,
+  `fdvSampleCoverageLabel=thin`, and non-negative `timeToPeakMinutes`.
+- The three no-Notification Metric 2+ samples fell back to
+  `alertedAtSource=first_seen_detected_at` with `alertNotificationId=null`.
+  They showed Metric/FDV samples in wider windows (`thin` at one-sample
+  windows and `partial` when two samples were inside the window), but
+  `outcomeLabel` stayed `no_data` because there was no alert FDV anchor.
+- The Metric 1 sample also fell back to `first_seen_detected_at`; it showed
+  `fdvSampleCoverageLabel=thin` in the wider window and `outcomeLabel=no_data`.
+- The Metric 0 sample stayed pending / `no_data` across every checked window
+  with `fdvSampleCoverageLabel=no_data`.
+- The cohort showed the completion flags in a useful way: older alert-anchored
+  samples were complete / non-provisional, while newer first-seen fallback
+  samples could show complete short windows and provisional 12h / 24h windows.
+- No `small_win`, `hit`, or `big_hit` labels appeared in this cohort. The only
+  non-`no_data` label observed was `flat`, and it matched the documented
+  `peakMultipleFromAlert < 1.5` rule.
+
+This confirmed that `metrics:window-report` is usable for human review at the
+current accumulation stage: it distinguishes pending / no-data tokens, thin
+single-sample tokens, partial multi-sample windows, alert-anchored outcomes,
+and provisional incomplete windows without printing Metric rawJson.
+
 ## Side Effects
 
 Confirmed after report execution:

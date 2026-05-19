@@ -545,3 +545,25 @@ DB writes, external fetches, Telegram sends, or rawJson full dumps.
 
 Next work should stay on read-only outcome / cohort review before any further
 Metric batch expansion.
+
+## Operating Update: Cohort Window Outcome Check
+
+Date: 2026-05-19
+
+A bounded seven-token cohort was checked with
+`metrics:window-report -- --windows 30,60,120,180,360,720,1440` after the
+Metric report-readiness pass. The cohort included Notification id `8`,
+Notification id `7`, three GeckoTerminal-origin pump `mint_only` Metric 2+
+tokens, one Metric 1 token, and one Metric 0 pending token.
+
+The check stayed read-only and left counts unchanged at Token / Metric /
+Notification / HolderSnapshot `1536 / 388 / 8 / 1`. It confirmed that
+`metrics:window-report` is usable for human outcome review: alert-anchored
+windows can produce `flat`, no-alert mint-only windows remain `no_data` while
+still showing `thin` / `partial` sample coverage, Metric 1 tokens show `thin`,
+Metric 0 tokens remain pending / `no_data`, and complete / provisional flags
+are visible without rawJson dumps.
+
+Next work can either run one more small read-only cohort review on a different
+sample or move to a docs-only decision point for the next bounded Metric /
+notification operating slice.

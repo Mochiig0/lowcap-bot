@@ -3597,3 +3597,36 @@ Findings:
   repo-local data changes occurred
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
+
+## Cohort Window Outcome Check
+
+Date: 2026-05-19
+
+A second read-only report pass compared a bounded cohort of seven tokens with
+`metrics:window-report -- --windows 30,60,120,180,360,720,1440`: Notification
+id `8`, Notification id `7`, three GeckoTerminal-origin pump `mint_only`
+tokens with Metric 2+, one Metric 1 token, and one Metric 0 pending token.
+
+The DB state stayed unchanged at Token / Metric / Notification /
+HolderSnapshot `1536 / 388 / 8 / 1`, with Token Metric distribution
+`0=1222`, `1=261`, `2+=53`, `metricPendingCount=85`, and Notification statuses
+`captured=5`, `sent=3`, `failed=0`.
+
+Findings:
+
+- Notification id `8` was recognized as `alertNotificationId=8` and
+  `alertedAtSource=notification_sent_at`, but stayed `no_data` because its
+  Metrics predated the sent alert anchor.
+- Notification id `7` was recognized as `notification_captured_at` and produced
+  the expected `flat` outcome in wider windows with
+  `peakMultipleFromAlert=1.0869155273705746` and `fdvSampleCoverageLabel=thin`.
+- no-Notification Metric 2+ mint-only tokens fell back to
+  `first_seen_detected_at`, showed `thin` / `partial` FDV coverage, and stayed
+  `no_data` without an alert FDV anchor.
+- the Metric 1 token showed `thin`; the Metric 0 token stayed pending /
+  `no_data`.
+- complete / provisional flags were readable enough for operator review, and
+  no rawJson full dump, DB write, external fetch, Telegram send, Notification
+  update, or repo-local data change occurred.
+
+Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
