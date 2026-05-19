@@ -388,3 +388,63 @@ Safety notes:
   guards
 - human approval is required before execution
 - auto live send, scheduler, and systemd remain locked
+
+## Rehearsal Red Execution Result
+
+Date: 2026-05-20
+
+After human approval, the selected Red command was executed exactly once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --write --notificationRehearsalTag capture_rehearsal_20260520
+```
+
+Command result:
+
+- `mode=single`
+- `selectedCount=1`
+- `okCount=1`
+- `writtenCount=1`
+- `skippedCount=0`
+- `errorCount=0`
+- provider error: none
+- `429`: none
+- retry / second command: none
+
+Counts before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `447 -> 448`
+- Notification: `8 -> 9`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses: `captured=4, sent=4 -> captured=5, sent=4`
+- failed count stayed `0`
+
+Created rehearsal Notification:
+
+- id: `9`
+- key:
+  `REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:1530`
+- metric id: `1530`
+- event type / trigger: `metric_appended`
+- status: `captured`
+- mode: `capture_only`
+- `sentAt=null`
+- `failedAt=null`
+- `errorCode=null`
+- `retryCount=0`
+- `rawJsonFree=true`
+- `secretFree=true`
+- source: `metric:snapshot:geckoterminal`
+
+Safety result:
+
+- new REHEARSAL row is marker-guarded
+- manual live-send candidate count remained `0`
+- `notification:retry:plan` remained read-only with `candidateCount=0`
+- Telegram send did not run
+- Notification sent / failed update did not occur
+- Token and HolderSnapshot counts did not change
+- repo-local data stayed clean
+- rawJson full dump and secret output did not occur
+- auto live send, scheduler, and systemd remain locked

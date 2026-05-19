@@ -464,3 +464,44 @@ Expected Red boundary:
 
 Current Green execution had no DB write, external fetch, Telegram send,
 Notification update, rawJson full dump, or Red command execution.
+
+## Capture-Only Rehearsal Red Result
+
+Date: 2026-05-20
+
+The marker-tagged capture-only rehearsal command was executed exactly once
+after human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --write --notificationRehearsalTag capture_rehearsal_20260520
+```
+
+Result:
+
+- `selectedCount=1`
+- `writtenCount=1`
+- `skippedCount=0`
+- `errorCount=0`
+- no provider error
+- no `429`
+- no retry or second command
+
+Counts moved only in Metric and Notification:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 447 / 8 / 1 -> 1536 / 448 / 9 / 1`
+- Notification statuses:
+  `captured=4, sent=4 -> captured=5, sent=4`
+- failed count stayed `0`
+
+Created Notification id `9` with key
+`REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:1530`.
+It is `status=captured`, `mode=capture_only`, trigger `metric_appended`, with
+`sentAt=null`, `failedAt=null`, and `errorCode=null`.
+
+The new row is excluded by the smoke / rehearsal live-send guard, manual
+live-send candidate count remained `0`, and the retry planner remained
+`candidateCount=0`. Telegram live send, `notification:send`, retry execution,
+detect watch, ops catch-up, scheduler, systemd, auto live send, schema /
+migration, app code changes, rawJson full dump, and secret output were not
+performed.

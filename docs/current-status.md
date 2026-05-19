@@ -3651,6 +3651,36 @@ Expected non-effects are Telegram send `0`, Notification sent/failed update
 / systemd / auto live send `0`, repo-local data diff none, and rawJson full
 dump none. Human approval is required before execution.
 
+## Capture-Only Rehearsal Red Result
+
+Date: 2026-05-20
+
+The approved Red command was executed exactly once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --write --notificationRehearsalTag capture_rehearsal_20260520
+```
+
+Result: `selectedCount=1`, `okCount=1`, `writtenCount=1`, `skippedCount=0`,
+`errorCount=0`, no provider error, and no `429`. Counts moved Token / Metric /
+Notification / HolderSnapshot `1536 / 447 / 8 / 1 -> 1536 / 448 / 9 / 1`.
+Notification statuses moved `captured=4, sent=4 -> captured=5, sent=4`; failed
+count stayed `0`.
+
+Created Notification id `9`:
+
+- key:
+  `REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:1530`
+- status / mode: `captured` / `capture_only`
+- trigger: `metric_appended`
+- `sentAt=null`, `failedAt=null`, `errorCode=null`
+
+The new REHEARSAL row is marker-guarded. Manual live-send candidate count
+remained `0`, and `notification:retry:plan` remained read-only with
+`candidateCount=0`. Telegram send, Notification sent / failed update, Token
+write, HolderSnapshot write, retry execution, scheduler, systemd, auto live
+send, rawJson full dump, and secret output did not occur.
+
 ## Metric Report Readiness After Additional Limit 75
 
 Date: 2026-05-20
