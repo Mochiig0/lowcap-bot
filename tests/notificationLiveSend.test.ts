@@ -357,6 +357,113 @@ test("notification live send blocks already sent rows", async () => {
   });
 });
 
+test("notification live send blocks SMOKE notification keys without sender call", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "SMOKE_LiveSendRehearsal11111111111111111";
+    const metricId = 1280;
+    const notificationKey = await seedNotification({
+      client,
+      mint,
+      metricId,
+      notificationKey: `${mint}:metric_appended:${metricId}`,
+    });
+    const senderCalls: OpsNotificationSenderInput[] = [];
+
+    const result = await sendNotificationByKey({
+      client,
+      notificationKey,
+      trigger: "metric_appended",
+      live: true,
+      sender: async (input) => {
+        senderCalls.push(input);
+        return { status: "sent" };
+      },
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.deepEqual(result.blockedBy, ["smoke_or_rehearsal_notification"]);
+    assert.equal(result.senderCalled, false);
+    assert.equal(result.updatedCount, 0);
+    assert.equal(senderCalls.length, 0);
+
+    const notification = await client.notification.findUnique({
+      where: {
+        notificationKey,
+      },
+    });
+    assert.equal(notification?.status, "captured");
+    assert.equal(notification?.mode, "capture_only");
+    assert.equal(notification?.sentAt, null);
+    assert.equal(notification?.lastAttemptAt, null);
+
+    const serialized = JSON.stringify(result);
+    assert.equal(serialized.includes("TELEGRAM_BOT_TOKEN"), false);
+    assert.equal(serialized.includes("TELEGRAM_CHAT_ID"), false);
+    assert.equal(serialized.includes("DATABASE_URL"), false);
+    assert.equal(serialized.includes("rawJson"), false);
+  });
+});
+
+test("notification live send blocks REHEARSAL notification keys without sender call", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "LiveSendRehearsal111111111111111111111pump";
+    const metricId = 1281;
+    const notificationKey = `REHEARSAL:capture-only:${keyFor(mint, metricId)}`;
+    const senderCalls: OpsNotificationSenderInput[] = [];
+    await seedNotification({
+      client,
+      mint,
+      metricId,
+      notificationKey,
+    });
+
+    const result = await sendNotificationByKey({
+      client,
+      notificationKey,
+      trigger: "metric_appended",
+      live: true,
+      sender: async (input) => {
+        senderCalls.push(input);
+        return { status: "sent" };
+      },
+    });
+
+    assert.equal(result.status, "blocked");
+    assert.deepEqual(result.blockedBy, ["smoke_or_rehearsal_notification"]);
+    assert.equal(result.senderCalled, false);
+    assert.equal(result.updatedCount, 0);
+    assert.equal(senderCalls.length, 0);
+    assert.equal(await client.notification.count(), 1);
+  });
+});
+
+test("notification dry-run keeps normal production-shaped captured keys eligible", async () => {
+  await withTempDb(async ({ client }) => {
+    const mint = "LiveSendNormalReady111111111111111111111pump";
+    const metricId = 1282;
+    const notificationKey = await seedNotification({
+      client,
+      mint,
+      metricId,
+      notificationKey: keyFor(mint, metricId),
+    });
+
+    const result = await sendNotificationByKey({
+      client,
+      notificationKey,
+      trigger: "metric_appended",
+      live: false,
+    });
+
+    assert.equal(result.status, "ready");
+    assert.deepEqual(result.blockedBy, []);
+    assert.equal(result.senderCalled, false);
+    assert.equal(result.sentCount, 0);
+    assert.equal(result.updatedCount, 0);
+    assert.equal(result.notificationKey, notificationKey);
+  });
+});
+
 test("notification live send blocks rows with sentAt even if status is inconsistent", async () => {
   await withTempDb(async ({ client }) => {
     const mint = "LiveSendSentAtPresent111111111111111111pump";

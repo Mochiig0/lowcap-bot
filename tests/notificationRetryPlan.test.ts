@@ -266,6 +266,56 @@ test("notification retry planner selects only a failed row among captured and se
   });
 });
 
+test("notification retry planner excludes failed smoke and rehearsal rows", async () => {
+  await withTempDb(async ({ client }) => {
+    const normalKey =
+      "RetryPlanNormal1111111111111111111111111pump:metric_appended:1282";
+    await seedNotification({
+      client,
+      notificationKey: "SMOKE_RetryPlan111111111111111111111:metric_appended:1280",
+      mint: "SMOKE_RetryPlan111111111111111111111",
+      metricId: 1280,
+      status: "failed",
+      mode: "live_send",
+      failedAt: new Date("2026-05-09T00:00:00.000Z"),
+    });
+    await seedNotification({
+      client,
+      notificationKey:
+        "REHEARSAL:capture-only:RetryPlan111111111111111111pump:metric_appended:1281",
+      mint: "RetryPlanRehearsal111111111111111111pump",
+      metricId: 1281,
+      status: "failed",
+      mode: "live_send",
+      failedAt: new Date("2026-05-09T00:01:00.000Z"),
+    });
+    await seedNotification({
+      client,
+      notificationKey: normalKey,
+      mint: "RetryPlanNormal1111111111111111111111111pump",
+      metricId: 1282,
+      status: "failed",
+      mode: "live_send",
+      failedAt: new Date("2026-05-09T00:02:00.000Z"),
+    });
+    const beforeRows = await readNotificationRetryAuditRows(client);
+
+    const result = await buildNotificationRetryPlan(client);
+
+    assert.equal(result.status, "ok");
+    assert.equal(result.candidateCount, 1);
+    assert.equal(result.selectedCount, 1);
+    assert.equal(result.selected?.notificationKey, normalKey);
+    assert.equal(result.nextRedCommand?.includes("SMOKE_"), false);
+    assert.equal(result.nextRedCommand?.includes("REHEARSAL"), false);
+    assert.equal(result.nextRedCommand?.includes("TELEGRAM_BOT_TOKEN"), false);
+    assert.equal(result.nextRedCommand?.includes("TELEGRAM_CHAT_ID"), false);
+    assert.equal(result.nextRedCommand?.includes("DATABASE_URL"), false);
+    assert.equal(result.nextRedCommand?.includes("rawJson"), false);
+    assert.deepEqual(await readNotificationRetryAuditRows(client), beforeRows);
+  });
+});
+
 test("notification retry planner selects the oldest candidate by failedAt updatedAt and id", async () => {
   await withTempDb(async ({ client }) => {
     await seedNotification({

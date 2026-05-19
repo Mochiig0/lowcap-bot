@@ -197,3 +197,30 @@ send, scheduler, or systemd work. The value of this pause is high: the sender
 boundary is clear, but the current capture-only write paths do not yet provide
 a production-safe rehearsal marker that keeps new capture rows separate from
 manual live-send candidates.
+
+## Smoke / Rehearsal Guard
+
+Date: 2026-05-20
+
+A small Yellow guard now excludes smoke / rehearsal Notifications from live
+send and retry planning without adding schema fields or migrations.
+
+Guard policy:
+
+- keys or mints beginning with `SMOKE_`, `SMOKE:`, `REHEARSAL_`, or
+  `REHEARSAL:` are smoke / rehearsal rows
+- keys or mints containing explicit marker segments such as `_rehearsal_` are
+  smoke / rehearsal rows
+- blocked live-send results use `blockedBy=["smoke_or_rehearsal_notification"]`
+- failed smoke / rehearsal rows are excluded from
+  `notification:retry:plan` candidate selection
+- normal production-shaped keys `<mint>:metric_appended:<metricId>` keep their
+  existing eligibility behavior when all other guards pass
+
+This implementation did not create or update Notification rows, did not send
+Telegram, did not fetch externally, did not execute a capture-only Red
+rehearsal, and did not unlock auto live send, scheduler, or systemd.
+
+Next Red status: capture-only rehearsal can be reconsidered after a human
+selects one exact command and confirms the intended row marker / exclusion
+policy for the resulting capture-only row.

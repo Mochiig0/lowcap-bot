@@ -152,8 +152,57 @@ function buildRetryCandidateWhere(input: FindNotificationRetryCandidateInput = {
           },
         ],
       },
+      ...buildSmokeOrRehearsalExclusionWhere(),
     ],
   };
+}
+
+function buildSmokeOrRehearsalExclusionWhere(): Prisma.NotificationWhereInput[] {
+  return [
+    {
+      NOT: [
+        ...buildMarkerStringExclusions("notificationKey"),
+        ...buildMarkerStringExclusions("mint"),
+      ],
+    },
+  ];
+}
+
+function buildMarkerStringExclusions(
+  field: "notificationKey" | "mint",
+): Prisma.NotificationWhereInput[] {
+  return [
+    {
+      [field]: {
+        startsWith: "SMOKE_",
+      },
+    },
+    {
+      [field]: {
+        startsWith: "SMOKE:",
+      },
+    },
+    {
+      [field]: {
+        startsWith: "REHEARSAL_",
+      },
+    },
+    {
+      [field]: {
+        startsWith: "REHEARSAL:",
+      },
+    },
+    {
+      [field]: {
+        contains: "_rehearsal_",
+      },
+    },
+    {
+      [field]: {
+        contains: "_REHEARSAL_",
+      },
+    },
+  ];
 }
 
 const RETRY_CANDIDATE_ORDER: Prisma.NotificationOrderByWithRelationInput[] = [

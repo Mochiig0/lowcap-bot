@@ -350,3 +350,26 @@ dedicated rehearsal marker, so a new captured row could mix with manual
 live-send review. The next useful step is a small Yellow guard/design slice for
 an explicit rehearsal discriminator or planner guard before any production DB
 capture-only Red rehearsal.
+
+## Smoke / Rehearsal Send Guard
+
+Date: 2026-05-20
+
+`notification:send` and `notification:retry:plan` now exclude explicit smoke /
+rehearsal rows without schema changes. The guard blocks keys or mints beginning
+with `SMOKE_`, `SMOKE:`, `REHEARSAL_`, or `REHEARSAL:`, plus explicit marker
+segments such as `_rehearsal_`.
+
+Effects:
+
+- captured smoke / rehearsal rows are not live-sendable
+- `notification:send --live` blocks them with
+  `blockedBy=["smoke_or_rehearsal_notification"]`
+- failed smoke / rehearsal rows are not retry candidates
+- sent-row resend prevention remains unchanged
+- normal production-shaped keys keep their existing behavior
+
+This Yellow guard did not execute `notification:send`, retry execution,
+Telegram live send, Metric snapshot, detect watch, `--write`, `--watch`,
+`--live`, import, enrich, rescore, scheduler, systemd, schema change, or
+migration. Auto live send remains locked.

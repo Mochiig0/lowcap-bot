@@ -5,6 +5,10 @@ import {
   markNotificationFailed,
   markNotificationSent,
 } from "./notificationRepository.js";
+import {
+  isSmokeOrRehearsalNotification,
+  SMOKE_OR_REHEARSAL_NOTIFICATION_BLOCK_REASON,
+} from "./rehearsalNotificationGuard.js";
 import type { OpsNotificationTrigger } from "../notify/opsNotificationPreview.js";
 import type { OpsNotificationSender } from "../notify/opsNotificationSendGate.js";
 
@@ -140,6 +144,18 @@ export async function sendNotificationByKey(
     return blocked({
       ...base,
       blockedBy: ["notification_already_sent"],
+    });
+  }
+
+  if (
+    isSmokeOrRehearsalNotification({
+      notificationKey: notification.notificationKey,
+      mint: notification.mint,
+    })
+  ) {
+    return blocked({
+      ...base,
+      blockedBy: [SMOKE_OR_REHEARSAL_NOTIFICATION_BLOCK_REASON],
     });
   }
 
