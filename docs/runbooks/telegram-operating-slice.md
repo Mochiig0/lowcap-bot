@@ -320,3 +320,33 @@ Disable switch / kill switch policy:
 Scheduler/systemd remain locked because auto candidate selection, disable
 switch behavior, restart duplicate-send behavior, and failure handling have not
 yet been validated in an always-on process.
+
+## Capture-Only Notification Preflight
+
+Date: 2026-05-20
+
+The read-only preflight in
+`docs/runbooks/capture-only-notification-rehearsal.md` confirmed the current
+capture-only Notification write paths and kept auto live send locked.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- captured ids `3` through `6` remain `SMOKE_...` rehearsal rows and are
+  manual-live-send excluded
+
+Capture-only DB Notification creation exists in two places:
+
+- single-mint `metric:snapshot:geckoterminal --write`, which also writes one
+  Metric and fetches GeckoTerminal
+- capture-only `ops:catchup:gecko --write --metricAppend
+  --opsNotifyCaptureFile <PATH>` when exactly one eligible metric-appended
+  capture result exists and `--opsNotify` is omitted
+
+No exact small Red rehearsal command is approved yet. Both current write paths
+can create production-shaped keys `<mint>:metric_appended:<metricId>` without a
+dedicated rehearsal marker, so a new captured row could mix with manual
+live-send review. The next useful step is a small Yellow guard/design slice for
+an explicit rehearsal discriminator or planner guard before any production DB
+capture-only Red rehearsal.
