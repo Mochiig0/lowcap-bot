@@ -356,3 +356,53 @@ Judgment:
 - The next high-leverage work is report display improvement around the
   "fallback no alertFdv" case, or a separate alert-anchor/Notification strategy,
   rather than simply adding another broad accumulation batch.
+
+## No-Data Reason Output
+
+Date: 2026-05-19
+
+`metrics:window-report` now includes additive window-level fields for operator
+review:
+
+- `noDataReasons`
+- `hasAlertFdvAnchor`
+- `hasWindowFdvSamples`
+
+This is a display/readability improvement only:
+
+- `outcomeLabel` thresholds were not changed
+- alert FDV lookup remains the same 5-minute lookaround behavior
+- no values are persisted
+- report output remains rawJson-free
+
+Reason labels:
+
+- `no_alert_anchor_near_entry`: `alertFdv` is null
+- `no_fdv_samples_in_window`: no FDV sample falls inside the window
+- `no_peak_fdv`: no peak FDV can be computed for the window
+- `no_peak_multiple`: `peakMultipleFromAlert` is null
+
+Runtime checks:
+
+- Notification id `8` token:
+  `noDataReasons=[no_alert_anchor_near_entry,no_fdv_samples_in_window,no_peak_fdv,no_peak_multiple]`
+  for its post-sent windows, showing that no post-send FDV samples exist.
+- no-Notification mint-only fallback with Metrics:
+  `hasWindowFdvSamples=true` while `hasAlertFdvAnchor=false`, with reasons
+  `no_alert_anchor_near_entry` and `no_peak_multiple`.
+- Metric 0 mint-only token:
+  `hasWindowFdvSamples=false` and no-sample reasons are present.
+- Notification id `7` flat windows:
+  `noDataReasons=[]`, `hasAlertFdvAnchor=true`, and
+  `hasWindowFdvSamples=true`, confirming non-`no_data` outcomes are not marked
+  with no-data reasons.
+
+Validated read-only command shape:
+
+```bash
+pnpm -s metrics:window-report -- --mint <MINT> --windows 30,60,120,180,360,720,1440
+```
+
+The checked cohort stayed side-effect free: no DB write, external fetch,
+Telegram send, Token update, Notification update, HolderSnapshot write, or
+rawJson full dump.

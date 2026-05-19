@@ -3756,6 +3756,44 @@ usable; further useful progress likely needs either more targeted alert-anchor
 coverage or a report improvement that separates "fallback no alertFdv" from
 true "no samples".
 
+## Window Report No-Data Reason Fields
+
+Date: 2026-05-19
+
+`metrics:window-report` now adds window-level read-only explanation fields:
+
+- `noDataReasons: string[]`
+- `hasAlertFdvAnchor: boolean`
+- `hasWindowFdvSamples: boolean`
+
+The outcome thresholds and alert-FDV lookup are unchanged. These fields only
+explain why an existing `outcomeLabel=no_data` result happened.
+
+Reason labels:
+
+- `no_alert_anchor_near_entry`: no alert FDV was found near the resolved entry /
+  alert time
+- `no_fdv_samples_in_window`: the evaluated window has zero FDV samples
+- `no_peak_fdv`: no peak FDV exists for the window
+- `no_peak_multiple`: no `peakMultipleFromAlert` can be computed
+
+Read-only runtime checks:
+
+- Notification id `8` token: `alertedAtSource=notification_sent_at` still
+  reports `no_data`, now with `hasAlertFdvAnchor=false`,
+  `hasWindowFdvSamples=false`, and reasons including
+  `no_fdv_samples_in_window`
+- no-Notification mint-only fallback token with Metrics:
+  `hasWindowFdvSamples=true` and `noDataReasons` includes
+  `no_alert_anchor_near_entry`, separating "samples exist" from "no alert
+  anchor"
+- Metric 0 token: `hasWindowFdvSamples=false`, with no-sample reasons
+- Notification id `7` flat windows: `noDataReasons=[]`,
+  `hasAlertFdvAnchor=true`, and `hasWindowFdvSamples=true`
+
+The report remains read-only (`willWrite=false`, `willFetch=false`,
+`willSendTelegram=false`) and still does not print raw provider payloads.
+
 ## Cohort Window Outcome Check
 
 Date: 2026-05-19

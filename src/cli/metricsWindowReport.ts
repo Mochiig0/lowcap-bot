@@ -26,6 +26,11 @@ type AlertFdvSource =
 
 type FdvSampleCoverageLabel = "no_data" | "thin" | "partial" | "usable";
 type OutcomeLabel = "no_data" | "flat" | "small_win" | "hit" | "big_hit";
+type NoDataReason =
+  | "no_alert_anchor_near_entry"
+  | "no_fdv_samples_in_window"
+  | "no_peak_fdv"
+  | "no_peak_multiple";
 
 type MetricsWindowReportArgs = {
   mint: string;
@@ -53,6 +58,9 @@ type WindowReport = {
   timeToPeakMinutes: number | null;
   drawdownFromPeak: number | null;
   outcomeLabel: OutcomeLabel;
+  noDataReasons: NoDataReason[];
+  hasAlertFdvAnchor: boolean;
+  hasWindowFdvSamples: boolean;
 };
 
 type MetricsWindowReportOutput = {
@@ -134,7 +142,7 @@ type AlertedAtResolution = {
 const DEFAULT_WINDOWS = [30, 60, 90, 120, 180, 240, 300, 360, 480, 600, 720, 1440];
 const ALERT_FDV_LOOKAROUND_MS = 5 * 60 * 1000;
 
-function printUsageAndExit(message?: string): never {
+function printUsageAndExit(message?: string, exitCode = 1): never {
   if (message) {
     console.error(`Error: ${message}`);
   }
@@ -145,7 +153,7 @@ function printUsageAndExit(message?: string): never {
       "pnpm metrics:window-report -- --mint <MINT> [--entryAt <ISO>] [--windows 30,60,90,120,180,240,300,360,480,600,720,1440]",
     ].join("\n"),
   );
-  process.exit(1);
+  process.exit(exitCode);
 }
 
 function readRequiredArg(
@@ -186,6 +194,10 @@ function parseWindowsArg(value: string, key: string): number[] {
 }
 
 function parseArgs(argv: string[]): MetricsWindowReportArgs {
+  if (argv.includes("--help") || argv.includes("-h")) {
+    printUsageAndExit(undefined, 0);
+  }
+
   const out: Partial<MetricsWindowReportArgs> = {
     windows: DEFAULT_WINDOWS,
   };
@@ -464,6 +476,25 @@ function getOutcomeLabel(input: {
   return "big_hit";
 }
 
+function getNoDataReasons(input: {
+  outcomeLabel: OutcomeLabel;
+  alertFdv: number | null;
+  fdvSampleCount: number;
+  peakFdv: number | null;
+  peakMultipleFromAlert: number | null;
+}): NoDataReason[] {
+  if (input.outcomeLabel !== "no_data") {
+    return [];
+  }
+
+  const reasons: NoDataReason[] = [];
+  if (input.alertFdv === null) reasons.push("no_alert_anchor_near_entry");
+  if (input.fdvSampleCount === 0) reasons.push("no_fdv_samples_in_window");
+  if (input.peakFdv === null) reasons.push("no_peak_fdv");
+  if (input.peakMultipleFromAlert === null) reasons.push("no_peak_multiple");
+  return reasons;
+}
+
 function buildWindowReport(
   samples: MetricSample[],
   alertedAt: Date,
@@ -497,6 +528,13 @@ function buildWindowReport(
     peakSample && latestFdv !== null && peakSample.fdv > 0
       ? Math.max(0, (peakSample.fdv - latestFdv) / peakSample.fdv)
       : null;
+  const peakFdv = peakSample?.fdv ?? null;
+  const outcomeLabel = getOutcomeLabel({
+    alertFdv,
+    fdvSampleCount: fdvSamples.length,
+    peakFdv,
+    peakMultipleFromAlert,
+  });
   const fdvObservedSpanMinutes =
     fdvFirstObservedAt && fdvLastObservedAt && fdvSamples.length >= 2
       ? (fdvLastObservedAt.getTime() - fdvFirstObservedAt.getTime()) / (60 * 1000)
@@ -506,7 +544,7 @@ function buildWindowReport(
   return {
     sampleCount: inWindow.length,
     fdvSampleCount: fdvSamples.length,
-    peakFdv: peakSample?.fdv ?? null,
+    peakFdv,
     peakObservedAt: peakSample?.observedAt.toISOString() ?? null,
     firstObservedFdv,
     peakMultipleFromFirstObserved:
@@ -525,12 +563,16 @@ function buildWindowReport(
     peakMultipleFromAlert,
     timeToPeakMinutes,
     drawdownFromPeak,
-    outcomeLabel: getOutcomeLabel({
+    outcomeLabel,
+    noDataReasons: getNoDataReasons({
+      outcomeLabel,
       alertFdv,
       fdvSampleCount: fdvSamples.length,
-      peakFdv: peakSample?.fdv ?? null,
+      peakFdv,
       peakMultipleFromAlert,
     }),
+    hasAlertFdvAnchor: alertFdv !== null,
+    hasWindowFdvSamples: fdvSamples.length > 0,
   };
 }
 

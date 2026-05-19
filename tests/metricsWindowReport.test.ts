@@ -72,6 +72,9 @@ type MetricsWindowReportOutput = {
     timeToPeakMinutes: number | null;
     drawdownFromPeak: number | null;
     outcomeLabel: string;
+    noDataReasons: string[];
+    hasAlertFdvAnchor: boolean;
+    hasWindowFdvSamples: boolean;
   }>;
   notes: string[];
 };
@@ -480,6 +483,9 @@ test("metrics window report boundary", async (t) => {
       assert.equal(output.windows["30m"]?.timeToPeakMinutes, 20);
       assert.equal(output.windows["30m"]?.drawdownFromPeak, 0);
       assert.equal(output.windows["30m"]?.outcomeLabel, "hit");
+      assert.deepEqual(output.windows["30m"]?.noDataReasons, []);
+      assert.equal(output.windows["30m"]?.hasAlertFdvAnchor, true);
+      assert.equal(output.windows["30m"]?.hasWindowFdvSamples, true);
       assert.equal(output.windows["60m"]?.sampleCount, 4);
       assert.equal(output.windows["60m"]?.fdvSampleCount, 3);
       assert.equal(output.windows["60m"]?.peakFdv, 80000);
@@ -552,6 +558,13 @@ test("metrics window report boundary", async (t) => {
       assert.equal(output.windows["30m"]?.sampleCount, 1);
       assert.equal(output.windows["30m"]?.fdvSampleCount, 1);
       assert.equal(output.windows["30m"]?.peakFdv, 12000);
+      assert.equal(output.windows["30m"]?.outcomeLabel, "no_data");
+      assert.deepEqual(output.windows["30m"]?.noDataReasons, [
+        "no_alert_anchor_near_entry",
+        "no_peak_multiple",
+      ]);
+      assert.equal(output.windows["30m"]?.hasAlertFdvAnchor, false);
+      assert.equal(output.windows["30m"]?.hasWindowFdvSamples, true);
       assertNoForbiddenOutputTerms(output);
     });
   });
@@ -579,7 +592,39 @@ test("metrics window report boundary", async (t) => {
       assert.equal(output.windows["30m"]?.peakFdv, 20000);
       assert.equal(output.windows["30m"]?.peakMultipleFromAlert, 4);
       assert.equal(output.windows["30m"]?.outcomeLabel, "hit");
+      assert.deepEqual(output.windows["30m"]?.noDataReasons, []);
+      assert.equal(output.windows["30m"]?.hasAlertFdvAnchor, true);
+      assert.equal(output.windows["30m"]?.hasWindowFdvSamples, true);
       assert.equal(output.windows["60m"]?.fdvSampleCoverageLabel, "partial");
+      assertNoForbiddenOutputTerms(output);
+    });
+  });
+
+  await t.test("explains no_data when a window has no FDV samples", async () => {
+    await withTempDb(async ({ databaseUrl, client }) => {
+      const seeded = await seedWindowReportRows(client);
+
+      const result = await runMetricsWindowReport([
+        "--mint",
+        seeded.fallbackMint,
+        "--entryAt",
+        addMinutes(seeded.entryAt, 60).toISOString(),
+        "--windows",
+        "30",
+      ], databaseUrl);
+
+      assert.equal(result.ok, true);
+
+      const output = JSON.parse(result.stdout) as MetricsWindowReportOutput;
+      assert.equal(output.windows["30m"]?.outcomeLabel, "no_data");
+      assert.deepEqual(output.windows["30m"]?.noDataReasons, [
+        "no_alert_anchor_near_entry",
+        "no_fdv_samples_in_window",
+        "no_peak_fdv",
+        "no_peak_multiple",
+      ]);
+      assert.equal(output.windows["30m"]?.hasAlertFdvAnchor, false);
+      assert.equal(output.windows["30m"]?.hasWindowFdvSamples, false);
       assertNoForbiddenOutputTerms(output);
     });
   });
