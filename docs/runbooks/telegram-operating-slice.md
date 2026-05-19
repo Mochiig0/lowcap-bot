@@ -427,3 +427,40 @@ The generated `REHEARSAL:` key is blocked by the existing live-send and retry
 guard. This implementation did not run a capture-only Red rehearsal, did not
 write production DB rows, did not fetch externally, did not send Telegram, and
 does not enable auto live send, scheduler, or systemd.
+
+## Capture-Only Rehearsal Command Candidate
+
+Date: 2026-05-20
+
+A docs-only Green pass selected one exact Red candidate for the first
+marker-tagged capture-only rehearsal. It was not executed.
+
+Selected mint:
+
+- `2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump`
+- existing GeckoTerminal-origin pump Token with Metrics `1529` and `1344`
+- existing Notification count for that token: `0`
+
+Selected tag:
+
+- `capture_rehearsal_20260520`
+
+Exact command requiring human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --write --notificationRehearsalTag capture_rehearsal_20260520
+```
+
+Expected Red boundary:
+
+- max one GeckoTerminal fetch
+- max one Metric row
+- max one capture-only Notification row with key
+  `REHEARSAL:capture_rehearsal_20260520:<mint>:metric_appended:<metricId>`
+- no Telegram send
+- no Token / HolderSnapshot write
+- no retry execution
+- no scheduler / systemd / auto live send
+
+Current Green execution had no DB write, external fetch, Telegram send,
+Notification update, rawJson full dump, or Red command execution.

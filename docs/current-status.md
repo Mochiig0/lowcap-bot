@@ -3621,6 +3621,36 @@ production DB write, external fetch, Telegram send, Notification create/update,
 schema / migration change, scheduler, systemd, or auto live send unlock
 occurred.
 
+## Capture-Only Rehearsal Red Candidate
+
+Date: 2026-05-20
+
+A read-only Green pass selected one exact command for the next human-approved
+capture-only Notification rehearsal. Current DB state is Token / Metric /
+Notification / HolderSnapshot `1536 / 447 / 8 / 1`, with Notification statuses
+`captured=4`, `sent=4`, `failed=0`, manual live-send candidate count `0`, and
+retry candidate count `0`.
+
+Selected mint: `2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump`. It is an
+existing GeckoTerminal-origin pump Token with existing Metrics `1529` and
+`1344`, and no existing Notification rows for that token.
+
+Selected tag: `capture_rehearsal_20260520`.
+
+Exact Red command candidate, not executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --write --notificationRehearsalTag capture_rehearsal_20260520
+```
+
+Expected side effects are bounded to max one GeckoTerminal fetch, max one
+Metric write, and max one capture-only Notification create with key pattern
+`REHEARSAL:capture_rehearsal_20260520:<mint>:metric_appended:<metricId>`.
+Expected non-effects are Telegram send `0`, Notification sent/failed update
+`0`, Token write `0`, HolderSnapshot write `0`, retry execution `0`, scheduler
+/ systemd / auto live send `0`, repo-local data diff none, and rawJson full
+dump none. Human approval is required before execution.
+
 ## Metric Report Readiness After Additional Limit 75
 
 Date: 2026-05-20

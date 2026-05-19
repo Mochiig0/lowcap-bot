@@ -320,3 +320,71 @@ candidates. This Yellow did not execute a capture-only Red rehearsal, did not
 run `metric:snapshot:geckoterminal --write` against production, did not create
 or update production Notifications, did not fetch GeckoTerminal, did not send
 Telegram, and did not unlock auto live send, scheduler, or systemd.
+
+## Rehearsal Red Command Selection
+
+Date: 2026-05-20
+
+This Green check selected one exact human-approved Red command for a future
+marker-tagged capture-only Notification rehearsal. It did not execute the Red
+command and did not run `metric:snapshot:geckoterminal --write`.
+
+Current read-only state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- captured ids `3` through `6` remain marker-guarded capture-only rows
+
+Selected mint:
+
+- `2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump`
+- existing Token id `5561`
+- pump mint from `geckoterminal.new_pools`
+- `metadataStatus=mint_only`
+- existing Metric ids `1529` and `1344`
+- latest Metric source `geckoterminal.token_snapshot`
+- existing Notification count for the token: `0`
+
+Selected tag:
+
+- `capture_rehearsal_20260520`
+
+Exact Red command candidate, not executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --write --notificationRehearsalTag capture_rehearsal_20260520
+```
+
+Expected side effects if explicitly approved and run later:
+
+- external GeckoTerminal fetch: max `1`
+- Metric write: max `1`
+- Notification create: max `1`
+- created Notification should be `status=captured` and `mode=capture_only`
+- expected key pattern:
+  `REHEARSAL:capture_rehearsal_20260520:2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump:metric_appended:<metricId>`
+
+Expected non-effects:
+
+- Telegram send: `0`
+- Notification sent/failed update: `0`
+- Token create/update: `0`
+- HolderSnapshot write: `0`
+- retry execution: `0`
+- scheduler / systemd / auto live send: `0`
+- repo-local data diff: none
+- rawJson full dump: none
+
+Safety notes:
+
+- the command is exact `--mint` one-shot mode
+- it includes `--write` because this is the future Red capture rehearsal
+- it does not include `--watch`, `--live`, or `--noNotificationCapture`
+- no `--minGapMinutes` is included, so exact mode is not expected to skip due
+  to a recent Metric gap; provider failure could still result in zero writes
+- generated `REHEARSAL:` keys are already excluded by live-send and retry
+  guards
+- human approval is required before execution
+- auto live send, scheduler, and systemd remain locked
