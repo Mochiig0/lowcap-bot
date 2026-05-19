@@ -3696,6 +3696,66 @@ only. There was no Token update/create, Notification create/update,
 HolderSnapshot write, Telegram send, checkpoint update, or repo-local data
 change.
 
+## Post-Accumulation Window Outcome Review
+
+Date: 2026-05-19
+
+A read-only review checked whether the additional Metric `+59` improved
+`metrics:window-report` operator usefulness. Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Cohort:
+
+- 4 tokens from the just-written Metric range, including 2 tokens that now have
+  `metricCount=4` and 2 tokens that moved from Metric 1 to Metric 2+
+- Notification id `8` token
+- Notification id `7` token
+- 1 current Metric 1 GeckoTerminal-origin pump `mint_only` token
+- 1 current Metric 0 GeckoTerminal-origin pump `mint_only` token
+
+Read-only commands used:
+
+```bash
+pnpm -s metrics:window-report -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint 2k5wuRCdhL331w5mALdP34eejkQ3qQswykyipr3bpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint CyUWWFVU892Zj7AXhedRUrgprhFknwH4idhda741pump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint 3V7pFBTG27dvnrvJX91o75y6sCaZRbbE8mFVNfyHpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint DAMRNx1oheBNpy7WRtp6ptPGGzxZkiTjxq4ptHmdpump --windows 30,60,120,180,360,720,1440
+pnpm -s metrics:window-report -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --windows 30,60,120,180,360,720,1440
+```
+
+Findings:
+
+- each report stayed read-only with `willWrite=false`, `willFetch=false`, and
+  `willSendTelegram=false`
+- the additional Metrics improved sampling density: representative existing
+  Metric tokens now show `metricCount=4` with 24h coverage `usable`, and
+  Metric 1 -> 2+ tokens now show 24h coverage `partial`
+- `outcomeLabel` remains mostly `no_data` because no-Notification mint-only
+  fallback tokens have `alertFdv=null`; their first FDV sample is outside the
+  5-minute alert-FDV lookaround from `first_seen_detected_at`
+- Notification id `7` remains the positive control: it resolves
+  `alertFdv=223702.038226584` from the captured alert Metric and reports
+  `flat` for 2h through 24h with `peakMultipleFromAlert=1.0869155273705746`
+- Notification id `8` still reports `alertedAtSource=notification_sent_at` and
+  `alertNotificationId=8`, but stays `no_data` because its Metrics predate the
+  sent alert anchor and no post-send FDV samples exist
+- the Metric 1 token remains `thin`; the Metric 0 token remains `no_data`
+- complete / provisional flags are readable: shorter windows are complete, and
+  24h windows for recent first-seen fallback tokens are still provisional
+
+Conclusion: the additional Metric run improved raw window sampling and coverage
+labels, but not alert-anchored outcome classification for mint-only rows without
+Notification anchors. For the next operating decision, report display is
+usable; further useful progress likely needs either more targeted alert-anchor
+coverage or a report improvement that separates "fallback no alertFdv" from
+true "no samples".
+
 ## Cohort Window Outcome Check
 
 Date: 2026-05-19

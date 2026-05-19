@@ -288,3 +288,71 @@ Findings:
 - `outcomeLabel` stayed `no_data` for these samples because they use
   `first_seen_detected_at` fallback with no alert FDV anchor
 - no rawJson full dump was printed
+
+## Post-Accumulation Window Outcome Review
+
+Date: 2026-05-19
+
+This read-only pass reviewed whether the additional Metric `+59` improved
+operator judgment in `metrics:window-report`.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+Cohort selection:
+
+- `2qyZZ...pump` and `2k5w...pump`: newly written additional observations,
+  now `metricCount=4`
+- `CyU...pump` and `3V7...pump`: newly written additional observations that
+  moved from Metric 1 to Metric 2+
+- `EUx...pump`: Notification id `8`, sent/live-send anchor
+- `ENRA...pump`: Notification id `7`, captured alert anchor
+- `DAM...pump`: current Metric 1 mint-only sample
+- `By3...pump`: current Metric 0 mint-only sample
+
+Read-only command shape used for each selected mint:
+
+```bash
+pnpm -s metrics:window-report -- --mint <MINT> --windows 30,60,120,180,360,720,1440
+```
+
+All outputs declared `readOnly=true`, `willWrite=false`, `willFetch=false`,
+and `willSendTelegram=false`. No rawJson full dump was printed.
+
+Outcome observations:
+
+- Additional Metrics improved coverage, not alert classification. The two
+  `metricCount=4` samples showed 24h `fdvSampleCoverageLabel=usable`; shorter
+  windows progressed from `thin` to `partial` where multiple samples fell in
+  window.
+- The two Metric 1 -> 2+ samples showed 24h `fdvSampleCoverageLabel=partial`.
+  Their short windows remained `no_data` or `thin` because the first sample was
+  hours after `first_seen_detected_at`.
+- No-Notification mint-only fallback rows still have `alertFdv=null`, so
+  `peakMultipleFromAlert` remains null and `outcomeLabel=no_data` even when
+  Metric history is present.
+- Notification id `7` remains the useful alert-anchored control:
+  `alertedAtSource=notification_captured_at`, `alertNotificationId=7`,
+  `alertFdv=223702.038226584`, `peakMultipleFromAlert=1.0869155273705746`,
+  and `outcomeLabel=flat` from 2h through 24h.
+- Notification id `8` is correctly recognized as
+  `alertedAtSource=notification_sent_at` / `alertNotificationId=8`, but remains
+  `no_data` because the available Metrics predate `sentAt`; there is no
+  post-send window sample.
+- The Metric 1 sample stayed `thin`; the Metric 0 sample stayed `no_data`.
+- Complete/provisional flags were usable: short windows were complete, while
+  24h windows for recent first-seen fallback tokens were still provisional.
+
+Judgment:
+
+- `metrics:window-report` is usable for human review of sampling density,
+  freshness, window completeness, and alert-anchored outcomes.
+- For no-Notification mint-only rows, more Metric accumulation alone does not
+  produce `flat` / `small_win` / `hit` / `big_hit` because there is no alert FDV
+  anchor near `first_seen_detected_at`.
+- The next high-leverage work is report display improvement around the
+  "fallback no alertFdv" case, or a separate alert-anchor/Notification strategy,
+  rather than simply adding another broad accumulation batch.

@@ -516,6 +516,29 @@ The 15-second pacing again stayed rate-limit clean. Batch mode still did not
 create Notification rows, send Telegram, update Tokens, write HolderSnapshot,
 touch checkpoints, or change repo-local data.
 
+## Post-Run Report Readiness Decision
+
+Date: 2026-05-19
+
+Follow-up `metrics:window-report` checks on eight tokens confirmed that the
+additional `+59` Metrics improved sampling density without changing the
+rate-limit or write boundary:
+
+- `metricCount=4` samples reached 24h `fdvSampleCoverageLabel=usable`
+- Metric 1 -> 2+ samples reached 24h `fdvSampleCoverageLabel=partial`
+- no new 429 / provider-error investigation is needed from the report pass
+- no DB write, external fetch, Telegram send, Notification update, or rawJson
+  dump occurred during report review
+
+The remaining `no_data` outcomes are not a rate-limit or accumulation failure.
+They are mostly caused by no-Notification mint-only fallback rows having no
+`alertFdv` near `first_seen_detected_at`. Additional broad accumulation can add
+history, but it will not by itself create an alert anchor for those rows.
+
+Next operating preference: pause broad Metric accumulation and improve the
+read-only report/operator decision surface for fallback `alertFdv=null` cases,
+or separately design an alert-anchor/Notification slice.
+
 ## Not Executed In This Preflight
 
 - `metric:snapshot:geckoterminal`;
