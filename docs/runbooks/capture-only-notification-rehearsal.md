@@ -224,3 +224,62 @@ rehearsal, and did not unlock auto live send, scheduler, or systemd.
 Next Red status: capture-only rehearsal can be reconsidered after a human
 selects one exact command and confirms the intended row marker / exclusion
 policy for the resulting capture-only row.
+
+## Marker-Capable Command Preflight
+
+Date: 2026-05-20
+
+This was a read-only / docs-only follow-up after the smoke / rehearsal guard.
+No production DB write, Notification create/update, Metric write, Token write,
+HolderSnapshot write, external fetch, Telegram send, Metric snapshot execution,
+ops catch-up execution, detector execution, `notification:send` execution,
+retry execution, `--write`, `--watch`, `--live`, schema change, migration,
+application code change, rawJson full dump, or secret output was performed.
+
+Current read-only state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- failed count: `0`
+- captured ids `3` through `6` remain `SMOKE_...` rows and are guard-excluded
+- `notification:retry:plan` returned `status=stop`, `candidateCount=0`
+
+Command audit:
+
+- `metric:snapshot:geckoterminal` exposes `--mint`, `--source`,
+  `--noNotificationCapture`, `--write`, and watch / selection options, but no
+  option to override, prefix, tag, or otherwise mark the generated
+  Notification key.
+- its key builder is fixed to `${mint}:metric_appended:${metricId}`.
+- single `--mint --write` mode can create one capture-only Notification by
+  default, but only with that production-shaped key.
+- `ops:catchup:gecko` exposes `--opsNotifyCaptureFile`, `--opsNotify`, and
+  `--opsNotifyTrigger`, but no Notification key marker option.
+- `--opsNotifyCaptureFile` writes local ops-notify preview JSONL capture
+  records; it is not a DB Notification key marker.
+- the catch-up DB Notification record path also uses the fixed
+  `${mint}:metric_appended:${metricId}` key.
+- Telegram sender is not called by `metric:snapshot:geckoterminal`; in
+  `ops:catchup:gecko`, sender execution requires explicit `--opsNotify`.
+
+Decision:
+
+- no marker-capable capture-only Red exact command exists today.
+- do not run a Red rehearsal yet, because existing write paths can only create
+  production-shaped keys and a new row could still mix with manual live-send
+  review by shape even though the guard works for explicit markers.
+
+Next Yellow implementation candidate:
+
+- add a marker option to `metric:snapshot:geckoterminal` first, because it is
+  the direct DB Notification creation path and can keep the blast radius small.
+- candidate option names:
+  - `--rehearsalNotification`
+  - `--notificationRehearsalTag <TAG>`
+  - `--notificationKeyPrefix REHEARSAL:<TAG>:`
+- production default key must remain unchanged.
+- when the option is present, the DB Notification key should include a
+  `REHEARSAL:` or `REHEARSAL_` marker that is already excluded by
+  `notification:send` and `notification:retry:plan`.
+- the option should stay single-mint and capture-only; it must not imply
+  Telegram send, retry execution, scheduler, systemd, or auto live send.

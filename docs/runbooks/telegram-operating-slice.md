@@ -373,3 +373,28 @@ This Yellow guard did not execute `notification:send`, retry execution,
 Telegram live send, Metric snapshot, detect watch, `--write`, `--watch`,
 `--live`, import, enrich, rescore, scheduler, systemd, schema change, or
 migration. Auto live send remains locked.
+
+## Marker-Capable Capture Rehearsal Check
+
+Date: 2026-05-20
+
+A read-only follow-up checked whether an exact marker-capable capture-only Red
+command already exists. It does not.
+
+Findings:
+
+- `metric:snapshot:geckoterminal` can create a capture-only
+  `metric_appended` DB Notification in single `--mint --write` mode, but the
+  key is fixed to `<mint>:metric_appended:<metricId>`.
+- `ops:catchup:gecko --opsNotifyCaptureFile <PATH>` can create local
+  capture-only preview JSONL records and, in the metric-append write path, can
+  create one DB Notification, but the DB Notification key is also fixed to
+  `<mint>:metric_appended:<metricId>`.
+- no existing option adds `SMOKE` / `REHEARSAL` to the DB Notification key or
+  another existing identifying field.
+- because marker generation is unavailable, no next Red command is approved.
+
+The next useful Yellow is a small `metric:snapshot:geckoterminal` option for
+rehearsal capture, keeping the production default key unchanged and producing a
+`REHEARSAL:`-marked Notification key that the existing send / retry guard will
+exclude.
