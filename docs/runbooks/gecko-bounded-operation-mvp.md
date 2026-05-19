@@ -6061,3 +6061,30 @@ Report checks:
 No Metric snapshot, detect watch, DB write, external fetch, Telegram send,
 Notification update, repo-local data diff, schema / migration change, or rawJson
 full dump occurred.
+
+### Metric Report Readiness After Additional Limit 75
+
+Checked on 2026-05-20 with read-only commands only.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- GeckoTerminal-origin pump `mint_only` coverage: Metric `0=260`, `1=99`,
+  `2+=61`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- 168h `metricPendingCount=260`; default 24h `metricPendingCount=0`
+
+Report checks:
+
+- `metrics:window-report` read Notification id `8`, Metric 2+ samples, latest
+  accumulation rows, and a mint-only Metric 1 row with explicit read-only flags
+- `metrics:report` showed recent Metric safe summaries without rawJson payloads
+- `tokens:compare-report` showed Metric 2+ mint-only rows with latest Metric
+  completeness booleans
+- `review:queue:geckoterminal` kept Metric 0 rows in `metricPending` while
+  recent Metric-written rows were not pending
+
+No DB write, external fetch, Telegram send, Notification create/update,
+repo-local data diff, schema / migration change, application code change, or
+rawJson full dump occurred.

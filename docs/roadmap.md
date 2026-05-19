@@ -611,3 +611,26 @@ Follow-up `metrics:window-report` checks on three written mints confirmed the
 new Metrics are readable without DB writes, external fetches, Telegram sends,
 or rawJson dumps. The next step should return to read-only outcome / operating
 decision work before another accumulation batch.
+
+## Operating Update: Metric Report Readiness After Additional Limit 75
+
+Date: 2026-05-20
+
+The post-run read-only report pass confirmed that the current
+Token / Metric / Notification / HolderSnapshot state is `1536 / 447 / 8 / 1`,
+with Notification statuses `captured=4`, `sent=4`, `failed=0`. Token Metric
+distribution is now `0=1222`, `1=232`, `2+=82`; GeckoTerminal-origin pump
+`mint_only` coverage is Metric `0=260`, `1=99`, `2+=61`.
+
+`metrics:window-report` read Notification id `8`, Metric 2+ rows, the latest
+accumulation sample, and a mint-only Metric 1 sample with explicit read-only
+flags. `metrics:report` and `tokens:compare-report` showed rawJson-free Metric
+safe summaries, and `review:queue:geckoterminal -- --pumpOnly --sinceHours 168
+--limit 20` showed Metric 0 rows remain pending while recent Metric-written
+rows are out of `metricPending`.
+
+No Metric snapshot, detect watch, DB write, external fetch, Telegram send,
+Notification update, rawJson full dump, schema / migration change, or
+application code change occurred. The next step should stay read-only: use
+`metrics:window-report` on one bounded cohort to make the next operating
+decision before any further Metric write expansion.

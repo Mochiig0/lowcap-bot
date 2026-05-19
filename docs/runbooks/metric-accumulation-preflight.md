@@ -675,3 +675,38 @@ without more writes:
 
 Detailed command output interpretation is recorded in
 `docs/runbooks/metric-report-readiness.md`.
+
+## Post Additional Limit 75 Readiness Check
+
+Date: 2026-05-20
+
+After the additional observation run moved Metric count from `388` to `447`, a
+read-only report pass confirmed the new rows are readable and the report lane
+remains separated from write/fetch/send paths.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- GeckoTerminal-origin pump `mint_only` coverage: Metric `0=260`, `1=99`,
+  `2+=61`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- 168h `review:queue:geckoterminal -- --pumpOnly --sinceHours 168 --limit 20`
+  reports `metricPendingCount=260`; the default 24h queue reports
+  `metricPendingCount=0`
+
+Report confirmation:
+
+- `metrics:window-report` read Notification id `8`, Metric 2+ rows, latest
+  Metric-written rows, and mint-only Metric 1 rows with no rawJson full dump
+- `metrics:report` showed recent Metric ids `1525..1529` through safe summary
+  booleans
+- `tokens:compare-report` showed Metric 2+ `mint_only` rows with
+  `metricsCount=4` and latest Metric source `geckoterminal.token_snapshot`
+- Metric 0 rows remain visible as pending in the wider review queue, and recent
+  Metric-written rows are not `metricPending`
+
+No production DB write, external fetch, Telegram send, Notification
+create/update, Token write, Metric write, HolderSnapshot write, schema /
+migration change, application code change, or rawJson full dump occurred in
+this Green check.

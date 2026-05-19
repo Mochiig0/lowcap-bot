@@ -539,6 +539,23 @@ Next operating preference: pause broad Metric accumulation and improve the
 read-only report/operator decision surface for fallback `alertFdv=null` cases,
 or separately design an alert-anchor/Notification slice.
 
+## Post Additional Limit 75 Report Check
+
+Date: 2026-05-20
+
+A later read-only report pass confirmed the accumulated state after the
+additional `+59` Metrics:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+
+`metrics:window-report`, `metrics:report`, `tokens:compare-report`, and
+`review:queue:geckoterminal` were used only as reports. They did not fetch
+GeckoTerminal, write DB state, send Telegram, update Notification rows, or dump
+rawJson. This confirms the rate-limit clean Metric rows remain inspectable via
+the report lane; it does not authorize another Metric snapshot run.
+
 ## Not Executed In This Preflight
 
 - `metric:snapshot:geckoterminal`;

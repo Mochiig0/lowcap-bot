@@ -3598,6 +3598,30 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Metric Report Readiness After Additional Limit 75
+
+Date: 2026-05-20
+
+A read-only report pass rechecked the accumulated Metric surface after the
+additional limit-75 observation run wrote 59 more Metrics. The current DB state
+is Token / Metric / Notification / HolderSnapshot `1536 / 447 / 8 / 1`, with
+Token Metric distribution `0=1222`, `1=232`, `2+=82`, GeckoTerminal-origin pump
+`mint_only` coverage Metric `0=260`, `1=99`, `2+=61`, and Notification
+statuses `captured=4`, `sent=4`, `failed=0`.
+
+`metrics:window-report` remained read-only with `willWrite=false`,
+`willFetch=false`, and `willSendTelegram=false`. It read Notification id `8`,
+Metric 2+ samples, a latest accumulation sample, and a mint-only Metric 1
+sample without printing rawJson. `metrics:report`, `tokens:compare-report`, and
+`review:queue:geckoterminal` also produced rawJson-free read-only summaries.
+The 168h review queue keeps Metric 0 rows pending while recent Metric-written
+tokens are no longer `metricPending`.
+
+No DB write, external fetch, Telegram send, Notification update, schema /
+migration change, application code change, scheduler, systemd, or rawJson full
+dump occurred. Detailed notes live in
+`docs/runbooks/metric-report-readiness.md`.
+
 ## No-Data Reason Operator Review
 
 Date: 2026-05-20

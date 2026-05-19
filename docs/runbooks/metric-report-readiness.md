@@ -605,3 +605,90 @@ Operator conclusion:
 This closes the current report slice. The next operating step should return to
 manual-approved Telegram work rather than continue Policy D design immediately.
 Auto live send, scheduler, worker, queue, and systemd remain disabled.
+
+## Post Additional Limit 75 Report Readiness
+
+Date: 2026-05-20
+
+This read-only follow-up checked the report surface after the additional
+limit-75 Metric accumulation run added 59 more GeckoTerminal Metric rows. The
+prompt's earlier `Metric=388` baseline is now stale; the current production DB
+state is:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- GeckoTerminal-origin pump `mint_only` coverage: Metric `0=260`, `1=99`,
+  `2+=61`
+- recent written Metric id range from the last 75-row window: `1455..1529`
+  (`75` rows inspected)
+- Notification statuses: `captured=4`, `sent=4`, `failed=0`
+- `review:queue:geckoterminal -- --pumpOnly --sinceHours 168 --limit 20`
+  reported `metricPendingCount=260`; the default 24h queue reported
+  `metricPendingCount=0` because the recent window has aged
+
+Read-only implementation boundaries were rechecked:
+
+- `metrics:window-report` is read-only and prints `readOnly=true`,
+  `willWrite=false`, `willFetch=false`, and `willSendTelegram=false`
+- `metrics:window-report` uses Metric `rawJson` internally only to derive safe
+  FDV/window fields and does not print rawJson
+- `metrics:report`, `tokens:compare-report`, and
+  `review:queue:geckoterminal` were inspected as read-only report paths with no
+  DB write, external fetch, or Telegram sender call
+- package-script execution for `metrics:report` and `tokens:compare-report`
+  hit sandbox IPC limits in this environment, so the same CLI files were run
+  directly with `node --import tsx`
+
+Read-only commands executed:
+
+```bash
+pnpm -s metrics:window-report -- --mint EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump --windows 30,60,120,1440
+pnpm -s metrics:window-report -- --mint GvQqdiqq8TccXMz9BYCdx7EhXWbAxH4pezktC1oYpump --windows 30,60,120,1440
+pnpm -s metrics:window-report -- --mint 2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump --windows 30,60,120,1440
+pnpm -s metrics:window-report -- --mint P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump --windows 30,60,120,1440
+pnpm -s review:queue:geckoterminal -- --pumpOnly --limit 20
+pnpm -s review:queue:geckoterminal -- --pumpOnly --sinceHours 168 --limit 20
+node --import tsx src/cli/metricsReport.ts --source geckoterminal.token_snapshot --sortBy observedAt --sortOrder desc --limit 5
+node --import tsx src/cli/tokensCompareReport.ts --hasMetrics true --minMetricsCount 2 --limit 5
+```
+
+Report findings:
+
+- Notification id `8` was read as the sent/live-send token with mint
+  `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`,
+  `alertedAtSource=notification_sent_at`, `alertNotificationId=8`,
+  `metricCount=2`, and `fdvMetricCount=2`; windows stayed `no_data` because
+  the Metrics predate the live-send `sentAt` anchor
+- Metric 2+ sample
+  `GvQqdiqq8TccXMz9BYCdx7EhXWbAxH4pezktC1oYpump` was read with
+  `metricCount=2`, `fdvMetricCount=2`, `alertedAtSource=token_imported_at`,
+  and `entryAnchorQuality=very_late_gt_360m`
+- latest accumulation sample
+  `2mCMGtiXqRboAqB1oZEFwvp7xbXMVeM6YNBt3fVPpump` was read with
+  `metricCount=2`, `fdvMetricCount=2`, and a 24h thin FDV sample window
+- mint-only Metric 1 sample
+  `P3ugqvSd3ZqH7Nkj3n8hiCYHdouvqob6dBLKowfpump` was read with
+  `metricCount=1`, `fdvMetricCount=1`, and a 24h thin FDV sample window
+- the 168h review queue keeps Metric 0 tokens in `metricPending`, while recent
+  Metric-written tokens with `metricsCount>0` appear under stale/enrich review
+  and no longer match `metricPending`
+- `metrics:report` displayed recent Metric ids `1525..1529` as safe summaries
+  with price/FDV/reserve/top-pool presence booleans, not rawJson
+- `tokens:compare-report` displayed Metric 2+ `mint_only` rows with latest
+  Metric source `geckoterminal.token_snapshot`, `metricsCount=4`, and
+  rawJson-free completeness booleans
+
+Side effects confirmed:
+
+- DB write: none
+- external fetch: none
+- Telegram send: none
+- Notification create/update: none
+- Token / Metric / HolderSnapshot write: none
+- rawJson full dump: none
+- repo-local data diff before docs update: none
+
+Conclusion: the report/readiness surface is usable after Metric count `447`.
+`metrics:window-report` can be used for bounded operator review of Notification
+id `8`, Metric 2+ rows, Metric 1 rows, and Metric 0 pending context without
+opening any write, fetch, Telegram, scheduler, or systemd path.
