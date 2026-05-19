@@ -3718,6 +3718,63 @@ fields such as `entryAnchorFdv`, `entryAnchorObservedAt`,
 `outcomeLabel`, Notification-backed token behavior, DB schema, or persisted
 data in that first implementation.
 
+## Window Report Entry Anchor Fields
+
+Date: 2026-05-20
+
+Policy C is implemented in `metrics:window-report` as report-only computed
+fields:
+
+- `entryAnchorFdv`
+- `entryAnchorObservedAt`
+- `entryAnchorLagMinutes`
+- `entryAnchorSource`
+- `entryAnchorQuality`
+
+These fields identify the first FDV Metric at or after resolved `alertedAt`.
+They do not replace `alertFdv`, are not persisted, and are not used for
+`peakMultipleFromAlert` or `outcomeLabel`.
+
+`entryAnchorQuality` buckets:
+
+- `none`
+- `near_5m`
+- `near_30m`
+- `acceptable_60m`
+- `delayed_120m`
+- `delayed_180m`
+- `late_360m`
+- `very_late_gt_360m`
+
+Runtime read-only checks:
+
+- no-Notification mint-only fallback, short lag:
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump` now prints
+  `entryAnchorFdv=2348.1612253362`,
+  `entryAnchorLagMinutes=20.218433333333333`, and
+  `entryAnchorQuality=near_30m` while `alertFdv=null` and
+  `outcomeLabel=no_data` remain unchanged.
+- no-Notification mint-only fallback, long lag:
+  `BCiYyqsMthUWhhSUA2ZBVGVXgLx99XnsroVrCn6Wpump` prints
+  `entryAnchorLagMinutes=358.35365` and `entryAnchorQuality=late_360m`.
+- Notification id `8` token has no post-`sentAt` FDV sample, so
+  `entryAnchorFdv=null`, `entryAnchorSource=none`, and
+  `entryAnchorQuality=none`.
+- Notification id `7` token keeps `alertFdv=223702.038226584` and
+  `outcomeLabel=flat` in wider windows; entry anchor is additional context
+  only.
+
+Validation passed:
+
+- `pnpm exec tsc --noEmit`
+- `node --import tsx --test tests/metricsWindowReport.test.ts`
+- `pnpm -s metrics:window-report -- --help`
+
+The runtime checks stayed read-only with `willWrite=false`, `willFetch=false`,
+and `willSendTelegram=false`. No Metric snapshot, detect watch, external fetch,
+DB write, Telegram send, schema/migration change, or rawJson full dump was
+performed.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

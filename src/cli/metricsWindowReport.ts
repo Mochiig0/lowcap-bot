@@ -24,6 +24,20 @@ type AlertFdvSource =
   | "metric_after_alert"
   | "unavailable";
 
+type EntryAnchorSource =
+  | "first_fdv_metric_after_alerted_at"
+  | "none";
+
+type EntryAnchorQuality =
+  | "none"
+  | "near_5m"
+  | "near_30m"
+  | "acceptable_60m"
+  | "delayed_120m"
+  | "delayed_180m"
+  | "late_360m"
+  | "very_late_gt_360m";
+
 type FdvSampleCoverageLabel = "no_data" | "thin" | "partial" | "usable";
 type OutcomeLabel = "no_data" | "flat" | "small_win" | "hit" | "big_hit";
 type NoDataReason =
@@ -82,6 +96,11 @@ type MetricsWindowReportOutput = {
   alertFdvObservedAt: string | null;
   alertFdvSource: AlertFdvSource;
   alertFdvFreshnessSeconds: number | null;
+  entryAnchorFdv: number | null;
+  entryAnchorObservedAt: string | null;
+  entryAnchorLagMinutes: number | null;
+  entryAnchorSource: EntryAnchorSource;
+  entryAnchorQuality: EntryAnchorQuality;
   latestFdv: number | null;
   latestFdvObservedAt: string | null;
   latestFdvAgeSeconds: number | null;
@@ -111,6 +130,11 @@ type MetricsWindowReportOutput = {
   alertFdvObservedAt: null;
   alertFdvSource: "unavailable";
   alertFdvFreshnessSeconds: null;
+  entryAnchorFdv: null;
+  entryAnchorObservedAt: null;
+  entryAnchorLagMinutes: null;
+  entryAnchorSource: "none";
+  entryAnchorQuality: "none";
   latestFdv: null;
   latestFdvObservedAt: null;
   latestFdvAgeSeconds: null;
@@ -448,6 +472,51 @@ function findLatestFdv(
   };
 }
 
+function getEntryAnchorQuality(lagMinutes: number | null): EntryAnchorQuality {
+  if (lagMinutes === null) return "none";
+  if (lagMinutes <= 5) return "near_5m";
+  if (lagMinutes <= 30) return "near_30m";
+  if (lagMinutes <= 60) return "acceptable_60m";
+  if (lagMinutes <= 120) return "delayed_120m";
+  if (lagMinutes <= 180) return "delayed_180m";
+  if (lagMinutes <= 360) return "late_360m";
+  return "very_late_gt_360m";
+}
+
+function findEntryAnchorFdv(
+  fdvSamples: FdvSample[],
+  alertedAt: Date,
+): {
+  entryAnchorFdv: number | null;
+  entryAnchorObservedAt: Date | null;
+  entryAnchorLagMinutes: number | null;
+  entryAnchorSource: EntryAnchorSource;
+  entryAnchorQuality: EntryAnchorQuality;
+} {
+  const firstAfter = fdvSamples
+    .filter((sample) => sample.observedAt >= alertedAt)
+    .sort((left, right) => left.observedAt.getTime() - right.observedAt.getTime())[0];
+
+  if (!firstAfter) {
+    return {
+      entryAnchorFdv: null,
+      entryAnchorObservedAt: null,
+      entryAnchorLagMinutes: null,
+      entryAnchorSource: "none",
+      entryAnchorQuality: "none",
+    };
+  }
+
+  const entryAnchorLagMinutes = minutesBetween(alertedAt, firstAfter.observedAt);
+  return {
+    entryAnchorFdv: firstAfter.fdv,
+    entryAnchorObservedAt: firstAfter.observedAt,
+    entryAnchorLagMinutes,
+    entryAnchorSource: "first_fdv_metric_after_alerted_at",
+    entryAnchorQuality: getEntryAnchorQuality(entryAnchorLagMinutes),
+  };
+}
+
 function getFdvSampleCoverageLabel(fdvSampleCount: number): FdvSampleCoverageLabel {
   if (fdvSampleCount === 0) return "no_data";
   if (fdvSampleCount === 1) return "thin";
@@ -622,6 +691,11 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
       alertFdvObservedAt: null,
       alertFdvSource: "unavailable",
       alertFdvFreshnessSeconds: null,
+      entryAnchorFdv: null,
+      entryAnchorObservedAt: null,
+      entryAnchorLagMinutes: null,
+      entryAnchorSource: "none",
+      entryAnchorQuality: "none",
       latestFdv: null,
       latestFdvObservedAt: null,
       latestFdvAgeSeconds: null,
@@ -688,6 +762,7 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
   }));
   const fdvSamples = getFdvSamples(samples);
   const alertFdvResult = findAlertFdv(fdvSamples, alertedAt);
+  const entryAnchorResult = findEntryAnchorFdv(fdvSamples, alertedAt);
   const latestFdvResult = findLatestFdv(fdvSamples, evaluationAt);
   const firstObserved = fdvSamples[0] ?? null;
   const windows = Object.fromEntries(
@@ -723,6 +798,11 @@ export async function buildMetricsWindowReport(args: MetricsWindowReportArgs): P
     alertFdvObservedAt: alertFdvResult.alertFdvObservedAt?.toISOString() ?? null,
     alertFdvSource: alertFdvResult.alertFdvSource,
     alertFdvFreshnessSeconds: alertFdvResult.alertFdvFreshnessSeconds,
+    entryAnchorFdv: entryAnchorResult.entryAnchorFdv,
+    entryAnchorObservedAt: entryAnchorResult.entryAnchorObservedAt?.toISOString() ?? null,
+    entryAnchorLagMinutes: entryAnchorResult.entryAnchorLagMinutes,
+    entryAnchorSource: entryAnchorResult.entryAnchorSource,
+    entryAnchorQuality: entryAnchorResult.entryAnchorQuality,
     latestFdv: latestFdvResult.latestFdv,
     latestFdvObservedAt: latestFdvResult.latestFdvObservedAt?.toISOString() ?? null,
     latestFdvAgeSeconds: latestFdvResult.latestFdvAgeSeconds,

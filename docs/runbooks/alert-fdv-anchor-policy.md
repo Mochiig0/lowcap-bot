@@ -204,3 +204,41 @@ usable baseline without reclassifying delayed first observations as alert-time
 outcomes. Policy D can be reconsidered only after operators review derived
 anchor quality and decide that delayed baselines are acceptable for a separate
 fallback outcome mode.
+
+## Implementation Result
+
+Date: 2026-05-20
+
+Policy C has been implemented in `metrics:window-report`.
+
+Added report-only fields:
+
+- `entryAnchorFdv`
+- `entryAnchorObservedAt`
+- `entryAnchorLagMinutes`
+- `entryAnchorSource`
+- `entryAnchorQuality`
+
+The implementation keeps the following unchanged:
+
+- strict ±5m `alertFdv` lookup
+- `outcomeLabel` thresholds and calculation
+- `peakMultipleFromAlert` calculation
+- Notification-backed token semantics
+- `noDataReasons`, `hasAlertFdvAnchor`, and `hasWindowFdvSamples`
+- DB schema and persisted data
+
+Runtime checks confirmed:
+
+- short-lag no-Notification fallback row reports `entryAnchorQuality=near_30m`
+  while `alertFdv=null` and `outcomeLabel=no_data` remain unchanged
+- long-lag no-Notification fallback row reports `entryAnchorQuality=late_360m`
+- Notification id `8` reports `entryAnchorQuality=none` because no FDV sample
+  exists at or after `sentAt`
+- Notification id `7` keeps `outcomeLabel=flat`; the entry anchor does not
+  alter the alert-backed outcome
+
+Next policy decision should be based on operator review of `entryAnchorQuality`
+distribution. Do not promote entry anchor into outcome calculation until the
+team accepts a separate fallback outcome mode for delayed first-observation
+baselines.

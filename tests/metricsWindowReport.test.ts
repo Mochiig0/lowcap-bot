@@ -44,6 +44,11 @@ type MetricsWindowReportOutput = {
   alertFdvObservedAt: string | null;
   alertFdvSource: string;
   alertFdvFreshnessSeconds: number | null;
+  entryAnchorFdv: number | null;
+  entryAnchorObservedAt: string | null;
+  entryAnchorLagMinutes: number | null;
+  entryAnchorSource: string;
+  entryAnchorQuality: string;
   latestFdv: number | null;
   latestFdvObservedAt: string | null;
   latestFdvAgeSeconds: number | null;
@@ -461,6 +466,11 @@ test("metrics window report boundary", async (t) => {
       assert.equal(output.alertFdvObservedAt, addMinutes(seeded.entryAt, -2).toISOString());
       assert.equal(output.alertFdvSource, "metric_before_alert");
       assert.equal(output.alertFdvFreshnessSeconds, 120);
+      assert.equal(output.entryAnchorFdv, 10000);
+      assert.equal(output.entryAnchorObservedAt, addMinutes(seeded.entryAt, 5).toISOString());
+      assert.equal(output.entryAnchorLagMinutes, 5);
+      assert.equal(output.entryAnchorSource, "first_fdv_metric_after_alerted_at");
+      assert.equal(output.entryAnchorQuality, "near_5m");
       assert.equal(output.firstObservedFdv, 9000);
       assert.equal(output.firstObservedAt, addMinutes(seeded.entryAt, -2).toISOString());
       assert.equal(output.minutesFromFirstObservedToAlert, 2);
@@ -555,6 +565,13 @@ test("metrics window report boundary", async (t) => {
       const output = JSON.parse(result.stdout) as MetricsWindowReportOutput;
       assert.equal(output.entryAtSource, "importedAt");
       assert.equal(output.alertedAtSource, "token_imported_at");
+      assert.equal(output.alertFdv, null);
+      assert.equal(output.alertFdvSource, "unavailable");
+      assert.equal(output.entryAnchorFdv, 12000);
+      assert.equal(output.entryAnchorObservedAt, addMinutes(seeded.entryAt, 12).toISOString());
+      assert.equal(output.entryAnchorLagMinutes, 12);
+      assert.equal(output.entryAnchorSource, "first_fdv_metric_after_alerted_at");
+      assert.equal(output.entryAnchorQuality, "near_30m");
       assert.equal(output.windows["30m"]?.sampleCount, 1);
       assert.equal(output.windows["30m"]?.fdvSampleCount, 1);
       assert.equal(output.windows["30m"]?.peakFdv, 12000);
@@ -589,6 +606,11 @@ test("metrics window report boundary", async (t) => {
       assert.equal(output.alertNotificationId, seeded.sentNotificationId);
       assert.equal(output.alertFdv, 5000);
       assert.equal(output.alertFdvSource, "metric_before_alert");
+      assert.equal(output.entryAnchorFdv, 20000);
+      assert.equal(output.entryAnchorObservedAt, addMinutes(seeded.entryAt, 15).toISOString());
+      assert.equal(output.entryAnchorLagMinutes, 10);
+      assert.equal(output.entryAnchorSource, "first_fdv_metric_after_alerted_at");
+      assert.equal(output.entryAnchorQuality, "near_30m");
       assert.equal(output.windows["30m"]?.peakFdv, 20000);
       assert.equal(output.windows["30m"]?.peakMultipleFromAlert, 4);
       assert.equal(output.windows["30m"]?.outcomeLabel, "hit");
@@ -616,6 +638,11 @@ test("metrics window report boundary", async (t) => {
       assert.equal(result.ok, true);
 
       const output = JSON.parse(result.stdout) as MetricsWindowReportOutput;
+      assert.equal(output.entryAnchorFdv, null);
+      assert.equal(output.entryAnchorObservedAt, null);
+      assert.equal(output.entryAnchorLagMinutes, null);
+      assert.equal(output.entryAnchorSource, "none");
+      assert.equal(output.entryAnchorQuality, "none");
       assert.equal(output.windows["30m"]?.outcomeLabel, "no_data");
       assert.deepEqual(output.windows["30m"]?.noDataReasons, [
         "no_alert_anchor_near_entry",

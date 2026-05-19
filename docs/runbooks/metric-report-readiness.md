@@ -481,3 +481,61 @@ See `docs/runbooks/alert-fdv-anchor-policy.md` for the read-only policy
 preflight. Its current recommendation is to keep `alertFdv` and
 `outcomeLabel` strict, then add report-only `entryAnchor*` baseline fields for
 mint-only fallback rows before considering any outcome-label change.
+
+## Entry Anchor Fields
+
+Date: 2026-05-20
+
+`metrics:window-report` now includes report-only entry anchor fields:
+
+- `entryAnchorFdv`
+- `entryAnchorObservedAt`
+- `entryAnchorLagMinutes`
+- `entryAnchorSource`
+- `entryAnchorQuality`
+
+Definition:
+
+- the entry anchor is the first FDV Metric at or after resolved `alertedAt`
+- `entryAnchorSource` is `first_fdv_metric_after_alerted_at` when present, else
+  `none`
+- `entryAnchorQuality` classifies the lag as `none`, `near_5m`, `near_30m`,
+  `acceptable_60m`, `delayed_120m`, `delayed_180m`, `late_360m`, or
+  `very_late_gt_360m`
+
+Boundary:
+
+- `alertFdv` remains strict ±5m and unchanged
+- `outcomeLabel` remains unchanged
+- `peakMultipleFromAlert` remains based on `alertFdv`, not entry anchor
+- existing `noDataReasons`, `hasAlertFdvAnchor`, and `hasWindowFdvSamples`
+  behavior is unchanged
+- fields are computed at report time only and are not persisted
+
+Read-only runtime cohort:
+
+- `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`: no-Notification fallback
+  with short lag; printed `entryAnchorQuality=near_30m`,
+  `entryAnchorLagMinutes=20.218433333333333`, `alertFdv=null`, and
+  `outcomeLabel=no_data`
+- `BCiYyqsMthUWhhSUA2ZBVGVXgLx99XnsroVrCn6Wpump`: no-Notification fallback
+  with long lag; printed `entryAnchorQuality=late_360m` and
+  `entryAnchorLagMinutes=358.35365`
+- `EUxGk5jzGo5VMyBo84a683RJHmB1etqR6FwuKBEwpump`: Notification id `8`; no
+  post-sent FDV sample, so `entryAnchorFdv=null`, `entryAnchorSource=none`,
+  and `entryAnchorQuality=none`
+- `ENRAEN9assGLHU2QQCo4cAv818mDrMkb6f6pG8hHpump`: Notification id `7`; kept
+  `alertFdv=223702.038226584` and wider-window `outcomeLabel=flat` while
+  entry anchor appeared only as additional context
+
+Validation:
+
+```bash
+pnpm exec tsc --noEmit
+node --import tsx --test tests/metricsWindowReport.test.ts
+pnpm -s metrics:window-report -- --help
+```
+
+The runtime commands remained side-effect free: no DB write, external fetch,
+Telegram send, Token update, Notification update, HolderSnapshot write, or
+rawJson full dump.
