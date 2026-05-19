@@ -589,3 +589,25 @@ pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 14
 
 Expected effect is Metric rows only; Token, Notification, HolderSnapshot,
 Telegram, checkpoint, and repo-local data should remain unchanged.
+
+## Operating Update: Additional Metric Accumulation Limit 75
+
+Date: 2026-05-19
+
+The approved Red command was executed once as an additional observation-point
+run, not as Metric-0 pending cleanup:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+The execution selected 59 eligible rows because the 24h selection window had
+aged by runtime. It wrote 59 Metrics (`1471` through `1529`), with
+`skippedCount=0`, `errorCount=0`, `interItemDelayMs=15000`,
+`interItemDelayCount=58`, and no 429. Counts moved only in Metric:
+`1536 / 388 / 8 / 1 -> 1536 / 447 / 8 / 1`.
+
+Follow-up `metrics:window-report` checks on three written mints confirmed the
+new Metrics are readable without DB writes, external fetches, Telegram sends,
+or rawJson dumps. The next step should return to read-only outcome / operating
+decision work before another accumulation batch.

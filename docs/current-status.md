@@ -3637,6 +3637,65 @@ no Token update/create, no Notification create/update in batch mode, no
 HolderSnapshot write, no Telegram send, no checkpoint, and no repo-local data
 changes.
 
+## Additional Metric Accumulation Limit 75 Result
+
+Date: 2026-05-19
+
+The approved controlled Red command was executed once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+This was not a Metric-0 cleanup run. It was an additional observation-point run
+for already measured GeckoTerminal-origin pump `mint_only` tokens.
+
+Result:
+
+- exit code: `0`
+- `selectedCount=59`
+- `okCount=59`
+- `writtenCount=59`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=58`
+- no 429 / rate-limit error
+- no provider error
+- written Metric ids: `1471` through `1529`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `388 -> 447`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+- Token Metric distribution: `0=1222 -> 1222`, `1=261 -> 232`,
+  `2+=53 -> 82`
+- Notification statuses stayed `captured=5`, `sent=3`, `failed=0`
+
+`selectedCount` was `59`, not `75`, because by execution time the
+`--sinceMinutes 1440` selection window had aged and only 59 eligible
+GeckoTerminal-origin pump rows remained after `minGapMinutes=60`.
+
+Post-run read-only checks:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 75` still reported
+  `readOnly=true` and `metricPendingCount=0`
+- `metrics:window-report` was checked for three written mints:
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`,
+  `2k5wuRCdhL331w5mALdP34eejkQ3qQswykyipr3bpump`, and
+  `D4kjSBMpLe8fPvjH3D3WCscvNui6QjeK2BhzFa51pump`
+- each report stayed read-only and printed `willWrite=false`,
+  `willFetch=false`, and `willSendTelegram=false`
+- the newly written Metrics were readable in `latestFdv` /
+  `latestFdvObservedAt`; no rawJson full dump was printed
+
+Side effects stayed inside the expected boundary: production DB Metric writes
+only. There was no Token update/create, Notification create/update,
+HolderSnapshot write, Telegram send, checkpoint update, or repo-local data
+change.
+
 ## Cohort Window Outcome Check
 
 Date: 2026-05-19

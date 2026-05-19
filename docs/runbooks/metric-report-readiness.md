@@ -253,3 +253,38 @@ GeckoTerminal-origin pump `mint_only` rows, if Notification / Telegram /
 HolderSnapshot paths appear in batch mode, if raw provider bodies or secrets
 would be printed, or if the operator intent is specifically to fill Metric-0
 pending rows rather than add additional observations.
+
+## Report Check After Additional Limit 75 Run
+
+Date: 2026-05-19
+
+After the additional observation-point run, DB counts were:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 447 / 8 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=3`, `failed=0`
+
+The Red command wrote 59 new Metric rows (`1471` through `1529`) and did not
+change Token, Notification, or HolderSnapshot counts.
+
+Read-only report checks:
+
+```bash
+pnpm -s metrics:window-report -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --windows 30,60,1440
+pnpm -s metrics:window-report -- --mint 2k5wuRCdhL331w5mALdP34eejkQ3qQswykyipr3bpump --windows 30,60,1440
+pnpm -s metrics:window-report -- --mint D4kjSBMpLe8fPvjH3D3WCscvNui6QjeK2BhzFa51pump --windows 30,60,1440
+```
+
+Findings:
+
+- all three reports stayed read-only with `willWrite=false`, `willFetch=false`,
+  and `willSendTelegram=false`
+- newly written Metrics were visible through `metricCount`,
+  `latestFdvObservedAt`, and `latestFdv`
+- two sample tokens now had `metricCount=4`, `fdvMetricCount=4`, and 24h
+  `fdvSampleCoverageLabel=usable`
+- one sample token had `metricCount=2`, `fdvMetricCount=2`, and 24h
+  `fdvSampleCoverageLabel=thin`
+- `outcomeLabel` stayed `no_data` for these samples because they use
+  `first_seen_detected_at` fallback with no alert FDV anchor
+- no rawJson full dump was printed

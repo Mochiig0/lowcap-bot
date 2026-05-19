@@ -474,6 +474,48 @@ Expected side effects: up to 75 new `Metric` rows. Expected non-effects:
 Token, Notification, HolderSnapshot, Telegram, checkpoint, and repo-local data
 remain unchanged.
 
+## Additional Limit 75 Observation Run
+
+Date: 2026-05-19
+
+The controlled Red limit-75 command was executed once after human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- exit code: `0`
+- `selectedCount=59`
+- `okCount=59`
+- `writtenCount=59`
+- `skippedCount=0`
+- `errorCount=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=58`
+- no 429 / rate-limit error
+- no provider error
+- written Metric ids: `1471` through `1529`
+
+Counts moved:
+
+- Token: `1536 -> 1536`
+- Metric: `388 -> 447`
+- Notification: `8 -> 8`
+- HolderSnapshot: `1 -> 1`
+
+This was intentionally not a Metric-0 pending cleanup run. By execution time,
+the `--sinceMinutes 1440` window had aged enough that only 59 eligible rows
+remained after `minGapMinutes=60`; the selected rows were already measured
+GeckoTerminal-origin pump `mint_only` tokens. The run added observation points
+and moved 29 tokens from Metric 1 to Metric 2+, while leaving Metric 0 unchanged
+at `1222`.
+
+The 15-second pacing again stayed rate-limit clean. Batch mode still did not
+create Notification rows, send Telegram, update Tokens, write HolderSnapshot,
+touch checkpoints, or change repo-local data.
+
 ## Not Executed In This Preflight
 
 - `metric:snapshot:geckoterminal`;
