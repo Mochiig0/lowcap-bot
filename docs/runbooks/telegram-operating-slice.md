@@ -321,6 +321,64 @@ Scheduler/systemd remain locked because auto candidate selection, disable
 switch behavior, restart duplicate-send behavior, and failure handling have not
 yet been validated in an always-on process.
 
+## Auto Live Send Gate Preflight
+
+Date: 2026-05-21
+
+The next auto live-send step was narrowed to a read-only planner
+implementation, not a sender implementation. This preflight did not execute
+Telegram send, DB write, Notification update, external fetch, retry execution,
+Metric snapshot, detector / ops catch-up, `--write`, `--watch`, `--live`,
+scheduler, systemd, schema / migration change, application code change,
+rawJson full dump, or secret output.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+
+Gate decision:
+
+- future auto live send should use positive opt-in
+  `NOTIFICATION_AUTO_SEND_ENABLED=true`
+- unset, `false`, or any other value means disabled
+- manual approved `notification:send --live` remains separate from this auto
+  switch at first
+- initial one-run max is fixed at `1`
+- first implementation should be a read-only planner CLI, tentatively
+  `notification:auto-send:plan`
+
+Initial allowlist:
+
+- `eventType=metric_appended` and `trigger=metric_appended`
+- `status=captured` and `mode=capture_only`
+- `sentAt=null`, `failedAt=null`, `errorCode=null`, and `status!=sent`
+- production-shaped key `<mint>:metric_appended:<metricId>`
+- no `SMOKE` / `REHEARSAL` marker by the current rehearsal guard
+- not failed and not a retry candidate
+- safe preview available without rawJson, full message body, Telegram token,
+  chat id, or env output
+- global failed count is `0`
+- no duplicate or ambiguous candidate identity
+
+Dry-run preview should report read-only state, auto switch state, candidate
+counts, allowed / blocked counts, blocked reasons, selected Notification id,
+selected trigger, safe key summary, `wouldSend`, `wouldUpdateNotification`,
+expected side effects, expected non-effects, and stop condition codes.
+
+Stop conditions include failed count greater than `0`, disabled switch,
+candidate count above one-run max, duplicate / ambiguous key, non-empty
+`blockedBy`, smoke / rehearsal or sent-row candidate leakage, non-allowlisted
+trigger / mode / status, unsafe preview, Telegram API / network / 429 in any
+future live path, write scope beyond Notification sent / failed update,
+Token / Metric / HolderSnapshot side effects, rawJson / secret output needs,
+or scheduler / systemd invocation before explicit unlock.
+
+Detailed design is recorded in `docs/runbooks/auto-live-send-gate.md`. Auto
+live send, scheduler, and systemd remain locked.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

@@ -12,25 +12,27 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 Date: 2026-05-21
 
 After the marker-tagged capture-only rehearsal completed and Notification id
-`9` was confirmed excluded from manual live-send and retry candidates, the next
-single operating slice is **Yellow: preflight auto live send gate
-implementation**.
+`9` was confirmed excluded from manual live-send and retry candidates, the auto
+live-send gate preflight selected the next single operating slice:
+**Yellow: implement read-only auto live-send planner CLI**.
 
-This is not auto live send execution. It should design the safety gate before
-any automatic sender path is run:
+This is not auto live send execution. The planner should make the safety gate
+observable before any automatic sender path is run:
 
-- explicit disable switch / kill switch
-- narrow allowlist for event types and modes
-- one-run maximum
-- dry-run preview
-- stop conditions
-- separation from scheduler and systemd
+- default-disabled switch design using `NOTIFICATION_AUTO_SEND_ENABLED=true`
+  for future auto-send execution
+- narrow allowlist for production-shaped `metric_appended` capture-only rows
+- fixed one-run maximum of `1`
+- safe dry-run preview fields
+- explicit stop conditions
+- continued separation from scheduler and systemd
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
 `0`. Capture-only rehearsal is complete; adding another rehearsal row is lower
-value than preparing the next Telegram safety layer.
+value than implementing the read-only auto-send planner. Detailed preflight
+notes live in `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task
 

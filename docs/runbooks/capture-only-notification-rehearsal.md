@@ -529,3 +529,24 @@ Next task: **Yellow: preflight auto live send gate implementation**. It should
 design the gate and stop conditions only; auto live send execution, scheduler,
 systemd, Telegram send, retry execution, and write-side rehearsals remain out
 of scope.
+
+## Follow-Up: Auto Live Send Gate Preflight
+
+Date: 2026-05-21
+
+The follow-up preflight selected the next Telegram operating task after this
+capture-only rehearsal slice. The next step is a Yellow read-only planner
+implementation, not auto live-send execution:
+
+- add a planner CLI such as `notification:auto-send:plan`
+- keep future auto-send disabled unless
+  `NOTIFICATION_AUTO_SEND_ENABLED=true`
+- keep one-run max fixed at `1`
+- allow only production-shaped `metric_appended` captured / capture-only rows
+- continue excluding `SMOKE` / `REHEARSAL` rows from send and retry planning
+- keep scheduler / systemd locked
+
+Detailed design is recorded in `docs/runbooks/auto-live-send-gate.md`. This
+follow-up did not write DB state, send Telegram, fetch externally, update
+Notifications, run retry execution, execute Metric snapshot, or unlock auto
+live send.

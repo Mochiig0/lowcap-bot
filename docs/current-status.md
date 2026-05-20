@@ -3649,6 +3649,40 @@ Codex task should be **Yellow: preflight auto live send gate implementation**.
 It should design, but not execute, an auto live-send gate separated from
 scheduler / systemd, with safe defaults and no Telegram send.
 
+## Auto Live Send Gate Preflight
+
+Date: 2026-05-21
+
+The auto live-send gate implementation preflight is complete as a docs-only
+decision. No application code, schema, migration, DB write, Notification
+update, external fetch, Telegram send, retry execution, Metric snapshot,
+detector / ops catch-up run, `--write`, `--watch`, `--live`, scheduler,
+systemd, rawJson full dump, or secret output occurred.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- `notification:retry:plan` candidate count: `0`
+
+The recommended future auto-send kill switch is
+`NOTIFICATION_AUTO_SEND_ENABLED=true`, with default disabled behavior for
+unset, `false`, or any other value. The switch is scoped to future auto send;
+manual approved `notification:send --live` stays separate.
+
+The next Yellow implementation should add only a read-only planner CLI,
+tentatively `notification:auto-send:plan`. It should report the future gate's
+allowlist, blocked reasons, one-run max, dry-run preview, and stop conditions
+without connecting a Telegram sender or updating Notifications. Initial
+one-run max is fixed at `1`; allowed rows must be production-shaped
+`metric_appended` captured / capture-only Notifications with no sent / failed
+state, no smoke / rehearsal marker, no retry status, safe preview available,
+and global failed count `0`.
+
+Detailed design is recorded in `docs/runbooks/auto-live-send-gate.md`. Auto
+live send, scheduler, and systemd remain unapproved.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20
