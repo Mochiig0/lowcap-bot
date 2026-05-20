@@ -3598,6 +3598,57 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Next Operating Slice Decision
+
+Date: 2026-05-21
+
+This Green decision preflight reviewed the next operating step after the
+capture-only rehearsal slice. It performed read-only checks only: no DB write,
+external fetch, Telegram send, Notification update, Metric write, Token write,
+HolderSnapshot write, metric snapshot execution, notification send, retry
+execution, detector / ops catch-up execution, `--write`, `--watch`, `--live`,
+schema / migration change, app code change, rawJson full dump, or secret output.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- `notification:retry:plan` candidate count: `0`
+- default 24h GeckoTerminal review queue: `metricPendingCount=0`
+- 168h GeckoTerminal review queue: `geckoOriginTokenCount=420`,
+  `metricPendingCount=260`, `enrichPendingCount=420`, `notifyCandidateCount=0`
+
+Completed slices now include report / outcome Policy C context, manual
+Telegram live send, smoke / rehearsal live-send and retry guard, marker-tagged
+capture-only rehearsal, and id `9` continuing to be excluded from manual
+live-send and retry candidates. Auto live send, scheduler, worker, queue, and
+systemd remain locked.
+
+Candidate comparison:
+
+- A, auto live send gate preflight: best next step. It moves Telegram
+  operation forward without sending Telegram, and focuses on a disable switch,
+  explicit allowlist, one-run maximum, dry-run preview, and stop conditions
+  before any scheduler or systemd work. The main caveat is that current manual
+  live-send candidate count is `0`, so validation will be design / guard first.
+- B, another capture-only rehearsal Red: lower value. Marker-tagged capture has
+  already succeeded once and another run would add another rehearsal row plus
+  external fetch and Metric write.
+- C, Metric accumulation / report: useful later, but it moves away from the
+  Telegram operating slice. The 168h queue has Metric 0 rows, but additional
+  Metric samples alone do not solve the alert-FDV anchor issue.
+- D, detect / new-pool watch: useful later for the broader research OS, but it
+  needs a bounded watch / checkpoint decision and any write rehearsal would be
+  Red.
+- E, docs / handoff only: safe, but less forward progress now that the current
+  state is already documented.
+
+Decision: choose candidate A as the next single operating slice. The next
+Codex task should be **Yellow: preflight auto live send gate implementation**.
+It should design, but not execute, an auto live-send gate separated from
+scheduler / systemd, with safe defaults and no Telegram send.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

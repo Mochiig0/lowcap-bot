@@ -499,3 +499,33 @@ Sent row breakdown:
 Decision: the capture-only rehearsal slice can be treated as complete. Future
 work should stay manual-approved; auto live send, scheduler, and systemd remain
 locked.
+
+## Completion And Next Slice Decision
+
+Date: 2026-05-21
+
+The capture-only rehearsal slice is complete. Current read-only state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- id `3` through `6`: `SMOKE_...` rehearsal rows, excluded
+- id `9`: `REHEARSAL:...` capture rehearsal row, excluded
+- ids `7` and `8`: sent rows, excluded by resend prevention
+
+Decision comparison:
+
+- Auto live send gate preflight is the recommended next slice. It can improve
+  the Telegram safety layer without sending Telegram.
+- A second capture-only rehearsal is not recommended now because the marker
+  path is already proven and another run would add another rehearsal row.
+- Metric accumulation / report remains useful later, but belongs to the
+  outcome lane rather than this completed rehearsal lane.
+- Detect / new-pool watch remains a separate bounded-operation lane.
+- Docs handoff is safe but less useful than the gate preflight at this point.
+
+Next task: **Yellow: preflight auto live send gate implementation**. It should
+design the gate and stop conditions only; auto live send execution, scheduler,
+systemd, Telegram send, retry execution, and write-side rehearsals remain out
+of scope.

@@ -7,6 +7,31 @@ This document remains the narrower near-term operating roadmap.
 
 Keep the current CLI-first, mint-driven accumulation MVP aligned with the live repo: narrow source-specific semi-automation, observable outcomes, and maintainable operating procedures without drifting into a generic bot runtime too early.
 
+## Current Next Slice
+
+Date: 2026-05-21
+
+After the marker-tagged capture-only rehearsal completed and Notification id
+`9` was confirmed excluded from manual live-send and retry candidates, the next
+single operating slice is **Yellow: preflight auto live send gate
+implementation**.
+
+This is not auto live send execution. It should design the safety gate before
+any automatic sender path is run:
+
+- explicit disable switch / kill switch
+- narrow allowlist for event types and modes
+- one-run maximum
+- dry-run preview
+- stop conditions
+- separation from scheduler and systemd
+
+Current state for the decision: Token / Metric / Notification / HolderSnapshot
+`1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
+`failed=0`, manual live-send candidate count `0`, and retry candidate count
+`0`. Capture-only rehearsal is complete; adding another rehearsal row is lower
+value than preparing the next Telegram safety layer.
+
 ## Next Minimal Task
 
 Complete the CLI-first MVP operating picture before adding paid holder sources,

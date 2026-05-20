@@ -530,3 +530,38 @@ No DB write, external fetch, Telegram send, Notification update, Metric write,
 Token write, HolderSnapshot write, rawJson full dump, or secret output occurred
 in this follow-up. Auto live send, scheduler, and systemd remain locked; only
 manual-approved live send remains allowed.
+
+## Next Operating Slice Decision
+
+Date: 2026-05-21
+
+Read-only decision preflight after the capture-only rehearsal slice:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- capture-only rehearsal row id `9` remains excluded
+- auto live send, scheduler, and systemd remain locked
+
+Candidate ranking:
+
+1. **Auto live send gate preflight**. This is the recommended next slice. It
+   advances Telegram operations without sending Telegram and keeps the work on
+   safety design: disable switch, allowlist, one-run max, dry-run preview, and
+   stop conditions before scheduler / systemd.
+2. **Docs / handoff consolidation**. Useful if the next chat needs a shorter
+   operating handoff, but lower value than the gate preflight.
+
+Not selected now:
+
+- another capture-only rehearsal Red, because marker capture has already
+  succeeded and would add another rehearsal row plus external fetch / writes;
+- Metric accumulation / report, because it is useful later but shifts away from
+  the Telegram slice and does not solve the alert-FDV anchor problem alone;
+- detect / new-pool watch, because bounded watch / checkpoint design remains a
+  separate lane and write rehearsal would be Red.
+
+Next task to hand to Codex: **Yellow: preflight auto live send gate
+implementation**. It must not send Telegram, must not enable auto live send,
+and must keep scheduler / systemd out of scope.
