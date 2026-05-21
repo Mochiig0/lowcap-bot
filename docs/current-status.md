@@ -127,6 +127,10 @@ pnpm notification:auto-send:plan
 ```
 
 ```bash
+pnpm notification:auto-send:execute -- [--execute]
+```
+
+```bash
 pnpm notification:send -- --notificationKey <KEY> --trigger metric_appended [--live] [--retryFailed]
 ```
 
@@ -3827,6 +3831,58 @@ Next task: **Yellow: implement disabled-by-default
 `notification:auto-send:execute` CLI with tests only**. Production runtime for
 that task should be limited to `--help` and planner checks. No production
 `--execute`, Telegram send, Notification update, scheduler, or systemd.
+
+## Auto Send Execute CLI
+
+Date: 2026-05-21
+
+`notification:auto-send:execute` has been added as a disabled-by-default auto
+send execution boundary. The implementation includes a CLI, helper, mocked
+sender tests, and docs. Production `--execute` was not run.
+
+Behavior:
+
+- package script: `notification:auto-send:execute`
+- CLI default: dry-run / stopped summary
+- explicit `--execute` is required before any sender attempt
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` is also required before any sender
+  attempt
+- execution calls the read-only planner first
+- sender is connected only after planner gate pass:
+  `allowedCandidateCount=1`, selected id present, `stopConditionCodes=[]`,
+  one-run max `1`, no failed rows, no smoke / rehearsal marker, no sent row,
+  and safe preview available
+- success / failure update scope is limited to the selected Notification row
+- retry execution, scheduler, and systemd remain separate and unapproved
+
+Production runtime checks did not use `--execute`. Equivalent
+`node --import tsx src/cli/notificationAutoSendExecute.ts` checks returned:
+
+- default: `executeRequested=false`, `readOnly=true`, `dryRun=true`,
+  `autoSendEnabled=false`, `status=stopped`,
+  `blockedBy=[execute_flag_required]`, `sendAttempted=false`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+- with `NOTIFICATION_AUTO_SEND_ENABLED=true`: still `executeRequested=false`,
+  `status=stopped`, `sendAttempted=false`, `senderCalled=false`,
+  `updatedCount=0`, and planner `allowedCandidateCount=0`
+
+Counts stayed unchanged:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- allowed auto-send candidate count: `0`
+- retry candidate count: `0`
+
+The package script uses `tsx` as requested. In the default sandbox it hit the
+known local `tsx` IPC `EPERM` limitation, so equivalent `node --import tsx ...`
+commands were used first; the package script was then confirmed outside that
+sandbox for `--help` and default no-`--execute` dry-run only. No production
+`--execute` was run.
+
+Next useful step: **Green: review `notification:auto-send:execute` no-execute
+runtime output** against production DB, then decide whether the next Red/Green
+slice should create one real production-shaped capture-only candidate or stay
+in mock-only execution hardening. Auto live-send execution remains unrun.
 
 ## Metric Snapshot Rehearsal Tag Option
 

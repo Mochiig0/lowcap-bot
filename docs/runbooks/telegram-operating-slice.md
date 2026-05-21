@@ -527,6 +527,50 @@ Next recommended task: **Yellow: implement disabled-by-default
 should stay limited to `--help` and planner checks. Auto live send execution,
 scheduler, and systemd remain locked.
 
+## Auto Send Execute CLI
+
+Date: 2026-05-21
+
+`notification:auto-send:execute` is now present as a disabled-by-default
+execution boundary. It remains separate from manual `notification:send`.
+
+Implemented behavior:
+
+- default without `--execute`: stopped dry-run summary
+- `--execute` required for any future sender attempt
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` required for any future sender attempt
+- planner runs first and must return exactly one allowed selected candidate
+- stopped / blocked paths do not connect sender and do not update DB
+- future success / failure update scope is one selected Notification row only
+- retry execution, scheduler, and systemd are still not connected
+
+Production runtime was limited to no-`--execute` checks. Equivalent
+`node --import tsx src/cli/notificationAutoSendExecute.ts` checks were used in
+the default sandbox because the `tsx` package-script form hit a sandbox IPC
+`EPERM`; the package script was then confirmed outside that sandbox for
+`--help` and default no-`--execute` dry-run only. Results stayed safe:
+
+- default: `executeRequested=false`, `readOnly=true`, `dryRun=true`,
+  `autoSendEnabled=false`, `status=stopped`,
+  `blockedBy=[execute_flag_required]`
+- with `NOTIFICATION_AUTO_SEND_ENABLED=true`: still
+  `executeRequested=false`, `status=stopped`, `sendAttempted=false`,
+  `senderCalled=false`, `updatedCount=0`, and planner
+  `allowedCandidateCount=0`
+- counts remained Token / Metric / Notification / HolderSnapshot
+  `1536 / 448 / 9 / 1`
+- Notification statuses remained `captured=5`, `sent=4`, `failed=0`
+
+Mocked-sender tests covered successful selected-row sent marking, selected-row
+failed marking, sender throw handling, disabled switch stop, no-`--execute`
+stop, smoke / rehearsal stop, and multiple-candidate stop. No production
+`--execute`, Telegram send, Notification update, scheduler, or systemd action
+was run.
+
+Next task should be **Green: review `notification:auto-send:execute`
+no-execute runtime output** before any real candidate creation or production
+execution is considered.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

@@ -497,3 +497,95 @@ Next recommended task: **Yellow: implement disabled-by-default
 `notification:auto-send:execute` CLI with tests only**. Production runtime
 should be limited to `--help` and planner checks; no production `--execute`,
 Telegram send, Notification update, scheduler, or systemd.
+
+## Auto Send Execute Implementation
+
+Date: 2026-05-21
+
+The disabled-by-default execution CLI is now implemented, but production
+execution remains unrun.
+
+Added:
+
+- package script:
+  `notification:auto-send:execute`
+- CLI:
+  `src/cli/notificationAutoSendExecute.ts`
+- helper:
+  `src/notifications/notificationAutoSendExecutor.ts`
+- tests:
+  `tests/notificationAutoSendExecute.test.ts`
+
+Execution contract:
+
+- default mode is a stopped dry-run summary
+- explicit `--execute` is required before any send attempt
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` is required before any send attempt
+- helper calls `buildNotificationAutoSendPlan()` first
+- sender connection is allowed only after planner gate pass
+- stopped / blocked runs do not connect the sender and do not update DB
+- success uses the existing selected-row sent marking boundary
+- sender failure / throw uses the existing selected-row failed marking
+  boundary with sanitized error code / reason
+- retry execution is never attempted in the auto-send execution run
+- no scheduler / systemd integration was added
+
+Mocked-sender tests covered:
+
+- default no-`--execute` stops without sender call or DB update
+- disabled kill switch stops before sender
+- one allowed production-shaped candidate can be marked sent with a mocked
+  sender
+- mocked sender failure marks only the selected Notification failed
+- mocked sender throw marks only the selected Notification failed with
+  `ops_notify_sender_threw`
+- smoke / rehearsal rows stop before sender
+- more than one allowed candidate stops before sender
+- summary omits full notification key, full message body, raw payload, and
+  secret-looking strings
+
+Production runtime checks:
+
+```bash
+node --import tsx src/cli/notificationAutoSendExecute.ts
+NOTIFICATION_AUTO_SEND_ENABLED=true node --import tsx src/cli/notificationAutoSendExecute.ts
+```
+
+Both checks omitted `--execute`. Results:
+
+- `executeRequested=false`
+- `status=stopped`
+- `blockedBy=[execute_flag_required]`
+- `sendAttempted=false`
+- `senderCalled=false`
+- `sentCount=0`
+- `updatedCount=0`
+- default mode reported `autoSendEnabled=false`
+- env-enabled mode reported `autoSendEnabled=true` but planner
+  `allowedCandidateCount=0`
+
+Current production DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- retry candidate count: `0`
+
+`pnpm -s notification:auto-send:execute ...` uses `tsx` as requested. In the
+default sandbox that package-script form hit the known local `tsx` IPC
+`EPERM` limitation, so equivalent `node --import tsx ...` commands were used
+first. The package script was then confirmed outside that sandbox for `--help`
+and default no-`--execute` dry-run only. No production `--execute` was run.
+
+Not executed:
+
+- production `--execute`
+- Telegram live send
+- production Notification update
+- retry execution
+- scheduler / systemd
+- Metric snapshot, detector, ops catch-up, import, enrich, or rescore
+
+Next recommended task: **Green: review `notification:auto-send:execute`
+no-execute runtime output**. After that, choose between one real
+production-shaped capture-only candidate Red/Green slice and further mock-only
+execution hardening.

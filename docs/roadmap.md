@@ -11,31 +11,26 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-21
 
-After the read-only auto-send planner was implemented and reviewed against
-production DB, the next single Telegram operating slice is **Yellow:
-implement disabled-by-default `notification:auto-send:execute` CLI with tests
-only**.
+After the disabled-by-default `notification:auto-send:execute` CLI was
+implemented with mocked-sender tests, the next single Telegram operating slice
+is **Green: review `notification:auto-send:execute` no-execute runtime
+output**.
 
-This is still not auto live-send execution. The implementation should add the
-execution boundary while keeping production runtime limited to help / planner
-checks:
+This is still not auto live-send execution. The next check should use
+production DB only in no-`--execute` mode and confirm:
 
-- separate CLI from manual `notification:send`
-- require `NOTIFICATION_AUTO_SEND_ENABLED=true`
-- require explicit `--execute` for any future send attempt
-- call the planner first and continue only with exactly one allowed candidate
-- keep one-run maximum at `1`
-- connect the Telegram sender only after every planner gate passes
-- update only the selected Notification row on future success / failure
-- keep retry execution, scheduler, and systemd separate
+- default stopped / dry-run summary
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` still stops without `--execute`
+- planner `allowedCandidateCount=0` remains visible
+- sender is not connected
+- Notification update count stays `0`
+- retry execution, scheduler, and systemd stay separate
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
-`0`. The planner currently has `allowedCandidateCount=0`, so the next Yellow
-slice should verify execution behavior with tests and mocked sender only. No
-production `--execute`, Telegram send, Notification update, scheduler, or
-systemd is approved. Detailed preflight notes live in
+`0`. The execution CLI exists, but no production `--execute`, Telegram send,
+Notification update, scheduler, or systemd is approved. Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task
