@@ -122,6 +122,18 @@ pnpm metric:show -- --id <ID>
 pnpm metrics:report -- [--mint <MINT>] [--tokenId <ID>] [--source <SOURCE>] [--rank <RANK>] [--limit 20]
 ```
 
+```bash
+pnpm notification:auto-send:plan
+```
+
+```bash
+pnpm notification:send -- --notificationKey <KEY> --trigger metric_appended [--live] [--retryFailed]
+```
+
+```bash
+pnpm notification:retry:plan
+```
+
 A minimal smoke-test path is also available:
 
 ```bash
@@ -3682,6 +3694,45 @@ and global failed count `0`.
 
 Detailed design is recorded in `docs/runbooks/auto-live-send-gate.md`. Auto
 live send, scheduler, and systemd remain unapproved.
+
+## Auto Send Planner CLI
+
+Date: 2026-05-21
+
+`notification:auto-send:plan` has been added as a read-only / dry-run planner
+for the future auto live-send gate. It reads Notification state only and does
+not connect a Telegram sender, update Notifications, execute retry, fetch
+externally, write Token / Metric / HolderSnapshot state, or unlock scheduler /
+systemd.
+
+Planner policy:
+
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` is the future enable switch
+- unset / `false` / any other value reports `autoSendEnabled=false`
+- even with `autoSendEnabled=true`, the planner reports `wouldSend=false` and
+  `wouldUpdateNotification=false`
+- one-run max is fixed at `1`
+- allowed candidates must be production-shaped `metric_appended`,
+  `captured` / `capture_only`, `sentAt=null`, `failedAt=null`,
+  `errorCode=null`, safe-preview rows with no smoke / rehearsal marker and no
+  failed Notification count
+
+Production DB runtime check:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- with `NOTIFICATION_AUTO_SEND_ENABLED` unset:
+  `allowedCandidateCount=0`, `selectedNotificationId=null`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- with `NOTIFICATION_AUTO_SEND_ENABLED=true`:
+  `allowedCandidateCount=0`, `selectedNotificationId=null`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+
+Captured ids `3` through `6` and id `9` remain excluded by the
+smoke/rehearsal guard. Sent ids `7` and `8` remain excluded by sent-row
+guards. Auto live send execution, scheduler, and systemd remain unapproved.
 
 ## Metric Snapshot Rehearsal Tag Option
 

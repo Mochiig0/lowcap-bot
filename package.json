@@ -57,6 +57,7 @@
     "tokens:compare-report": "tsx src/cli/tokensCompareReport.ts",
     "metric:show": "tsx src/cli/metricShow.ts",
     "metrics:report": "tsx src/cli/metricsReport.ts",
+    "notification:auto-send:plan": "node --import tsx src/cli/notificationAutoSendPlan.ts",
     "notification:send": "node --import tsx src/cli/notificationLiveSend.ts",
     "notification:retry:plan": "node --import tsx src/cli/notificationRetryPlan.ts",
     "mvp:status": "node --import tsx src/cli/mvpStatus.ts",

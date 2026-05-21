@@ -35,6 +35,8 @@ Read-only state:
 
 Scripts confirmed in `package.json`:
 
+- `notification:auto-send:plan`:
+  `node --import tsx src/cli/notificationAutoSendPlan.ts`
 - `notification:send`: `node --import tsx src/cli/notificationLiveSend.ts`
 - `notification:retry:plan`: `node --import tsx src/cli/notificationRetryPlan.ts`
 
@@ -378,6 +380,43 @@ or scheduler / systemd invocation before explicit unlock.
 
 Detailed design is recorded in `docs/runbooks/auto-live-send-gate.md`. Auto
 live send, scheduler, and systemd remain locked.
+
+## Auto Send Planner CLI
+
+Date: 2026-05-21
+
+The first gate implementation is now `notification:auto-send:plan`, a
+read-only planner only. It does not connect `sendOpsTelegramNotification()`,
+does not call `markNotificationSent()` / `markNotificationFailed()`, does not
+execute retry, and does not write DB state.
+
+Runtime production DB checks:
+
+```bash
+pnpm -s notification:auto-send:plan
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:plan
+pnpm -s notification:retry:plan
+```
+
+Results:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- `NOTIFICATION_AUTO_SEND_ENABLED` unset:
+  `autoSendEnabled=false`, `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, `wouldSend=false`,
+  `wouldUpdateNotification=false`
+- `NOTIFICATION_AUTO_SEND_ENABLED=true`:
+  `autoSendEnabled=true`, `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, `wouldSend=false`,
+  `wouldUpdateNotification=false`
+
+The planner currently blocks all rows. Captured ids `3` through `6` are
+`SMOKE_...` rehearsal rows, id `9` is a `REHEARSAL:...` capture rehearsal row,
+and sent ids `7` and `8` are blocked by sent-row / live-send state. Auto live
+send execution, scheduler, and systemd remain locked.
 
 ## Capture-Only Notification Preflight
 
