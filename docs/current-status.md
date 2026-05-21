@@ -3734,6 +3734,53 @@ Captured ids `3` through `6` and id `9` remain excluded by the
 smoke/rehearsal guard. Sent ids `7` and `8` remain excluded by sent-row
 guards. Auto live send execution, scheduler, and systemd remain unapproved.
 
+## Auto Send Planner Output Review
+
+Date: 2026-05-21
+
+The implemented `notification:auto-send:plan` was run against production DB as
+a read-only operations preflight. No Telegram send, Notification update, auto
+live-send execution, retry execution, DB write, external fetch, Metric
+snapshot, detector / ops catch-up, `--write`, `--watch`, `--live`, scheduler,
+systemd, schema / migration change, application code change, rawJson full
+dump, or secret output occurred.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- allowed auto-send candidate count: `0`
+
+Planner checks:
+
+- default / unset switch:
+  `autoSendEnabled=false`, `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, `wouldSend=false`,
+  `wouldUpdateNotification=false`, stop conditions
+  `auto_send_disabled`, `no_allowed_candidate`,
+  `only_sent_or_blocked_candidates`
+- `NOTIFICATION_AUTO_SEND_ENABLED=false`:
+  same disabled result
+- `NOTIFICATION_AUTO_SEND_ENABLED=true`:
+  `autoSendEnabled=true`, `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, `wouldSend=false`,
+  `wouldUpdateNotification=false`, stop conditions
+  `no_allowed_candidate`, `only_sent_or_blocked_candidates`
+
+The no-send reason is readable: captured ids `3` through `6` are `SMOKE_...`
+rehearsal rows, captured id `9` is a `REHEARSAL:...` row, and sent ids `7` /
+`8` remain blocked by sent-row state. `blockedReasons` separates disabled,
+sent-row, smoke/rehearsal, and non-production-key causes without printing full
+message bodies, rawJson, Telegram token, chat id, or environment values.
+
+Judgment: no immediate planner guard or output field change is required. The
+next useful task is **Green: auto live-send execution implementation
+preflight**, limited to design of sender boundary, Notification update scope,
+failure handling, kill switch behavior, and stop conditions. Auto live-send
+execution, scheduler, and systemd remain unapproved.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

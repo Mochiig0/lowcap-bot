@@ -418,6 +418,48 @@ The planner currently blocks all rows. Captured ids `3` through `6` are
 and sent ids `7` and `8` are blocked by sent-row / live-send state. Auto live
 send execution, scheduler, and systemd remain locked.
 
+## Auto Send Planner Output Review
+
+Date: 2026-05-21
+
+The read-only planner was checked again as an operations preflight against the
+current production DB. It stayed read-only / dry-run:
+
+- DB write: none
+- Notification create/update: none
+- Telegram send: none
+- external fetch: none
+- retry execution: none
+- scheduler / systemd: none
+
+Planner output summary:
+
+- unset switch: `autoSendEnabled=false`,
+  `stopConditionCodes=[auto_send_disabled,no_allowed_candidate,only_sent_or_blocked_candidates]`
+- `NOTIFICATION_AUTO_SEND_ENABLED=false`: same disabled result
+- `NOTIFICATION_AUTO_SEND_ENABLED=true`: `autoSendEnabled=true`,
+  `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`
+- both disabled and enabled modes reported `totalCapturedCount=5`,
+  `candidateCount=9`, `allowedCandidateCount=0`,
+  `blockedCandidateCount=9`, `selectedNotificationId=null`,
+  `wouldSend=false`, and `wouldUpdateNotification=false`
+
+Candidate summary:
+
+- ids `3` through `6`: captured / capture-only `SMOKE_...` rehearsal rows,
+  blocked by `smoke_or_rehearsal_notification`
+- id `9`: captured / capture-only `REHEARSAL:...` row, blocked by rehearsal
+  guard and non-production key shape
+- ids `7` and `8`: sent / live-send rows, blocked by sent-row state
+- failed count: `0`
+- retry candidate count: `0`
+
+Judgment: planner output is sufficient for operator review. It explains why no
+auto-send candidate exists and does not expose rawJson, secrets, Telegram
+credentials, or message full body. The next step should be **Green: auto
+live-send execution implementation preflight**, not implementation or
+execution. Auto live send, scheduler, and systemd remain locked.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

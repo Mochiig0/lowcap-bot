@@ -262,3 +262,87 @@ sent-row / live-send state and remain out of resend scope.
 
 Auto live send execution remains unimplemented. Scheduler and systemd remain
 locked.
+
+## Planner Output Operations Preflight
+
+Date: 2026-05-21
+
+This Green preflight ran the implemented planner against production DB in
+read-only mode. It did not send Telegram, update Notification state, execute
+auto live send, run retry execution, fetch externally, write Token / Metric /
+HolderSnapshot state, run Metric snapshot, run detector / ops catch-up, use
+`--write`, `--watch`, or `--live`, enable scheduler / systemd, change schema,
+change application code, print rawJson, or print secrets.
+
+Commands:
+
+```bash
+pnpm -s notification:auto-send:plan
+NOTIFICATION_AUTO_SEND_ENABLED=false pnpm -s notification:auto-send:plan
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:plan
+pnpm -s notification:retry:plan
+```
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- allowed auto-send candidate count: `0`
+
+Disabled output, with the switch unset or explicitly `false`:
+
+- `readOnly=true`
+- `dryRun=true`
+- `autoSendEnabled=false`
+- `totalCapturedCount=5`
+- `candidateCount=9`
+- `allowedCandidateCount=0`
+- `blockedCandidateCount=9`
+- `selectedNotificationId=null`
+- `wouldSend=false`
+- `wouldUpdateNotification=false`
+- `stopConditionCodes=[auto_send_disabled,no_allowed_candidate,only_sent_or_blocked_candidates]`
+- blocked reasons included `auto_send_disabled=9`,
+  `smoke_or_rehearsal_notification=6`, `already_sent=4`,
+  `sent_at_present=4`, and `non_production_notification_key=2`
+
+Enabled output, with `NOTIFICATION_AUTO_SEND_ENABLED=true`:
+
+- `readOnly=true`
+- `dryRun=true`
+- `autoSendEnabled=true`
+- `totalCapturedCount=5`
+- `candidateCount=9`
+- `allowedCandidateCount=0`
+- `blockedCandidateCount=9`
+- `selectedNotificationId=null`
+- `wouldSend=false`
+- `wouldUpdateNotification=false`
+- `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`
+- blocked reasons included `smoke_or_rehearsal_notification=6`,
+  `already_sent=4`, `sent_at_present=4`, and
+  `non_production_notification_key=2`
+
+Candidate interpretation:
+
+- captured ids `3` through `6` are `SMOKE_...` rehearsal rows and are blocked
+  by `smoke_or_rehearsal_notification`
+- captured id `9` is the `REHEARSAL:...` capture rehearsal row and is blocked
+  by `smoke_or_rehearsal_notification` plus non-production key shape
+- sent ids `7` and `8` are blocked by sent-row / live-send state
+- failed row count is `0`
+- retry candidate count is `0`
+
+Judgment: planner output is sufficient for the next design decision. It makes
+the no-send reason visible through `stopConditionCodes`, `blockedReasons`, and
+per-candidate safe summaries without exposing full message bodies, rawJson, or
+secrets. No immediate planner guard or field change is required.
+
+Next recommended task: **Green: auto live-send execution implementation
+preflight**. That task should design the future execution responsibility,
+sender connection boundary, Notification sent / failed update scope, failure
+handling, kill switch behavior, and stop conditions only. It should not
+implement or run auto live send yet, and scheduler / systemd must remain
+locked.
