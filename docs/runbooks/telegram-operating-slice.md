@@ -460,6 +460,73 @@ credentials, or message full body. The next step should be **Green: auto
 live-send execution implementation preflight**, not implementation or
 execution. Auto live send, scheduler, and systemd remain locked.
 
+## Auto Live-Send Execution Preflight
+
+Date: 2026-05-21
+
+The future execution boundary was checked and documented without implementing
+or running it. No Telegram send, Notification update, DB write, external
+fetch, retry execution, Metric snapshot, detector / ops catch-up, `--write`,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, or secret output occurred.
+
+Recommended execution CLI:
+
+- `notification:auto-send:execute`
+- separate from manual `notification:send`
+- default dry-run / stopped summary unless explicit `--execute` is supplied
+- future execution requires `NOTIFICATION_AUTO_SEND_ENABLED=true`
+- auto path must not use `--live`
+
+Execution must call the planner first and stop before sender connection unless
+all of these are true:
+
+- `autoSendEnabled=true`
+- `allowedCandidateCount=1`
+- `selectedNotificationId` exists
+- `stopConditionCodes=[]`
+- selected candidate has no `blockedBy`
+- failed count is `0`
+- one-run max `1` is satisfied
+- selected candidate remains `metric_appended`, `captured`,
+  `capture_only`, `sentAt=null`, non-rehearsal, production-shaped, and safe
+  previewable
+
+Sender connection boundary:
+
+- connect `sendOpsTelegramNotification()` only after planner gate pass
+- pass only the selected Notification safe preview fields needed for the
+  Telegram message
+- never print or store Telegram token, chat id, request path, raw response
+  body, full message body, rawJson, or env values
+
+Notification update scope:
+
+- success: selected row only, `status=sent`, `mode=live_send`, `sentAt`,
+  `lastAttemptAt`, no Token / Metric / HolderSnapshot writes
+- failure after sender connection: selected row only, `status=failed`,
+  `mode=live_send`, `failedAt`, `lastAttemptAt`, sanitized `errorCode` /
+  `reason`, no automatic retry
+- blocked / stopped before sender connection: no DB update
+
+Retry boundary:
+
+- one auto execution run never retries
+- failed rows are handed to `notification:retry:plan`
+- failed count greater than `0` stops future auto execution
+
+Summary format for future execution should include `autoSendEnabled`,
+selected id / trigger / safe key summary, `sendAttempted`, `senderCalled`,
+`sentCount`, `updatedCount`, `status=sent|failed|blocked|stopped`,
+`blockedBy`, `stopConditionCodes`, sanitized `errorCode`,
+`retryAttempted=false`, expected side effects, actual side effects, and
+expected non-effects.
+
+Next recommended task: **Yellow: implement disabled-by-default
+`notification:auto-send:execute` CLI with tests only**. Production runtime
+should stay limited to `--help` and planner checks. Auto live send execution,
+scheduler, and systemd remain locked.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

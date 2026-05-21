@@ -3781,6 +3781,53 @@ preflight**, limited to design of sender boundary, Notification update scope,
 failure handling, kill switch behavior, and stop conditions. Auto live-send
 execution, scheduler, and systemd remain unapproved.
 
+## Auto Live-Send Execution Preflight
+
+Date: 2026-05-21
+
+The execution implementation preflight is complete as a read-only / docs-only
+decision. No app code, schema, migration, DB write, Notification update,
+external fetch, Telegram send, retry execution, Metric snapshot, detector /
+ops catch-up, `--write`, `--watch`, `--live`, scheduler, systemd, rawJson full
+dump, or secret output occurred.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- allowed auto-send candidate count: `0`
+- retry candidate count: `0`
+
+Design decision:
+
+- recommended CLI: `notification:auto-send:execute`
+- keep it separate from manual `notification:send`
+- default without explicit `--execute` should be dry-run / stopped summary
+- future real execution requires both
+  `NOTIFICATION_AUTO_SEND_ENABLED=true` and explicit `--execute`
+- never use `--live` for the auto-send path
+- execution must call the planner first and continue only when
+  `allowedCandidateCount=1`, `selectedNotificationId` is present,
+  `stopConditionCodes=[]`, failed count is `0`, one-run max is satisfied, and
+  selected candidate has no blockers
+
+Sender connection boundary: connect `sendOpsTelegramNotification()` only after
+the planner gate passes. Blocked / stopped results must not connect the sender
+or update DB state.
+
+Notification update scope: success may update exactly one selected
+Notification to `status=sent`, `mode=live_send`, `sentAt`, and
+`lastAttemptAt`; failure after sender connection may update exactly one
+selected Notification to `status=failed`, `mode=live_send`, `failedAt`,
+`lastAttemptAt`, and sanitized `errorCode` / `reason`. Token, Metric,
+HolderSnapshot, Notification create, raw Telegram response storage, and retry
+execution remain out of scope.
+
+Next task: **Yellow: implement disabled-by-default
+`notification:auto-send:execute` CLI with tests only**. Production runtime for
+that task should be limited to `--help` and planner checks. No production
+`--execute`, Telegram send, Notification update, scheduler, or systemd.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

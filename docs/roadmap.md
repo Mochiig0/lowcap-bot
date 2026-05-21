@@ -11,28 +11,32 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-21
 
-After the marker-tagged capture-only rehearsal completed and Notification id
-`9` was confirmed excluded from manual live-send and retry candidates, the auto
-live-send gate preflight selected the next single operating slice:
-**Yellow: implement read-only auto live-send planner CLI**.
+After the read-only auto-send planner was implemented and reviewed against
+production DB, the next single Telegram operating slice is **Yellow:
+implement disabled-by-default `notification:auto-send:execute` CLI with tests
+only**.
 
-This is not auto live send execution. The planner should make the safety gate
-observable before any automatic sender path is run:
+This is still not auto live-send execution. The implementation should add the
+execution boundary while keeping production runtime limited to help / planner
+checks:
 
-- default-disabled switch design using `NOTIFICATION_AUTO_SEND_ENABLED=true`
-  for future auto-send execution
-- narrow allowlist for production-shaped `metric_appended` capture-only rows
-- fixed one-run maximum of `1`
-- safe dry-run preview fields
-- explicit stop conditions
-- continued separation from scheduler and systemd
+- separate CLI from manual `notification:send`
+- require `NOTIFICATION_AUTO_SEND_ENABLED=true`
+- require explicit `--execute` for any future send attempt
+- call the planner first and continue only with exactly one allowed candidate
+- keep one-run maximum at `1`
+- connect the Telegram sender only after every planner gate passes
+- update only the selected Notification row on future success / failure
+- keep retry execution, scheduler, and systemd separate
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
-`0`. Capture-only rehearsal is complete; adding another rehearsal row is lower
-value than implementing the read-only auto-send planner. Detailed preflight
-notes live in `docs/runbooks/auto-live-send-gate.md`.
+`0`. The planner currently has `allowedCandidateCount=0`, so the next Yellow
+slice should verify execution behavior with tests and mocked sender only. No
+production `--execute`, Telegram send, Notification update, scheduler, or
+systemd is approved. Detailed preflight notes live in
+`docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task
 

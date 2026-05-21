@@ -346,3 +346,154 @@ sender connection boundary, Notification sent / failed update scope, failure
 handling, kill switch behavior, and stop conditions only. It should not
 implement or run auto live send yet, and scheduler / systemd must remain
 locked.
+
+## Auto Live-Send Execution Implementation Preflight
+
+Date: 2026-05-21
+
+This was a read-only / docs-only preflight for the future auto live-send
+execution path. It did not implement execution, send Telegram, update
+Notifications, run `notification:send`, run retry execution, write DB state,
+fetch externally, run Metric snapshot, run detector / ops catch-up, use
+`--write`, `--watch`, or `--live`, enable scheduler / systemd, change schema,
+change application code, print rawJson, or print secrets.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- allowed auto-send candidate count: `0`
+- retry candidate count: `0`
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` planner output:
+  `allowedCandidateCount=0`, `selectedNotificationId=null`,
+  `wouldSend=false`, `wouldUpdateNotification=false`,
+  `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`
+
+Recommended execution CLI:
+
+```bash
+pnpm -s notification:auto-send:execute -- --execute
+```
+
+Design policy:
+
+- add package script `notification:auto-send:execute`
+- keep it separate from manual `notification:send`
+- default mode without `--execute` should be dry-run / stopped summary only
+- future real sender attempt requires both:
+  - `NOTIFICATION_AUTO_SEND_ENABLED=true`
+  - explicit `--execute`
+- never use `--live` for this auto path; reserve `--live` for manual
+  `notification:send`
+- scheduler / systemd must not call this CLI until a later unlock task
+
+Planner connection:
+
+- execution must call the auto-send planner first
+- continue only when `autoSendEnabled=true`
+- continue only when `allowedCandidateCount=1`
+- continue only when `selectedNotificationId` is present
+- continue only when `stopConditionCodes=[]`
+- continue only when selected candidate has no `blockedBy`
+- stop when candidate count exceeds one-run max
+- stop when failed count is greater than `0`
+- stop for smoke / rehearsal, sent / `sentAt`-present, failed, retry, unsafe
+  preview, duplicate, ambiguous, or non-production-shaped candidates
+- because planner output intentionally avoids full keys, the execution helper
+  may need an internal planner selection shape or a second read-only lookup by
+  selected id before sender connection; that internal value must not be printed
+  in full
+
+Sender connection boundary:
+
+- connect `sendOpsTelegramNotification()` only after every planner gate passes
+- sender input should use only selected Notification `mint`, `metricId`,
+  `trigger=metric_appended`, and existing safe `messagePreview`
+- do not print Telegram token, chat id, request path, response body, or message
+  full body
+- no external fetch other than the Telegram send itself in a future approved
+  execution run
+
+Notification update scope:
+
+Success:
+
+- update exactly one selected Notification row
+- set `status=sent`
+- set `mode=live_send`
+- set `sentAt`
+- set `lastAttemptAt`
+- clear failed / retry lease fields per existing `markNotificationSent()`
+- do not store Telegram response body
+- do not write Token, Metric, HolderSnapshot, or create Notification rows
+
+Failure after sender connection:
+
+- update exactly one selected Notification row
+- set `status=failed`
+- set `mode=live_send`
+- set `failedAt`
+- set `lastAttemptAt`
+- store only sanitized `errorCode` / `reason`
+- do not store Telegram raw response, token, chat id, request path, or secret
+- do not auto-run retry
+- next auto execution must stop because failed count becomes greater than `0`
+
+Blocked / stopped before sender connection:
+
+- do not update DB
+- do not connect sender
+- return safe summary with `blockedBy` / `stopConditionCodes`
+
+Failure handling:
+
+- sender `sent` result marks selected row sent
+- Telegram API non-OK result marks selected row failed with sanitized error
+- network error marks selected row failed with sanitized error
+- timeout marks selected row failed with sanitized error
+- sender throw marks selected row failed with sanitized error
+- if failed marking itself fails, do not retry in the same run; return a safe
+  execution error summary and require manual inspection
+- one run performs no retry and no second candidate attempt
+
+Execution summary should include safe fields only:
+
+- `readOnly=false`
+- `dryRun=false` only when `--execute` was supplied and all gates passed
+- `autoSendEnabled`
+- `selectedNotificationId`
+- `selectedTrigger`
+- `selectedNotificationKeySummary`
+- `sendAttempted`
+- `senderCalled`
+- `sentCount`
+- `updatedCount`
+- `status=sent|failed|blocked|stopped`
+- `blockedBy`
+- `stopConditionCodes`
+- `errorCode`
+- `retryAttempted=false`
+- `expectedSideEffects`
+- `actualSideEffects`
+- `expectedNonEffects`
+
+The summary must not include full message body, rawJson, Telegram response
+body, bot token, chat id, request path, `.env`, or `DATABASE_URL`.
+
+Implementation decision:
+
+- Candidate A, `notification:auto-send:execute`, is the recommended next
+  Yellow task. It is the cleanest boundary and keeps auto send separate from
+  manual `notification:send`.
+- Candidate B, more planner fixture / allowed-candidate tests, is useful only
+  as part of A. Existing planner output is sufficient, so a separate guard-only
+  slice is not required.
+- Candidate C, creating a real production-shaped captured candidate, is not
+  recommended before the execution CLI exists. It would require external fetch
+  and Metric / Notification writes.
+- Candidate D, docs / handoff only, is safe but lower value.
+
+Next recommended task: **Yellow: implement disabled-by-default
+`notification:auto-send:execute` CLI with tests only**. Production runtime
+should be limited to `--help` and planner checks; no production `--execute`,
+Telegram send, Notification update, scheduler, or systemd.
