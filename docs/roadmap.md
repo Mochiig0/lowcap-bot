@@ -11,16 +11,12 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-22
 
-After the human-approved production-shaped capture command, the next single
-Telegram operating slice is **Green: review Notification id 10 as the sole
-enabled auto-send planner candidate**.
+After the sole-candidate review, the next single Telegram operating slice is
+**Green: production `--execute` preflight for Notification id 10**.
 
-This is still not auto live-send execution. The selected command is a bounded
-Telegram-free exact `metric:snapshot:geckoterminal --mint ... --write` command
-and has created Metric id `1531` plus Notification id `10`. The next check
-should confirm id `10` remains captured / capture_only / metric_appended,
-production-shaped, and selected by the enabled planner without executing
-Telegram send.
+This is still not auto live-send execution. The next check should pin id `10`,
+restate the kill switch and expected sent / failed update scope, and confirm
+the exact execution command without running it.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
@@ -28,9 +24,10 @@ Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `0` before the command and `Token / Metric / Notification / HolderSnapshot`
 `1536 / 449 / 10 / 1`, Notification statuses `captured=6`, `sent=4`,
 `failed=0` after it. The enabled planner now has `allowedCandidateCount=1` and
-`selectedNotificationId=10`. No production `--execute`, Telegram send,
-Notification sent/failed update, scheduler, or systemd is approved. Detailed
-notes live in
+`selectedNotificationId=10`; id `10` is also the only manual live-send
+candidate by captured production-shaped state. No production `--execute`,
+Telegram send, Notification sent/failed update, scheduler, or systemd is
+approved. Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task

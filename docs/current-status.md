@@ -4080,6 +4080,69 @@ Confirmed side effects:
 Production `--execute` remains unrun and forbidden until the newly selected
 candidate is reviewed separately.
 
+## Sole Auto-Send Candidate Review
+
+Date: 2026-05-22
+
+Notification id `10` was reviewed as the sole enabled auto-send planner
+candidate. This was read-only / docs-only. No production `--execute`,
+Telegram send, Notification create/update, Metric write, external fetch,
+retry execution, metric snapshot, detector / ops catch-up, `--write`,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, or secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=6`, `sent=4`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- manual live-send candidate count: `1`, id `10`
+- enabled auto-send candidate count: `1`, id `10`
+
+Notification id `10` remains:
+
+- `status=captured`
+- `mode=capture_only`
+- `eventType=metric_appended`
+- `trigger=metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+
+Planner / executor results:
+
+- disabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, stop conditions include
+  `auto_send_disabled`
+- enabled planner: `allowedCandidateCount=1`,
+  `selectedNotificationId=10`, `stopConditionCodes=[]`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- no-`--execute` executor default:
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sentCount=0`, `updatedCount=0`
+- env-enabled no-`--execute` executor:
+  `selectedNotificationId=10`, `blockedBy=[execute_flag_required]`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+
+Candidate boundary:
+
+- ids `3` through `6`: SMOKE rows, blocked
+- id `9`: REHEARSAL row, blocked
+- ids `7` and `8`: sent rows, blocked
+- id `10`: only allowed auto-send candidate; also the only manual live-send
+  candidate by captured production-shaped state
+- manual live send is not approved in this slice
+- production `--execute` remains unrun and forbidden
+
+Judgment: output is sufficient. No immediate guard / field change is needed.
+Next task should be **Green: production `--execute` preflight for id 10**,
+with execution still unrun.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

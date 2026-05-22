@@ -855,3 +855,87 @@ Confirmed side effects:
 Next step should be a Green review of id `10` as the sole enabled
 auto-send planner candidate. Production `--execute` remains locked until that
 review explicitly approves a later execution slice.
+
+## Sole Auto-Send Candidate Review
+
+Date: 2026-05-22
+
+This Green review confirmed Notification id `10` remains the sole enabled
+auto-send planner candidate. It was read-only / docs-only. No production
+`--execute`, Telegram send, Notification create/update, Metric write, external
+fetch, retry execution, metric snapshot, detector / ops catch-up, `--write`,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, or secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=6`, `sent=4`, `failed=0`
+- retry candidate count: `0`
+- manual live-send candidate count: `1`, id `10`
+- enabled auto-send candidate count: `1`, id `10`
+
+Notification id `10`:
+
+- status `captured`
+- mode `capture_only`
+- eventType / trigger `metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+- rawJsonFree `true`
+- secretFree `true`
+
+Planner review:
+
+- disabled planner:
+  - `autoSendEnabled=false`
+  - `allowedCandidateCount=0`
+  - `selectedNotificationId=null`
+  - `stopConditionCodes=[auto_send_disabled,no_allowed_candidate,only_sent_or_blocked_candidates]`
+  - id `10` is blocked only by `auto_send_disabled`
+  - `wouldSend=false`, `wouldUpdateNotification=false`
+- enabled planner:
+  - `autoSendEnabled=true`
+  - `allowedCandidateCount=1`
+  - `selectedNotificationId=10`
+  - `selectedTrigger=metric_appended`
+  - `selectedNotificationKeySummary=production_metric_appended:1531`
+  - `stopConditionCodes=[]`
+  - `wouldSend=false`, `wouldUpdateNotification=false`
+  - `blockedCandidateCount=9`
+
+Candidate boundary:
+
+- ids `3` through `6`: captured SMOKE rows, blocked by
+  `smoke_or_rehearsal_notification`
+- id `9`: captured REHEARSAL row, blocked by rehearsal guard and
+  non-production key shape
+- ids `7` and `8`: sent rows, blocked by sent state / `sentAt`
+- id `10`: the only allowed auto-send candidate
+- id `10` is also the only manual live-send candidate by shape and captured
+  state; this review does not approve manual live send
+- retry planner candidate count remains `0`
+
+Executor no-execute review:
+
+- default no-`--execute`: `executeRequested=false`,
+  `autoSendEnabled=false`, `status=stopped`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sendAttempted=false`, `sentCount=0`, `updatedCount=0`
+- env-enabled no-`--execute`: `executeRequested=false`,
+  `autoSendEnabled=true`, `selectedNotificationId=10`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sendAttempted=false`, `sentCount=0`, `updatedCount=0`
+
+Judgment: planner and executor output are sufficient. No additional guard or
+field is required before the next preflight. Production `--execute` remains
+forbidden in this slice.
+
+Next recommended task: **Green: production `--execute` preflight for id 10**.
+It should pin id `10`, restate kill switch / expected side effects, and keep
+Telegram execution unrun until a separate Red approval.
