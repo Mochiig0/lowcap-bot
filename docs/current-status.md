@@ -3884,6 +3884,54 @@ runtime output** against production DB, then decide whether the next Red/Green
 slice should create one real production-shaped capture-only candidate or stay
 in mock-only execution hardening. Auto live-send execution remains unrun.
 
+## Auto Send Execute No-Execute Review
+
+Date: 2026-05-21
+
+`notification:auto-send:execute` was reviewed against production DB without
+`--execute`. This was read-only / docs-only. No Telegram send, Notification
+create/update, DB write, external fetch, retry execution, Metric snapshot,
+detector / ops catch-up, `--write`, `--watch`, `--live`, scheduler, systemd,
+schema / migration change, app code change, rawJson full dump, or secret
+output occurred.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- allowed auto-send candidate count: `0`
+- retry candidate count: `0`
+
+Runtime review:
+
+- default no-execute:
+  `executeRequested=false`, `readOnly=true`, `dryRun=true`,
+  `autoSendEnabled=false`, `status=stopped`,
+  `blockedBy=[execute_flag_required]`, `sendAttempted=false`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+- `NOTIFICATION_AUTO_SEND_ENABLED=true` with no `--execute`:
+  `executeRequested=false`, `readOnly=true`, `dryRun=true`,
+  `autoSendEnabled=true`, `status=stopped`,
+  `blockedBy=[execute_flag_required]`, `sendAttempted=false`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`,
+  planner `allowedCandidateCount=0`
+- planner comparison stayed unchanged:
+  captured ids `3` through `6` are `SMOKE_...`, id `9` is `REHEARSAL:...`,
+  sent ids `7` / `8` are sent-row blocked, failed count is `0`, and retry
+  candidate count is `0`
+
+Judgment: output is sufficient. `execute_flag_required` is explicit, the env
+switch alone is not enough to send, planner and executor summaries line up,
+and no additional guard / field is needed now. Production `--execute` remains
+forbidden.
+
+Next task: **Green: real production-shaped capture-only candidate creation
+preflight**. It should decide whether one bounded Telegram-free Metric /
+Notification capture can create exactly one normal production-shaped captured
+candidate for future auto-send planning. The later candidate creation command,
+if approved, would be Red/Green because it may include external fetch, Metric
+write, and Notification create. Auto live-send execution remains unrun.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

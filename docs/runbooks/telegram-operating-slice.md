@@ -571,6 +571,70 @@ Next task should be **Green: review `notification:auto-send:execute`
 no-execute runtime output** before any real candidate creation or production
 execution is considered.
 
+## Auto Send Execute No-Execute Review
+
+Date: 2026-05-21
+
+The disabled-by-default execution CLI was reviewed against production DB with
+no `--execute`. No Telegram send, Notification update, DB write, external
+fetch, retry execution, Metric snapshot, detector / ops catch-up, `--write`,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, or secret output occurred.
+
+Default no-execute result:
+
+- `executeRequested=false`
+- `readOnly=true`
+- `dryRun=true`
+- `autoSendEnabled=false`
+- `status=stopped`
+- `blockedBy=[execute_flag_required]`
+- `sendAttempted=false`
+- `senderCalled=false`
+- `sentCount=0`
+- `updatedCount=0`
+
+Env-enabled no-execute result:
+
+- `NOTIFICATION_AUTO_SEND_ENABLED=true`
+- `executeRequested=false`
+- `autoSendEnabled=true`
+- `status=stopped`
+- `blockedBy=[execute_flag_required]`
+- `sendAttempted=false`
+- `senderCalled=false`
+- `sentCount=0`
+- `updatedCount=0`
+- planner `allowedCandidateCount=0`
+
+Planner comparison:
+
+- total captured count: `5`
+- candidate count: `9`
+- allowed candidate count: `0`
+- blocked candidate count: `9`
+- default stop conditions:
+  `auto_send_disabled`, `no_allowed_candidate`,
+  `only_sent_or_blocked_candidates`
+- env-enabled stop conditions:
+  `no_allowed_candidate`, `only_sent_or_blocked_candidates`
+- ids `3` through `6`: `SMOKE_...` rehearsal rows, blocked
+- id `9`: `REHEARSAL:...` row, blocked
+- ids `7` and `8`: sent rows, blocked
+- failed count: `0`
+- retry candidate count: `0`
+
+Judgment: the no-execute runtime output is sufficient for operator review.
+The output makes the `execute_flag_required` boundary clear and shows that the
+env switch alone cannot send or update. No immediate output field or guard
+change is required. Production `--execute` remains forbidden.
+
+Next recommended task: **Green: real production-shaped capture-only candidate
+creation preflight**. It should select whether and how to create one bounded,
+Telegram-free production-shaped captured Notification candidate for future
+auto-send planning. Scheduler / systemd and auto live-send execution remain
+locked.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

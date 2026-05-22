@@ -11,26 +11,24 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-21
 
-After the disabled-by-default `notification:auto-send:execute` CLI was
-implemented with mocked-sender tests, the next single Telegram operating slice
-is **Green: review `notification:auto-send:execute` no-execute runtime
-output**.
+After the disabled-by-default `notification:auto-send:execute` CLI was reviewed
+against production DB in no-`--execute` mode, the next single Telegram
+operating slice is **Green: real production-shaped capture-only candidate
+creation preflight**.
 
-This is still not auto live-send execution. The next check should use
-production DB only in no-`--execute` mode and confirm:
-
-- default stopped / dry-run summary
-- `NOTIFICATION_AUTO_SEND_ENABLED=true` still stops without `--execute`
-- planner `allowedCandidateCount=0` remains visible
-- sender is not connected
-- Notification update count stays `0`
-- retry execution, scheduler, and systemd stay separate
+This is still not auto live-send execution. The next check should stay
+read-only / docs-only and decide whether one bounded Telegram-free capture can
+create exactly one normal production-shaped captured Notification candidate for
+future auto-send planning. It should confirm the selected command, expected
+external fetch / Metric write / Notification create scope, and the expected
+non-effects before any later Red/Green command is approved.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
-`0`. The execution CLI exists, but no production `--execute`, Telegram send,
-Notification update, scheduler, or systemd is approved. Detailed notes live in
+`0`. The execution CLI exists and its no-execute output is sufficient, but no
+production `--execute`, Telegram send, Notification update, scheduler, or
+systemd is approved. Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task

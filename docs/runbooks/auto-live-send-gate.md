@@ -589,3 +589,96 @@ Next recommended task: **Green: review `notification:auto-send:execute`
 no-execute runtime output**. After that, choose between one real
 production-shaped capture-only candidate Red/Green slice and further mock-only
 execution hardening.
+
+## Execute No-Execute Runtime Review
+
+Date: 2026-05-21
+
+This Green operations review ran the implemented
+`notification:auto-send:execute` CLI against production DB without `--execute`.
+It did not send Telegram, update Notifications, create Notifications, write
+Token / Metric / HolderSnapshot state, fetch externally, run retry execution,
+run Metric snapshot, run detector / ops catch-up, use `--write`, `--watch`, or
+`--live`, enable scheduler / systemd, change schema, change application code,
+print rawJson, or print secrets.
+
+Commands:
+
+```bash
+pnpm -s notification:auto-send:execute
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute
+pnpm -s notification:auto-send:plan
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:plan
+pnpm -s notification:retry:plan
+```
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- allowed auto-send candidate count: `0`
+- retry candidate count: `0`
+
+Default no-execute result:
+
+- `executeRequested=false`
+- `readOnly=true`
+- `dryRun=true`
+- `autoSendEnabled=false`
+- `status=stopped`
+- `blockedBy=[execute_flag_required]`
+- `sendAttempted=false`
+- `senderCalled=false`
+- `sentCount=0`
+- `updatedCount=0`
+- planner stop conditions:
+  `auto_send_disabled`, `no_allowed_candidate`,
+  `only_sent_or_blocked_candidates`
+
+Env-enabled no-execute result:
+
+- `executeRequested=false`
+- `readOnly=true`
+- `dryRun=true`
+- `autoSendEnabled=true`
+- `status=stopped`
+- `blockedBy=[execute_flag_required]`
+- `sendAttempted=false`
+- `senderCalled=false`
+- `sentCount=0`
+- `updatedCount=0`
+- planner `allowedCandidateCount=0`
+- planner stop conditions:
+  `no_allowed_candidate`, `only_sent_or_blocked_candidates`
+
+Planner comparison:
+
+- default planner: `allowedCandidateCount=0`, `blockedCandidateCount=9`,
+  `stopConditionCodes=[auto_send_disabled,no_allowed_candidate,only_sent_or_blocked_candidates]`
+- env-enabled planner: `allowedCandidateCount=0`, `blockedCandidateCount=9`,
+  `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`
+- captured ids `3` through `6`: `SMOKE_...` rehearsal rows, blocked by
+  `smoke_or_rehearsal_notification`
+- captured id `9`: `REHEARSAL:...` row, blocked by rehearsal guard and
+  non-production key shape
+- sent ids `7` and `8`: blocked by sent-row / live-send state
+- failed count: `0`
+- retry candidate count: `0`
+
+Source inspection confirmed the no-execute CLI passes no sender when
+`--execute` is absent, and the executor calls the existing live-send helper
+only after the planner gate passes.
+
+Judgment: no-execute runtime output is sufficient for operator review. It
+clearly shows the explicit `execute_flag_required` blocker and shows that even
+with the env switch enabled, no sender call or Notification update happens
+without `--execute`. No immediate output field or guard change is required.
+
+Next recommendation: **Green: real production-shaped capture-only candidate
+creation preflight**. The goal is to determine whether one bounded
+Telegram-free Metric / Notification capture can create exactly one normal
+production-shaped captured candidate for future auto-send planning. This is
+not production `--execute`; Telegram send, auto live-send execution,
+scheduler, and systemd remain forbidden. Candidate creation itself would be a
+later Red/Green exact command because it may involve an external
+GeckoTerminal fetch plus Metric write and Notification create.
