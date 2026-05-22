@@ -767,3 +767,91 @@ Expected planner result after one successful future run:
   `allowedCandidateCount=0` to `allowedCandidateCount=1`
 - production `notification:auto-send:execute -- --execute` remains forbidden
   until that future candidate is reviewed separately
+
+## Production-Shaped Capture Candidate Result
+
+Date: 2026-05-22
+
+The selected Red command was run once with human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --write
+```
+
+No retry, second command, replacement mint, `--notificationRehearsalTag`,
+`--noNotificationCapture`, `--watch`, `--live`, notification send, retry
+execution, auto-send execution, scheduler, systemd, import, enrich, rescore,
+schema change, migration, app code change, rawJson full dump, or secret output
+occurred.
+
+Command result:
+
+- selected `1`
+- written `1`
+- skipped `0`
+- error `0`
+- provider error: none
+- 429: none
+- Metric id `1531`
+- Notification id `10`
+
+DB before / after:
+
+- Token `1536 -> 1536`
+- Metric `448 -> 449`
+- Notification `9 -> 10`
+- HolderSnapshot `1 -> 1`
+- Notification statuses `captured=5,sent=4 -> captured=6,sent=4`
+- failed count `0`
+
+New Notification:
+
+- id `10`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- status `captured`
+- mode `capture_only`
+- trigger `metric_appended`
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+- source `metric:snapshot:geckoterminal`
+- rawJsonFree `true`
+- secretFree `true`
+
+Planner result:
+
+- disabled planner: `allowedCandidateCount=0`; id `10` is blocked only by
+  `auto_send_disabled`
+- enabled planner: `allowedCandidateCount=1`,
+  `selectedNotificationId=10`,
+  `selectedNotificationKeySummary=production_metric_appended:1531`,
+  `wouldSend=false`, `wouldUpdateNotification=false`,
+  `stopConditionCodes=[]`
+- retry planner: `candidateCount=0`
+- default `notification:auto-send:execute` no-`--execute`:
+  `senderCalled=false`, `updatedCount=0`
+- env-enabled `notification:auto-send:execute` no-`--execute`:
+  `selectedNotificationId=10`, `blockedBy=[execute_flag_required]`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+
+Confirmed side effects:
+
+- external GeckoTerminal fetch: yes, bounded one-shot token snapshot
+- Metric write: yes, `+1`
+- Notification create: yes, `+1`
+- Telegram send: no
+- Notification sent / failed update: no
+- Token write: no
+- HolderSnapshot write: no
+- retry execution: no
+- auto live-send execution: no
+- scheduler / systemd: no
+- repo-local file diff from command: no
+- rawJson full dump: no
+
+Next step should be a Green review of id `10` as the sole enabled
+auto-send planner candidate. Production `--execute` remains locked until that
+review explicitly approves a later execution slice.

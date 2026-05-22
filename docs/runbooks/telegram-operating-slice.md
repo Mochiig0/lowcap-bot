@@ -689,6 +689,66 @@ the clearest one-command candidate for creating exactly one production-shaped
 future auto-send planner candidate. Production `--execute`, scheduler, and
 systemd remain locked.
 
+## Production-Shaped Capture Candidate Result
+
+Date: 2026-05-22
+
+The human-approved Red command ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --write
+```
+
+Result:
+
+- selected `1`
+- written `1`
+- skipped `0`
+- error `0`
+- provider error: none
+- 429: none
+- retry: none
+
+State before / after:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 448 / 9 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses:
+  `captured=5,sent=4 -> captured=6,sent=4`
+- failed count: `0`
+
+Created candidate:
+
+- Notification id `10`
+- metric id `1531`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- status `captured`
+- mode `capture_only`
+- trigger `metric_appended`
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+
+Planner after the run:
+
+- disabled planner `allowedCandidateCount=0`
+- enabled planner `allowedCandidateCount=1`
+- `selectedNotificationId=10`
+- `wouldSend=false`
+- `wouldUpdateNotification=false`
+- enabled planner `stopConditionCodes=[]`
+- retry candidate count `0`
+- env-enabled no-`--execute` executor stopped with
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`, `updatedCount=0`
+
+Telegram send, Notification sent/failed update, Token write, HolderSnapshot
+write, retry execution, auto-send execution, scheduler, and systemd did not
+run. Production `--execute` remains forbidden until id `10` is reviewed as the
+sole enabled auto-send candidate.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

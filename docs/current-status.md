@@ -4002,6 +4002,84 @@ has no existing Notification, this command is expected to create exactly one
 future auto-send planner candidate when run once. Production `--execute`
 remains forbidden until that candidate is reviewed separately.
 
+## Production-Shaped Capture Candidate Red
+
+Date: 2026-05-22
+
+Human-approved Red execution ran exactly one command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --write
+```
+
+Result:
+
+- selected `1`
+- written `1`
+- skipped `0`
+- error `0`
+- provider error: none
+- 429: none
+- retry: none
+
+DB state before / after:
+
+- Token: `1536 -> 1536`
+- Metric: `448 -> 449`
+- Notification: `9 -> 10`
+- HolderSnapshot: `1 -> 1`
+- Notification statuses: `captured=5,sent=4 -> captured=6,sent=4`
+- failed count: `0`
+
+Created Notification:
+
+- id `10`
+- notificationKey:
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- status `captured`
+- mode `capture_only`
+- trigger `metric_appended`
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+- rawJsonFree `true`
+- secretFree `true`
+
+Planner after the run:
+
+- disabled planner: `allowedCandidateCount=0`, id `10` blocked only by
+  `auto_send_disabled`
+- enabled planner: `allowedCandidateCount=1`,
+  `selectedNotificationId=10`, `selectedTrigger=metric_appended`,
+  `selectedNotificationKeySummary=production_metric_appended:1531`,
+  `wouldSend=false`, `wouldUpdateNotification=false`,
+  `stopConditionCodes=[]`
+- retry planner: `candidateCount=0`
+- `notification:auto-send:execute` no-`--execute` default:
+  `senderCalled=false`, `updatedCount=0`
+- `NOTIFICATION_AUTO_SEND_ENABLED=true notification:auto-send:execute` with no
+  `--execute`: `selectedNotificationId=10`, `blockedBy=[execute_flag_required]`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+
+Confirmed side effects:
+
+- DB write: yes, bounded to Metric `+1` and Notification `+1`
+- external fetch: yes, one GeckoTerminal token snapshot request
+- Telegram send: no
+- Notification sent / failed update: no
+- Token write: no
+- HolderSnapshot write: no
+- retry execution: no
+- auto live-send execution: no
+- scheduler / systemd: no
+- repo-local file diff from the command: no
+- rawJson full dump: no
+
+Production `--execute` remains unrun and forbidden until the newly selected
+candidate is reviewed separately.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

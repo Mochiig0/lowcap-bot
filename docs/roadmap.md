@@ -11,25 +11,26 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-22
 
-After the production-shaped capture-only candidate preflight, the next single
-Telegram operating slice is a human-approved **Red: run one exact
-production-shaped capture command**.
+After the human-approved production-shaped capture command, the next single
+Telegram operating slice is **Green: review Notification id 10 as the sole
+enabled auto-send planner candidate**.
 
 This is still not auto live-send execution. The selected command is a bounded
 Telegram-free exact `metric:snapshot:geckoterminal --mint ... --write` command
-intended to create at most one Metric and at most one production-shaped
-captured Notification for future auto-send planning. It must be run only after
-explicit human approval, with no retry and no replacement mint.
+and has created Metric id `1531` plus Notification id `10`. The next check
+should confirm id `10` remains captured / capture_only / metric_appended,
+production-shaped, and selected by the enabled planner without executing
+Telegram send.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
-`0`. The selected mint is
-`2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`; it has existing
-GeckoTerminal snapshot Metrics and no existing Notification. The execution CLI
-exists and its no-execute output is sufficient, but no production `--execute`,
-Telegram send, Notification update, scheduler, or systemd is approved.
-Detailed notes live in
+`0` before the command and `Token / Metric / Notification / HolderSnapshot`
+`1536 / 449 / 10 / 1`, Notification statuses `captured=6`, `sent=4`,
+`failed=0` after it. The enabled planner now has `allowedCandidateCount=1` and
+`selectedNotificationId=10`. No production `--execute`, Telegram send,
+Notification sent/failed update, scheduler, or systemd is approved. Detailed
+notes live in
 `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task
