@@ -4233,6 +4233,72 @@ Expected non-effects:
 Human approval is required before the Red command. Scheduler / systemd remain
 unapproved.
 
+## Production Auto-Send Execute Result
+
+Date: 2026-05-23
+
+The human-approved Red command ran exactly once:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
+
+Execution result:
+
+- status `sent`
+- sendAttempted `true`
+- senderCalled `true`
+- sentCount `1`
+- updatedCount `1`
+- blockedBy `[]`
+- errorCode `null`
+- retryAttempted `false`
+- selectedNotificationId `10`
+
+DB state before / after:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses:
+  `captured=6,sent=4,failed=0 -> captured=5,sent=5,failed=0`
+- retry candidate count after: `0`
+
+Notification id `10` before / after:
+
+- before: status `captured`, mode `capture_only`, sentAt `null`,
+  failedAt `null`, lastAttemptAt `null`, errorCode `null`
+- after: status `sent`, mode `live_send`, sentAt present, failedAt `null`,
+  lastAttemptAt present, errorCode `null`, reason `null`
+- notificationKey remained
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+
+Planner after:
+
+- enabled planner `allowedCandidateCount=0`
+- selectedNotificationId `null`
+- stop conditions:
+  `no_allowed_candidate`, `only_sent_or_blocked_candidates`
+- id `10` is blocked by sent state and no longer an auto-send candidate
+- retry planner candidate count `0`
+
+Confirmed side effects:
+
+- Telegram send: yes, one attempted/sent
+- Notification update: yes, selected id `10` only
+- Notification create: no
+- Token write: no
+- Metric write: no
+- HolderSnapshot write: no
+- retry execution: no
+- scheduler / systemd: no
+- repo-local data diff from execution command: no
+- rawJson full dump: no
+
+No second Red command, manual `notification:send`, retry execution, Metric
+snapshot, detector / ops catch-up, import, enrich, rescore, scheduler, or
+systemd ran. Auto live-send one-shot execution path is verified, but constant
+operation remains locked.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

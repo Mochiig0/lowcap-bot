@@ -863,6 +863,47 @@ Expected if later approved:
 Human approval is required before execution. Manual live send remains outside
 this path.
 
+## Production Auto-Send Execute Result
+
+Date: 2026-05-23
+
+The human-approved Red command ran exactly once:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
+
+Result:
+
+- status `sent`
+- sendAttempted `true`
+- senderCalled `true`
+- sentCount `1`
+- updatedCount `1`
+- blockedBy `[]`
+- errorCode `null`
+- retryAttempted `false`
+
+State before / after:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses:
+  `captured=6,sent=4,failed=0 -> captured=5,sent=5,failed=0`
+- id `10`: `captured/capture_only -> sent/live_send`
+- id `10` sentAt: set
+- id `10` failedAt: `null`
+- id `10` lastAttemptAt: set
+- retry candidate count: `0`
+
+Enabled planner after the run has `allowedCandidateCount=0` and
+`selectedNotificationId=null`; id `10` is blocked by sent state. Telegram send
+and selected Notification id `10` update occurred. Notification create, Token
+write, Metric write, HolderSnapshot write, retry execution, scheduler, systemd,
+manual `notification:send`, Metric snapshot, detector / ops, import, enrich,
+and rescore did not run. Auto live-send one-shot execution path is verified;
+constant operation remains locked.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

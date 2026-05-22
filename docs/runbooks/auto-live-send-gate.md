@@ -1056,3 +1056,88 @@ Stop conditions for the next Red attempt:
 
 Judgment: Red exact command can be issued next with human approval. Scheduler
 and systemd remain locked.
+
+## Production Auto-Send Execute Result
+
+Date: 2026-05-23
+
+The human-approved Red command ran exactly once:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
+
+No retry, second command, manual `notification:send`, notification retry
+execution, Metric snapshot, detector / ops catch-up, import, enrich, rescore,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, or secret output occurred.
+
+Execution result:
+
+- status `sent`
+- sendAttempted `true`
+- senderCalled `true`
+- sentCount `1`
+- updatedCount `1`
+- blockedBy `[]`
+- errorCode `null`
+- retryAttempted `false`
+- selectedNotificationId `10`
+- selectedNotificationKeySummary `production_metric_appended:1531`
+
+DB state before / after:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses:
+  `captured=6,sent=4,failed=0 -> captured=5,sent=5,failed=0`
+- retry candidate count after: `0`
+
+Notification id `10` before:
+
+- status `captured`
+- mode `capture_only`
+- sentAt `null`
+- failedAt `null`
+- lastAttemptAt `null`
+- errorCode `null`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+
+Notification id `10` after:
+
+- status `sent`
+- mode `live_send`
+- sentAt present
+- failedAt `null`
+- lastAttemptAt present
+- errorCode `null`
+- reason `null`
+- production-shaped notificationKey unchanged
+
+Planner after:
+
+- enabled `notification:auto-send:plan`: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`
+- stop conditions:
+  `no_allowed_candidate`, `only_sent_or_blocked_candidates`
+- id `10` is now blocked by sent state:
+  `not_captured_status`, `not_capture_only_mode`, `already_sent`,
+  `sent_at_present`, `retry_candidate`
+- retry planner candidate count `0`
+
+Confirmed side effects:
+
+- Telegram send: yes, max `1`
+- Notification update: yes, selected id `10` only
+- Notification create: no
+- Token write: no
+- Metric write: no
+- HolderSnapshot write: no
+- retry execution: no
+- scheduler / systemd: no
+- repo-local data diff from execution command: no
+- rawJson full dump: no
+
+Auto live-send one-shot execution path is verified for id `10`, but constant
+operation remains locked. Scheduler / systemd remain unapproved.

@@ -9,33 +9,29 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-05-22
+Date: 2026-05-23
 
-After the production `--execute` preflight, the next single Telegram operating
-slice is a human-approved **Red: run the pinned auto-send execute command for
+After the first production auto-send one-shot execution, the next single
+Telegram operating slice is **Green: post-send stability review for
 Notification id 10**.
 
-This is the first proposed production auto-send execution and remains separate
-from scheduler / systemd. The pinned command must be run only after explicit
-human approval and must not be retried or replaced by another command.
+This remains separate from scheduler / systemd and does not unlock constant
+auto live-send operation. The next check should verify id `10` stays sent /
+live_send, planner allowed candidate count remains `0`, retry candidate count
+remains `0`, and no additional send path is pending.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
 `0` before the command and `Token / Metric / Notification / HolderSnapshot`
 `1536 / 449 / 10 / 1`, Notification statuses `captured=6`, `sent=4`,
-`failed=0` after it. The enabled planner now has `allowedCandidateCount=1` and
-`selectedNotificationId=10`; id `10` is also the only manual live-send
-candidate by captured production-shaped state. No production `--execute`,
-Telegram send, Notification sent/failed update, scheduler, or systemd is
-approved. Detailed notes live in
+`failed=0` after the capture candidate, then `Token / Metric / Notification /
+HolderSnapshot` stayed `1536 / 449 / 10 / 1` and Notification statuses moved to
+`captured=5`, `sent=5`, `failed=0` after the one-shot auto-send execution. id
+`10` is now sent / live_send and enabled planner `allowedCandidateCount=0`.
+No scheduler, systemd, retry execution, or constant auto live-send operation
+is approved. Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
-
-Pinned Red command candidate:
-
-```bash
-NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
-```
 
 ## Next Minimal Task
 
