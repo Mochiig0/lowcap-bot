@@ -3932,6 +3932,76 @@ candidate for future auto-send planning. The later candidate creation command,
 if approved, would be Red/Green because it may include external fetch, Metric
 write, and Notification create. Auto live-send execution remains unrun.
 
+## Production-Shaped Capture Candidate Preflight
+
+Date: 2026-05-22
+
+This Green preflight selected one exact Red command candidate for creating a
+single production-shaped capture-only Notification. The command was not run.
+No DB write, external fetch, Metric write, Notification create/update,
+Telegram send, auto-send execution, retry execution, scheduler, systemd,
+schema / migration change, app code change, rawJson full dump, or secret
+output occurred.
+
+Current state remains:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- enabled auto-send planner `allowedCandidateCount=0`
+- retry candidate count: `0`
+
+Selected mint:
+
+- `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`
+- existing Token id: `5619`
+- source: `geckoterminal.new_pools`
+- metadata status: `mint_only`
+- existing Metric count: `4`
+- existing Notification count: `0`
+- latest Metric: id `1471`, source `geckoterminal.token_snapshot`,
+  observed at `2026-05-19T14:12:03.801Z`
+
+Read-only source inspection confirmed exact `--mint --write` creates a Metric
+and, unless `--noNotificationCapture` is set, captures a Notification through
+`maybeCreateByNotificationKey`. Without `--notificationRehearsalTag`, the key
+is the production-shaped `<mint>:metric_appended:<metricId>`. The selected
+command uses no `--watch`, no `--live`, no `--notificationRehearsalTag`, and no
+`--noNotificationCapture`.
+
+Next Red exact command candidate, not executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --write
+```
+
+Expected side effects if approved later:
+
+- external GeckoTerminal fetch max `1`
+- Metric write max `1`
+- Notification create max `1`
+- Notification status `captured`, mode `capture_only`, trigger
+  `metric_appended`
+- notificationKey shaped as
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:<metricId>`
+
+Expected non-effects:
+
+- Telegram send `0`
+- Notification sent / failed update `0`
+- Token create/update `0`
+- HolderSnapshot write `0`
+- retry execution `0`
+- scheduler / systemd `0`
+- auto live-send execution `0`
+- repo-local data diff `0`
+- rawJson full dump `0`
+
+Because current failed count is `0`, existing captured rows are all
+SMOKE/REHEARSAL-blocked, sent rows are already blocked, and the selected mint
+has no existing Notification, this command is expected to create exactly one
+future auto-send planner candidate when run once. Production `--execute`
+remains forbidden until that candidate is reviewed separately.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

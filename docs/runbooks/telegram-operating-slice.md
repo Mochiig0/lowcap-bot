@@ -635,6 +635,60 @@ Telegram-free production-shaped captured Notification candidate for future
 auto-send planning. Scheduler / systemd and auto live-send execution remain
 locked.
 
+## Production-Shaped Capture Candidate Preflight
+
+Date: 2026-05-22
+
+The next Red exact command candidate was selected, but not executed. This was
+read-only / docs-only. No DB write, external fetch, Metric write, Notification
+create/update, Telegram send, auto-send execution, retry execution,
+`--write`, `--watch`, `--live`, scheduler, systemd, schema / migration change,
+app code change, rawJson full dump, or secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 448 / 9 / 1`
+- Notification statuses: `captured=5`, `sent=4`, `failed=0`
+- enabled auto-send planner `allowedCandidateCount=0`
+- retry candidate count: `0`
+
+Selected mint:
+
+- `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`
+- Token id `5619`
+- source `geckoterminal.new_pools`
+- metadata status `mint_only`
+- existing Metric count `4`
+- existing Notification count `0`
+- latest Metric id `1471`, source `geckoterminal.token_snapshot`
+
+Next Red exact command candidate, not executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint 2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump --write
+```
+
+Expected if later approved:
+
+- external GeckoTerminal fetch max `1`
+- Metric write max `1`
+- Notification create max `1`
+- Notification `status=captured`, `mode=capture_only`,
+  `trigger=metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:<metricId>`
+- Telegram send `0`
+- Notification sent / failed update `0`
+- Token / HolderSnapshot write `0`
+- retry execution `0`
+- auto live-send execution `0`
+
+Because the selected mint has no existing Notification and exact `--mint` mode
+does not skip for recent metrics unless `--minGapMinutes` is supplied, this is
+the clearest one-command candidate for creating exactly one production-shaped
+future auto-send planner candidate. Production `--execute`, scheduler, and
+systemd remain locked.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

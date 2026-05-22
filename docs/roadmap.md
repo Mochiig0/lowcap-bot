@@ -9,26 +9,27 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-05-21
+Date: 2026-05-22
 
-After the disabled-by-default `notification:auto-send:execute` CLI was reviewed
-against production DB in no-`--execute` mode, the next single Telegram
-operating slice is **Green: real production-shaped capture-only candidate
-creation preflight**.
+After the production-shaped capture-only candidate preflight, the next single
+Telegram operating slice is a human-approved **Red: run one exact
+production-shaped capture command**.
 
-This is still not auto live-send execution. The next check should stay
-read-only / docs-only and decide whether one bounded Telegram-free capture can
-create exactly one normal production-shaped captured Notification candidate for
-future auto-send planning. It should confirm the selected command, expected
-external fetch / Metric write / Notification create scope, and the expected
-non-effects before any later Red/Green command is approved.
+This is still not auto live-send execution. The selected command is a bounded
+Telegram-free exact `metric:snapshot:geckoterminal --mint ... --write` command
+intended to create at most one Metric and at most one production-shaped
+captured Notification for future auto-send planning. It must be run only after
+explicit human approval, with no retry and no replacement mint.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
 `failed=0`, manual live-send candidate count `0`, and retry candidate count
-`0`. The execution CLI exists and its no-execute output is sufficient, but no
-production `--execute`, Telegram send, Notification update, scheduler, or
-systemd is approved. Detailed notes live in
+`0`. The selected mint is
+`2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`; it has existing
+GeckoTerminal snapshot Metrics and no existing Notification. The execution CLI
+exists and its no-execute output is sufficient, but no production `--execute`,
+Telegram send, Notification update, scheduler, or systemd is approved.
+Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task
