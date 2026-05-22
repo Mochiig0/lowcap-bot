@@ -4143,6 +4143,96 @@ Judgment: output is sufficient. No immediate guard / field change is needed.
 Next task should be **Green: production `--execute` preflight for id 10**,
 with execution still unrun.
 
+## Production Execute Preflight
+
+Date: 2026-05-23
+
+Notification id `10` was preflighted for a future production auto-send
+`--execute` run. This was read-only / docs-only. Production `--execute`,
+Telegram send, Notification create/update, Metric write, external fetch,
+retry execution, metric snapshot, detector / ops catch-up, `--write`,
+`--watch`, `--live`, scheduler, systemd, schema / migration change, app code
+change, rawJson full dump, and secret output did not occur.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=6`, `sent=4`, `failed=0`
+- retry candidate count: `0`
+- manual live-send candidate count: `1`, id `10`
+- enabled auto-send candidate count: `1`, id `10`
+
+Notification id `10` remains:
+
+- status `captured`
+- mode `capture_only`
+- eventType / trigger `metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+
+Planner / executor checks:
+
+- disabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, stop conditions include
+  `auto_send_disabled`
+- enabled planner: `allowedCandidateCount=1`,
+  `selectedNotificationId=10`, `stopConditionCodes=[]`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- default no-`--execute` executor:
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sentCount=0`, `updatedCount=0`
+- env-enabled no-`--execute` executor:
+  `selectedNotificationId=10`, `blockedBy=[execute_flag_required]`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+
+Source inspection confirmed:
+
+- planner gate is evaluated before sender path
+- sender is provided only with explicit `--execute`
+- success update is limited to the selected Notification key
+- failure update after sender call is limited to the selected Notification key
+  with sanitized errorCode / reason
+- stopped / blocked paths do not update DB
+- retry execution is not attempted
+- Token / Metric / HolderSnapshot are not updated by the execution path
+
+Next Red exact command candidate, not executed:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
+
+Expected side effects if later approved:
+
+- Telegram send max `1`
+- existing Notification id `10` update max `1`
+- success: status `sent`, mode `live_send`, sentAt set, lastAttemptAt set
+- failure after sender connection: id `10` only marked failed with status
+  `failed`, mode `live_send`, failedAt set, lastAttemptAt set, sanitized
+  errorCode / reason only
+- Telegram API / network access
+
+Expected non-effects:
+
+- Notification create `0`
+- Token write `0`
+- Metric write `0`
+- HolderSnapshot write `0`
+- retry execution `0`
+- second send `0`
+- scheduler / systemd `0`
+- metric snapshot / detect / ops `0`
+- rawJson full dump `0`
+- secrets saved `0`
+
+Human approval is required before the Red command. Scheduler / systemd remain
+unapproved.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

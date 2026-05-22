@@ -11,12 +11,13 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-22
 
-After the sole-candidate review, the next single Telegram operating slice is
-**Green: production `--execute` preflight for Notification id 10**.
+After the production `--execute` preflight, the next single Telegram operating
+slice is a human-approved **Red: run the pinned auto-send execute command for
+Notification id 10**.
 
-This is still not auto live-send execution. The next check should pin id `10`,
-restate the kill switch and expected sent / failed update scope, and confirm
-the exact execution command without running it.
+This is the first proposed production auto-send execution and remains separate
+from scheduler / systemd. The pinned command must be run only after explicit
+human approval and must not be retried or replaced by another command.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
@@ -29,6 +30,12 @@ candidate by captured production-shaped state. No production `--execute`,
 Telegram send, Notification sent/failed update, scheduler, or systemd is
 approved. Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
+
+Pinned Red command candidate:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
 
 ## Next Minimal Task
 

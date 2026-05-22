@@ -805,6 +805,64 @@ Manual live send is not approved here. Production `--execute` is still
 forbidden. Next recommended task is **Green: production `--execute` preflight
 for id 10**.
 
+## Production Execute Preflight
+
+Date: 2026-05-23
+
+Notification id `10` was preflighted for the next Red auto-send execution
+candidate. This was read-only / docs-only. Production `--execute`, Telegram
+send, Notification create/update, Metric write, external fetch, retry
+execution, metric snapshot, detect / ops, `--write`, `--watch`, `--live`,
+scheduler, systemd, schema / migration change, app code change, rawJson full
+dump, and secret output did not occur.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=6`, `sent=4`, `failed=0`
+- retry candidate count: `0`
+- manual live-send candidate count: `1`, id `10`
+- enabled auto-send candidate count: `1`, id `10`
+
+Planner / executor:
+
+- id `10` remains captured / capture_only / metric_appended with production
+  key
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- disabled planner: `allowedCandidateCount=0`; `auto_send_disabled` present
+- enabled planner: `allowedCandidateCount=1`,
+  `selectedNotificationId=10`, `stopConditionCodes=[]`
+- no-`--execute` default: `blockedBy=[execute_flag_required]`,
+  `senderCalled=false`, `sentCount=0`, `updatedCount=0`
+- no-`--execute` with env enabled: `selectedNotificationId=10`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`, `sentCount=0`,
+  `updatedCount=0`
+
+Source inspection confirmed sender connection only occurs after planner gate
+and explicit `--execute`. Success / failure updates are scoped to the selected
+Notification key. Stopped / blocked paths do not update DB. Retry execution,
+Token write, Metric write, and HolderSnapshot write are not part of this path.
+
+Next Red exact command candidate, not executed:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
+
+Expected if later approved:
+
+- Telegram send max `1`
+- existing Notification id `10` update max `1`
+- success: `status=sent`, `mode=live_send`, sentAt set, lastAttemptAt set
+- failure after sender connection: id `10` only marked failed with sanitized
+  errorCode / reason
+- no Notification create, Token write, Metric write, HolderSnapshot write,
+  retry execution, second send, scheduler, systemd, rawJson full dump, or
+  secret storage
+
+Human approval is required before execution. Manual live send remains outside
+this path.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

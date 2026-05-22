@@ -939,3 +939,120 @@ forbidden in this slice.
 Next recommended task: **Green: production `--execute` preflight for id 10**.
 It should pin id `10`, restate kill switch / expected side effects, and keep
 Telegram execution unrun until a separate Red approval.
+
+## Production Execute Preflight
+
+Date: 2026-05-23
+
+This Green preflight fixed the next human-approval Red command for Notification
+id `10`. It was read-only / docs-only. Production `--execute` was not run. No
+Telegram send, Notification create/update, Metric write, Token write,
+HolderSnapshot write, external fetch, retry execution, metric snapshot,
+detector / ops catch-up, `--write`, `--watch`, `--live`, scheduler, systemd,
+schema / migration change, app code change, rawJson full dump, or secret
+output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=6`, `sent=4`, `failed=0`
+- retry candidate count: `0`
+- manual live-send candidate count: `1`, id `10`
+- enabled auto-send candidate count: `1`, id `10`
+
+Notification id `10`:
+
+- status `captured`
+- mode `capture_only`
+- eventType / trigger `metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- sentAt `null`
+- failedAt `null`
+- errorCode `null`
+- rawJsonFree `true`
+- secretFree `true`
+
+Planner and no-execute executor:
+
+- disabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`, stop conditions include
+  `auto_send_disabled`; id `10` is blocked only by `auto_send_disabled`
+- enabled planner: `allowedCandidateCount=1`,
+  `selectedNotificationId=10`,
+  `selectedTrigger=metric_appended`,
+  `selectedNotificationKeySummary=production_metric_appended:1531`,
+  `stopConditionCodes=[]`, `wouldSend=false`,
+  `wouldUpdateNotification=false`
+- default no-`--execute` executor: `executeRequested=false`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sendAttempted=false`, `sentCount=0`, `updatedCount=0`
+- env-enabled no-`--execute` executor: `executeRequested=false`,
+  `autoSendEnabled=true`, `selectedNotificationId=10`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sendAttempted=false`, `sentCount=0`, `updatedCount=0`
+
+Source inspection:
+
+- `notification:auto-send:execute` calls `buildNotificationAutoSendExecution`
+  and only passes the Telegram sender when `--execute` is present
+- executor always builds the planner first
+- execution gate requires auto send enabled, `allowedCandidateCount=1`,
+  selected id present, and empty planner stop conditions
+- sender path is reached only after the gate passes and selected Notification
+  is loaded
+- success path calls `markNotificationSent()` for the selected Notification key
+  only: status `sent`, mode `live_send`, sentAt set, lastAttemptAt set
+- failure path after sender call calls `markNotificationFailed()` for the
+  selected Notification key only: status `failed`, mode `live_send`, failedAt
+  set, lastAttemptAt set, sanitized errorCode / reason
+- stopped / blocked paths return summaries without DB update
+- retry execution is not attempted
+- Token / Metric / HolderSnapshot updates are not in this execution path
+
+Next Red exact command candidate, not executed:
+
+```bash
+NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:execute -- --execute
+```
+
+Expected side effects if later approved:
+
+- Telegram send max `1`
+- existing Notification id `10` update max `1`
+- success: id `10` becomes `status=sent`, `mode=live_send`, sentAt set,
+  lastAttemptAt set
+- failure after sender connection: id `10` only becomes `status=failed`,
+  `mode=live_send`, failedAt set, lastAttemptAt set, sanitized errorCode /
+  reason only
+- Telegram API / network access occurs
+
+Expected non-effects:
+
+- Notification create `0`
+- Token write `0`
+- Metric write `0`
+- HolderSnapshot write `0`
+- retry execution `0`
+- second send `0`
+- scheduler / systemd `0`
+- metric snapshot / detect / ops `0`
+- rawJson full dump `0`
+- secrets saved `0`
+
+Stop conditions for the next Red attempt:
+
+- id `10` is not present or no longer captured / capture_only
+- id `10` has sentAt, failedAt, or errorCode
+- enabled planner selected id is not `10`
+- enabled planner `allowedCandidateCount` is not `1`
+- enabled planner stop conditions are not empty
+- failed count is greater than `0`
+- retry candidate count is greater than `0`
+- selected key gains a SMOKE / REHEARSAL marker or is not production-shaped
+- sender / update scope changes or becomes unclear
+
+Judgment: Red exact command can be issued next with human approval. Scheduler
+and systemd remain locked.
