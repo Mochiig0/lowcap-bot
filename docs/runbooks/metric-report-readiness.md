@@ -930,3 +930,75 @@ Queue after the write:
 This confirms the first Metric samples and metadata/context completion can be
 reviewed separately. No Metric, Notification, HolderSnapshot, Telegram,
 scheduler/systemd, or repo-local data side effect occurred.
+
+## Enriched Partial Five-Token Report Review
+
+Date: 2026-05-23 21:40 JST
+
+The five rows enriched from `mint_only` to `partial` were checked again through
+read-only report commands. No DB write, external fetch, Telegram send,
+Notification update, Metric write, Token write, HolderSnapshot write,
+scheduler/systemd, or rawJson full dump occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Target readiness:
+
+- all five are `metadataStatus=partial`
+- name / symbol are present
+- description is absent
+- `normalizedText`, `enrichedAt`, and `rescoredAt` are present
+- score remains `C / 0`
+- `hardRejected=false`
+- review flags are present with no website / X / Telegram / Metaplex /
+  description signal
+- each has `metricsCount=1`, `notificationCount=0`, and
+  `holderSnapshotCount=0`
+
+`metrics:report` showed Metric ids `1536..1532` as the latest
+`geckoterminal.token_snapshot` rows with enriched token names / symbols and
+rawJson-free safe summary booleans present.
+
+`tokens:compare-report` with GeckoTerminal `partial` / hasMetrics /
+`minMetricsCount=1` / latest GeckoTerminal Metric filters included the five
+target rows at the top. They remain `outcomeBucket=unresolved` with
+`outcomeBucketReason=multiple_missing`, which is expected for one-Metric
+rows.
+
+`metrics:window-report` for all five rows stayed:
+
+- `metricCount=1`
+- `fdvMetricCount=1`
+- `fdvSampleCoverageLabel=thin`
+- `hasAlertFdvAnchor=false`
+- `hasWindowFdvSamples=true`
+- `outcomeLabel=no_data`
+- `noDataReasons=["no_alert_anchor_near_entry","no_peak_multiple"]`
+- `entryAnchorQuality=near_30m`
+- 30m / 60m / 120m complete
+- 180m / 360m / 720m / 1440m provisional
+
+Entry anchor lag minutes stayed approximately:
+
+- `18.7311`
+- `19.9982`
+- `21.2627`
+- `22.5281`
+- `23.7956`
+
+Queue after report review:
+
+- 24h pump queue: `enrichPendingCount=0`, `metricPendingCount=0`,
+  `notifyCandidateCount=0`
+- 168h pump queue: `enrichPendingCount=420`, `metricPendingCount=260`,
+  `staleReviewCount=420`, `notifyCandidateCount=0`
+
+Recommendation: next run a Green preflight for a second Metric snapshot small
+Red targeting these five partial rows. This keeps the narrow cohort moving
+before returning to the broader 168h enrich or Metric backlogs.

@@ -1239,3 +1239,30 @@ first Metric append, rawJson-free report/window visibility, and bounded
 Token-only enrich/rescore/context capture. The next step should be a Green
 read-only report/readiness check before any second Metric write or broader
 backlog work.
+
+## 2026-05-23 Enriched Partial Five-Token Report Review
+
+The read-only report/readiness check after enrich/rescore confirmed the cohort
+is ready for a second-Metric preflight:
+
+- all five rows are `partial`
+- names / symbols are present
+- descriptions are absent
+- normalized text, enrich timestamp, rescore timestamp, Gecko context capture,
+  and review flags are present
+- score remains `C / 0`
+- no hard reject
+- each still has one Metric, no Notification, and no HolderSnapshot
+
+`metrics:report` shows Metric ids `1532..1536` with enriched names / symbols
+and rawJson-free safe summary booleans. `tokens:compare-report` includes all
+five as partial GeckoTerminal rows with `metricsCount=1` and unresolved /
+multiple-missing outcome state. `metrics:window-report` still reads the cohort
+as one-FDV-sample windows: coverage `thin`, no alert FDV anchor, window FDV
+samples present, `outcomeLabel=no_data`, and `entryAnchorQuality=near_30m`.
+
+The 24h pump queue now has no pending enrich or Metric work for this cohort,
+while the 168h queue still has `enrichPendingCount=420` and
+`metricPendingCount=260`. Complete the narrow loop first by preflighting a
+second Metric snapshot for these five partial rows; only then decide whether to
+return to broader 168h enrich or Metric accumulation.

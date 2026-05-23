@@ -4122,6 +4122,97 @@ Next useful step should be a Green report/readiness check for the now-`partial`
 five-token cohort. Do not jump to `--notify`, auto live send, scheduler, or
 systemd from this result.
 
+## Enriched Partial Five-Token Report Review
+
+Date: 2026-05-23 21:40 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green pass reviewed the now-`partial` five-token cohort through read-only
+reports. It did not run Metric snapshot, token enrich/rescore, detect watch,
+`--write`, external fetch, DB write, Token write, Metric write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler, systemd, schema
+/ migration, app code change, or rawJson full dump.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Target readiness:
+
+| token id | mint | name / symbol | metadataStatus | score | hardRejected | metrics | notifications | holderSnapshots |
+|---:|---|---|---|---|---|---:|---:|---:|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | `the saviour` / `BALTO` | `partial` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | `X COMM ADDED` / `Bunker` | `partial` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | `bank of banks` / `BANKS` | `partial` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | `Nietzschean Camel` / `Camel` | `partial` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | `VAULT COIN` / `VAULT` | `partial` | `C` / `0` | `false` | 1 | 0 | 0 |
+
+All five have `normalizedText`, `enrichedAt`, `rescoredAt`,
+`entrySnapshot.contextCapture.geckoterminalTokenSnapshot`, and
+`reviewFlagsJson`. Description remains absent. Review flags are all
+`hasWebsite=false`, `hasX=false`, `hasTelegram=false`, `metaplexHit=false`,
+`descriptionPresent=false`, and `linkCount=0`.
+
+Report / window state:
+
+- `metrics:report --source geckoterminal.token_snapshot --sortBy observedAt
+  --sortOrder desc --limit 5` showed Metric ids `1536..1532` as the latest
+  rows with the enriched token names / symbols, score `C` / `0`, volume
+  present, and safe summary booleans `priceUsdPresent=true`,
+  `fdvUsdPresent=true`, `reserveUsdPresent=true`, and `topPoolPresent=true`.
+- `tokens:compare-report --source geckoterminal.new_pools --metadataStatus
+  partial --hasMetrics true --minMetricsCount 1 --latestMetricSource
+  geckoterminal.token_snapshot --limit 10` included all five target rows at
+  the top of the report. They are `entryVsCurrentChanged=true`, have
+  `metricsCount=1`, and remain `outcomeBucket=unresolved` /
+  `outcomeBucketReason=multiple_missing`.
+- `metrics:window-report` for all five mints returned `metricCount=1`,
+  `fdvMetricCount=1`, `fdvSampleCoverageLabel=thin`,
+  `hasAlertFdvAnchor=false`, `hasWindowFdvSamples=true`,
+  `outcomeLabel=no_data`, and
+  `noDataReasons=["no_alert_anchor_near_entry","no_peak_multiple"]`.
+- Entry anchor quality stayed `near_30m`; lags were about `18.7311`,
+  `19.9982`, `21.2627`, `22.5281`, and `23.7956` minutes.
+- 30m / 60m / 120m windows are complete; 180m and longer windows are still
+  provisional.
+
+Queue / planner state:
+
+- 24h pump review queue: `geckoOriginTokenCount=5`,
+  `enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h pump review queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=420`, `metricPendingCount=260`,
+  `staleReviewCount=420`, `notifyCandidateCount=0`
+- auto-send planner disabled/enabled: `allowedCandidateCount=0`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- retry planner: `candidateCount=0`
+
+Decision:
+
+- Candidate A, second Metric snapshot small Red preflight, is selected. The
+  five rows are now `partial` and still have only one Metric each; a second
+  bounded Metric would test the immediate post-enrich observation loop and
+  improve window/report context without broadening to the 168h backlog yet.
+- Candidate B, 168h enrichPending backlog preflight, is second. It matters
+  because `enrichPendingCount=420` remains, but its Token update surface is
+  wider and should follow the five-token loop confirmation.
+- Candidate C, broader Metric accumulation preflight, remains useful for the
+  `metricPendingCount=260` backlog but is broader than this five-token lane.
+- Candidate D, docs/handoff, is safe but does not advance the loop.
+
+Recommended next task: `Green: preflight second Metric snapshot for the five
+enriched partial GeckoTerminal tokens`.
+
+Risk: Green. It should not write Metrics yet; it should only confirm
+candidate selection, pacing, expected side effects, and one later
+human-approved Red exact command.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

@@ -867,3 +867,28 @@ Next selected step should be Green: review the enriched partial cohort through
 read-only reports and decide whether to append a second Metric for these five,
 return to broader Metric accumulation, or preflight the older 168h
 enrich-pending backlog. Scheduler/systemd and auto live send remain locked.
+
+## 2026-05-23 Enriched Partial Report Review
+
+The five-token enriched partial cohort was reviewed through read-only report
+commands. Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 454 / 10 / 1`; Metric distribution stayed `1222 / 237 / 82`;
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; auto-send
+allowed candidates and retry candidates stayed `0`.
+
+The five target rows are now `partial`, named, scored `C / 0`,
+`hardRejected=false`, and still have `metricsCount=1`,
+`notificationCount=0`, and `holderSnapshotCount=0`. Review flags are present
+but all link/context booleans are false.
+
+`metrics:report` and `tokens:compare-report` read all five rows without rawJson
+dump. Window reports stayed `metricCount=1`, `fdvMetricCount=1`, coverage
+`thin`, `hasAlertFdvAnchor=false`, `hasWindowFdvSamples=true`, and
+`outcomeLabel=no_data`. The 30m / 60m / 120m windows are complete; 180m and
+longer windows remain provisional.
+
+Next selected lane: second Metric snapshot small Red preflight for these five
+partial tokens. This is preferred over immediately expanding into the 168h
+`enrichPendingCount=420` backlog or the 168h `metricPendingCount=260` backlog
+because it completes the narrow five-token loop first. Scheduler/systemd and
+auto live send remain locked.
