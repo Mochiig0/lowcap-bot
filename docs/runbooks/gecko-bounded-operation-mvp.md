@@ -6254,3 +6254,63 @@ Expected non-effects:
 Human approval is required before running this Red command. Keep the command
 exact; do not add `timeout`, do not use the default repo-local checkpoint, and
 do not combine it with Metric snapshot or notification execution.
+
+### Small Bounded Write Rehearsal Result
+
+Executed on 2026-05-23 after human approval:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+Result:
+
+- status `ok`
+- stopReason `completed`
+- completedIterations `5`
+- cycleCount `5`
+- failedCount `0`
+- rateLimitRetryCount `0`
+- importedCount `5`
+- existingCount `0`
+- dryRun `false`
+- writeEnabled `true`
+- checkpointEnabled `true`
+- checkpointUpdated `true`
+- elapsedMs `241959`
+
+Counts moved only in Token:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1541 / 449 / 10 / 1`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+
+Checkpoint safe summary:
+
+- path: `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+- exists: yes
+- size: `176` bytes
+- source: `geckoterminal.new_pools`
+- cursor poolCreatedAt: `2026-05-23T10:36:55.000Z`
+- cursor poolAddress present: yes
+- raw checkpoint body was not printed
+
+Confirmed boundary:
+
+- external GeckoTerminal fetch occurred
+- Token write occurred: `+5`
+- checkpoint write occurred under `/tmp` only
+- Metric write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- repo-local data diff `0`
+- scheduler / systemd `0`
+- rawJson full dump `0`
+
+The write rehearsal confirms the current detect watch write path still stays
+inside mint-only Token accumulation plus isolated checkpoint state. It does not
+approve default checkpoint promotion, scheduler, systemd, Metric snapshot,
+Notification capture, or Telegram delivery.

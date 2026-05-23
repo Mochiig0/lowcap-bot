@@ -1288,3 +1288,69 @@ Expected non-effects:
 Human approval is required. Scheduler, systemd, always-on auto live send,
 retry execution, and production `--execute` without human approval remain
 locked.
+
+## 2026-05-23 Small Write Rehearsal Result
+
+The approved small bounded write rehearsal ran once:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+Summary:
+
+- status: `ok`
+- stopReason: `completed`
+- completedIterations: `5`
+- cycleCount: `5`
+- failedCount: `0`
+- rateLimitRetryCount: `0`
+- importedCount: `5`
+- existingCount: `0`
+- dryRun: `false`
+- writeEnabled: `true`
+- checkpointEnabled: `true`
+- checkpointUpdated: `true`
+- elapsedMs: `241959`
+
+Before / after counts:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1541 / 449 / 10 / 1`
+- Token increase: `+5`
+- Metric / Notification / HolderSnapshot increase: `0 / 0 / 0`
+- Notification statuses:
+  `captured=5`, `sent=5`, `failed=0 -> captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Checkpoint safe summary:
+
+- path: `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+- exists: yes
+- size: `176` bytes
+- source: `geckoterminal.new_pools`
+- cursor poolCreatedAt: `2026-05-23T10:36:55.000Z`
+- cursor poolAddress present: yes
+- raw checkpoint body not printed
+
+Confirmed side effects:
+
+- external GeckoTerminal fetch: yes
+- Token mint-only write: yes, `+5`
+- checkpoint write: yes, `/tmp` only
+
+Confirmed non-effects:
+
+- Metric write: no
+- Notification create/update: no
+- HolderSnapshot write: no
+- Telegram send: no
+- repo-local data diff from the command: no
+- rawJson full dump: no
+- scheduler / systemd: no
+
+The small write rehearsal is successful and confirms the `/tmp` checkpoint
+boundary. Next work should not jump to scheduler / systemd. A Green decision
+point should choose either read-only inspection of the five new mint-only rows
+or a return to metric accumulation / report work.

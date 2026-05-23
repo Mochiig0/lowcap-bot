@@ -68,6 +68,17 @@ Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
 repo-local data diff `0`, scheduler / systemd `0`, and rawJson full dump `0`.
 Do not use `timeout`.
 
+The small bounded write rehearsal has now run successfully once. It completed
+5 cycles with `status=ok`, `stopReason=completed`, `failedCount=0`,
+`rateLimitRetryCount=0`, `importedCount=5`, `existingCount=0`,
+`dryRun=false`, `writeEnabled=true`, and `checkpointEnabled=true`. Counts moved
+only in Token: `1536 / 449 / 10 / 1 -> 1541 / 449 / 10 / 1`. The checkpoint
+was written only under `/tmp`, and repo-local data stayed clean.
+
+Next useful step should be another Green decision point: inspect the five new
+mint-only rows with read-only reports, or return to metric accumulation /
+report work. Scheduler / systemd remain out of scope.
+
 Second choice: metric accumulation / report lane, if the operator prefers
 safer data accumulation and report quality over moving the monitoring loop
 forward. Do not continue to scheduler / systemd now.

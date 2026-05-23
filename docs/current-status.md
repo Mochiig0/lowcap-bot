@@ -4655,6 +4655,84 @@ Do not use `timeout`; rely on `--maxIterations=5` and
 `--intervalSeconds=60`. Scheduler, systemd, always-on auto live send, retry
 execution, and production `--execute` without human approval remain locked.
 
+## Small Bounded New-Pool Write Rehearsal Result
+
+Date: 2026-05-23
+
+The human-approved Red write rehearsal ran exactly once:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+No second Red command, retry command, `timeout`, `--live`, metric snapshot,
+notification send, notification retry execution, auto-send execution,
+production `--execute`, ops catch-up, Telegram live send, scheduler, systemd,
+import, enrich, rescore, schema / migration change, app code change, rawJson
+full dump, or secret output occurred.
+
+Execution summary:
+
+- status: `ok`
+- stopReason: `completed`
+- completedIterations / cycleCount: `5 / 5`
+- failedCount: `0`
+- rateLimitRetryCount: `0`
+- importedCount: `5`
+- existingCount: `0`
+- dryRun: `false`
+- writeEnabled: `true`
+- checkpointEnabled: `true`
+- checkpointUpdated: `true`
+- elapsedMs: `241959`
+
+Counts before / after:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1541 / 449 / 10 / 1`
+- Token increase: `+5`
+- Metric increase: `0`
+- Notification increase: `0`
+- HolderSnapshot increase: `0`
+- Notification statuses:
+  `captured=5`, `sent=5`, `failed=0` before and after
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Checkpoint safe summary:
+
+- path: `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+- exists: yes
+- size: `176` bytes
+- source: `geckoterminal.new_pools`
+- cursor poolCreatedAt: `2026-05-23T10:36:55.000Z`
+- cursor poolAddress present: yes
+- raw checkpoint body not printed
+
+Confirmed side effects:
+
+- external GeckoTerminal fetch: yes
+- DB write: yes, Token mint-only create path
+- Token write: yes, `+5`
+- checkpoint write: yes, `/tmp` only
+
+Confirmed non-effects:
+
+- Metric write: no
+- Notification create/update: no
+- HolderSnapshot write: no
+- Telegram send: no
+- auto-send execution: no
+- scheduler / systemd: no
+- repo-local data diff from command: no
+- rawJson full dump: no
+
+Judgment: the small bounded write rehearsal succeeded. The Token write and
+`/tmp` checkpoint boundaries held. The next step should be a Green decision
+point: either inspect the five new mint-only Tokens with read-only reports, or
+return to metric accumulation / report work. Do not move to scheduler /
+systemd yet.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20
