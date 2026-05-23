@@ -692,3 +692,34 @@ Conclusion: the report/readiness surface is usable after Metric count `447`.
 `metrics:window-report` can be used for bounded operator review of Notification
 id `8`, Metric 2+ rows, Metric 1 rows, and Metric 0 pending context without
 opening any write, fetch, Telegram, scheduler, or systemd path.
+
+## Post Detect Write Rehearsal Metric Lane Re-entry
+
+Date: 2026-05-23 19:44 JST
+
+After the small bounded GeckoTerminal new-pools write rehearsal, five new
+GeckoTerminal-origin pump mint-only Tokens exist and all five have
+`metricsCount=0`.
+
+Current read-only state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- 24h pump review queue: `geckoOriginTokenCount=5`,
+  `enrichPendingCount=5`, `metricPendingCount=5`, `staleReviewCount=0`
+- 168h pump review queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=425`, `metricPendingCount=265`,
+  `staleReviewCount=420`
+
+The five newest rows are valid Metric accumulation candidates in shape:
+
+- `source=geckoterminal.new_pools`
+- `metadataStatus=mint_only`
+- pump mints
+- `entrySnapshot.firstSeenSourceSnapshot.source=geckoterminal.new_pools`
+- `Metric`, `Notification`, and `HolderSnapshot` related counts are all `0`
+
+Next step should be Green, not an immediate Metric write: preflight the Metric
+snapshot command for these new rows and the wider 168h metric-pending context,
+then record one human-approval Red candidate if the read-only boundaries still
+match expectations.

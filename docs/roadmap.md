@@ -710,3 +710,23 @@ Notification update, rawJson full dump, schema / migration change, or
 application code change occurred. The next step should stay read-only: use
 `metrics:window-report` on one bounded cohort to make the next operating
 decision before any further Metric write expansion.
+
+## 2026-05-23 Detect Write Rehearsal Follow-up
+
+The five Tokens created by the small bounded GeckoTerminal write rehearsal were
+inspected read-only. All five are GeckoTerminal-origin pump `mint_only` rows
+with `entrySnapshot.firstSeenSourceSnapshot`, `metricsCount=0`,
+`notificationCount=0`, and `holderSnapshotCount=0`.
+
+Queue state now supports returning to metric accumulation / report:
+
+- 24h pump queue: `geckoOriginTokenCount=5`, `metricPendingCount=5`
+- 168h pump queue: `geckoOriginTokenCount=425`, `metricPendingCount=265`,
+  `staleReviewCount=420`
+- auto-send allowed candidate count: `0`
+- retry candidate count: `0`
+
+Next selected lane: metric accumulation / report. The next task should be a
+Green preflight that narrows one bounded Metric snapshot Red command. Do not
+extend detect write rehearsal, scheduler, systemd, or always-on live send from
+this result.

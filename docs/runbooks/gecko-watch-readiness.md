@@ -1354,3 +1354,64 @@ The small write rehearsal is successful and confirms the `/tmp` checkpoint
 boundary. Next work should not jump to scheduler / systemd. A Green decision
 point should choose either read-only inspection of the five new mint-only rows
 or a return to metric accumulation / report work.
+
+## 2026-05-23 Write Rehearsal Token Inspection
+
+This Green inspection confirmed the five newest Token rows created by the
+small bounded write rehearsal. It did not run detect watch, `--write`,
+external fetch, DB write, Telegram send, Notification update, Metric write,
+HolderSnapshot write, scheduler, systemd, schema / migration, app code change,
+or rawJson full dump.
+
+Repo / DB state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- HEAD at start: `e4e0421 docs: record bounded write rehearsal`
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Newest five Token rows:
+
+| id | mint | source | metadataStatus | detectedAt | metrics | notifications | holder snapshots |
+|---:|---|---|---|---|---:|---:|---:|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | `geckoterminal.new_pools` | `mint_only` | `2026-05-23T10:38:01.186Z` | 0 | 0 | 0 |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | `geckoterminal.new_pools` | `mint_only` | `2026-05-23T10:37:00.827Z` | 0 | 0 | 0 |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | `geckoterminal.new_pools` | `mint_only` | `2026-05-23T10:36:00.460Z` | 0 | 0 | 0 |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | `geckoterminal.new_pools` | `mint_only` | `2026-05-23T10:35:00.056Z` | 0 | 0 | 0 |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | `geckoterminal.new_pools` | `mint_only` | `2026-05-23T10:33:59.691Z` | 0 | 0 | 0 |
+
+All five rows are pump mints with `entrySnapshot.stage=mint_only`,
+`firstSeenSourceSnapshot.source=geckoterminal.new_pools`,
+`firstSeenSourceSnapshot.dexName=Pump.fun`, `scoreRank=C`, `scoreTotal=0`,
+and `hardRejected=false`. Raw entry snapshots and raw provider payloads were
+not printed.
+
+Queue / planner state:
+
+- 24h review queue: `geckoOriginTokenCount=5`,
+  `firstSeenSourceSnapshotCount=5`, `enrichPendingCount=5`,
+  `metricPendingCount=5`, `staleReviewCount=0`
+- 168h review queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=425`, `metricPendingCount=265`,
+  `staleReviewCount=420`
+- auto-send planner disabled/enabled: `allowedCandidateCount=0`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- retry planner: `candidateCount=0`
+
+Checkpoint safe summary:
+
+- path: `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+- exists: yes
+- size: `176` bytes
+- source: `geckoterminal.new_pools`
+- cursor poolCreatedAt: `2026-05-23T10:36:55.000Z`
+- cursor poolAddress present: yes
+- raw checkpoint body not printed
+
+Decision: stop extending detect write rehearsal for now and return to metric
+accumulation / report lane through a Green preflight. The next task should
+produce a bounded Red Metric snapshot candidate only after read-only queue and
+CLI checks. Scheduler, systemd, always-on live send, retry execution, and
+production `--execute` without human approval remain locked.

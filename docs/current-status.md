@@ -3614,6 +3614,87 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Bounded Write Rehearsal Token Inspection
+
+Date: 2026-05-23 19:44 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green pass inspected the five GeckoTerminal mint-only Token rows created
+by the approved small bounded write rehearsal. It did not run detect watch,
+`--write`, external fetch, DB write, Token write, Metric write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler, systemd, schema
+/ migration, app code change, or rawJson full dump.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+The newest five Token rows are the expected write-rehearsal output:
+
+| id | mint | source | metadataStatus | first-seen source | metrics | notifications | holder snapshots |
+|---:|---|---|---|---|---:|---:|---:|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | `geckoterminal.new_pools` | `mint_only` | `geckoterminal.new_pools` | 0 | 0 | 0 |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | `geckoterminal.new_pools` | `mint_only` | `geckoterminal.new_pools` | 0 | 0 | 0 |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | `geckoterminal.new_pools` | `mint_only` | `geckoterminal.new_pools` | 0 | 0 | 0 |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | `geckoterminal.new_pools` | `mint_only` | `geckoterminal.new_pools` | 0 | 0 | 0 |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | `geckoterminal.new_pools` | `mint_only` | `geckoterminal.new_pools` | 0 | 0 | 0 |
+
+All five mints end in `pump`, have `entrySnapshot.stage=mint_only`,
+`firstSeenSourceSnapshot.dexName=Pump.fun`, `scoreRank=C`, `scoreTotal=0`,
+and `hardRejected=false`. Raw entry snapshots and raw provider payloads were
+not printed.
+
+Queue / planner context:
+
+- 24h `review:queue:geckoterminal -- --pumpOnly --limit 20`:
+  `geckoOriginTokenCount=5`, `firstSeenSourceSnapshotCount=5`,
+  `enrichPendingCount=5`, `metricPendingCount=5`, `staleReviewCount=0`,
+  `notifyCandidateCount=0`
+- 168h `review:queue:geckoterminal -- --pumpOnly --sinceHours 168 --limit 20`:
+  `geckoOriginTokenCount=425`, `enrichPendingCount=425`,
+  `metricPendingCount=265`, `staleReviewCount=420`
+- `notification:auto-send:plan` with auto-send disabled:
+  `allowedCandidateCount=0`, stop conditions include `auto_send_disabled` and
+  `no_allowed_candidate`
+- `NOTIFICATION_AUTO_SEND_ENABLED=true notification:auto-send:plan`:
+  `allowedCandidateCount=0`, `wouldSend=false`,
+  `wouldUpdateNotification=false`
+- `notification:retry:plan`: `candidateCount=0`
+
+Checkpoint safe summary:
+
+- path: `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+- exists: yes
+- size: `176` bytes
+- source: `geckoterminal.new_pools`
+- cursor poolCreatedAt: `2026-05-23T10:36:55.000Z`
+- cursor poolAddress present: yes
+- raw checkpoint body not printed
+
+Decision:
+
+- Candidate A, metric accumulation / report lane, is selected. The five new
+  rows are clean mint-only GeckoTerminal-origin pump Tokens with zero Metrics,
+  so the next useful step is a Green metric preflight that narrows the next
+  Red Metric snapshot command rather than immediately writing Metrics.
+- Candidate B, extending detect write rehearsal, is lower value now because the
+  current 5-cycle write rehearsal and the older 240-cycle rehearsal already
+  validated the Token accumulation boundary.
+- Candidate C, docs-only continuation, is safe but does not advance the
+  operating lane.
+
+Recommended next task: `Green: preflight metric accumulation for new
+GeckoTerminal mint-only rows`.
+
+Risk: Green. It should remain read-only / docs-only and produce one human
+approval candidate command for a later Red Metric snapshot only if the queue and
+CLI boundaries still match expectations.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

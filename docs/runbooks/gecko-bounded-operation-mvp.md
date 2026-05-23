@@ -6314,3 +6314,70 @@ The write rehearsal confirms the current detect watch write path still stays
 inside mint-only Token accumulation plus isolated checkpoint state. It does not
 approve default checkpoint promotion, scheduler, systemd, Metric snapshot,
 Notification capture, or Telegram delivery.
+
+### Post-Write Rehearsal Token Inspection
+
+Checked on 2026-05-23 19:44 JST with read-only / docs-only commands.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Newest Token rows from the write rehearsal:
+
+- id `5624`, mint `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump`
+- id `5623`, mint `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump`
+- id `5622`, mint `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump`
+- id `5621`, mint `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump`
+- id `5620`, mint `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump`
+
+All five rows are `source=geckoterminal.new_pools`,
+`metadataStatus=mint_only`, `entrySnapshot.stage=mint_only`, pump mints,
+`firstSeenSourceSnapshot.source=geckoterminal.new_pools`,
+`firstSeenSourceSnapshot.dexName=Pump.fun`, `scoreRank=C`, `scoreTotal=0`,
+and `hardRejected=false`.
+
+Related counts for each row:
+
+- Metric count: `0`
+- Notification count by token id / mint: `0 / 0`
+- HolderSnapshot count: `0`
+
+Queue context:
+
+- 24h pump review queue now sees these five rows:
+  `geckoOriginTokenCount=5`, `enrichPendingCount=5`,
+  `metricPendingCount=5`, `staleReviewCount=0`
+- 168h pump review queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=425`, `metricPendingCount=265`,
+  `staleReviewCount=420`
+
+Checkpoint safe summary stayed bounded to `/tmp`:
+
+- path: `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+- exists: yes
+- size: `176` bytes
+- source: `geckoterminal.new_pools`
+- cursor poolCreatedAt: `2026-05-23T10:36:55.000Z`
+- cursor poolAddress present: yes
+- raw checkpoint body not printed
+
+Confirmed non-effects for this Green inspection:
+
+- DB write: no
+- external fetch: no
+- Telegram send: no
+- Notification create/update: no
+- Token / Metric / HolderSnapshot write: no
+- repo-local data diff before docs update: no
+- rawJson full dump: no
+
+Conclusion: the five write-rehearsal rows are valid GeckoTerminal-origin
+mint-only pump Tokens and are now visible as Metric pending candidates. Do not
+extend detect write rehearsal by default; return to a Green metric accumulation
+preflight before any Metric write.
