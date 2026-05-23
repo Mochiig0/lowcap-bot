@@ -567,3 +567,67 @@ the report lane; it does not authorize another Metric snapshot run.
 - scheduler / systemd;
 - import / enrich / rescore;
 - schema / migration / app code change.
+
+## New Token Limit-5 Preflight
+
+Date: 2026-05-23 19:52 JST
+
+This read-only / docs-only preflight narrowed the next Metric accumulation Red
+candidate after the small bounded GeckoTerminal write rehearsal created five
+new mint-only pump Tokens.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Token Metric distribution: `0=1227`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Queue state:
+
+- 24h pump queue: `geckoOriginTokenCount=5`,
+  `metricPendingCount=5`, `staleReviewCount=0`
+- 168h pump queue: `geckoOriginTokenCount=425`,
+  `metricPendingCount=265`, `staleReviewCount=420`
+
+CLI / implementation boundary:
+
+- `metric:snapshot:geckoterminal` supports `--pumpOnly`, `--limit`,
+  `--sinceMinutes`, `--minGapMinutes`, and `--interItemDelayMs`.
+- Batch mode sorts recent GeckoTerminal-origin candidates by
+  `firstSeenSourceSnapshot.detectedAt` when present, otherwise `Token.createdAt`;
+  ties use descending id.
+- `--minGapMinutes` is applied before `--limit`, excluding recently measured
+  rows from selection.
+- Batch `--write` creates Metric rows. Notification capture is gated to exact
+  `--mint --write` mode, so the batch candidate should not create
+  Notifications.
+- The Metric snapshot CLI writes no Tokens or HolderSnapshots and does not call
+  Telegram send.
+
+Read-only DB simulation for the candidate command found:
+
+- `eligibleCount=5`
+- `selectedCount=5`
+- selected ids: `5624`, `5623`, `5622`, `5621`, `5620`
+- all selected rows are `source=geckoterminal.new_pools`,
+  `metadataStatus=mint_only`, pump mints, and `metricsCount=0`
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Policy:
+
+- Keep `--interItemDelayMs 15000` even for limit 5 to preserve the previously
+  rate-limit-clean pacing.
+- Do not use the broader limit-75 command for this specific post-rehearsal
+  check.
+- If a 429 or provider error appears during the later Red run, do not retry in
+  the same task and do not widen the command.
+- Human approval is required before running the command because it will fetch
+  GeckoTerminal and write production Metric rows.

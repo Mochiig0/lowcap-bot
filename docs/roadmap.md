@@ -730,3 +730,29 @@ Next selected lane: metric accumulation / report. The next task should be a
 Green preflight that narrows one bounded Metric snapshot Red command. Do not
 extend detect write rehearsal, scheduler, systemd, or always-on live send from
 this result.
+
+## 2026-05-23 Metric Accumulation Preflight
+
+The Green preflight selected a small Metric accumulation Red for the five new
+GeckoTerminal mint-only Tokens rather than returning immediately to the broader
+limit-75 run.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Token Metric distribution: `0=1227`, `1=232`, `2+=82`
+- 24h pump queue: `geckoOriginTokenCount=5`, `metricPendingCount=5`
+- 168h pump queue: `geckoOriginTokenCount=425`, `metricPendingCount=265`
+- auto-send allowed candidate count: `0`
+- retry candidate count: `0`
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected effect is up to five new Metric rows only. Token, Notification,
+HolderSnapshot, Telegram, scheduler, systemd, and repo-local data should remain
+unchanged. Do not run the stable limit-75 command until this smaller
+post-rehearsal Metric write is reviewed.

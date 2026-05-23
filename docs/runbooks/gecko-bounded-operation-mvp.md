@@ -6381,3 +6381,38 @@ Conclusion: the five write-rehearsal rows are valid GeckoTerminal-origin
 mint-only pump Tokens and are now visible as Metric pending candidates. Do not
 extend detect write rehearsal by default; return to a Green metric accumulation
 preflight before any Metric write.
+
+### Metric Accumulation Preflight For Rehearsal Tokens
+
+Checked on 2026-05-23 19:52 JST.
+
+The metric accumulation preflight stayed read-only and did not run
+`metric:snapshot:geckoterminal`, `--write`, external fetch, DB write, Telegram
+send, Notification update, detect watch, scheduler, systemd, or rawJson full
+dump.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Token Metric distribution: `0=1227`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+
+The default 24h queue has exactly the five new rehearsal Tokens as
+`metricPending`. The 168h queue still has a larger backlog
+(`metricPendingCount=265`), but that is too broad for the next Red.
+
+Selected next Red candidate, not executed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Rationale:
+
+- command is a single bounded Red command
+- `--limit 5` matches the five new Tokens
+- `--sinceMinutes 1440` keeps the scope to the current 24h queue
+- `--minGapMinutes 60` preserves the recent-Metric exclusion policy
+- `--interItemDelayMs 15000` keeps the previously rate-limit-clean pacing
+- batch mode should write only Metrics and should not create Notifications or
+  send Telegram

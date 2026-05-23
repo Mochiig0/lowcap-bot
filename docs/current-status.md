@@ -3695,6 +3695,90 @@ Risk: Green. It should remain read-only / docs-only and produce one human
 approval candidate command for a later Red Metric snapshot only if the queue and
 CLI boundaries still match expectations.
 
+## Metric Accumulation Preflight For New Tokens
+
+Date: 2026-05-23 19:52 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green preflight checked whether the five write-rehearsal Tokens can be the
+next bounded `metric:snapshot:geckoterminal` Red target. It did not run Metric
+snapshot, `--write`, external fetch, DB write, Telegram send, Notification
+create/update, Token write, HolderSnapshot write, detect watch, scheduler,
+systemd, schema / migration, app code change, or rawJson full dump.
+
+Current DB state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Token Metric distribution: `0=1227`, `1=232`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Read-only queue state:
+
+- 24h pump queue: `geckoOriginTokenCount=5`,
+  `firstSeenSourceSnapshotCount=5`, `enrichPendingCount=5`,
+  `metricPendingCount=5`, `staleReviewCount=0`,
+  `notifyCandidateCount=0`
+- 168h pump queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=425`, `metricPendingCount=265`,
+  `staleReviewCount=420`, `notifyCandidateCount=0`
+
+`metric:snapshot:geckoterminal` help / source inspection confirmed:
+
+- batch mode supports `--pumpOnly`, `--limit`, `--sinceMinutes`,
+  `--minGapMinutes`, and `--interItemDelayMs`
+- batch mode selects recent GeckoTerminal-origin Tokens by
+  `firstSeenSourceSnapshot.detectedAt` when present, otherwise `Token.createdAt`
+- default order is recent-first by selection anchor, then id
+- `--minGapMinutes` excludes recently measured tokens before applying `--limit`
+- batch `--write` creates Metric rows only; Notification capture is enabled
+  only for exact `--mint --write` mode
+- no Telegram sender is called by the Metric snapshot CLI
+
+Read-only DB selection simulation for:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+showed `eligibleCount=5` and `selectedCount=5`. The selected rows are exactly
+the five new mint-only pump Tokens: ids `5624`, `5623`, `5622`, `5621`, and
+`5620`; all have `metricsCount=0` and no Notification / HolderSnapshot rows.
+
+Candidate decision:
+
+- Candidate A, small limit-5 Metric accumulation, is selected. It is scoped to
+  the new five Tokens, has lower 429 exposure than limit 75, and its expected
+  production side effect is Metric rows only.
+- Candidate B, stable limit 75, remains a later option but is broader than this
+  post-rehearsal check.
+- Candidate C, large 168h pending run, is too broad for the next Red.
+- Candidate D, docs continuation, is safe but does not advance observation.
+
+Next Red exact command, requiring human approval and not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected side effects:
+
+- external GeckoTerminal fetch for up to five selected Tokens
+- Metric write up to `+5`
+
+Expected non-effects:
+
+- Token write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- scheduler / systemd `0`
+- repo-local data diff `0`
+- rawJson full dump `0`
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

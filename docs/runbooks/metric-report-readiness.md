@@ -723,3 +723,40 @@ Next step should be Green, not an immediate Metric write: preflight the Metric
 snapshot command for these new rows and the wider 168h metric-pending context,
 then record one human-approval Red candidate if the read-only boundaries still
 match expectations.
+
+## New Token Metric Accumulation Preflight
+
+Date: 2026-05-23 19:52 JST
+
+The Metric lane preflight is complete and recommends a small limit-5 Red over a
+return to the broader stable limit-75 run.
+
+Read-only facts:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 449 / 10 / 1`
+- Token Metric distribution: `0=1227`, `1=232`, `2+=82`
+- 24h pump queue: `geckoOriginTokenCount=5`, `metricPendingCount=5`
+- 168h pump queue: `geckoOriginTokenCount=425`, `metricPendingCount=265`
+- auto-send enabled planner: `allowedCandidateCount=0`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- retry planner: `candidateCount=0`
+
+Selection expectation:
+
+- With `--pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60`, the
+  candidate set is exactly the five new write-rehearsal Tokens.
+- They are selected recent-first by first-seen detectedAt: ids `5624`, `5623`,
+  `5622`, `5621`, `5620`.
+- Since each has no existing Metric, `--minGapMinutes 60` does not exclude
+  them.
+
+Recommended next Red exact command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected side effects: external GeckoTerminal fetch and up to five new Metric
+rows. Expected non-effects: Token write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler / systemd, repo-local data diff,
+and rawJson full dump.
