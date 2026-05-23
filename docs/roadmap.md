@@ -780,3 +780,25 @@ Counts moved only in Metric:
 
 The five new Tokens now each have one Metric. The next selected step should be
 a Green report/decision pass before any further Metric write expansion.
+
+## 2026-05-23 New Metric Report Review
+
+The Green read-only report pass confirmed Metric ids `1532..1536` are readable
+through `metrics:report` and `metrics:window-report` without rawJson dumps or
+side effects.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Metric 0 / 1 / 2+ Token distribution: `1222 / 237 / 82`
+- 24h pump queue: `metricPendingCount=0`, `enrichPendingCount=5`
+- 168h pump queue: `metricPendingCount=260`, `enrichPendingCount=425`,
+  `staleReviewCount=420`
+- auto-send allowed candidate count: `0`
+- retry candidate count: `0`
+
+The new rows are `thin` Metric-1 samples with visible `near_30m` entry anchors,
+but no alert-FDV anchor, so outcome remains `no_data`. Next selected lane:
+enrich/rescore preflight for the five new `mint_only` Metric-1 rows. Broader
+Metric accumulation remains a second choice; detect write continuation and
+scheduler/systemd remain locked.

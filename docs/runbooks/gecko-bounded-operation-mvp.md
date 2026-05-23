@@ -6457,3 +6457,30 @@ Confirmed non-effects:
 - scheduler / systemd: no
 - repo-local data diff before docs update: no
 - rawJson full dump: no
+
+### New Metric Report Review
+
+Checked on 2026-05-23 20:22 JST with read-only report commands.
+
+The five Metrics written for the rehearsal Tokens are report-readable:
+
+- `1532` for `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump`
+- `1533` for `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump`
+- `1534` for `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump`
+- `1535` for `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump`
+- `1536` for `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump`
+
+Each row has price / FDV / reserve / top-pool safe summary booleans present.
+`metrics:window-report` shows each token with `metricCount=1`,
+`fdvMetricCount=1`, `fdvSampleCoverageLabel=thin`,
+`entryAnchorQuality=near_30m`, `hasWindowFdvSamples=true`,
+`hasAlertFdvAnchor=false`, and `outcomeLabel=no_data`.
+
+Queue state now confirms the immediate Metric pending item is closed:
+
+- 24h pump `metricPendingCount=0`
+- 168h pump `metricPendingCount=260`
+- notify candidates: `0`
+
+Next step should not continue detect writes. The narrow next lane is
+enrich/rescore Green preflight for the five new mint-only Metric-1 Tokens.

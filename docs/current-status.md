@@ -3853,6 +3853,88 @@ Next operating step should be Green: inspect the five new Metrics through
 read-only report/window views and decide whether to continue with another
 small Metric batch, enrich/rescore preflight, or report-only review.
 
+## New Token Metric Report Review
+
+Date: 2026-05-23 20:22 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green pass reviewed the five new Metric rows through read-only report
+commands. It did not run Metric snapshot, `--write`, detect watch, external
+fetch, DB write, Token write, Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler, systemd, schema / migration,
+app code change, or rawJson full dump.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+`metrics:report --source geckoterminal.token_snapshot --sortBy observedAt
+--sortOrder desc --limit 5` showed Metric ids `1536` through `1532` as the
+latest Metric rows. Each row had `source=geckoterminal.token_snapshot`, the
+expected mint, `scoreRank=C`, `scoreTotal=0`, `volume24h` present, and safe
+summary booleans `priceUsdPresent=true`, `fdvUsdPresent=true`,
+`reserveUsdPresent=true`, and `topPoolPresent=true`. Raw Metric `rawJson` was
+not printed.
+
+Window report summary for the five new rows:
+
+| mint | metric | metricCount | fdvMetricCount | entryAnchorLagMinutes | entryAnchorQuality | coverage | outcome |
+|---|---:|---:|---:|---:|---|---|---|
+| `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | 1532 | 1 | 1 | 18.7311 | `near_30m` | `thin` | `no_data` |
+| `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | 1533 | 1 | 1 | 19.9982 | `near_30m` | `thin` | `no_data` |
+| `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | 1534 | 1 | 1 | 21.2627 | `near_30m` | `thin` | `no_data` |
+| `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | 1535 | 1 | 1 | 22.5281 | `near_30m` | `thin` | `no_data` |
+| `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | 1536 | 1 | 1 | 23.7956 | `near_30m` | `thin` | `no_data` |
+
+For all five mints:
+
+- `alertFdv=null`
+- `alertFdvSource=unavailable`
+- `hasAlertFdvAnchor=false`
+- `hasWindowFdvSamples=true`
+- `noDataReasons=["no_alert_anchor_near_entry","no_peak_multiple"]`
+- 30m window is complete and non-provisional
+- 60m through 24h windows are provisional
+- entry anchor is visible via the first FDV Metric after first seen
+
+Queue / planner state:
+
+- 24h pump review queue: `geckoOriginTokenCount=5`,
+  `enrichPendingCount=5`, `metricPendingCount=0`,
+  `notifyCandidateCount=0`
+- 168h pump review queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=425`, `metricPendingCount=260`,
+  `staleReviewCount=420`, `notifyCandidateCount=0`
+- auto-send planner disabled/enabled: `allowedCandidateCount=0`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- retry planner: `candidateCount=0`
+
+Decision:
+
+- Candidate B, enrich/rescore lane Green preflight, is selected. The five new
+  rows are still `mint_only`, score `C`, and metadata-empty; Metric 1 confirms
+  observability, but outcome remains `no_data` without alert anchors.
+- Candidate A, more Metric accumulation, is second. It can improve sampling
+  density later, but broad writes are not needed before checking metadata /
+  rescore boundaries.
+- Candidate C, detect lane continuation, would add more Token writes and is not
+  the next narrow bottleneck.
+- Candidate D, docs-only handoff, is safe but does not advance the operating
+  lane.
+
+Recommended next task: `Green: preflight enrich/rescore for five new
+GeckoTerminal mint-only metric-1 tokens`.
+
+Risk: Green. It should inspect CLI options and selected targets only, then
+produce one human-approval Red candidate if the Token update / context capture
+/ notification boundaries are clear.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

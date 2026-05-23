@@ -793,3 +793,45 @@ The post-run 24h review queue reports `metricPendingCount=0`; the five rows
 remain `enrichPending` with `metricsCount=1`. This confirms the first Metric
 observation point is attached and readable. Next work should be a Green
 decision point before any further Metric write expansion.
+
+## New Metric Window Report Review
+
+Date: 2026-05-23 20:22 JST
+
+The five new Metric rows `1532..1536` were reviewed with `metrics:report` and
+`metrics:window-report` using windows `30,60,120,180,360,720,1440`. The pass
+was read-only (`willWrite=false`, `willFetch=false`,
+`willSendTelegram=false`) and did not dump rawJson.
+
+`metrics:report` confirmed all five rows are readable as
+`geckoterminal.token_snapshot` Metrics with price / FDV / reserve / top-pool
+safe summary booleans present.
+
+Window report behavior was consistent across the cohort:
+
+- `metricCount=1`
+- `fdvMetricCount=1`
+- `fdvSampleCoverageLabel=thin`
+- `alertFdv=null`
+- `hasAlertFdvAnchor=false`
+- `hasWindowFdvSamples=true`
+- `outcomeLabel=no_data`
+- `noDataReasons=["no_alert_anchor_near_entry","no_peak_multiple"]`
+- 30m window complete; 60m through 24h provisional
+- `entryAnchorQuality=near_30m`
+
+Entry anchor lag minutes:
+
+- Metric `1532`: `18.7311`
+- Metric `1533`: `19.9982`
+- Metric `1534`: `21.2627`
+- Metric `1535`: `22.5281`
+- Metric `1536`: `23.7956`
+
+Interpretation: the first Metric samples are visible and explainable as
+`near_30m` entry anchors, but they do not provide alert-FDV anchors. Therefore
+the rows remain useful for report context while outcome labels stay `no_data`.
+
+Next lane recommendation: move to enrich/rescore Green preflight for these
+five `mint_only` Metric-1 rows. Additional Metric accumulation can be useful
+later, but the immediate gap is metadata / context, not another sample point.

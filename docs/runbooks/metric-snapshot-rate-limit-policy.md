@@ -668,3 +668,30 @@ The 15-second pacing stayed rate-limit clean. Batch mode did not create
 Notification rows, send Telegram, update Tokens, write HolderSnapshot, touch
 scheduler / systemd, or create repo-local data diffs. Raw provider payloads and
 Metric rawJson were not dumped.
+
+## Post Limit-5 Read-Only Report Review
+
+Date: 2026-05-23 20:22 JST
+
+The post-run report review did not execute `metric:snapshot:geckoterminal`,
+external fetch, or DB writes. It confirmed the limit-5 run achieved its narrow
+goal:
+
+- Metric rows `1532..1536` are readable through `metrics:report`.
+- All five target Tokens now have `metricsCount=1`.
+- The 24h pump queue moved to `metricPendingCount=0`.
+- The 168h pump queue still has `metricPendingCount=260`, but this is older
+  backlog and should not automatically trigger another broad Metric Red.
+
+Window report state for the five rows is uniformly `thin` and `no_data`:
+
+- `hasWindowFdvSamples=true`
+- `hasAlertFdvAnchor=false`
+- `entryAnchorQuality=near_30m`
+- `noDataReasons` include `no_alert_anchor_near_entry` and
+  `no_peak_multiple`
+
+Rate-limit policy conclusion: do not immediately escalate back to limit 75
+from this result. The next step should be a Green enrich/rescore preflight for
+the five new Metric-1 mint-only rows, while keeping broader Metric
+accumulation as a later option.
