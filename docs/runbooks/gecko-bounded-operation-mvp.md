@@ -6088,3 +6088,65 @@ Report checks:
 No DB write, external fetch, Telegram send, Notification create/update,
 repo-local data diff, schema / migration change, application code change, or
 rawJson full dump occurred.
+
+### Bounded New-Pool Watch Return Preflight
+
+Checked on 2026-05-23 with read-only / docs-only commands after the
+auto-send single-shot slice closed.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- HEAD: `a73fd96 docs: consolidate auto send single shot slice`
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+`detect:geckoterminal:new-pools` still exposes:
+
+- `--file`
+- `--pumpOnly`
+- `--limit`
+- `--write`
+- `--watch`
+- `--intervalSeconds`
+- `--maxIterations`
+- `--checkpointFile`
+
+Implementation boundary remains narrow:
+
+- dry-run is default
+- `--watch` loops only when explicitly supplied
+- `--maxIterations` / `--intervalSeconds` are the supported bounded-run
+  controls; do not use `timeout`
+- `--write` is the only path that calls `importMint`
+- `--write --pumpOnly` requires `--limit 1`
+- checkpointing is enabled only for `--watch --write`
+- `--checkpointFile` requires both `--watch` and `--write`
+- without `--write`, expected DB writes are `0` and checkpoint writes are `0`
+- with `--watch --write`, use `/tmp` checkpoint isolation; do not promote the
+  repo-local default checkpoint yet
+- duplicate handling is mint-based: new mints increment `importedCount`, while
+  already-present mints increment `existingCount`
+- detect write affects Token mint-only intake only; Metric, Notification,
+  HolderSnapshot, enrich/rescore, and Telegram remain separate lanes
+
+Queue context:
+
+- default 24h `review:queue:geckoterminal -- --pumpOnly --limit 20`:
+  `geckoOriginTokenCount=0`, `metricPendingCount=0`
+- 168h queue:
+  `geckoOriginTokenCount=420`, `enrichPendingCount=420`,
+  `metricPendingCount=260`, `staleReviewCount=420`
+
+Next Red candidate, requiring human approval:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+Expected side effects are bounded external fetches only. Expected non-effects:
+DB write `0`, Token write `0`, Metric write `0`, Notification create/update
+`0`, HolderSnapshot write `0`, Telegram send `0`, checkpoint write `0`,
+repo-local data diff `0`, scheduler / systemd `0`, and rawJson full dump `0`.

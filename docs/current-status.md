@@ -4434,6 +4434,91 @@ update Notifications, write Token / Metric / HolderSnapshot rows, fetch
 externally, print rawJson full dumps, run scheduler / systemd, run import /
 enrich / rescore, or change schema / migration / app code.
 
+## Bounded New-Pool Watch Readiness Preflight
+
+Date: 2026-05-23
+
+This Green preflight returned to the detect / new-pool watch lane after the
+auto-send single-shot slice was closed. It was read-only / docs-only. No
+detect watch, `--write`, external fetch, DB write, Telegram send, Notification
+create/update, Metric write, Token write, HolderSnapshot write, ops catch-up,
+metric snapshot, import / enrich / rescore, scheduler / systemd, schema /
+migration change, app code change, rawJson full dump, or secret output
+occurred.
+
+Start state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- HEAD: `a73fd96 docs: consolidate auto send single shot slice`
+- working tree: clean
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+CLI / implementation boundary confirmed:
+
+- script: `detect:geckoterminal:new-pools`
+- options: `--file`, `--pumpOnly`, `--limit`, `--write`, `--watch`,
+  `--intervalSeconds`, `--maxIterations`, `--checkpointFile`
+- default is dry-run; accepted mints are written only when `--write` is set
+- `--watch` loops; `--maxIterations` bounds natural completion; timeout
+  wrappers remain discouraged
+- `--intervalSeconds` and `--maxIterations` require `--watch`
+- `--checkpointFile` requires both `--watch` and `--write`
+- checkpointing is active only with `--watch --write`; otherwise
+  `checkpointEnabled=false`
+- default checkpoint path is repo-local
+  `data/checkpoints/geckoterminal-new-pools.json`, so write rehearsals should
+  keep checkpoint files under `/tmp`
+- `--write --pumpOnly` requires `--limit 1`
+- duplicate handling is by mint: `importMint` creates one mint-only Token for
+  new mints and returns `created=false`; watch summaries count those as
+  `existingCount`
+- detect write path writes only mint-only Token rows through `importMint`; it
+  does not append Metrics, create/update Notifications, write HolderSnapshot,
+  enrich / rescore, or send Telegram
+
+Read-only queue / planner context:
+
+- `review:queue:geckoterminal -- --pumpOnly --limit 20`:
+  `geckoOriginTokenCount=0`, `metricPendingCount=0`
+- `review:queue:geckoterminal -- --pumpOnly --sinceHours 168 --limit 20`:
+  `geckoOriginTokenCount=420`, `enrichPendingCount=420`,
+  `metricPendingCount=260`, `staleReviewCount=420`
+- disabled auto-send planner: `allowedCandidateCount=0`
+- enabled auto-send planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`
+- retry planner: `candidateCount=0`
+
+Past evidence still stands:
+
+- 6h dry-run watch completed with `--watch --pumpOnly --limit 1
+  --maxIterations 360 --intervalSeconds 60`, `dryRun=true`,
+  `writeEnabled=false`, `checkpointEnabled=false`, DB / Telegram /
+  Notification / Metric / checkpoint / repo-local side effects `0`
+- 240-cycle write rehearsal completed with `--watch --write --pumpOnly
+  --limit 1 --maxIterations 240 --intervalSeconds 60 --checkpointFile /tmp/...`,
+  Token `+240`, Metric / Notification / HolderSnapshot `0`, Telegram `0`, and
+  checkpoint isolated to `/tmp`
+
+Next Red candidate can be issued as a small bounded dry-run watch:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+Expected side effects: bounded external GeckoTerminal fetches only. The normal
+path fetches one page per cycle; retryable 429 / timeout-like failures may add
+the built-in bounded retry for that cycle. Expected non-effects: DB write `0`,
+Token write `0`, Metric write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, checkpoint write `0`, repo-local
+data diff `0`, scheduler / systemd `0`, rawJson full dump `0`.
+
+Human approval is required before running this Red command. Do not use
+`timeout`; rely on the explicit `--maxIterations` / `--intervalSeconds`
+bounded run.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

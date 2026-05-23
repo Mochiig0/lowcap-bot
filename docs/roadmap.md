@@ -28,10 +28,19 @@ duplicate-send behavior, continuous worker, background queue, automatic retry
 execution, and production `--execute` without human approval. Auto-send is
 verified as a single-shot path only.
 
-Recommended next lane: **detect / new-pool watch lane**. The next task should
-be **Green: review bounded new-pool watch readiness before Red rehearsal**.
-Risk is **Green** while read-only / docs-first; it becomes **Red** only if a
-later task runs `--write`, `--watch`, or checkpoint-changing execution.
+Recommended next lane: **detect / new-pool watch lane**. The Green readiness
+review is now complete and confirmed that the next Red can be a small bounded
+dry-run watch, not a write rehearsal:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+This command requires human approval because it runs watch mode and external
+GeckoTerminal fetches. It intentionally omits `--write`, so expected DB writes,
+Telegram sends, Notification create/update, Metric writes, HolderSnapshot
+writes, and checkpoint writes are all `0`. Do not use `timeout`; keep the run
+bounded by `--maxIterations` and `--intervalSeconds`.
 
 Second choice: metric accumulation / report lane, if the operator prefers
 safer data accumulation and report quality over moving the monitoring loop

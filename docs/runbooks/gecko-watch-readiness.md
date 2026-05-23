@@ -1103,3 +1103,76 @@ Before using a sample systemd unit:
 
 Sample units are not activation instructions by themselves. They are templates
 to review after the lane has passed the earlier gates.
+
+## 2026-05-23 Return Preflight
+
+This Green pass rechecked bounded GeckoTerminal new-pools watch readiness after
+the Telegram / Notification auto-send single-shot slice was consolidated. It
+did not run detect watch, `--write`, external fetch, Metric snapshot, ops
+catch-up, Telegram send, Notification create/update, Token write, Metric write,
+HolderSnapshot write, scheduler, systemd, schema / migration, app code change,
+or rawJson full dump.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- HEAD: `a73fd96 docs: consolidate auto send single shot slice`
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- auto-send single-shot slice: closed
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Confirmed current CLI shape:
+
+```bash
+pnpm detect:geckoterminal:new-pools [--file <PATH>] [--pumpOnly] [--limit <N>] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>] [--checkpointFile <PATH>]
+```
+
+Boundary recap:
+
+- dry-run mode can fetch live GeckoTerminal data but does not call `importMint`
+  and should not write DB state
+- write mode calls `importMint` for accepted candidates only
+- duplicate handling is represented by `existingCount` when the mint already
+  exists and `importedCount` when a new mint-only Token is created
+- checkpointing is active only with `--watch --write`
+- dry-run watch has `checkpointEnabled=false` and should not touch
+  `data/checkpoints`
+- write watch must keep first checkpoint rehearsals under `/tmp`; the default
+  repo-local checkpoint is still not promoted
+- detect watch does not connect Telegram, create Notification rows, append
+  Metrics, write HolderSnapshot, enrich, rescore, or call scheduler / systemd
+- bounded operation should use `--maxIterations` and `--intervalSeconds`, not
+  `timeout + pnpm + tsx`
+
+Read-only context:
+
+- `mvp:status`: `boundedWatchReady=false`, `checkpointReady=false`,
+  `schedulerReady=false`, `systemdReady=false`
+- default 24h review queue: no GeckoTerminal-origin pump rows
+- 168h review queue: `geckoOriginTokenCount=420`,
+  `enrichPendingCount=420`, `metricPendingCount=260`,
+  `staleReviewCount=420`
+- auto-send planner allowed candidates: `0`
+- retry planner candidates: `0`
+
+Recommended next Red is candidate A, a small dry-run bounded watch:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+Human approval is required. Expected side effects are bounded external fetches
+only; retryable 429 / timeout-like failures may use the built-in bounded retry.
+Expected non-effects are DB write `0`, Token write `0`, Metric write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+checkpoint write `0`, repo-local data diff `0`, scheduler / systemd `0`, and
+rawJson full dump `0`.
+
+Candidate B, a small write bounded rehearsal, is not selected now because the
+240-cycle write rehearsal already proved the Token accumulation boundary and
+would write production Token rows again. Candidate C, metric accumulation /
+report, remains the second lane choice if the operator wants safer data-quality
+work instead of watch-loop readiness. Candidate D, docs-only handoff, is lower
+value now because this preflight produced an exact Red dry-run command.
