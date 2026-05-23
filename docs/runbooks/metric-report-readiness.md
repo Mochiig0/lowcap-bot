@@ -835,3 +835,48 @@ the rows remain useful for report context while outcome labels stay `no_data`.
 Next lane recommendation: move to enrich/rescore Green preflight for these
 five `mint_only` Metric-1 rows. Additional Metric accumulation can be useful
 later, but the immediate gap is metadata / context, not another sample point.
+
+## New Token Enrich/Rescore Preflight
+
+Date: 2026-05-23 20:41 JST
+
+The follow-up Green preflight stayed read-only and confirmed the five Metric-1
+rows are still the active 24h GeckoTerminal pump `enrichPending` set. Current
+state remained Token / Metric / Notification / HolderSnapshot
+`1541 / 454 / 10 / 1`, Metric distribution `0=1222`, `1=237`, `2+=82`, and
+Notification statuses `captured=5`, `sent=5`, `failed=0`.
+
+Target state before enrich/rescore:
+
+- ids `5624..5620`
+- `metadataStatus=mint_only`
+- `name`, `symbol`, `description`, `normalizedText`, `enrichedAt`, and
+  `rescoredAt` are still empty
+- `scoreRank=C`, `scoreTotal=0`, `hardRejected=false`
+- `metricsCount=1`, `notificationCount=0`, `holderSnapshotCount=0`
+- latest Metric ids `1532..1536`
+
+The `token:enrich-rescore:geckoterminal` CLI supports `--mint`, `--limit`,
+`--sinceMinutes`, `--pumpOnly`, `--write`, and `--notify`. It does not support
+`--interItemDelayMs`. Batch mode selects recent GeckoTerminal-origin tokens
+missing `name` or `symbol`, sorted by `firstSeenSourceSnapshot.detectedAt` when
+available. A read-only simulation for `--pumpOnly --limit 5 --sinceMinutes
+1440` selected exactly ids `5624`, `5623`, `5622`, `5621`, and `5620`.
+
+Write boundary for the next Red is Token-only: enrich fields, rescore fields,
+context capture under `Token.entrySnapshot.contextCapture`, and
+`reviewFlagsJson`. Metric rows, HolderSnapshot rows, and Notification rows are
+not written by this CLI. Telegram send is only possible with `--notify`; the
+recommended command omits it.
+
+Recommended next Red exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+Human approval is required because this will externally fetch GeckoTerminal and
+best-effort Metaplex context, then update production Token rows. Expected
+non-effects are Metric write, Notification create/update, HolderSnapshot write,
+Telegram send, scheduler / systemd, repo-local data diff, and rawJson full
+dump.

@@ -1182,3 +1182,28 @@ After this confirmed minimum loop, the next small operating steps are either:
 - Do not expose raw stdout, raw stderr, env, cwd, full args, or full API responses in reports.
 - Save large JSON to `/tmp` when local inspection is needed, then report only the fields required for the decision.
 - If DNS fails in Codex but works in a normal WSL shell, treat the Codex sandbox network configuration as the blocker and do not rerun the metric snapshot CLI until the same shell can resolve the host.
+
+## 2026-05-23 Five-Token Enrich/Rescore Preflight
+
+The latest five-token minimum-loop cohort has reached the point after
+Token creation and first Metric append:
+
+- Tokens `5624..5620` are GeckoTerminal-origin pump `mint_only` rows.
+- Each has one Metric (`1532..1536`) and no Notification or HolderSnapshot.
+- Each remains metadata-empty with `scoreRank=C`, `scoreTotal=0`,
+  `hardRejected=false`, `enrichedAt=null`, and `rescoredAt=null`.
+- The 24h pump queue reports `enrichPendingCount=5` and
+  `metricPendingCount=0`.
+
+Read-only preflight confirmed the batch enrich/rescore selector can target
+exactly those five rows with `--pumpOnly --limit 5 --sinceMinutes 1440`.
+The next Red, if human-approved, should keep token completion and Metric append
+separate by running only:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+Expected writes are limited to Token enrichment, rescore, context capture, and
+review flags. Metric, Notification, HolderSnapshot, Telegram, scheduler,
+systemd, and repo-local data changes are not expected. Do not add `--notify`.

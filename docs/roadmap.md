@@ -802,3 +802,36 @@ but no alert-FDV anchor, so outcome remains `no_data`. Next selected lane:
 enrich/rescore preflight for the five new `mint_only` Metric-1 rows. Broader
 Metric accumulation remains a second choice; detect write continuation and
 scheduler/systemd remain locked.
+
+## 2026-05-23 Enrich/Rescore Preflight
+
+The Green read-only preflight confirmed that
+`token:enrich-rescore:geckoterminal` can target the five new
+GeckoTerminal-origin pump `mint_only` Metric-1 Tokens as a single bounded batch.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Metric 0 / 1 / 2+ Token distribution: `1222 / 237 / 82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- 24h pump queue: `geckoOriginTokenCount=5`, `enrichPendingCount=5`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h pump queue: `geckoOriginTokenCount=425`, `enrichPendingCount=425`,
+  `metricPendingCount=260`, `staleReviewCount=420`
+- auto-send allowed candidate count: `0`
+- retry candidate count: `0`
+
+Read-only simulation for `--pumpOnly --limit 5 --sinceMinutes 1440` selected
+exactly ids `5624`, `5623`, `5622`, `5621`, and `5620`.
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+Expected effect is Token enrich/rescore/context/review-flag updates for up to
+five rows after external GeckoTerminal and best-effort Metaplex fetches.
+Expected non-effects are Metric write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler / systemd `0`,
+repo-local data diff `0`, and rawJson full dump `0`. Do not add `--notify`.

@@ -3935,6 +3935,106 @@ Risk: Green. It should inspect CLI options and selected targets only, then
 produce one human-approval Red candidate if the Token update / context capture
 / notification boundaries are clear.
 
+## New Token Enrich/Rescore Preflight
+
+Date: 2026-05-23 20:41 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green pass audited `token:enrich-rescore:geckoterminal` for the five new
+GeckoTerminal mint-only Metric-1 Tokens. It stayed read-only and docs-only: no
+enrich/rescore execution, no `--write`, no `--notify`, no external fetch, no DB
+write, no Token / Metric / Notification / HolderSnapshot write, no Telegram
+send, no scheduler / systemd, no schema / migration / app code change, and no
+rawJson full dump.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Target Token state:
+
+| token id | mint | metadataStatus | score | hardRejected | metrics | notifications | holderSnapshots |
+|---:|---|---|---|---|---:|---:|---:|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | `mint_only` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | `mint_only` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | `mint_only` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | `mint_only` | `C` / `0` | `false` | 1 | 0 | 0 |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | `mint_only` | `C` / `0` | `false` | 1 | 0 | 0 |
+
+All five still have `name=null`, `symbol=null`, `description=null`,
+`normalizedText=null`, `enrichedAt=null`, `rescoredAt=null`, no review flags,
+and `entrySnapshot.firstSeenSourceSnapshot.source=geckoterminal.new_pools`.
+Their latest Metrics are `1532..1536`.
+
+CLI / implementation boundary:
+
+- package script: `token:enrich-rescore:geckoterminal` ->
+  `tsx src/cli/tokenEnrichRescoreGeckoterminal.ts`
+- options: `--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`, `--write`,
+  `--notify`
+- no `--interItemDelayMs` option exists on this CLI
+- recent batch defaults to `limit=20`, `sinceMinutes=180`, and selects
+  GeckoTerminal-origin tokens still missing `name` or `symbol`
+- recent batch uses `firstSeenSourceSnapshot.detectedAt` for origin ordering
+  when present, otherwise `Token.createdAt`
+- `--pumpOnly` is batch-only narrowing to mints ending with `pump`
+- `--mint` forces one exact token and ignores the batch pump filter
+- `--write` can update Token enrich fields, rescore fields,
+  `entrySnapshot.contextCapture.geckoterminalTokenSnapshot`,
+  `entrySnapshot.contextCapture.metaplexMetadataUri`, and `reviewFlagsJson`
+- Token enrich fields are `name`, `symbol`, `metadataStatus`,
+  `normalizedText`, and `enrichedAt`; description is not filled from this CLI
+- Token rescore fields are `normalizedText`, `hardRejected`,
+  `hardRejectReason`, `scoreTotal`, `scoreRank`, `scoreBreakdown`, and
+  `rescoredAt`
+- Metric and HolderSnapshot write paths are not called
+- Notification create/update paths are not called
+- Telegram send is gated by `--write --notify` and only when a token newly
+  enters non-hard-rejected `S` rank; without `--notify`, Telegram send is not
+  expected
+- external fetch boundary for the Red command is up to five GeckoTerminal token
+  snapshot requests plus best-effort Metaplex metadata-uri lookups after each
+  Gecko primary snapshot succeeds
+- recent batch stops the current batch early after the first Gecko snapshot
+  `429 Too Many Requests`
+
+Read-only selection simulation for
+`--pumpOnly --limit 5 --sinceMinutes 1440` selected exactly ids
+`5624`, `5623`, `5622`, `5621`, `5620` in first-seen order. The 24h pump
+review queue also shows `geckoOriginTokenCount=5`, `enrichPendingCount=5`,
+`metricPendingCount=0`, and `notifyCandidateCount=0`; the 168h pump queue
+shows `geckoOriginTokenCount=425`, `enrichPendingCount=425`,
+`metricPendingCount=260`, and `staleReviewCount=420`.
+
+Candidate decision:
+
+- Candidate A, batch limit 5, is selected because the read-only selection
+  simulation matches the five intended Tokens and keeps the Red command to one
+  bounded command.
+- Candidate B, exact mint 1, is safer per-token but too small now that batch
+  selection is clear.
+- Candidate C, docs-only continuation, is unnecessary because write / notify /
+  fetch boundaries are clear.
+
+Recommended next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+Expected side effects: external GeckoTerminal fetches, best-effort Metaplex
+fetches, and Token updates for up to five selected Tokens. Expected non-effects:
+Metric write `0`, Notification create/update `0`, HolderSnapshot write `0`,
+Telegram send `0`, scheduler / systemd `0`, repo-local data diff `0`, and
+rawJson full dump `0`. Do not add `--notify`; stop rather than retry if 429,
+provider, network, or selection drift appears.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21
