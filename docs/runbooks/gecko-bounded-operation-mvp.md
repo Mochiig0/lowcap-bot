@@ -6416,3 +6416,44 @@ Rationale:
 - `--interItemDelayMs 15000` keeps the previously rate-limit-clean pacing
 - batch mode should write only Metrics and should not create Notifications or
   send Telegram
+
+### Small Metric Snapshot Result For Rehearsal Tokens
+
+Executed on 2026-05-23 19:58 JST after human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- selectedCount: `5`
+- okCount: `5`
+- writtenCount: `5`
+- skippedCount: `0`
+- errorCount: `0`
+- interItemDelayMs: `15000`
+- interItemDelayCount: `4`
+- provider error: no
+- 429: no
+- retry: no
+
+Counts moved only in Metric:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 449 / 10 / 1 -> 1541 / 454 / 10 / 1`
+- Metric rows written: `1532..1536`
+- the five rehearsal Tokens moved from `metricsCount=0` to `metricsCount=1`
+- 24h `metricPendingCount` moved from `5` to `0`
+
+Confirmed non-effects:
+
+- Token write: no
+- Notification create/update: no
+- HolderSnapshot write: no
+- Telegram send: no
+- retry execution: no
+- auto live send execution: no
+- scheduler / systemd: no
+- repo-local data diff before docs update: no
+- rawJson full dump: no

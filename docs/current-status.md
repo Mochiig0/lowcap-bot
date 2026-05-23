@@ -3779,6 +3779,80 @@ Expected non-effects:
 - repo-local data diff `0`
 - rawJson full dump `0`
 
+## Small Metric Snapshot For New Tokens
+
+Date: 2026-05-23 19:58 JST
+
+After human approval, the bounded small Metric snapshot Red ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- mode: `recent_batch`
+- selectedCount: `5`
+- okCount: `5`
+- writtenCount: `5`
+- skippedCount: `0`
+- errorCount: `0`
+- interItemDelayMs: `15000`
+- interItemDelayCount: `4`
+- provider error: no
+- 429 / rate-limit error: no
+- retry: no
+- written Metric ids: `1532` through `1536`
+
+Counts moved only in Metric:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 449 / 10 / 1 -> 1541 / 454 / 10 / 1`
+- Token Metric distribution:
+  `0=1227`, `1=232`, `2+=82 -> 0=1222`, `1=237`, `2+=82`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+
+New Token Metric results:
+
+| token id | mint | metric id | metricsCount | observedAt |
+|---:|---|---:|---:|---|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | 1532 | 1 | `2026-05-23T10:56:45.052Z` |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | 1533 | 1 | `2026-05-23T10:57:00.717Z` |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | 1534 | 1 | `2026-05-23T10:57:16.220Z` |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | 1535 | 1 | `2026-05-23T10:57:31.739Z` |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | 1536 | 1 | `2026-05-23T10:57:47.424Z` |
+
+Each new Metric safe summary reported price, FDV, reserve, and top-pool
+presence. Raw Metric `rawJson` was not printed.
+
+Read-only report check:
+
+- `metrics:report --source geckoterminal.token_snapshot --sortBy observedAt
+  --sortOrder desc --limit 5` showed Metric ids `1536` through `1532` with
+  safe summary booleans and no rawJson full dump.
+- post-run 24h review queue now reports `metricPendingCount=0`; the five new
+  rows remain `enrichPending` with `metricsCount=1`.
+
+Confirmed boundaries:
+
+- external GeckoTerminal fetch occurred
+- Metric write occurred: `+5`
+- Token write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- retry execution `0`
+- auto live send execution `0`
+- scheduler / systemd `0`
+- repo-local data diff before docs update `0`
+- rawJson full dump `0`
+
+Next operating step should be Green: inspect the five new Metrics through
+read-only report/window views and decide whether to continue with another
+small Metric batch, enrich/rescore preflight, or report-only review.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

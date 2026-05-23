@@ -760,3 +760,36 @@ Expected side effects: external GeckoTerminal fetch and up to five new Metric
 rows. Expected non-effects: Token write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler / systemd, repo-local data diff,
 and rawJson full dump.
+
+## New Token Limit-5 Metric Report Check
+
+Date: 2026-05-23 19:58 JST
+
+The approved small Metric snapshot wrote five Metric rows for the five new
+GeckoTerminal mint-only Tokens. Report readiness was checked read-only after
+the write.
+
+DB movement:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 449 / 10 / 1 -> 1541 / 454 / 10 / 1`
+- Token Metric distribution:
+  `0=1227`, `1=232`, `2+=82 -> 0=1222`, `1=237`, `2+=82`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+
+New Metrics:
+
+- `1532`: `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump`
+- `1533`: `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump`
+- `1534`: `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump`
+- `1535`: `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump`
+- `1536`: `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump`
+
+`metrics:report` showed all five new Metrics as the latest
+`geckoterminal.token_snapshot` rows with price / FDV / reserve / top-pool safe
+summary booleans present. The report did not print rawJson.
+
+The post-run 24h review queue reports `metricPendingCount=0`; the five rows
+remain `enrichPending` with `metricsCount=1`. This confirms the first Metric
+observation point is attached and readable. Next work should be a Green
+decision point before any further Metric write expansion.

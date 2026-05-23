@@ -756,3 +756,27 @@ Expected effect is up to five new Metric rows only. Token, Notification,
 HolderSnapshot, Telegram, scheduler, systemd, and repo-local data should remain
 unchanged. Do not run the stable limit-75 command until this smaller
 post-rehearsal Metric write is reviewed.
+
+## 2026-05-23 Small Metric Snapshot Result
+
+The approved small Metric snapshot for the five new GeckoTerminal mint-only
+Tokens completed successfully:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result: `selected=5`, `written=5`, `skipped=0`, `error=0`,
+`interItemDelayMs=15000`, `interItemDelayCount=4`, no provider error, and no
+429.
+
+Counts moved only in Metric:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 449 / 10 / 1 -> 1541 / 454 / 10 / 1`
+- Metric 0 / 1 / 2+ Token distribution:
+  `1227 / 232 / 82 -> 1222 / 237 / 82`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+
+The five new Tokens now each have one Metric. The next selected step should be
+a Green report/decision pass before any further Metric write expansion.

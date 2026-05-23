@@ -631,3 +631,40 @@ Policy:
   the same task and do not widen the command.
 - Human approval is required before running the command because it will fetch
   GeckoTerminal and write production Metric rows.
+
+## New Token Limit-5 Metric Snapshot Run
+
+Date: 2026-05-23 19:58 JST
+
+The approved Red limit-5 command ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- selectedCount: `5`
+- okCount: `5`
+- writtenCount: `5`
+- skippedCount: `0`
+- errorCount: `0`
+- interItemDelayMs: `15000`
+- interItemDelayCount: `4`
+- provider error: no
+- 429 / rate-limit error: no
+- retry: no
+- written Metric ids: `1532..1536`
+
+Counts:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 449 / 10 / 1 -> 1541 / 454 / 10 / 1`
+- Token Metric distribution:
+  `0=1227`, `1=232`, `2+=82 -> 0=1222`, `1=237`, `2+=82`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+
+The 15-second pacing stayed rate-limit clean. Batch mode did not create
+Notification rows, send Telegram, update Tokens, write HolderSnapshot, touch
+scheduler / systemd, or create repo-local data diffs. Raw provider payloads and
+Metric rawJson were not dumped.
