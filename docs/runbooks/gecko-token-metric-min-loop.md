@@ -1207,3 +1207,35 @@ pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinute
 Expected writes are limited to Token enrichment, rescore, context capture, and
 review flags. Metric, Notification, HolderSnapshot, Telegram, scheduler,
 systemd, and repo-local data changes are not expected. Do not add `--notify`.
+
+## 2026-05-23 Five-Token Enrich/Rescore Batch Result
+
+The human-approved five-token batch ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+It selected the intended five rows and completed `enrichWritten=5`,
+`rescoreWritten=5`, and `contextWritten=5` with `error=0`, `notifySent=0`,
+`rateLimited=false`, and no 429. Metaplex lookup was attempted for all five,
+but each returned `metadata_account_missing`.
+
+The cohort moved from `mint_only` to `partial`:
+
+- `5624`: `the saviour` / `BALTO`
+- `5623`: `X COMM ADDED` / `Bunker`
+- `5622`: `bank of banks` / `BANKS`
+- `5621`: `Nietzschean Camel` / `Camel`
+- `5620`: `VAULT COIN` / `VAULT`
+
+All five remain score `C` / `0` and `hardRejected=false`. Each still has
+`metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+Metric count, Notification count, HolderSnapshot count, Telegram delivery,
+scheduler/systemd, and repo-local data stayed unchanged.
+
+The minimum loop for this cohort has now confirmed: bounded Token creation,
+first Metric append, rawJson-free report/window visibility, and bounded
+Token-only enrich/rescore/context capture. The next step should be a Green
+read-only report/readiness check before any second Metric write or broader
+backlog work.

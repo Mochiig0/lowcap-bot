@@ -835,3 +835,35 @@ five rows after external GeckoTerminal and best-effort Metaplex fetches.
 Expected non-effects are Metric write `0`, Notification create/update `0`,
 HolderSnapshot write `0`, Telegram send `0`, scheduler / systemd `0`,
 repo-local data diff `0`, and rawJson full dump `0`. Do not add `--notify`.
+
+## 2026-05-23 Enrich/Rescore Batch Result
+
+The approved five-token enrich/rescore batch completed successfully:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`, `error=0`,
+`contextWritten=5`, `metaplexAttempted=5`, `metaplexAvailable=0`,
+`metaplexErrorKindCounts=metadata_account_missing=5`, `notifyWouldSend=0`,
+`notifySent=0`, no provider error, and no 429.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 454 / 10 / 1`, Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`, and retry / auto-send candidates stayed `0`.
+
+The five new rows moved from `mint_only` to `partial` with name/symbol,
+normalized text, Gecko context capture, and review flags. They remain score
+`C` / `0`, `hardRejected=false`, `metricsCount=1`,
+`notificationCount=0`, and `holderSnapshotCount=0`.
+
+The 24h pump queue now has `enrichPendingCount=0`, `metricPendingCount=0`,
+and `notifyCandidateCount=0`; the 168h queue still has
+`enrichPendingCount=420`, `metricPendingCount=260`, and
+`staleReviewCount=420`.
+
+Next selected step should be Green: review the enriched partial cohort through
+read-only reports and decide whether to append a second Metric for these five,
+return to broader Metric accumulation, or preflight the older 168h
+enrich-pending backlog. Scheduler/systemd and auto live send remain locked.

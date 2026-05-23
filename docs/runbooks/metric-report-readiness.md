@@ -880,3 +880,53 @@ best-effort Metaplex context, then update production Token rows. Expected
 non-effects are Metric write, Notification create/update, HolderSnapshot write,
 Telegram send, scheduler / systemd, repo-local data diff, and rawJson full
 dump.
+
+## New Token Enrich/Rescore Batch Result
+
+Date: 2026-05-23 21:34 JST
+
+The approved Red enrich/rescore batch ran once and completed with
+`selected=5`, `enriched=5`, `rescored=5`, `skipped=0`, and `error=0`.
+Gecko context was written for all five rows. Metaplex lookup was attempted for
+all five, but all returned `metadata_account_missing`; no Metaplex context was
+saved. There was no provider error, no 429, and no retry.
+
+DB counts stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+
+The five-token cohort is now:
+
+- `metadataStatus=partial`
+- names / symbols present
+- descriptions absent
+- `normalizedText` present
+- score remains `C / 0`
+- `hardRejected=false`
+- `metricsCount=1`
+- `notificationCount=0`
+- `holderSnapshotCount=0`
+- review flags present with `hasWebsite=false`, `hasX=false`,
+  `hasTelegram=false`, `metaplexHit=false`, `descriptionPresent=false`,
+  `linkCount=0`
+
+Per-token names:
+
+- `5624`: `the saviour` / `BALTO`
+- `5623`: `X COMM ADDED` / `Bunker`
+- `5622`: `bank of banks` / `BANKS`
+- `5621`: `Nietzschean Camel` / `Camel`
+- `5620`: `VAULT COIN` / `VAULT`
+
+Queue after the write:
+
+- 24h pump queue: `enrichPendingCount=0`, `metricPendingCount=0`,
+  `notifyCandidateCount=0`
+- 168h pump queue: `enrichPendingCount=420`, `metricPendingCount=260`,
+  `staleReviewCount=420`, `notifyCandidateCount=0`
+
+This confirms the first Metric samples and metadata/context completion can be
+reviewed separately. No Metric, Notification, HolderSnapshot, Telegram,
+scheduler/systemd, or repo-local data side effect occurred.

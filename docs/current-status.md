@@ -4035,6 +4035,93 @@ Telegram send `0`, scheduler / systemd `0`, repo-local data diff `0`, and
 rawJson full dump `0`. Do not add `--notify`; stop rather than retry if 429,
 provider, network, or selection drift appears.
 
+## New Token Enrich/Rescore Batch Result
+
+Date: 2026-05-23 21:34 JST
+
+After human approval, the bounded enrich/rescore Red ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --write
+```
+
+Result:
+
+- mode: `recent_batch`
+- selected: `5`
+- enriched: `5`
+- rescored: `5`
+- skipped: `0`
+- error: `0`
+- contextWritten: `5`
+- metaplexAttemptedCount: `5`
+- metaplexAvailableCount: `0`
+- metaplexContextWritten: `0`
+- metaplexErrorKindCounts: `metadata_account_missing=5`
+- notifyWouldSend: `0`
+- notifySent: `0`
+- provider error: no
+- 429 / rate-limit error: no
+- retry: no
+
+Counts stayed unchanged:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 454 / 10 / 1 -> 1541 / 454 / 10 / 1`
+- Metric distribution stayed `0=1222`, `1=237`, `2+=82`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+
+Target Token results:
+
+| token id | mint | metadataStatus | name / symbol | score | hardRejected | metrics | notifications | holderSnapshots | reviewFlags |
+|---:|---|---|---|---|---|---:|---:|---:|---|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | `partial` | `the saviour` / `BALTO` | `C` / `0` | `false` | 1 | 0 | 0 | no links |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | `partial` | `X COMM ADDED` / `Bunker` | `C` / `0` | `false` | 1 | 0 | 0 | no links |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | `partial` | `bank of banks` / `BANKS` | `C` / `0` | `false` | 1 | 0 | 0 | no links |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | `partial` | `Nietzschean Camel` / `Camel` | `C` / `0` | `false` | 1 | 0 | 0 | no links |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | `partial` | `VAULT COIN` / `VAULT` | `C` / `0` | `false` | 1 | 0 | 0 | no links |
+
+All five now have `normalizedText`, `enrichedAt`, `rescoredAt`,
+`entrySnapshot.contextCapture.geckoterminalTokenSnapshot`, and
+`reviewFlagsJson`. Gecko context safe summary only reported
+`metadata.name` and `metadata.symbol`; Metaplex metadata accounts were missing
+for all five, so no Metaplex context was saved. Description remains absent.
+
+Queue / planner after:
+
+- 24h pump review queue: `geckoOriginTokenCount=5`,
+  `enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h pump review queue: `geckoOriginTokenCount=425`,
+  `enrichPendingCount=420`, `metricPendingCount=260`,
+  `staleReviewCount=420`, `notifyCandidateCount=0`
+- auto-send planner disabled/enabled: `allowedCandidateCount=0`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- retry planner: `candidateCount=0`
+
+Confirmed side effects:
+
+- external GeckoTerminal fetch occurred
+- best-effort Metaplex fetch occurred
+- production Token update occurred for five rows
+
+Confirmed non-effects:
+
+- Metric write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- auto-send execution `0`
+- retry execution `0`
+- scheduler / systemd `0`
+- repo-local data diff before docs update `0`
+- rawJson full dump `0`
+
+Next useful step should be a Green report/readiness check for the now-`partial`
+five-token cohort. Do not jump to `--notify`, auto live send, scheduler, or
+systemd from this result.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21
