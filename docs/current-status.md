@@ -4519,6 +4519,67 @@ Human approval is required before running this Red command. Do not use
 `timeout`; rely on the explicit `--maxIterations` / `--intervalSeconds`
 bounded run.
 
+## Small Bounded New-Pool Dry-Run Watch Result
+
+Date: 2026-05-23
+
+The human-approved Red dry-run watch command ran exactly once:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+No retry command, second Red command, `timeout`, `--write`, `--live`,
+checkpoint file, metric snapshot, notification send, notification retry
+execution, auto-send execute, ops catch-up, Telegram live send, scheduler,
+systemd, import, enrich, rescore, schema / migration change, app code change,
+rawJson full dump, or secret output occurred.
+
+Execution summary:
+
+- status: `ok`
+- stopReason: `completed`
+- completedIterations / cycleCount: `5 / 5`
+- failedCount: `0`
+- rateLimitRetryCount: `0`
+- importedCount: `0`
+- existingCount: `0`
+- dryRun: `true`
+- writeEnabled: `false`
+- checkpointEnabled: `false`
+- elapsedMs: `241225`
+- selectedCount: `5`
+- acceptedCount: `5`
+- rejectedCount: `0`
+
+Counts before / after:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses:
+  `captured=5`, `sent=5`, `failed=0` before and after
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Confirmed side effects:
+
+- external GeckoTerminal fetch: yes, bounded dry-run watch
+- DB write: no
+- Token write: no
+- Metric write: no
+- Notification create/update: no
+- HolderSnapshot write: no
+- Telegram send: no
+- checkpoint write: no
+- repo-local data diff from command: no
+- scheduler / systemd: no
+- rawJson full dump: no
+
+Judgment: the small bounded dry-run watch succeeded and the no-write boundary
+held after the auto-send slice. The next step can be a Green decision point:
+choose between a small `/tmp` checkpoint write rehearsal or returning to metric
+accumulation / report work. Do not move to scheduler / systemd yet.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

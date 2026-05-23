@@ -42,6 +42,19 @@ Telegram sends, Notification create/update, Metric writes, HolderSnapshot
 writes, and checkpoint writes are all `0`. Do not use `timeout`; keep the run
 bounded by `--maxIterations` and `--intervalSeconds`.
 
+The small bounded dry-run watch has now run successfully once with
+`status=ok`, `stopReason=completed`, `completedIterations=5`, `failedCount=0`,
+`rateLimitRetryCount=0`, `importedCount=0`, `existingCount=0`,
+`dryRun=true`, `writeEnabled=false`, and `checkpointEnabled=false`. Counts
+stayed Token / Metric / Notification / HolderSnapshot `1536 / 449 / 10 / 1`,
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`, and no
+checkpoint or repo-local data diff was observed.
+
+Next useful step should be a Green decision point, not immediate scheduler /
+systemd: either choose a very small `/tmp` checkpoint write rehearsal, or
+return to metric accumulation / report work if avoiding new Token writes is
+preferred.
+
 Second choice: metric accumulation / report lane, if the operator prefers
 safer data accumulation and report quality over moving the monitoring loop
 forward. Do not continue to scheduler / systemd now.

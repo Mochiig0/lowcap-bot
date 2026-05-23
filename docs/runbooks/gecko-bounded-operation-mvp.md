@@ -6150,3 +6150,54 @@ Expected side effects are bounded external fetches only. Expected non-effects:
 DB write `0`, Token write `0`, Metric write `0`, Notification create/update
 `0`, HolderSnapshot write `0`, Telegram send `0`, checkpoint write `0`,
 repo-local data diff `0`, scheduler / systemd `0`, and rawJson full dump `0`.
+
+### Small Bounded Dry-Run Watch Result
+
+Executed on 2026-05-23 after human approval:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+Result:
+
+- status `ok`
+- stopReason `completed`
+- completedIterations `5`
+- cycleCount `5`
+- failedCount `0`
+- rateLimitRetryCount `0`
+- importedCount `0`
+- existingCount `0`
+- dryRun `true`
+- writeEnabled `false`
+- checkpointEnabled `false`
+- selectedCount `5`
+- acceptedCount `5`
+- elapsedMs `241225`
+
+Counts stayed unchanged:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+
+Confirmed boundary:
+
+- external GeckoTerminal fetch occurred
+- DB write `0`
+- Token write `0`
+- Metric write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- checkpoint write `0`
+- repo-local data diff `0`
+- scheduler / systemd `0`
+- rawJson full dump `0`
+
+The detect dry-run watch path is safe to use for bounded no-write verification.
+The next Red, if any, should be selected separately; do not infer write
+rehearsal approval from this dry-run.

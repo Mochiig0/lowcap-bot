@@ -1176,3 +1176,56 @@ would write production Token rows again. Candidate C, metric accumulation /
 report, remains the second lane choice if the operator wants safer data-quality
 work instead of watch-loop readiness. Candidate D, docs-only handoff, is lower
 value now because this preflight produced an exact Red dry-run command.
+
+## 2026-05-23 Small Dry-Run Watch Result
+
+The approved small bounded dry-run watch ran once:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60
+```
+
+Summary:
+
+- status: `ok`
+- stopReason: `completed`
+- completedIterations: `5`
+- cycleCount: `5`
+- failedCount: `0`
+- rateLimitRetryCount: `0`
+- rateLimitRetrySuccessCount: `0`
+- importedCount: `0`
+- existingCount: `0`
+- dryRun: `true`
+- writeEnabled: `false`
+- checkpointEnabled: `false`
+- selectedCount: `5`
+- acceptedCount: `5`
+- rejectedCount: `0`
+- elapsedMs: `241225`
+
+Before / after counts:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1536 / 449 / 10 / 1 -> 1536 / 449 / 10 / 1`
+- Notification statuses:
+  `captured=5`, `sent=5`, `failed=0 -> captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Confirmed side effects:
+
+- external GeckoTerminal fetch: yes
+- DB write: no
+- Token / Metric / Notification / HolderSnapshot write: no
+- Telegram send: no
+- checkpoint write: no
+- repo-local data diff from the command: no
+- scheduler / systemd: no
+- rawJson full dump: no
+
+This confirms the post-auto-send return to the detect dry-run watch lane. The
+next step should be another Green decision point before any Red write
+rehearsal. If forward watch-loop validation is more important than data
+quality, consider a very small `/tmp` checkpoint write rehearsal. If avoiding
+new Token writes is preferred, return to metric accumulation / report work.
