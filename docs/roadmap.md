@@ -892,3 +892,32 @@ partial tokens. This is preferred over immediately expanding into the 168h
 `enrichPendingCount=420` backlog or the 168h `metricPendingCount=260` backlog
 because it completes the narrow five-token loop first. Scheduler/systemd and
 auto live send remain locked.
+
+## 2026-05-24 Second Metric Snapshot Preflight
+
+The Green preflight for the enriched partial five-token cohort confirmed that
+the next bounded Metric Red can remain narrow:
+
+- Current counts: Token / Metric / Notification / HolderSnapshot
+  `1541 / 454 / 10 / 1`
+- Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidates and auto-send allowed candidates: `0`
+- target ids: `5624`, `5623`, `5622`, `5621`, `5620`
+- all target rows are `partial`, score `C / 0`, and `metricsCount=1`
+- latest Metrics `1532..1536` are about `346` minutes old, so
+  `--minGapMinutes 60` is satisfied
+- read-only selection simulation returned `eligibleCount=5`,
+  `selectedCount=5`, and selected exactly the target ids
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected side effect is Metric write up to `+5` after external GeckoTerminal
+fetch. Expected non-effects are Token write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Keep broader 168h Metric / enrich backlogs as later
+lanes; complete this five-token loop first.

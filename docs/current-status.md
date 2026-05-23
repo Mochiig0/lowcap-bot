@@ -4213,6 +4213,103 @@ Risk: Green. It should not write Metrics yet; it should only confirm
 candidate selection, pacing, expected side effects, and one later
 human-approved Red exact command.
 
+## Second Metric Snapshot Preflight for Enriched Partial Five
+
+Date: 2026-05-24 01:43 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green pass checked whether the enriched partial five-token cohort can be
+used for a bounded second Metric snapshot Red. It did not run
+`metric:snapshot:geckoterminal`, `--write`, external fetch, DB write, Token
+write, Metric write, Notification create/update, HolderSnapshot write,
+Telegram send, detect watch, token enrich/rescore, scheduler, systemd, schema
+/ migration, app code change, or rawJson full dump.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Target cohort:
+
+| token id | mint | name / symbol | metadataStatus | metrics | latest Metric | latest observedAt | minutes since latest |
+|---:|---|---|---|---:|---:|---|---:|
+| 5624 | `8YyGDMbZoAnjDrfVsu2oDpjRGab1BqgJHywUUovKpump` | `the saviour` / `BALTO` | `partial` | 1 | 1532 | `2026-05-23T10:56:45.052Z` | 346.7 |
+| 5623 | `3fpUxogyLS2bVFbKSebNWz7jaepcNcUyB7tq6Xnrpump` | `X COMM ADDED` / `Bunker` | `partial` | 1 | 1533 | `2026-05-23T10:57:00.717Z` | 346.5 |
+| 5622 | `XEDfJEWg649WmuLqDvtZjAxFebxKgPJ1b3kqmZVpump` | `bank of banks` / `BANKS` | `partial` | 1 | 1534 | `2026-05-23T10:57:16.220Z` | 346.2 |
+| 5621 | `5qwAMejmrzemp7tBW6y4wFyiWjcrfqXtnExRnFvepump` | `Nietzschean Camel` / `Camel` | `partial` | 1 | 1535 | `2026-05-23T10:57:31.739Z` | 345.9 |
+| 5620 | `ACNm5y6jtbHXaFewMrUzkz1uJJPTYPCVCJzpXx8zpump` | `VAULT COIN` / `VAULT` | `partial` | 1 | 1536 | `2026-05-23T10:57:47.424Z` | 345.7 |
+
+All five remain score `C` / `0`, `hardRejected=false`, `notificationCount=0`,
+and `holderSnapshotCount=0`.
+
+Selection simulation for:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Read-only DB simulation result:
+
+- since cutoff: `2026-05-22T16:43:28.513Z`
+- min observedAt cutoff for `--minGapMinutes 60`:
+  `2026-05-23T15:43:28.513Z`
+- GeckoTerminal-origin eligible count: `5`
+- pump eligible count: `5`
+- gap eligible count: `5`
+- selected count: `5`
+- selected ids: `5624`, `5623`, `5622`, `5621`, `5620`
+- selected mints match the target five exactly
+- selection order follows `firstSeenSourceSnapshot.detectedAt` descending
+- latest Metric age is well beyond 60 minutes for all five, so the min-gap
+  gate should not skip them
+
+Current report baseline was spot-checked with `metrics:window-report` for
+`BALTO` and `VAULT`. Both still show `metricCount=1`, `fdvMetricCount=1`,
+coverage `thin`, `hasWindowFdvSamples=true`, `hasAlertFdvAnchor=false`,
+`entryAnchorQuality=near_30m`, and `outcomeLabel=no_data`.
+
+Queue / planner state:
+
+- 24h pump review queue: `geckoOriginTokenCount=5`,
+  `enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h pump review queue at the 2026-05-24 cutoff:
+  `geckoOriginTokenCount=275`, `enrichPendingCount=270`,
+  `metricPendingCount=110`, `staleReviewCount=270`,
+  `notifyCandidateCount=0`
+- auto-send planner disabled/enabled: `allowedCandidateCount=0`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- retry planner: `candidateCount=0`
+
+Decision:
+
+- Candidate A, second Metric snapshot small Red, is selected. It keeps the
+  current five-token loop narrow and should move the cohort from
+  `metricsCount=1` to `metricsCount=2` if all snapshots succeed.
+- Candidate B, 168h metricPending backlog preflight, remains useful but has a
+  broader Metric write surface.
+- Candidate C, 168h enrichPending backlog preflight, is broader still because
+  it updates Token rows.
+- Candidate D, docs/handoff, is safe but does not advance the loop.
+
+Next Red exact command, not executed here and requiring human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected side effects for that later Red: external GeckoTerminal fetch and
+production DB Metric write up to `+5`. Expected non-effects: Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, and rawJson full dump `0`.
+Keep `--interItemDelayMs 15000`; if 429 or provider error appears, do not retry
+or widen the command in the same task.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

@@ -1002,3 +1002,64 @@ Queue after report review:
 Recommendation: next run a Green preflight for a second Metric snapshot small
 Red targeting these five partial rows. This keeps the narrow cohort moving
 before returning to the broader 168h enrich or Metric backlogs.
+
+## Second Metric Snapshot Preflight for Partial Five
+
+Date: 2026-05-24 01:43 JST
+
+This Green preflight did not run Metric snapshot, did not fetch externally,
+did not write DB rows, and did not dump rawJson. It checked whether the same
+five enriched partial rows can be selected for a second bounded Metric append.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Target cohort:
+
+| token id | symbol | metadataStatus | metrics | latest Metric | latest observedAt | minutes since latest |
+|---:|---|---|---:|---:|---|---:|
+| 5624 | `BALTO` | `partial` | 1 | 1532 | `2026-05-23T10:56:45.052Z` | 346.7 |
+| 5623 | `Bunker` | `partial` | 1 | 1533 | `2026-05-23T10:57:00.717Z` | 346.5 |
+| 5622 | `BANKS` | `partial` | 1 | 1534 | `2026-05-23T10:57:16.220Z` | 346.2 |
+| 5621 | `Camel` | `partial` | 1 | 1535 | `2026-05-23T10:57:31.739Z` | 345.9 |
+| 5620 | `VAULT` | `partial` | 1 | 1536 | `2026-05-23T10:57:47.424Z` | 345.7 |
+
+Selection simulation for `--pumpOnly --limit 5 --sinceMinutes 1440
+--minGapMinutes 60` returned `eligibleCount=5`, `selectedCount=5`, and
+selected ids `5624`, `5623`, `5622`, `5621`, `5620`. There is no selection
+drift at the current 24h cutoff.
+
+Current report baseline was rechecked on two mints:
+
+- `BALTO`: `metricCount=1`, `fdvMetricCount=1`, `thin`,
+  `hasWindowFdvSamples=true`, `hasAlertFdvAnchor=false`,
+  `entryAnchorQuality=near_30m`, `outcomeLabel=no_data`
+- `VAULT`: same baseline fields; 30m / 60m / 120m / 180m / 360m are complete,
+  while 12h / 24h remain provisional at this check time
+
+Queue context:
+
+- 24h pump queue: `geckoOriginTokenCount=5`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h pump queue at the 2026-05-24 cutoff:
+  `geckoOriginTokenCount=275`, `enrichPendingCount=270`,
+  `metricPendingCount=110`, `staleReviewCount=270`,
+  `notifyCandidateCount=0`
+
+Recommended Red command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected result if all five snapshots succeed: each target moves from
+`metricsCount=1` to `metricsCount=2`, improving the window/report sampling
+surface from a single FDV point toward partial coverage. Expected non-effects
+remain Token write `0`, Notification create/update `0`, HolderSnapshot write
+`0`, Telegram send `0`, scheduler/systemd `0`, repo-local data diff `0`, and
+rawJson full dump `0`.

@@ -1266,3 +1266,40 @@ while the 168h queue still has `enrichPendingCount=420` and
 `metricPendingCount=260`. Complete the narrow loop first by preflighting a
 second Metric snapshot for these five partial rows; only then decide whether to
 return to broader 168h enrich or Metric accumulation.
+
+## 2026-05-24 Second Metric Snapshot Preflight
+
+The second-Metric Green preflight kept the same five-token cohort narrow and
+read-only. It did not run Metric snapshot, did not use `--write`, did not fetch
+externally, and did not write Token, Metric, Notification, or HolderSnapshot
+rows.
+
+Current state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 454 / 10 / 1`, with Metric distribution `0=1222`, `1=237`, `2+=82`.
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; retry and
+auto-send candidates stayed `0`.
+
+Read-only simulation for the next candidate command selected exactly the five
+partial rows:
+
+- `5624` / `BALTO` / latest Metric `1532`
+- `5623` / `Bunker` / latest Metric `1533`
+- `5622` / `BANKS` / latest Metric `1534`
+- `5621` / `Camel` / latest Metric `1535`
+- `5620` / `VAULT` / latest Metric `1536`
+
+All five latest Metric observations are about `346` minutes old at preflight
+time, so `--minGapMinutes 60` should not skip them. The selector returned
+`eligibleCount=5` and `selectedCount=5` for `--pumpOnly --limit 5
+--sinceMinutes 1440 --minGapMinutes 60`.
+
+Next human-approved Red exact command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch and Metric write up to
+`+5`. Token update, Notification create/update, HolderSnapshot write, Telegram
+send, repo-local data diff, rawJson full dump, scheduler, and systemd are not
+expected. Do not retry or widen the command if a 429 or provider error appears.

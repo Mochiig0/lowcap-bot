@@ -695,3 +695,62 @@ Rate-limit policy conclusion: do not immediately escalate back to limit 75
 from this result. The next step should be a Green enrich/rescore preflight for
 the five new Metric-1 mint-only rows, while keeping broader Metric
 accumulation as a later option.
+
+## Second Metric Snapshot Limit-5 Preflight
+
+Date: 2026-05-24 01:43 JST
+
+This Green pass did not run `metric:snapshot:geckoterminal`, did not use
+`--write`, did not fetch GeckoTerminal, and did not write DB rows. It checked
+whether the enriched partial five-token cohort can safely run another bounded
+Metric snapshot.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- Token / Metric / Notification / HolderSnapshot: `1541 / 454 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=237`, `2+=82`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Target state:
+
+- target ids: `5624`, `5623`, `5622`, `5621`, `5620`
+- all are GeckoTerminal-origin pump rows with `metadataStatus=partial`
+- all have `metricsCount=1`
+- latest Metric ids are `1532..1536`
+- latest Metric `observedAt` values are
+  `2026-05-23T10:56:45.052Z` through `2026-05-23T10:57:47.424Z`
+- minutes since latest Metric at preflight time: about `346` minutes for all
+  five
+
+Read-only simulation for the candidate command found:
+
+- `geckoOriginEligibleCount=5`
+- `pumpEligibleCount=5`
+- `eligibleCount=5`
+- `selectedCount=5`
+- selected ids: `5624`, `5623`, `5622`, `5621`, `5620`
+- selected mints match the intended five rows exactly
+- `--minGapMinutes 60` should not skip any of them
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Policy:
+
+- Keep `--interItemDelayMs 15000` because the prior limit-5 run with that
+  pacing completed with no 429.
+- Do not add `--watch`, `--live`, notification send, retry execution, auto
+  live send, scheduler, or systemd.
+- Expected Red side effect is Metric write up to `+5` after external
+  GeckoTerminal fetch.
+- Expected Red non-effects are Token write `0`, Notification create/update
+  `0`, HolderSnapshot write `0`, Telegram send `0`, repo-local data diff `0`,
+  and rawJson full dump `0`.
+- If a 429 or provider error appears during the later Red, do not retry in the
+  same task and do not widen the command.
