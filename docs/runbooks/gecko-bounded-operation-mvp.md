@@ -6201,3 +6201,56 @@ Confirmed boundary:
 The detect dry-run watch path is safe to use for bounded no-write verification.
 The next Red, if any, should be selected separately; do not infer write
 rehearsal approval from this dry-run.
+
+### Next Bounded Watch Step Decision
+
+Checked on 2026-05-23 with read-only / docs-only commands.
+
+Latest state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+- 24h GeckoTerminal pump review queue: `geckoOriginTokenCount=0`,
+  `metricPendingCount=0`
+- 168h GeckoTerminal pump review queue: `geckoOriginTokenCount=420`,
+  `enrichPendingCount=420`, `metricPendingCount=260`,
+  `staleReviewCount=420`
+
+Decision:
+
+- Candidate A, small `/tmp` checkpoint write rehearsal, is selected.
+- Candidate B, longer dry-run, is lower value because 5-cycle and historical
+  6h dry-runs already passed.
+- Candidate C, metric accumulation / report, remains a second choice if Token
+  writes should be avoided.
+- Candidate D, docs / handoff, is safe but does not advance the lane.
+
+Next Red exact command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+Expected side effects:
+
+- external GeckoTerminal fetch
+- Token create/reuse through `importMint`, bounded by the selected candidates
+- checkpoint write under `/tmp` only
+
+Expected non-effects:
+
+- Metric write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- auto-send execution `0`
+- scheduler / systemd `0`
+- repo-local data diff `0`
+- rawJson full dump `0`
+
+Human approval is required before running this Red command. Keep the command
+exact; do not add `timeout`, do not use the default repo-local checkpoint, and
+do not combine it with Metric snapshot or notification execution.

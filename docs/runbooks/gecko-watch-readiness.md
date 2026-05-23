@@ -1229,3 +1229,62 @@ next step should be another Green decision point before any Red write
 rehearsal. If forward watch-loop validation is more important than data
 quality, consider a very small `/tmp` checkpoint write rehearsal. If avoiding
 new Token writes is preferred, return to metric accumulation / report work.
+
+## 2026-05-23 Next Step Decision
+
+This Green pass selected one next bounded watch lane step after the successful
+5-cycle dry-run. It did not run detect watch, `--write`, external fetch, DB
+write, Token write, Metric write, Notification create/update, HolderSnapshot
+write, Telegram send, scheduler, systemd, schema / migration, app code change,
+or rawJson full dump.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- HEAD at start: `34699e5 docs: record bounded dry run watch`
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Candidate ranking:
+
+1. Candidate A, small `/tmp` checkpoint write rehearsal. This is the selected
+   next step because it checks the current write boundary after the dry-run
+   without touching scheduler, systemd, Metric, Notification, HolderSnapshot,
+   or Telegram paths.
+2. Candidate C, metric accumulation / report. This is the safest data-quality
+   alternative if the operator decides not to write new Tokens.
+3. Candidate B, longer dry-run. Lower value now because the 5-cycle run and
+   earlier 6h dry-run already passed.
+4. Candidate D, docs / handoff. Safe but stops operational progress.
+
+Next Red exact command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+Expected side effects:
+
+- external GeckoTerminal fetch
+- production DB Token create/reuse for accepted candidates, bounded by
+  `--limit 1` and `--maxIterations 5`
+- checkpoint write only to
+  `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+
+Expected non-effects:
+
+- Metric write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- auto-send execution `0`
+- scheduler / systemd `0`
+- repo-local data diff `0`
+- rawJson full dump `0`
+
+Human approval is required. Scheduler, systemd, always-on auto live send,
+retry execution, and production `--execute` without human approval remain
+locked.

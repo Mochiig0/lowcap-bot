@@ -4580,6 +4580,81 @@ held after the auto-send slice. The next step can be a Green decision point:
 choose between a small `/tmp` checkpoint write rehearsal or returning to metric
 accumulation / report work. Do not move to scheduler / systemd yet.
 
+## Next Bounded Watch Step Decision
+
+Date: 2026-05-23
+
+This Green decision pass selected the next bounded watch lane step after the
+successful 5-cycle dry-run watch. It was read-only / docs-only. No detect
+watch, `--write`, external fetch, DB write, Token write, Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, metric
+snapshot, ops catch-up, notification execution, scheduler / systemd, schema /
+migration change, app code change, rawJson full dump, or secret output
+occurred.
+
+Current state:
+
+- CodexCLI: `codex-cli 0.133.0`
+- HEAD at start: `34699e5 docs: record bounded dry run watch`
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Dry-run result recap:
+
+- status `ok`
+- stopReason `completed`
+- completedIterations `5`
+- failedCount `0`
+- rateLimitRetryCount `0`
+- dryRun `true`
+- writeEnabled `false`
+- checkpointEnabled `false`
+- DB write `0`
+- repo-local data diff `0`
+
+Candidate comparison:
+
+- A, small `/tmp` checkpoint write rehearsal: best next step. It confirms that
+  the current detect watch write path still reaches only mint-first Token
+  accumulation and that checkpoint writes stay isolated to `/tmp`.
+- B, longer dry-run watch: lower value now because the 5-cycle dry-run and the
+  earlier 6h dry-run already cover no-write watch stability.
+- C, metric accumulation / report: useful second choice because Metric `449`
+  and 168h `metricPendingCount=260` still provide data-quality work, but it
+  leaves the detect lane before confirming the current write boundary.
+- D, docs / handoff: safe but stops operational progress.
+
+Recommended next Red exact command, requiring human approval:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+Expected side effects:
+
+- external GeckoTerminal fetch
+- production DB Token create/reuse up to the bounded selected candidates
+- checkpoint write only to
+  `/tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json`
+
+Expected non-effects:
+
+- Metric write `0`
+- Notification create/update `0`
+- HolderSnapshot write `0`
+- Telegram send `0`
+- auto-send execution `0`
+- scheduler / systemd `0`
+- repo-local data diff `0`
+- rawJson full dump `0`
+
+Do not use `timeout`; rely on `--maxIterations=5` and
+`--intervalSeconds=60`. Scheduler, systemd, always-on auto live send, retry
+execution, and production `--execute` without human approval remain locked.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20

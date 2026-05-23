@@ -55,6 +55,19 @@ systemd: either choose a very small `/tmp` checkpoint write rehearsal, or
 return to metric accumulation / report work if avoiding new Token writes is
 preferred.
 
+That Green decision point is now complete. The next bounded watch lane step is
+a small `/tmp` checkpoint write rehearsal:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 5 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-write-rehearsal-20260523-5.json
+```
+
+This requires human approval because it can write production Token rows and a
+`/tmp` checkpoint file. Expected non-effects remain Metric write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+repo-local data diff `0`, scheduler / systemd `0`, and rawJson full dump `0`.
+Do not use `timeout`.
+
 Second choice: metric accumulation / report lane, if the operator prefers
 safer data accumulation and report quality over moving the monitoring loop
 forward. Do not continue to scheduler / systemd now.
