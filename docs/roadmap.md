@@ -11,14 +11,14 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-23
 
-After the first production auto-send one-shot execution, the next single
-Telegram operating slice is **Green: post-send stability review for
-Notification id 10**.
+After the post-send stability review, the next single Telegram operating slice
+is **Green: docs/handoff consolidation for the auto-send single-shot slice**.
 
 This remains separate from scheduler / systemd and does not unlock constant
-auto live-send operation. The next check should verify id `10` stays sent /
-live_send, planner allowed candidate count remains `0`, retry candidate count
-remains `0`, and no additional send path is pending.
+auto live-send operation. The next check should summarize the completed
+manual send, capture-only rehearsal, auto-send planner, one-shot execution,
+and post-send stability checkpoints before choosing whether to return to
+detect / metric accumulation.
 
 Current state for the decision: Token / Metric / Notification / HolderSnapshot
 `1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
@@ -29,8 +29,9 @@ Current state for the decision: Token / Metric / Notification / HolderSnapshot
 HolderSnapshot` stayed `1536 / 449 / 10 / 1` and Notification statuses moved to
 `captured=5`, `sent=5`, `failed=0` after the one-shot auto-send execution. id
 `10` is now sent / live_send and enabled planner `allowedCandidateCount=0`.
-No scheduler, systemd, retry execution, or constant auto live-send operation
-is approved. Detailed notes live in
+The post-send review also confirmed manual live-send candidate count `0` and
+retry candidate count `0`. No scheduler, systemd, retry execution, or
+constant auto live-send operation is approved. Detailed notes live in
 `docs/runbooks/auto-live-send-gate.md`.
 
 ## Next Minimal Task

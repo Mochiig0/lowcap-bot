@@ -904,6 +904,57 @@ manual `notification:send`, Metric snapshot, detector / ops, import, enrich,
 and rescore did not run. Auto live-send one-shot execution path is verified;
 constant operation remains locked.
 
+## Auto-Send Post-Execution Stability Review
+
+Date: 2026-05-23
+
+Notification id `10` was reviewed after the one-shot production auto-send
+execution. This review was read-only / docs-only. No production `--execute`,
+Telegram send, Notification update, DB write, external fetch, retry execution,
+Metric snapshot, detect / ops, `--write`, `--watch`, `--live`, scheduler,
+systemd, schema / migration change, app code change, rawJson full dump, or
+secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- manual live-send candidate count: `0`
+- enabled auto-send candidate count: `0`
+
+id `10` remains:
+
+- status `sent`
+- mode `live_send`
+- trigger `metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- sentAt present
+- lastAttemptAt present
+- failedAt `null`
+- errorCode `null`
+- reason `null`
+
+Enabled planner has `allowedCandidateCount=0`, `selectedNotificationId=null`,
+and stop conditions `no_allowed_candidate` plus
+`only_sent_or_blocked_candidates`. id `10` is blocked by sent-state guards.
+Default and env-enabled no-`--execute` executor runs stop before sender/update
+with `senderCalled=false`, `sentCount=0`, and `updatedCount=0`.
+
+Candidate boundary:
+
+- ids `3` through `6`: SMOKE rows, blocked
+- id `9`: REHEARSAL row, blocked
+- ids `7`, `8`, and `10`: sent rows, blocked
+- retry candidate count: `0`
+
+The auto-send single-shot execution slice can be closed. Scheduler / systemd
+and constant auto live-send operation remain locked. Next recommended task is
+Green docs/handoff consolidation for this slice, or a return to detect /
+metric accumulation before any scheduler work.
+
 ## Capture-Only Notification Preflight
 
 Date: 2026-05-20

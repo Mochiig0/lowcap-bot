@@ -1141,3 +1141,75 @@ Confirmed side effects:
 
 Auto live-send one-shot execution path is verified for id `10`, but constant
 operation remains locked. Scheduler / systemd remain unapproved.
+
+## Post-Send Stability Review
+
+Date: 2026-05-23
+
+This Green review verified Notification id `10` after the successful
+production auto-send one-shot execution. It was read-only / docs-only. No
+production `--execute`, Telegram send, Notification create/update, DB write,
+external fetch, retry execution, Metric snapshot, detector / ops catch-up,
+`--write`, `--watch`, `--live`, scheduler, systemd, schema / migration change,
+app code change, rawJson full dump, or secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- manual live-send candidate count: `0`
+- enabled auto-send candidate count: `0`
+
+Notification id `10`:
+
+- status `sent`
+- mode `live_send`
+- eventType / trigger `metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- production-shaped key: yes
+- SMOKE / REHEARSAL marker: no
+- sentAt present
+- lastAttemptAt present
+- failedAt `null`
+- errorCode `null`
+- reason `null`
+
+Planner / executor review:
+
+- disabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`; id `10` blocked by sent state plus
+  `auto_send_disabled`
+- enabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`,
+  `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`,
+  `wouldSend=false`, `wouldUpdateNotification=false`
+- id `10` blocked by `not_captured_status`, `not_capture_only_mode`,
+  `already_sent`, `sent_at_present`, and `retry_candidate`
+- default no-`--execute` executor: `executeRequested=false`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sendAttempted=false`, `sentCount=0`, `updatedCount=0`
+- env-enabled no-`--execute` executor: `executeRequested=false`,
+  `autoSendEnabled=true`, `selectedNotificationId=null`,
+  `blockedBy=[execute_flag_required]`, `senderCalled=false`,
+  `sendAttempted=false`, `sentCount=0`, `updatedCount=0`
+- retry planner: `candidateCount=0`
+
+Candidate boundary:
+
+- ids `3` through `6`: SMOKE captured rows, still blocked
+- id `9`: REHEARSAL captured row, still blocked
+- ids `7`, `8`, and `10`: sent rows, blocked by sent state / sentAt
+- manual live-send candidate count: `0`
+- auto-send allowed candidate count: `0`
+- retry candidate count: `0`
+
+Judgment: output is sufficient and no additional guard / field is needed now.
+The single-shot auto-send execution slice can be closed. Scheduler / systemd
+and constant auto live-send operation remain locked.
+
+Recommended next task: **Green docs/handoff consolidation for the auto-send
+single-shot slice**. A later lane can return to detect / metric accumulation
+before considering scheduler / systemd.

@@ -4299,6 +4299,67 @@ snapshot, detector / ops catch-up, import, enrich, rescore, scheduler, or
 systemd ran. Auto live-send one-shot execution path is verified, but constant
 operation remains locked.
 
+## Auto-Send Post-Execution Stability Review
+
+Date: 2026-05-23
+
+Notification id `10` was reviewed after the successful production auto-send
+one-shot execution. This was read-only / docs-only. No production `--execute`,
+Telegram send, Notification create/update, DB write, external fetch, retry
+execution, Metric snapshot, detector / ops catch-up, `--write`, `--watch`,
+`--live`, scheduler, systemd, schema / migration change, app code change,
+rawJson full dump, or secret output occurred.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- manual live-send candidate count: `0`
+- enabled auto-send candidate count: `0`
+
+Notification id `10` remains:
+
+- status `sent`
+- mode `live_send`
+- eventType / trigger `metric_appended`
+- notificationKey
+  `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump:metric_appended:1531`
+- sentAt present
+- lastAttemptAt present
+- failedAt `null`
+- errorCode `null`
+- reason `null`
+
+Planner / executor:
+
+- disabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`
+- enabled planner: `allowedCandidateCount=0`,
+  `selectedNotificationId=null`,
+  `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`
+- id `10` is blocked by sent-state guards:
+  `not_captured_status`, `not_capture_only_mode`, `already_sent`,
+  `sent_at_present`, `retry_candidate`
+- default and env-enabled no-`--execute` executor both stopped with
+  `execute_flag_required`, `senderCalled=false`, `sentCount=0`,
+  `updatedCount=0`
+- retry planner candidate count `0`
+
+Candidate boundary:
+
+- ids `3` through `6`: SMOKE rows, blocked
+- id `9`: REHEARSAL row, blocked
+- ids `7`, `8`, and `10`: sent rows, blocked
+- manual live-send candidate count `0`
+- auto-send allowed candidate count `0`
+
+Judgment: output is sufficient; no additional guard / field is needed now.
+The auto-send single-shot execution slice can be closed. Scheduler / systemd
+and constant auto live-send operation remain locked. Next recommended task:
+**Green docs/handoff consolidation for the auto-send single-shot slice**.
+
 ## Metric Snapshot Rehearsal Tag Option
 
 Date: 2026-05-20
