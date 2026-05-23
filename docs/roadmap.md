@@ -11,28 +11,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-23
 
-After the post-send stability review, the next single Telegram operating slice
-is **Green: docs/handoff consolidation for the auto-send single-shot slice**.
+The auto-send single-shot slice is now consolidated. The completed Telegram /
+Notification path includes manual live sends for id `7` and id `8`, smoke /
+rehearsal exclusion, marker-tagged capture-only rehearsal id `9`,
+production-shaped candidate id `10`, read-only `notification:auto-send:plan`,
+disabled-by-default `notification:auto-send:execute`, and one human-approved
+production auto-send execution for id `10`.
 
-This remains separate from scheduler / systemd and does not unlock constant
-auto live-send operation. The next check should summarize the completed
-manual send, capture-only rehearsal, auto-send planner, one-shot execution,
-and post-send stability checkpoints before choosing whether to return to
-detect / metric accumulation.
+Current state: Token / Metric / Notification / HolderSnapshot
+`1536 / 449 / 10 / 1`; Notification statuses `captured=5`, `sent=5`,
+`failed=0`; manual live-send candidate count `0`; retry candidate count `0`;
+enabled auto-send `allowedCandidateCount=0`.
 
-Current state for the decision: Token / Metric / Notification / HolderSnapshot
-`1536 / 448 / 9 / 1`, Notification statuses `captured=5`, `sent=4`,
-`failed=0`, manual live-send candidate count `0`, and retry candidate count
-`0` before the command and `Token / Metric / Notification / HolderSnapshot`
-`1536 / 449 / 10 / 1`, Notification statuses `captured=6`, `sent=4`,
-`failed=0` after the capture candidate, then `Token / Metric / Notification /
-HolderSnapshot` stayed `1536 / 449 / 10 / 1` and Notification statuses moved to
-`captured=5`, `sent=5`, `failed=0` after the one-shot auto-send execution. id
-`10` is now sent / live_send and enabled planner `allowedCandidateCount=0`.
-The post-send review also confirmed manual live-send candidate count `0` and
-retry candidate count `0`. No scheduler, systemd, retry execution, or
-constant auto live-send operation is approved. Detailed notes live in
-`docs/runbooks/auto-live-send-gate.md`.
+Still locked: scheduler, systemd, always-on auto live send, restart
+duplicate-send behavior, continuous worker, background queue, automatic retry
+execution, and production `--execute` without human approval. Auto-send is
+verified as a single-shot path only.
+
+Recommended next lane: **detect / new-pool watch lane**. The next task should
+be **Green: review bounded new-pool watch readiness before Red rehearsal**.
+Risk is **Green** while read-only / docs-first; it becomes **Red** only if a
+later task runs `--write`, `--watch`, or checkpoint-changing execution.
+
+Second choice: metric accumulation / report lane, if the operator prefers
+safer data accumulation and report quality over moving the monitoring loop
+forward. Do not continue to scheduler / systemd now.
 
 ## Next Minimal Task
 

@@ -550,3 +550,24 @@ Detailed design is recorded in `docs/runbooks/auto-live-send-gate.md`. This
 follow-up did not write DB state, send Telegram, fetch externally, update
 Notifications, run retry execution, execute Metric snapshot, or unlock auto
 live send.
+
+## Later Telegram Slice Closure
+
+Date: 2026-05-23
+
+The capture-only rehearsal slice remains complete. Later Telegram work
+advanced through the auto-send gate and then closed at a single-shot boundary:
+
+- id `9` remains the marker-tagged REHEARSAL capture-only row and is excluded
+  from manual live send and retry planning
+- id `10` was later created as the production-shaped capture-only candidate and
+  sent once through the human-approved auto-send single-shot path
+- current Notification status counts are `captured=5`, `sent=5`, `failed=0`
+- manual live-send candidate count, retry candidate count, and enabled
+  auto-send allowed candidate count are all `0`
+
+This later closure does not reopen capture-only rehearsal work. Scheduler,
+systemd, always-on auto live send, background worker, automatic retry
+execution, and production `--execute` without human approval remain locked.
+Next recommended lane is detect / new-pool watch readiness, not another
+capture-only rehearsal.

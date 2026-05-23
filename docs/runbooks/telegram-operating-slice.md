@@ -1199,3 +1199,54 @@ Not selected now:
 Next task to hand to Codex: **Yellow: preflight auto live send gate
 implementation**. It must not send Telegram, must not enable auto live send,
 and must keep scheduler / systemd out of scope.
+
+## Auto-Send Single-Shot Consolidation
+
+Date: 2026-05-23
+
+This consolidation closes the current Telegram operating slice at the
+single-shot boundary. CodexCLI recovery was confirmed with
+`codex-cli 0.133.0`, HEAD `7090996 docs: review auto send post execution
+state`, and a clean working tree before docs updates.
+
+Current read-only state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+The completed Telegram / Notification slice is:
+
+- id `7` manual-approved live send succeeded
+- id `8` manual-approved live send succeeded
+- SMOKE / REHEARSAL guard prevents rehearsal rows from manual live send and
+  retry planning
+- id `9` marker-tagged capture-only rehearsal succeeded and remains excluded
+- id `10` production-shaped capture-only candidate was created
+- `notification:auto-send:plan` provides read-only allowlist, blocked reason,
+  and stop-condition visibility
+- `notification:auto-send:execute` is disabled by default and requires
+  `--execute`, the auto-send kill switch, and a passing planner selection
+- id `10` production auto-send one-shot succeeded and updated only that
+  Notification to `sent/live_send`
+- post-send review confirms id `10` is excluded from resend, retry candidates
+  are `0`, failed rows are `0`, and enabled auto-send candidates are `0`
+
+Locked boundaries remain unchanged:
+
+- no scheduler
+- no systemd
+- no always-on auto live send
+- no background queue / continuous worker
+- no automated notification retry execution
+- no production `--execute` without human approval
+- failed rows require planner review and human approval before retry
+
+Recommended next lane: **detect / new-pool watch readiness**. Next task:
+**Green: review bounded new-pool watch readiness before Red rehearsal**. Metric
+accumulation / report is the second choice if the next chat should prioritize
+safe data quality instead of watch-loop readiness. Do not move to scheduler /
+systemd from here.

@@ -1213,3 +1213,64 @@ and constant auto live-send operation remain locked.
 Recommended next task: **Green docs/handoff consolidation for the auto-send
 single-shot slice**. A later lane can return to detect / metric accumulation
 before considering scheduler / systemd.
+
+## Handoff Consolidation After CodexCLI Update
+
+Date: 2026-05-23
+
+CodexCLI update recovery was checked with `codex-cli 0.133.0`. HEAD at start
+was `7090996 docs: review auto send post execution state`, the working tree was
+clean, and no unfinished docs diff from the interrupted consolidation was
+present.
+
+Read-only verification:
+
+- `pnpm -s mvp:status`: Token / Metric / Notification / HolderSnapshot
+  `1536 / 449 / 10 / 1`
+- Prisma status counts: `captured=5`, `sent=5`, `failed=0`
+- manual live-send candidate count: `0`
+- `pnpm -s notification:retry:plan`: `candidateCount=0`
+- default auto-send planner: `allowedCandidateCount=0`,
+  stop conditions include `auto_send_disabled`, `no_allowed_candidate`, and
+  `only_sent_or_blocked_candidates`
+- enabled auto-send planner:
+  `allowedCandidateCount=0`, `selectedNotificationId=null`,
+  `stopConditionCodes=[no_allowed_candidate,only_sent_or_blocked_candidates]`
+- default and env-enabled no-`--execute` executors both stopped at
+  `execute_flag_required`, with `senderCalled=false`, `sentCount=0`, and
+  `updatedCount=0`
+
+Completed slice:
+
+- manual live send: id `7` sent and id `8` sent
+- guard: SMOKE / REHEARSAL rows are excluded from live send and retry
+- capture-only rehearsal: id `9` remains marker-guarded
+- production-shaped candidate: id `10` was created as `captured/capture_only`
+- planner: `notification:auto-send:plan` remains read-only / dry-run
+- executor: `notification:auto-send:execute` remains disabled by default and
+  requires both `--execute` and `NOTIFICATION_AUTO_SEND_ENABLED=true`
+- production single-shot: id `10` was sent once and updated to `live_send`
+- post-send stability: id `10` is no longer a resend candidate, failed count
+  is `0`, retry candidate count is `0`, and enabled auto-send candidate count
+  is `0`
+
+Still locked:
+
+- scheduler / systemd
+- always-on auto live send
+- restart duplicate-send behavior validation
+- continuous worker / background queue
+- notification retry execution automation
+- production `--execute` without human approval
+
+Recommendation: close the auto-send single-shot slice. The next forward lane
+should be **detect / new-pool watch readiness**, with the next task
+**Green: review bounded new-pool watch readiness before Red rehearsal**.
+Metric accumulation / report is the second choice if safer data quality work is
+preferred. Auto-send hardening can wait unless restart duplicate-send behavior
+becomes the explicit bottleneck.
+
+This consolidation did not run production `--execute`, Telegram send,
+Notification create/update, Token write, Metric write, HolderSnapshot write,
+external fetch, rawJson full dump, retry execution, scheduler, systemd,
+import, enrich, rescore, schema, migration, or app code changes.

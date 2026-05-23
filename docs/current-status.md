@@ -2,7 +2,7 @@
 
 ## Summary
 
-This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for one bounded `metric_appended` ops notification. Auto live send, scheduler, and systemd remain locked; the latest capture-only Notification preflight, smoke / rehearsal send guard, and marker-capable command check are recorded in `docs/runbooks/capture-only-notification-rehearsal.md`.
+This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
@@ -4359,6 +4359,80 @@ Judgment: output is sufficient; no additional guard / field is needed now.
 The auto-send single-shot execution slice can be closed. Scheduler / systemd
 and constant auto live-send operation remain locked. Next recommended task:
 **Green docs/handoff consolidation for the auto-send single-shot slice**.
+
+## Auto-Send Single-Shot Slice Consolidation
+
+Date: 2026-05-23
+
+This Green docs/handoff consolidation resumed safely after the CodexCLI update.
+At start, CodexCLI reported `codex-cli 0.133.0`, HEAD was
+`7090996 docs: review auto send post execution state`, and the working tree was
+clean. No previous in-progress docs diff was present.
+
+Read-only checks confirmed the current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1536 / 449 / 10 / 1`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- manual live-send candidate count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Completed Telegram / Notification slice:
+
+- manual approved live send succeeded for id `7` and id `8`
+- smoke / rehearsal guards exclude SMOKE / REHEARSAL rows from live send and
+  retry planning
+- marker-tagged capture-only rehearsal succeeded with id `9`
+- production-shaped capture-only candidate id `10` was created as
+  `captured/capture_only`
+- `notification:auto-send:plan` is implemented as read-only / dry-run with
+  allowlist, `blockedReasons`, and `stopConditionCodes`
+- `notification:auto-send:execute` is implemented as disabled by default,
+  requires `--execute`, requires the kill switch, and uses the planner gate
+- production auto-send one-shot succeeded for id `10`, updating only the
+  selected Notification row to `sent/live_send`
+- post-send stability is confirmed: id `10` is excluded from resend, enabled
+  planner `allowedCandidateCount=0`, retry candidate count `0`, and failed
+  count `0`
+
+Still locked:
+
+- scheduler
+- systemd
+- always-on auto live send
+- restart duplicate-send behavior verification
+- continuous worker / background queue
+- notification retry execution automation
+- production `--execute` without human approval
+
+If a failed Notification row appears, use the read-only planner first and
+require human approval before any retry execution. Auto-send is only verified
+as a single-shot path, not a constant operating mode.
+
+Next lane comparison:
+
+- detect / new-pool watch lane: best next forward slice because it moves the
+  bounded monitoring MVP toward watch/checkpoint/duplicate handling before any
+  scheduler or systemd work; any write rehearsal remains Red and needs
+  preflight
+- metric accumulation / report lane: safe alternative for data quality,
+  especially with Metric count `449` and 168h metric-pending context, while
+  keeping the alert-FDV anchor issue under Policy C
+- auto-send hardening: useful later for restart duplicate guards or additional
+  tests, but constant operation is too heavy now
+- docs / handoff: completed here as the safe consolidation point
+
+Recommendation: auto-send single-shot is closed. The top next lane is
+detect / new-pool watch readiness. Next task:
+**Green: review bounded new-pool watch readiness before Red rehearsal**.
+Risk: **Green**, read-only / docs-first; it becomes **Red** only if a later
+task runs `--write`, `--watch`, or checkpoint-changing execution.
+
+This consolidation did not run production `--execute`, send Telegram, create or
+update Notifications, write Token / Metric / HolderSnapshot rows, fetch
+externally, print rawJson full dumps, run scheduler / systemd, run import /
+enrich / rescore, or change schema / migration / app code.
 
 ## Metric Snapshot Rehearsal Tag Option
 
