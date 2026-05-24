@@ -1130,6 +1130,33 @@ lookup, and Token update for up to five rows. Expected non-effects are Metric
 write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump.
 
+## 2026-05-24 Eighth Enrich Backlog Batch Result
+
+The human-approved eighth bounded enrich backlog Red ran once with the same
+command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+It completed successfully: `selected=5`, `enriched=5`, `rescored=5`,
+`skipped=0`, `error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry.
+
+The selected ids `5584..5580` moved from `mint_only` to `partial`. Two token
+names/symbols were redacted in docs as offensive terms; the other rows are
+`Jester` / `Jester`, `stop using ai` / `ai`, and `Mintendo` / `MINTENDO`.
+Scores are four `C / 0` rows and one `C / 1` row; all are
+`hardRejected=false`, have no description or social/link flags, and retain
+`metricsCount=2`, `notificationCount=0`, `holderSnapshotCount=0`.
+
+The 168h queue moved from `enrichPendingCount=205` to `200`, with
+`metricPendingCount=85`, `staleReviewCount=200`, and
+`notifyCandidateCount=0`. The default queue remains empty. Next step should be
+Green: review ids `5584..5580` in report/window/queue and decide whether to
+continue another limit 5 enrich backlog Red or switch lanes.
+
 ## 2026-05-24 Sixth Enrich Backlog Batch Result
 
 The sixth bounded 168h enrich backlog Red ran once with the approved command:

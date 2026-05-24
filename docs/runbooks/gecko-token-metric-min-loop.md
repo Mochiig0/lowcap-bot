@@ -1568,6 +1568,67 @@ are Metric write, Notification create/update, HolderSnapshot write, Telegram
 send, scheduler/systemd, repo-local data diff, and rawJson full dump. Do not
 add `--notify`.
 
+## Eighth Bounded Enrich Backlog Batch Result
+
+Date: 2026-05-24 20:57 JST
+
+The approved Red command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary:
+
+- selected: `5`
+- enriched: `5`
+- rescored: `5`
+- skipped selected items: `0`
+- skipped complete rows: `40`
+- error: `0`
+- contextWritten: `5`
+- metaplexAttempted: `5`
+- metaplexAvailable: `0`
+- metaplex error kind: `metadata_account_missing=5`
+- notifyWouldSend: `0`
+- notifySent: `0`
+- provider error: none
+- 429 / rate limited: none
+- retry: none
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, and Notification statuses stayed `captured=5`,
+`sent=5`, `failed=0`.
+
+Selected ids `5584..5580` moved from `mint_only` to `partial`:
+
+- `5584`: offensive name/symbol redacted in docs, score `C / 0`
+- `5583`: offensive name/symbol redacted in docs, score `C / 0`
+- `5582`: `Jester` / `Jester`, score `C / 0`
+- `5581`: `stop using ai` / `ai`, score `C / 1`
+- `5580`: `Mintendo` / `MINTENDO`, score `C / 0`
+
+All five are `hardRejected=false`, description absent, normalized text present,
+`enrichedAt` / `rescoredAt` present, and have reviewFlags with no website, X,
+Telegram, Metaplex hit, description, or links. Each has `metricsCount=2`,
+`notificationCount=0`, and `holderSnapshotCount=0`.
+
+Queue after:
+
+- default queue: `enrichPendingCount=0`, `metricPendingCount=0`,
+  `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+  `metricPendingCount=85`, `staleReviewCount=200`, `notifyCandidateCount=0`
+- auto-send allowed candidates: `0`
+- retry candidates: `0`
+
+Expected non-effects held: no Metric write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
+scheduler/systemd, no repo-local data diff, and no rawJson full dump.
+
+Next selected step: Green review of ids `5584..5580` before approving any
+additional write batch.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch Result
 
 Approved Red command:

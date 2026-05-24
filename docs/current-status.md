@@ -3700,6 +3700,45 @@ are Metric write, Notification create/update, HolderSnapshot write, Telegram
 send, scheduler/systemd, repo-local data diff, and rawJson full dump. Do not
 add `--notify`.
 
+## 2026-05-24 Eighth Enrich Backlog Batch Result
+
+The approved eighth bounded 168h enrich backlog Red ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection skipped `40` already-complete rows.
+Metaplex lookup returned `metadata_account_missing=5`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`. Selected ids `5584..5580` moved from `mint_only` to `partial`.
+The safe summary is:
+
+- `5584` / `5583`: name and symbol are redacted offensive terms, score `C / 0`
+- `5582`: `Jester` / `Jester`, score `C / 0`
+- `5581`: `stop using ai` / `ai`, score `C / 1`
+- `5580`: `Mintendo` / `MINTENDO`, score `C / 0`
+
+All five are `hardRejected=false`, description absent, normalized text
+present, `enrichedAt` / `rescoredAt` present, and reviewFlags present with no
+website, X, Telegram, Metaplex hit, description, or links. Each retained
+`metricsCount=2`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+Queue moved as expected: default queue still has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue now has
+`enrichPendingCount=200`, `metricPendingCount=85`, `staleReviewCount=200`,
+and `notifyCandidateCount=0`. Auto-send allowed candidates and retry
+candidates remain `0`.
+
+Expected non-effects held: no Metric write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
+scheduler/systemd, no repo-local data diff, and no rawJson full dump.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch
 
 Execution time: 2026-05-24 20:23 JST.

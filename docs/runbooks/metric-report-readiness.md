@@ -1330,6 +1330,20 @@ highest-value write step is still bounded enrichment of the remaining backlog,
 not more report-only follow-up for these same rows. Broader metric backlog
 preflight remains a later lane for the remaining `metricPendingCount=85`.
 
+## Eighth Enrich Backlog Batch Report Follow-up Needed
+
+Date: 2026-05-24 20:57 JST
+
+The eighth bounded enrich backlog Red moved ids `5584..5580` from `mint_only`
+to `partial`. The command itself did not run report/window checks; only
+post-write safe summaries and queue/planner checks were performed. Counts
+stayed Token / Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`,
+and the 168h queue moved to `enrichPendingCount=200`,
+`metricPendingCount=85`, `staleReviewCount=200`, `notifyCandidateCount=0`.
+
+Next report task should inspect ids `5584..5580` read-only. Docs intentionally
+redact offensive name/symbol values for two rows and avoid rawJson dumps.
+
 ## Sixth Enrich Backlog Batch Follow-Up Point
 
 Date: 2026-05-24 20:23 JST
