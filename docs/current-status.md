@@ -4726,6 +4726,106 @@ Next useful task should be Green again: inspect this second enriched backlog
 batch through read-only reports / queue state and decide whether to continue
 with another limit-5 enrich backlog Red or switch to Metric/report follow-up.
 
+## Next Enriched Backlog Batch Review
+
+Date: 2026-05-24 12:37 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green review inspected ids `5614..5610` after the second bounded enrich
+backlog Red. It did not run `token:enrich-rescore:geckoterminal --write`,
+`metric:snapshot --write`, detect watch, external fetch, Telegram send,
+Notification update, scheduler/systemd, app/schema changes, or rawJson full
+dumps.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Updated batch safe summary:
+
+- `5614` `Buttcoin` / `Buttcoin`: `metadataStatus=partial`, description
+  absent, normalized text present, score `C / 0`, `hardRejected=false`,
+  reviewFlags all false / `linkCount=0`, `metricsCount=3`,
+  `notificationCount=0`, `holderSnapshotCount=0`, `enrichedAt` /
+  `rescoredAt` set
+- `5613` `LITERALLY SAYS "USD1 ON THE BLOG` / `COMPASS`: same shape,
+  `metricsCount=3`
+- `5612` `SO GENNY 10 MIL` / `COMPASS`: same shape, `metricsCount=3`
+- `5611` `Justice for Wilkie &amp; Keijo` / `W&amp;K`: same shape,
+  `metricsCount=3`
+- `5610` `ITS A USD1 MASCOT` / `COMPASS`: same shape, `metricsCount=3`
+
+`metrics:report` confirmed rawJson-free Metric rows are readable for all five
+rows. Each row has three `geckoterminal.token_snapshot` Metrics; the latest
+Metric ids are `1476`, `1477`, `1478`, `1479`, and `1480`, and the report
+prints safe market-data presence booleans rather than provider payloads.
+
+`metrics:window-report` findings:
+
+- `5614` uses `firstSeenSourceSnapshot.detectedAt` as entry. It has
+  `metricCount=3`, `fdvMetricCount=3`, `entryAnchorQuality=delayed_120m`,
+  30m / 60m `no_data`, 2h `thin`, 3h / 6h / 12h / 24h `partial`,
+  `hasWindowFdvSamples=true` from 2h onward, and `hasAlertFdvAnchor=false`.
+- `5613` has the same shape: `metricCount=3`, `fdvMetricCount=3`,
+  `entryAnchorQuality=delayed_120m`, 30m / 60m `no_data`, 2h `thin`, 3h /
+  6h / 12h / 24h `partial`, `hasWindowFdvSamples=true` from 2h onward, and
+  `hasAlertFdvAnchor=false`.
+- Outcome remains `no_data` for both representative rows because there is no
+  alert FDV anchor / peak multiple.
+
+`tokens:compare-report` with `metadataStatus=partial`, `minMetricsCount=3`,
+and GeckoTerminal latest Metrics includes ids `5614..5610`. They remain
+`outcomeBucket=unresolved`, `outcomeBucketReason=multiple_missing`,
+`currentScoreRank=C`, `currentScoreTotal=0`, with no website, X, Telegram,
+Metaplex hit, description, or links.
+
+Queue / planner context:
+
+- 24h queue: `geckoOriginTokenCount=5`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=230`,
+  `metricPendingCount=85`, `staleReviewCount=230`,
+  `notifyCandidateCount=0`
+- auto-send planner stayed `allowedCandidateCount=0`
+- retry planner stayed `candidateCount=0`
+
+Next selection simulation for the same 168h enrich backlog command selects ids
+`5609`, `5608`, `5607`, `5606`, and `5605`. They are all
+`metadataStatus=mint_only`, `source=geckoterminal.new_pools`, score `C / 0`,
+`hardRejected=false`, `metricsCount=3`, and do not overlap the just-reviewed
+batch.
+
+Candidate comparison:
+
+- Candidate A, repeat limit 5 enrich backlog Red, is selected. It continues
+  the same verified boundary and moves backlog `230 -> 225`.
+- Candidate B, Metric/report follow-up for `5614..5610`, is useful later but
+  does not reduce the enrich backlog; report/window already reads these rows
+  with 3 Metrics.
+- Candidate C, broader metric backlog, remains useful later but shifts lanes.
+- Candidate D, docs/handoff, is safe but does not progress the backlog.
+
+Next Red exact command, not executed here and requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects for that later Red: external GeckoTerminal fetch,
+best-effort Metaplex metadata-uri lookup, and production DB Token
+enrich/rescore/context/reviewFlags update for up to 5 rows. Expected
+non-effects: Metric write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, auto-send / retry execution `0`,
+scheduler/systemd `0`, repo-local data diff `0`, and rawJson full dump `0`.
+Do not add `--notify`; if 429 or provider error appears, do not retry or
+widen the command in the same task.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

@@ -1421,6 +1421,58 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## 2026-05-24 Next Enriched Backlog Batch Review
+
+The follow-up review stayed read-only and inspected ids `5614..5610` after the
+second bounded enrich backlog Red.
+
+Current state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`.
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; retry and
+auto-send candidates stayed `0`.
+
+Batch readiness:
+
+- all five rows are `partial`, score `C / 0`, non-hard-rejected, and have
+  `enrichedAt` / `rescoredAt`
+- names/symbols are present; descriptions and social/link flags are absent
+- normalized text is present
+- reviewFlags are present with `hasWebsite=false`, `hasX=false`,
+  `hasTelegram=false`, `metaplexHit=false`, `descriptionPresent=false`,
+  `linkCount=0`
+- all five have `metricsCount=3`
+- all five have `notificationCount=0` and `holderSnapshotCount=0`
+
+Report findings:
+
+- `metrics:report` reads three Metric rows for each selected token without
+  rawJson; latest Metric ids are `1476..1480`, and reported rows show price /
+  FDV / reserve / top pool presence.
+- `metrics:window-report` for `5614` and `5613` uses firstSeen as entry and
+  shows `entryAnchorQuality=delayed_120m`, 30m / 60m `no_data`, 2h `thin`,
+  and 3h through 24h `partial`.
+- `hasWindowFdvSamples=true` from 2h onward, but `hasAlertFdvAnchor=false`,
+  so outcome remains `no_data`.
+- `tokens:compare-report` includes ids `5614..5610` as partial GeckoTerminal
+  rows with `minMetricsCount=3`; they remain unresolved because latest
+  multiple / peak fields are missing.
+
+The next same-command selection is ids `5609..5605`; all are `mint_only`,
+GeckoTerminal-origin pump rows, score `C / 0`, non-hard-rejected,
+`metricsCount=3`, and do not overlap ids `5614..5610`.
+
+Recommended next Red exact command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex lookup, and Token enrich/rescore/context/reviewFlags
+update for up to five rows. Expected non-effects are Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, repo-local
+data diff, scheduler/systemd, and rawJson full dump.
+
 ## 2026-05-24 Enriched Backlog Batch Review
 
 The follow-up review stayed read-only and inspected ids `5619..5615` after the
