@@ -1420,3 +1420,57 @@ The 168h queue moved from `enrichPendingCount=240` to `235`, with
 Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
+
+## 2026-05-24 Enriched Backlog Batch Review
+
+The follow-up review stayed read-only and inspected ids `5619..5615` after the
+bounded enrich backlog Red.
+
+Current state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`.
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; retry and
+auto-send candidates stayed `0`.
+
+Batch readiness:
+
+- all five rows are `partial`, score `C / 0`, non-hard-rejected, and have
+  `enrichedAt` / `rescoredAt`
+- names/symbols are present; descriptions and social/link flags are absent
+- normalized text is present
+- reviewFlags are present with `hasWebsite=false`, `hasX=false`,
+  `hasTelegram=false`, `metaplexHit=false`, `descriptionPresent=false`,
+  `linkCount=0`
+- `5619` has `metricsCount=5`, `notificationCount=1`
+- `5618..5615` have `metricsCount=4`, `notificationCount=0`
+- all have `holderSnapshotCount=0`
+
+Report findings:
+
+- `metrics:report` reads the Metric rows without rawJson: `5619` has Metric
+  ids `1531`, `1471`, `1396`, `1301`, `1281`; `5618` has `1472`, `1397`,
+  `1302`, `1282`; reported rows show price / FDV / reserve / top pool
+  presence.
+- `metrics:window-report` for `5619` uses sent Notification `id=10` as entry,
+  but no FDV samples exist after that anchor, so checked windows remain
+  `no_data`.
+- `metrics:window-report` for `5618` uses firstSeen as entry and shows 30m /
+  60m `thin`, 2h-12h `partial`, and 24h `usable`; outcome remains `no_data`.
+- `tokens:compare-report` includes all five rows as partial GeckoTerminal rows
+  with `minMetricsCount=4`; they remain unresolved because latest multiple /
+  peak fields are missing.
+
+The next same-command selection is ids `5614..5610`; all are `mint_only`,
+GeckoTerminal-origin pump rows, score `C / 0`, non-hard-rejected,
+`metricsCount=3`, and do not overlap ids `5619..5615`.
+
+Recommended next Red exact command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex lookup, and Token enrich/rescore/context/reviewFlags
+update for up to five rows. Expected non-effects are Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, repo-local
+data diff, scheduler/systemd, and rawJson full dump.

@@ -1016,3 +1016,52 @@ Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, or rawJson full dump. Next step should
 be Green: review this enriched backlog batch and choose between another small
 backlog enrich batch, Metric follow-up, or docs/handoff.
+
+## 2026-05-24 Enriched Backlog Batch Review
+
+The Green review of ids `5619..5615` stayed read-only. Counts stayed Token /
+Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`, Metric
+distribution stayed `0=1222`, `1=232`, `2+=87`, and Notification statuses
+stayed `captured=5`, `sent=5`, `failed=0`.
+
+The reviewed rows are all `metadataStatus=partial`, score `C / 0`,
+`hardRejected=false`, have names/symbols and normalized text, have no
+description or social/link flags, and have `enrichedAt` / `rescoredAt` set.
+Metrics are readable: `5619` has 5 Metrics and one sent Notification; `5618`
+through `5615` have 4 Metrics and no Notifications.
+
+Window/report read-only check:
+
+- `5619` uses sent Notification `id=10` as entry, but has no FDV samples after
+  that sent anchor, so all checked windows remain `no_data`.
+- `5618` uses firstSeen as entry and has 30m / 60m `thin`, 2h-12h `partial`,
+  and 24h `usable`; outcome remains `no_data` because there is no alert FDV
+  anchor / peak multiple.
+
+Queue remains healthy: 24h queue has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue has
+`enrichPendingCount=235`, `metricPendingCount=85`, `staleReviewCount=235`,
+`notifyCandidateCount=0`. Auto-send allowed candidates and retry candidates
+remain `0`.
+
+Next selection for the same bounded enrich command is clear: ids
+`5614..5610`, all `mint_only`, GeckoTerminal-origin pump rows, score `C / 0`,
+`hardRejected=false`, `metricsCount=3`, with no overlap against the reviewed
+batch.
+
+Next selected step: repeat the limit 5 enrich backlog Red. Metric/report
+follow-up for `5619..5615` is second, but additional Metric writes are not
+needed now because this cohort already has 4-5 Metrics and the main remaining
+backlog is enrichPending.
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token enrich/rescore/context/reviewFlags update for up to five
+rows. Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Do not add `--notify`.
