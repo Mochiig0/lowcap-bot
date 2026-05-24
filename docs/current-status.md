@@ -3614,6 +3614,75 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Third Enriched Backlog Batch Review
+
+Date: 2026-05-24 14:11 JST
+
+The Green review of ids `5609..5605` stayed read-only. No `--write`, external
+fetch, Telegram send, Notification update, Metric snapshot, detect watch,
+scheduler/systemd, schema, migration, or app code change was performed.
+
+State stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Batch readiness:
+
+- all five rows are `partial`, non-hard-rejected, with names/symbols,
+  normalized text, reviewFlags, and enrichment/rescore timestamps
+- descriptions and website / X / Telegram / Metaplex / link flags are absent
+- `5609` `PESY` / `PESY`, score `C / 0`, `metricsCount=3`
+- `5608` symbol `UPCOIN`, score `C / 0`, `metricsCount=3`
+- `5607` `Doge Coffee` / `DOGECOFFEE`, score `B / 2`, `metricsCount=3`
+- `5606` `The Predictor` / `KIM`, score `C / 0`, `metricsCount=3`
+- `5605` `FUCKING FAT DILDO` / `FFD`, score `C / 0`, `metricsCount=3`
+- all five have `notificationCount=0` and `holderSnapshotCount=0`
+
+`5607` scoring summary: normalized text is `doge coffee dogecoffee`; the score
+breakdown is core `+2` from the `dog` keyword tagged as `animal`. There are no
+hard-reject reasons, social/link flags, or Notification rows, so
+`notifyCandidateCount=0` is expected.
+
+Report findings:
+
+- `metrics:report` reads three GeckoTerminal token snapshot Metrics for each
+  selected token without raw provider payloads; rows expose safe market-data
+  presence booleans
+- `metrics:window-report` for `5607` and `5609` uses firstSeen as entry,
+  `entryAnchorQuality=delayed_120m`, 30m / 60m `no_data`, 2h `thin`, and
+  3h-24h `partial`
+- outcome remains `no_data` because there is no alert FDV anchor / peak
+  multiple; `hasWindowFdvSamples=true` from 2h onward
+- `tokens:compare-report` includes ids `5609..5605` as partial
+  GeckoTerminal rows with `minMetricsCount=3`; they remain unresolved because
+  latest multiple / peak fields are missing
+
+Queue context stayed compatible with continuing the enrich backlog lane:
+default queue has `enrichPendingCount=0`, `metricPendingCount=0`,
+`notifyCandidateCount=0`; 168h queue has `enrichPendingCount=225`,
+`metricPendingCount=85`, `staleReviewCount=225`, `notifyCandidateCount=0`.
+
+Recommendation: continue with one more limit 5 enrich backlog Red before any
+Metric/report follow-up. The next selection is clear as ids `5604..5600`, all
+`mint_only`, GeckoTerminal-origin pump rows, score `C / 0`,
+`hardRejected=false`, and `metricsCount=3`.
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token enrich/rescore/context/reviewFlags update for up to five
+rows. Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, repo-local data diff, scheduler/systemd,
+and rawJson full dump. Human approval is required; do not add `--notify`.
+
 ## Third Enrich Backlog Batch Result
 
 Date: 2026-05-24 14:01 JST
