@@ -81,19 +81,27 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Green: metric backlog preflight for remaining GeckoTerminal metricPendingCount=85.
+Green: exact-mint Metric 0 backlog preflight.
 Risk: Green. Stay read-only/docs-only; do not run metric:snapshot --write.
-The goal is to inspect selection order, rate-limit pacing, and one future exact
-Red command candidate only if safe.
+The latest metric backlog preflight found that current batch
+metric:snapshot:geckoterminal selection is newest-first and does not reach the
+Metric 0 backlog ids 5380..5464 at limits 5 / 20 / 30 / 75. A later exact-mint
+Red, if approved, should use one known Metric 0 mint and include
+--noNotificationCapture so exact --mint mode does not create a Notification
+row.
 
 Second choice:
-Repeat limit 5 enrich backlog Red after a fresh Green preflight and human
-approval. Known command if selected later:
-pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+Design or preflight a pending-first batch selector for true Metric backlog
+accumulation. Current batch commands such as:
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --write
+would write Metrics to already measured rows first and would not reduce
+metricPendingCount=85.
 
 Third choice:
-Repeat / deepen recent enriched cohort analysis if scoring or notification
-threshold questions come up.
+Repeat limit 5 enrich backlog Red after a fresh Green preflight and human
+approval if the operator wants to return to Token update backlog. Known command
+if selected later:
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
 
 Do not choose next:
 Scheduler / systemd or always-on auto live send. Auto-send is single-shot verified only.

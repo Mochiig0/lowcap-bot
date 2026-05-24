@@ -833,3 +833,99 @@ fetch and Metric writes only. Expected non-effects remain Token update,
 Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, rawJson full dump, and offensive raw
 text dump.
+
+## 168h Metric Backlog Selection Preflight
+
+Date: 2026-05-24 21:41 JST
+
+This Green preflight stayed read-only and docs-only. It did not run
+`metric:snapshot:geckoterminal`, did not use `--write`, did not fetch
+GeckoTerminal, did not write DB rows, did not create or update Notifications,
+and did not print rawJson or offensive raw text.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Queue state:
+
+- default 24h Gecko pump queue:
+  `geckoOriginTokenCount=0`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h Gecko pump queue:
+  `geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+  `metricPendingCount=85`, `staleReviewCount=200`,
+  `notifyCandidateCount=0`
+
+The 168h Metric-pending backlog itself is cleanly shaped:
+
+- count: `85`
+- source distribution: `geckoterminal.new_pools=85`
+- metadataStatus distribution: `mint_only=85`
+- metricsCount distribution: `0=85`
+- scoreRank distribution: `C=85`
+- hardRejected distribution: `false=85`
+- reviewFlags present: `0`
+- website / X / Telegram / Metaplex / description / link presence: `0`
+
+However, the current `metric:snapshot:geckoterminal` batch selector is not a
+Metric-pending selector. In batch mode it:
+
+1. loads recent Tokens by `Token.createdAt >= sinceCutoff`;
+2. keeps GeckoTerminal-origin rows using `entrySnapshot.firstSeenSourceSnapshot`
+   origin where present;
+3. sorts by `selectionAnchorAt` descending, then id descending;
+4. applies `--pumpOnly`;
+5. excludes recent Metrics before `--limit` only when `--minGapMinutes` is set;
+6. applies `--limit`.
+
+With `--sinceMinutes 10080 --minGapMinutes 60`, all 245 recent Gecko pump rows
+are gap-eligible, so the selector stays newest-first and does not prefer
+Metric 0 rows.
+
+Read-only simulation:
+
+- limit 5 selects ids `5624..5620`; all are `partial`, `metricsCount=2`,
+  score `C`, and pass min-gap.
+- limit 20 selects ids `5624..5605`; all are `partial`, with
+  `metricsCount` distribution `2=5`, `3=10`, `4=4`, `5=1`; no Metric 0 row.
+- limit 30 selects ids `5624..5595`; all are `partial`, with
+  `metricsCount` distribution `2=5`, `3=20`, `4=4`, `5=1`; no Metric 0 row.
+- limit 75 selects ids `5624..5550`; distribution is
+  `metadataStatus partial=45`, `mint_only=30`, and
+  `metricsCount 1=11`, `2=33`, `3=26`, `4=4`, `5=1`; no Metric 0 row.
+- the Metric 0 backlog rows are ids `5380..5464`, so they are not reached by
+  any of the checked limits.
+
+`--sinceMinutes 1440` is also not suitable for the current target because the
+24h Gecko pump queue is empty. `--sinceMinutes 10080` is necessary to include
+the backlog window, but not sufficient to target the Metric 0 backlog with the
+current newest-first batch order.
+
+Rate-limit and pacing:
+
+- prior stable Metric accumulation used `--interItemDelayMs 15000`;
+- keep that pacing for future Metric Red commands;
+- past delayed limit 30 / 50 / 75 runs were rate-limit clean, and the latest
+  stable limit 75 wrote 59 Metrics with no 429;
+- this preflight did not identify a new 429 concern, but broad limit 75 is not
+  recommended here because it would not reduce `metricPendingCount=85`.
+
+Decision:
+
+- do not issue a next Red batch command for the stated Metric backlog target;
+- the current batch command candidates would write additional Metrics to
+  already measured rows and leave the Metric 0 backlog untouched;
+- a future safe path should either preflight exact `--mint` mode for one
+  Metric 0 row with `--noNotificationCapture`, or add / preflight a
+  pending-first selector before a batch Metric backlog Red.
+
+Expected side-effect boundary for any later approved batch Metric Red remains
+Metric writes only: no Token write, no Notification create/update in batch
+mode, no HolderSnapshot write, no Telegram send, no scheduler/systemd, no
+repo-local data diff, no rawJson full dump, and no offensive raw text dump.

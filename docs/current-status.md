@@ -3614,6 +3614,49 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## 2026-05-24 Metric Backlog Accumulation Preflight
+
+This Green preflight stayed read-only / docs-only and checked whether the
+remaining 168h GeckoTerminal `metricPendingCount=85` can be handled with the
+current `metric:snapshot:geckoterminal` batch command. No `--write`, external
+fetch, DB write, Telegram send, Notification update, scheduler/systemd,
+rawJson dump, or offensive raw text dump was performed.
+
+Current DB state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`
+and Notification statuses `captured=5`, `sent=5`, `failed=0`. Failed
+notifications, retry candidates, and enabled auto-send allowed candidates all
+remain `0`.
+
+The 168h Gecko pump queue reports `geckoOriginTokenCount=245`,
+`enrichPendingCount=200`, `metricPendingCount=85`, `staleReviewCount=200`, and
+`notifyCandidateCount=0`. The Metric-pending rows are all
+`geckoterminal.new_pools`, `metadataStatus=mint_only`, `metricsCount=0`,
+score `C`, and `hardRejected=false`; they also have no reviewFlags, website,
+X, Telegram, Metaplex hit, description, or links.
+
+Important selector finding: current `metric:snapshot:geckoterminal` batch mode
+is newest-first by `selectionAnchorAt` and is not Metric-pending-first.
+With `--sinceMinutes 10080 --minGapMinutes 60`, all 245 Gecko pump rows are
+eligible, so limit 5 / 20 / 30 / 75 select newer already measured rows first:
+
+- limit 5: ids `5624..5620`, all `partial`, `metricsCount=2`
+- limit 20: ids `5624..5605`, all `partial`, no Metric 0 row
+- limit 30: ids `5624..5595`, all `partial`, no Metric 0 row
+- limit 75: ids `5624..5550`, `partial=45`, `mint_only=30`, but still no
+  Metric 0 row
+
+The actual Metric 0 backlog rows are ids `5380..5464`; they are not reached by
+the checked batch limits. `--sinceMinutes 1440` is not suitable either because
+the current 24h Gecko pump queue is empty.
+
+Conclusion: no next Red batch command is fixed from this preflight. Running a
+limit 20 or limit 75 batch now would append Metrics to already measured rows
+and would not reduce the stated `metricPendingCount=85` backlog. The next
+recommended step is another Green preflight that targets one Metric 0 row via
+exact `--mint` mode with `--noNotificationCapture`, or designs a pending-first
+batch selection before any Metric backlog Red.
+
 ## 2026-05-24 Seventh Enriched Backlog Batch Review
 
 The Green review of ids `5589..5585` stayed read-only. Codex version was

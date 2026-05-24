@@ -1066,6 +1066,38 @@ rows. Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## 2026-05-24 Metric Backlog Lane Decision
+
+The Green metric backlog preflight is complete. It confirmed that the current
+168h queue still has `metricPendingCount=85`, but the existing
+`metric:snapshot:geckoterminal` batch selector does not target those rows.
+Batch mode orders eligible GeckoTerminal-origin pump rows newest-first by
+`selectionAnchorAt`; with `--sinceMinutes 10080 --minGapMinutes 60`, all 245
+recent Gecko pump rows are eligible.
+
+Read-only simulation showed:
+
+- limit 5 selects ids `5624..5620`, all already measured with
+  `metricsCount=2`;
+- limit 20 selects ids `5624..5605`, all partial and already measured;
+- limit 30 selects ids `5624..5595`, all partial and already measured;
+- limit 75 selects ids `5624..5550`, with `partial=45`, `mint_only=30`, and no
+  Metric 0 rows;
+- the Metric 0 backlog rows are ids `5380..5464`.
+
+Therefore, do not run a batch Metric backlog Red yet. A batch limit 20 or limit
+75 command would write additional Metrics to already measured rows and leave
+`metricPendingCount=85` unchanged.
+
+Next selected task: **Green exact-mint Metric 0 backlog preflight**. It should
+choose one known Metric 0 row, confirm exact `--mint` behavior, include
+`--noNotificationCapture` if writing is later approved, and only then decide
+whether a single-row Red is acceptable. A later Yellow / design option is a
+pending-first batch selector for true Metric backlog accumulation.
+
+Scheduler, systemd, always-on auto live send, notification retry execution, and
+production auto-send remain locked.
+
 ## 2026-05-24 Seventh Enrich Backlog Review Decision
 
 The seventh bounded 168h enrich backlog review inspected ids `5589..5585`

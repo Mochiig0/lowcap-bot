@@ -1421,6 +1421,37 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## 2026-05-24 Metric Backlog Accumulation Preflight
+
+The Green preflight for returning from enrich backlog work to Metric
+accumulation stayed read-only and docs-only. It did not run
+`metric:snapshot:geckoterminal`, did not use `--write`, did not fetch
+GeckoTerminal, and did not write DB state.
+
+Current state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`; Notification statuses stayed `captured=5`, `sent=5`, `failed=0`;
+retry and enabled auto-send allowed candidates stayed `0`.
+
+The 168h queue still has `metricPendingCount=85`, but the current
+`metric:snapshot:geckoterminal` batch selection does not target that queue. It
+selects recent GeckoTerminal-origin pump rows by newest selection anchor first.
+With `--sinceMinutes 10080 --minGapMinutes 60`, the checked limits select:
+
+- limit 5: ids `5624..5620`, already `metricsCount=2`
+- limit 20: ids `5624..5605`, already measured
+- limit 30: ids `5624..5595`, already measured
+- limit 75: ids `5624..5550`, `metricsCount=1..5`, no Metric 0 rows
+
+The actual Metric 0 backlog rows are ids `5380..5464`, all `mint_only`,
+score `C`, `hardRejected=false`, and not reached by those batch limits.
+
+No next batch Red command is recommended from this preflight. The next safe
+task is Green: preflight one exact Metric 0 row using exact `--mint` mode and
+include `--noNotificationCapture` in any later human-approved write command,
+or design a pending-first batch selector before trying to reduce the Metric
+backlog in batch mode.
+
 ## Seventh Bounded Enrich Backlog Batch Review
 
 Date: 2026-05-24 20:43 JST

@@ -1265,6 +1265,46 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## Metric Backlog Report/Selection Preflight
+
+Date: 2026-05-24 21:41 JST
+
+The post-enriched-cohort Metric backlog preflight stayed read-only. It did not
+run `metric:snapshot:geckoterminal`, did not fetch external APIs, did not write
+Metrics or Tokens, did not touch Notifications, and did not dump rawJson or
+offensive raw text.
+
+Read-only state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+The 168h queue still has `metricPendingCount=85`, but those rows are older
+Metric 0 rows: ids `5380..5464`, all `mint_only`, score `C`,
+`hardRejected=false`, and raw-text-free in this summary.
+
+The current batch Metric snapshot selector does not reach those rows at the
+checked limits. With `--sinceMinutes 10080 --minGapMinutes 60`, it selects
+newer already measured rows first:
+
+- limit 5: ids `5624..5620`, `metricsCount=2`
+- limit 20: ids `5624..5605`, `metricsCount=2..5`
+- limit 30: ids `5624..5595`, `metricsCount=2..5`
+- limit 75: ids `5624..5550`, `metricsCount=1..5`, no Metric 0 rows
+
+This means a batch Metric Red would improve sampling density for already
+measured rows, but it would not improve the report state of the Metric 0
+backlog and would not reduce `metricPendingCount=85`.
+
+Recommendation for report readiness: before the next Metric write Red, run a
+Green exact-mint Metric 0 preflight for one selected backlog row and confirm
+that `--noNotificationCapture` is part of the later exact `--mint --write`
+command. If broader Metric backlog processing is desired, design or preflight
+a pending-first batch selection path first.
+
 ## Seventh Enriched Backlog Batch Report Review
 
 Date: 2026-05-24 20:43 JST
