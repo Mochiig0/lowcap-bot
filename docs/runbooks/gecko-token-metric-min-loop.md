@@ -1343,3 +1343,46 @@ This completes the narrow five-token minimum loop through Token creation,
 first Metric, enrich/rescore, second Metric, and report verification. Next,
 preflight the 168h GeckoTerminal enrichPending backlog before any wider Token
 update Red.
+
+## 2026-05-24 168h Enrich Backlog Preflight
+
+The narrow five-token loop is complete, so the next Green pass inspected the
+broader 168h GeckoTerminal pump enrichPending backlog without writes or
+external fetches.
+
+Current state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`.
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; retry and
+auto-send candidates stayed `0`.
+
+Backlog shape for `--pumpOnly --sinceMinutes 10080`:
+
+- enrichPending count: `240`
+- all pending rows are `metadataStatus=mint_only`
+- all pending rows are GeckoTerminal-origin pump rows
+- Metric count distribution: `0=85`, `1=96`, `2+=59`
+- score distribution: `C=240`
+- hardRejected distribution: `false=240`
+- narrow loop overlap: `0`
+
+The enrich/rescore CLI accepts `--sinceMinutes`, not `--sinceHours`, so 168h
+must be represented as `10080` minutes. Batch selection is deterministic by
+`firstSeenSourceSnapshot.detectedAt` when present, otherwise `Token.createdAt`.
+
+Selection simulation:
+
+- limit 5: ids `5619`, `5618`, `5617`, `5616`, `5615`
+- limit 10: ids `5619..5610`
+- limit 20: ids `5619..5600`
+
+Next human-approved Red exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+metadata-uri fetch, and Token enrich/rescore/context/reviewFlags update for up
+to five rows. Metric write, Notification create/update, HolderSnapshot write,
+Telegram send, repo-local data diff, rawJson full dump, scheduler, and systemd
+are not expected. Do not add `--notify`.

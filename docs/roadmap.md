@@ -950,3 +950,36 @@ Next selected lane: Green preflight for the 168h GeckoTerminal enrichPending
 backlog. The narrow five-token loop has now completed through second Metric
 and report verification, so broader backlog work should be audited read-only
 before any wider Red.
+
+## 2026-05-24 Enrich Backlog Preflight
+
+The Green preflight for the 168h GeckoTerminal enrichPending backlog confirmed
+that the next wider Red can remain a small batch:
+
+- Current counts: Token / Metric / Notification / HolderSnapshot
+  `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidates and auto-send allowed candidates: `0`
+- `token:enrich-rescore:geckoterminal` supports `--sinceMinutes`, not
+  `--sinceHours`; use `10080` minutes for 168h
+- 168h pump enrichPending count: `240`
+- backlog shape: all `mint_only`, all `source=geckoterminal.new_pools`, all
+  score `C / 0`, all `hardRejected=false`
+- metricsCount distribution inside the backlog: `0=85`, `1=96`, `2+=59`
+- selection simulation for limit 5 selects ids `5619..5615`
+- selection simulation for limit 10 selects ids `5619..5610`
+- selection simulation for limit 20 selects ids `5619..5600`
+- the completed narrow-loop ids `5624..5620` are not selected
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effect is Token enrich/rescore/context/reviewFlags update for up
+to five rows after GeckoTerminal and best-effort Metaplex fetches. Expected
+non-effects are Metric write, Notification create/update, HolderSnapshot
+write, Telegram send, scheduler/systemd, repo-local data diff, and rawJson full
+dump. Do not add `--notify`.

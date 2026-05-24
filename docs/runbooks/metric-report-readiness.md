@@ -1123,3 +1123,54 @@ This confirms the second Metric improved longer-window sample coverage, but it
 does not change alert-anchored outcome classification for no-Notification rows.
 The next useful Green lane is a read-only preflight for the 168h
 GeckoTerminal enrichPending backlog.
+
+## Enrich Backlog Preflight After Second Metric
+
+Date: 2026-05-24 09:57 JST
+
+After the five-token cohort reached second Metric and report verification, a
+Green preflight inspected the 168h GeckoTerminal enrichPending backlog. It did
+not run enrich/rescore, Metric snapshot, detect watch, `--write`, `--notify`,
+external fetch, Telegram send, Notification update, or rawJson full dump.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Backlog state:
+
+- 168h GeckoTerminal-origin count: `245`
+- complete Gecko rows skipped by enrich selector: `5`
+- enrichPending count: `240`
+- pumpOnly enrichPending count: `240`
+- metadataStatus distribution: `mint_only=240`
+- source distribution: `geckoterminal.new_pools=240`
+- metricsCount distribution: `0=85`, `1=96`, `2+=59`
+- scoreRank distribution: `C=240`
+- hardRejected distribution: `false=240`
+- narrow-loop overlap count: `0`
+
+Selection simulation:
+
+- limit 5 selects ids `5619`, `5618`, `5617`, `5616`, `5615`
+- limit 10 selects ids `5619..5610`
+- limit 20 selects ids `5619..5600`
+- selected rows are all `mint_only`, `C / 0`, non-hard-rejected,
+  GeckoTerminal-origin pump rows
+- selection does not include the completed narrow-loop ids `5624..5620`
+
+Recommended Red command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+This Red would update Token enrichment/rescore/context/reviewFlags for at most
+five rows after external GeckoTerminal and best-effort Metaplex fetches. It
+should not write Metrics, create/update Notifications, write HolderSnapshots,
+send Telegram, touch scheduler/systemd, create repo-local data diffs, or dump
+rawJson. Human approval is required; do not add `--notify`.

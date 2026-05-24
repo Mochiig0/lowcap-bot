@@ -4382,6 +4382,101 @@ creation, first Metric, enrich/rescore, second Metric, and report visibility;
 the broader backlog should be audited read-only before any wider Token update
 or Metric write Red.
 
+## 168h GeckoTerminal Enrich Backlog Preflight
+
+Date: 2026-05-24 09:57 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+This Green pass audited the broader GeckoTerminal enrichPending backlog after
+the five-token narrow loop reached second Metric and report verification. It
+did not run `token:enrich-rescore:geckoterminal`, did not use `--write`, did
+not use `--notify`, did not fetch externally, and did not write DB rows,
+Notifications, Metrics, HolderSnapshots, Tokens, scheduler/systemd units, app
+code, schema, migrations, or rawJson full dumps.
+
+Current DB state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+CLI / source boundary:
+
+- package script: `token:enrich-rescore:geckoterminal` ->
+  `tsx src/cli/tokenEnrichRescoreGeckoterminal.ts`
+- supported options: `--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`,
+  `--write`, `--notify`
+- the CLI does not accept `--sinceHours`; use `--sinceMinutes 10080` for a
+  168h window
+- recent batch mode selects GeckoTerminal-origin rows by
+  `firstSeenSourceSnapshot.detectedAt` when present, otherwise `Token.createdAt`
+- batch selection only includes rows missing `name` or `symbol`
+- `--write` updates Token enrichment/rescore/context/reviewFlags only
+- GeckoTerminal token snapshot fetch runs once per selected token; after a
+  successful primary fetch, best-effort Metaplex metadata-uri lookup may run
+- batch execution stops early after the first 429 token snapshot error
+- `--notify` is not included in the proposed command; without `--notify`, no
+  Telegram send is expected
+- Metric and HolderSnapshot writes are not part of this command path
+
+168h backlog state for `--sinceMinutes 10080 --pumpOnly`:
+
+- GeckoTerminal-origin count: `245`
+- complete Gecko rows skipped by enrich selector: `5`
+- enrichPending count: `240`
+- pumpOnly enrichPending count: `240`
+- skipped non-pump count: `0`
+- metadataStatus distribution: `mint_only=240`
+- source / originSource distribution: `geckoterminal.new_pools=240`
+- metricsCount distribution: `0=85`, `1=96`, `2+=59`
+- scoreRank distribution: `C=240`
+- hardRejected distribution: `false=240`
+- narrow-loop overlap count: `0`
+- newest pending anchor: `2026-05-18T15:36:09.127Z`
+- oldest pending anchor: `2026-05-18T11:07:00.841Z`
+
+Selection simulation:
+
+- limit 5 selects ids `5619`, `5618`, `5617`, `5616`, `5615`
+- limit 10 selects ids `5619..5610`
+- limit 20 selects ids `5619..5600`
+- all selected rows are `metadataStatus=mint_only`, `scoreRank=C`,
+  `scoreTotal=0`, `hardRejected=false`, and
+  `source=geckoterminal.new_pools`
+- narrow-loop overlap is `0` for limit 5, 10, and 20
+- limit 5 metricsCount shape: one row with 5 Metrics and four rows with 4
+  Metrics; id `5619` already has one Notification row, but the proposed command
+  has no Notification update path because `--notify` is omitted
+
+Candidate comparison:
+
+- Candidate A, limit 5 backlog enrich/rescore Red, is selected. It keeps Token
+  update scope to at most 5 rows and avoids selection ambiguity.
+- Candidate B, limit 10 backlog enrich/rescore Red, is viable later but doubles
+  Token update and external fetch scope.
+- Candidate C, exact mint 1 Red, is safer but too small now that batch
+  selection is clear.
+- Candidate D, docs/Metric backlog, is safe but leaves enrichPending untouched.
+
+Next Red exact command, not executed here and requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects for that later Red: external GeckoTerminal fetch,
+best-effort Metaplex metadata-uri fetch, and production DB Token
+enrich/rescore/context/reviewFlags updates for up to 5 rows. Expected
+non-effects: Metric write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, retry execution `0`, auto live
+send `0`, scheduler/systemd `0`, repo-local data diff `0`, and rawJson full
+dump `0`. Do not add `--notify`; if 429 or provider error appears, do not
+retry or widen the command in the same task.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21
