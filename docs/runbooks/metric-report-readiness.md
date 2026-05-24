@@ -1305,6 +1305,31 @@ recommended operating step is not another report command, but a Green progress
 consolidation / handoff across the repeated enrich backlog batches before more
 write batches are approved.
 
+## Enrich Backlog Progress Consolidation
+
+Date: 2026-05-24 20:52 JST
+
+The repeated bounded enrich backlog Reds have produced a 35-row partial cohort
+without needing immediate Metric/report follow-up. Every processed row in ids
+`5619..5585` has at least two Metrics, is visible through read-only report
+surfaces, and remains unresolved mainly because alert-anchor / peak-multiple
+fields are absent rather than because report data is unreadable.
+
+Consolidated cohort quality:
+
+- `metadataStatus=partial`: `35`
+- score distribution: `C=34`, `B=1`
+- score totals: `0=32`, `1=2`, `2=1`
+- hard rejected: `0`
+- website / X / Telegram / Metaplex / description / link presence: `0`
+- notify candidates in queue: `0`
+- Metric bucket inside the cohort: all `2+`
+
+This means the report lane can continue to read the cohort, but the next
+highest-value write step is still bounded enrichment of the remaining backlog,
+not more report-only follow-up for these same rows. Broader metric backlog
+preflight remains a later lane for the remaining `metricPendingCount=85`.
+
 ## Sixth Enrich Backlog Batch Follow-Up Point
 
 Date: 2026-05-24 20:23 JST

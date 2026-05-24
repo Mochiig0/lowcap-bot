@@ -1092,6 +1092,44 @@ batches with no provider error, no 429, no retry, and no notify/Metric side
 effects, a short consolidation is the safer next operating step. Scheduler,
 systemd, always-on auto live send, and retry execution remain locked.
 
+## 2026-05-24 Enrich Backlog Progress Consolidation
+
+The consolidation reviewed seven consecutive bounded enrich backlog batches,
+ids `5619..5585`, all run as limit 5 batches without `--notify`. They processed
+35 Token rows and moved the 168h `enrichPendingCount` from the original 240
+baseline to the current 205. Current 168h queue also shows
+`metricPendingCount=85`, `staleReviewCount=205`, and `notifyCandidateCount=0`;
+default queue has no pending/candidate rows.
+
+Quality summary for the 35-row partial cohort: `scoreRank` distribution is
+`C=34`, `B=1`; `scoreTotal` distribution is `0=32`, `1=2`, `2=1`;
+`hardRejected=0`. Notable rows are `5607` `B / 2`, plus `5596` and `5590`
+`C / 1`. Website, X, Telegram, Metaplex hit, description, and link presence
+are all zero across the cohort, which explains why `notifyCandidateCount`
+remains `0`.
+
+Safety summary: repeated Reds have shown no provider error, no 429, no retry,
+no Metric write, no Notification create/update, no HolderSnapshot write, no
+Telegram send, no scheduler/systemd, no repo-local data diff, and no rawJson
+full dump.
+
+Next selected step: repeat limit 5 enrich backlog Red. Broader metric backlog
+preflight is second, and recent cohort analysis is now mostly covered by this
+consolidation. The next selection is ids `5584..5580`, all `mint_only`, score
+`C / 0`, non-hard-rejected, GeckoTerminal-origin pump rows with
+`metricsCount=2`.
+
+Human-approved Red exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token update for up to five rows. Expected non-effects are Metric
+write, Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, repo-local data diff, and rawJson full dump.
+
 ## 2026-05-24 Sixth Enrich Backlog Batch Result
 
 The sixth bounded 168h enrich backlog Red ran once with the approved command:

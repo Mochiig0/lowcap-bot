@@ -1491,6 +1491,83 @@ Next selected step: Green progress consolidation / handoff. Do not run the next
 write batch until the accumulated progress, score distribution,
 `notifyCandidate=0` context, and remaining backlog are summarized.
 
+## Enrich Backlog Progress Consolidation
+
+Date: 2026-05-24 20:52 JST
+
+This consolidation stayed read-only / docs-only. No enrich/rescore write,
+Metric snapshot write, detect watch, Telegram send, Notification update,
+scheduler/systemd, external fetch, schema/migration/app code change, or rawJson
+full dump was performed.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Progress:
+
+- processed batch count: `7`
+- processed token count: `35`
+- processed ids: `5619..5585`
+- first backlog preflight `enrichPendingCount`: `240`
+- current 168h `enrichPendingCount`: `205`
+- remaining 168h `metricPendingCount`: `85`
+- current 168h `staleReviewCount`: `205`
+- current 168h `notifyCandidateCount`: `0`
+- selected item `skipped=0`, `error=0`, provider error `0`, 429 `0`, retry
+  `0` across the repeated batches
+
+Quality for ids `5619..5585`:
+
+- `metadataStatus=partial`: `35`
+- source `geckoterminal.new_pools`: `35`
+- `scoreRank`: `C=34`, `B=1`
+- `scoreTotal`: `0=32`, `1=2`, `2=1`
+- `hardRejected`: `0`
+- `descriptionPresent`: `0`
+- `normalizedTextPresent`: `35`
+- `enrichedAt` / `rescoredAt` present: `35`
+- reviewFlags presence: no website, X, Telegram, Metaplex hit, description, or
+  links across the cohort
+- Metric distribution within the cohort: `2+=35`
+- Notification rows linked inside the cohort: `1` (`5619`)
+
+Notable score rows:
+
+- `5607` `Doge Coffee` / `DOGECOFFEE`: `B / 2`, core keyword `dog`
+- `5596` `Self-Replicating Tweet` / `.....`: `C / 1`, core keyword `cat`
+- `5590` `Sketichification` / `Sketchify`: `C / 1`, core keyword `cat`
+
+Boundary:
+
+- writes observed in Reds: Token enrich/rescore/context/reviewFlags updates
+  only
+- non-effects: Metric write, Notification create/update, HolderSnapshot write,
+  Telegram send, auto-send execution, retry execution, scheduler/systemd,
+  repo-local data diff, rawJson full dump
+
+Next selection simulation for the same command is ids `5584..5580`; each is
+`mint_only`, `C / 0`, `hardRejected=false`, GeckoTerminal-origin pump, and has
+`metricsCount=2`.
+
+Next selected step: repeat the bounded limit 5 enrich backlog Red. Human
+approval is required:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and production Token update for up to five rows. Expected non-effects
+are Metric write, Notification create/update, HolderSnapshot write, Telegram
+send, scheduler/systemd, repo-local data diff, and rawJson full dump. Do not
+add `--notify`.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch Result
 
 Approved Red command:

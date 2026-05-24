@@ -3654,6 +3654,52 @@ data diff. The repeat limit 5 enrich backlog command remains technically
 available, but the next selected step should consolidate progress, score /
 notifyCandidate distribution, and remaining backlog before another write.
 
+## 2026-05-24 Enrich Backlog Progress Consolidation
+
+The Green consolidation stayed read-only / docs-only. Codex version was
+`codex-cli 0.133.0`. Current counts remain Token / Metric / Notification /
+HolderSnapshot `1541 / 459 / 10 / 1`, Metric distribution `0=1222`, `1=232`,
+`2+=87`, and Notification statuses `captured=5`, `sent=5`, `failed=0`.
+Retry candidates and enabled auto-send allowed candidates are both `0`.
+
+The consecutive bounded 168h enrich backlog Red batches have processed seven
+limit-5 batches, ids `5619..5585`, for 35 total Token row updates. The first
+backlog preflight baseline was `enrichPendingCount=240`; current 168h queue
+has `enrichPendingCount=205`, `metricPendingCount=85`, `staleReviewCount=205`,
+and `notifyCandidateCount=0`. All 35 processed rows are now `partial`,
+GeckoTerminal-origin pump rows with normalized text, reviewFlags,
+`enrichedAt`, and `rescoredAt`.
+
+Cohort quality for ids `5619..5585`: scoreRank distribution is `C=34`,
+`B=1`; scoreTotal distribution is `0=32`, `1=2`, `2=1`. `hardRejected=0`.
+The notable rows are `5607` `Doge Coffee` / `DOGECOFFEE` at `B / 2` from core
+keyword `dog`, and `5596` / `5590` at `C / 1` from core keyword `cat`. No
+reviewed row has website, X, Telegram, Metaplex hit, description, or links.
+Only `5619` has an existing Notification row; current queue still has
+`notifyCandidateCount=0`.
+
+Safety boundary remains intact across the repeated Reds: each selected batch
+updated Token enrichment/rescore/context/reviewFlags only. There were no Metric
+writes, Notification create/update writes, HolderSnapshot writes, Telegram
+sends, auto-send execution, retry execution, scheduler/systemd changes,
+repo-local data diffs, provider errors, 429s, or rawJson full dumps.
+
+Next selection simulation for the same command is clear: ids `5584..5580`, all
+`mint_only`, score `C / 0`, `hardRejected=false`, GeckoTerminal-origin pump
+rows with `metricsCount=2`. With counts and planners healthy, the next selected
+step is to resume the same bounded limit 5 enrich backlog Red, with human
+approval required:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and production Token update for up to five rows. Expected non-effects
+are Metric write, Notification create/update, HolderSnapshot write, Telegram
+send, scheduler/systemd, repo-local data diff, and rawJson full dump. Do not
+add `--notify`.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch
 
 Execution time: 2026-05-24 20:23 JST.
