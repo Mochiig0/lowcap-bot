@@ -1289,6 +1289,55 @@ retry planner checks. Expected report boundary is unchanged: no raw provider
 payload dump, no DB write, no external fetch, no Telegram send, and no
 Notification update during the Green review.
 
+## Sixth Enriched Backlog Batch Report Review
+
+Date: 2026-05-24 20:32 JST
+
+The read-only report review of ids `5594..5590` confirmed that the sixth
+enrich backlog batch is readable without raw provider payload dumps or side
+effects. No DB write, external fetch, Telegram send, Notification update,
+Metric write, Token write, HolderSnapshot write, scheduler/systemd, schema,
+migration, or app code change occurred during this review.
+
+The reviewed rows are all `metadataStatus=partial`, have names/symbols,
+normalized text, `enrichedAt`, `rescoredAt`, and reviewFlags. All have
+`metricsCount=3`, `notificationCount=0`, and `holderSnapshotCount=0`.
+`5590` is the only non-zero score in the cohort: `C / 1` from one core `cat`
+keyword hit; it is still not a notify candidate.
+
+`metrics:report` returns three safe GeckoTerminal Metric summaries for each
+row:
+
+- `5594`: Metric ids `1496`, `1416`, `1311`
+- `5593`: Metric ids `1497`, `1417`, `1312`
+- `5592`: Metric ids `1498`, `1418`, `1313`
+- `5591`: Metric ids `1499`, `1419`, `1314`
+- `5590`: Metric ids `1500`, `1420`, `1315`
+
+Representative `metrics:window-report` checks:
+
+- `5594`: firstSeen entry, `entryAnchorQuality=delayed_180m`,
+  `metricCount=3`, `fdvMetricCount=3`, 30m / 60m / 2h `no_data`, 3h `thin`,
+  6h / 12h / 24h `partial`, `outcomeLabel=no_data`
+- `5590`: firstSeen entry, `entryAnchorQuality=delayed_180m`,
+  `metricCount=3`, `fdvMetricCount=3`, 30m / 60m / 2h `no_data`, 3h `thin`,
+  6h / 12h / 24h `partial`, `outcomeLabel=no_data`
+
+Both have `hasAlertFdvAnchor=false`; the no-data reasons are alert-anchor /
+peak-multiple related once FDV samples exist. Target compare summary keeps all
+five rows unresolved with `outcomeBucketReason=multiple_missing`.
+
+Queue and planner state after review remains unchanged: default queue has no
+enrich, metric, or notify candidates; 168h queue has
+`enrichPendingCount=210`, `metricPendingCount=85`, `staleReviewCount=210`,
+`notifyCandidateCount=0`; enabled auto-send allowed candidates and retry
+candidates are `0`.
+
+Recommendation: continue with one more limit 5 enrich backlog Red. The next
+selection is ids `5589..5585`; all are `mint_only`, GeckoTerminal-origin pump
+rows, score `C / 0`, `hardRejected=false`, `metricsCount=2`, and have no
+Notification or HolderSnapshot rows.
+
 ## Fifth Enriched Backlog Batch Report Review
 
 Date: 2026-05-24 20:15 JST

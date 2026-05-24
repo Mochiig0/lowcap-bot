@@ -3662,6 +3662,80 @@ Next step: Green review of ids `5594..5590` with read-only report / window /
 queue / planner checks before deciding whether to run another limit 5 enrich
 backlog batch or switch to Metric/report follow-up.
 
+## 2026-05-24 Sixth Enriched Backlog Batch Review
+
+Execution time: 2026-05-24 20:32 JST. Codex version: `codex-cli 0.133.0`.
+
+This Green review stayed read-only. No `--write`, external fetch, Telegram
+send, Notification create/update, Metric write, Token write, HolderSnapshot
+write, scheduler/systemd, schema/migration, app code change, or rawJson full
+dump was performed.
+
+State stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`. Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`. Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+Retry candidates and enabled auto-send allowed candidates stayed `0`.
+
+Reviewed ids `5594..5590`:
+
+- `5594` `Test Coin` / `TEST`: `partial`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=3`, no Notification / HolderSnapshot
+- `5593` `KOWAKU` / `KOWAKU`: `partial`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=3`, no Notification / HolderSnapshot
+- `5592` `Gad Sad` / `GAD`: `partial`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=3`, no Notification / HolderSnapshot
+- `5591` `NEXT PWEASE TWEET EVERY SEC` / `BONERPHONE`: `partial`, score
+  `C / 0`, `hardRejected=false`, `metricsCount=3`, no Notification /
+  HolderSnapshot
+- `5590` `Sketichification` / `Sketchify`: `partial`, score `C / 1`,
+  `hardRejected=false`, `metricsCount=3`, no Notification / HolderSnapshot
+
+All five have normalized text, `enrichedAt`, `rescoredAt`, and reviewFlags.
+Descriptions, website, X, Telegram, Metaplex hit, and links are absent. The
+`5590` score comes from one safe core keyword hit: `cat` / `animal`, score
+`1`; it is still below notify candidate thresholds and `notifyCandidateCount`
+remains `0`.
+
+Report/window checks:
+
+- `metrics:report` reads three GeckoTerminal Metrics for each reviewed row and
+  shows safe market-data presence booleans without raw provider payloads.
+- `metrics:window-report` for `5594` and `5590` uses firstSeen entry, has
+  `metricCount=3`, `fdvMetricCount=3`, `entryAnchorQuality=delayed_180m`, 30m
+  / 60m / 2h `no_data`, 3h `thin`, 6h / 12h / 24h `partial`, and
+  `outcomeLabel=no_data`.
+- Both representative windows have `hasAlertFdvAnchor=false`;
+  `hasWindowFdvSamples=false` before 3h and `true` from 3h onward.
+- `tokens:compare-report` / target compare summary keeps these rows
+  unresolved with `outcomeBucketReason=multiple_missing`.
+
+Queue context: default 24h queue has `geckoOriginTokenCount=0`,
+`enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`.
+The 168h queue has `geckoOriginTokenCount=245`, `enrichPendingCount=210`,
+`metricPendingCount=85`, `staleReviewCount=210`, `notifyCandidateCount=0`.
+
+Recent bounded enrich backlog batches continue to show no provider error, no
+429, and no retry. The next same-command selection is clear as ids
+`5589..5585`, all `mint_only`, GeckoTerminal-origin pump rows, score `C / 0`,
+`hardRejected=false`, `metricsCount=2`, with no Notification or HolderSnapshot
+rows.
+
+Recommendation: continue with one more limit 5 enrich backlog Red. Progress
+consolidation is the second choice because several Red batches have now
+completed cleanly, but the immediate backlog step remains clear and bounded.
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token enrich/rescore/context/reviewFlags update for up to five
+rows. Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Do not add `--notify`.
+
 ## Fifth Enriched Backlog Batch Review
 
 Date: 2026-05-24 20:15 JST

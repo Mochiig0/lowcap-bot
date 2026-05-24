@@ -1465,6 +1465,64 @@ dump.
 Next step should be Green read-only review of ids `5594..5590` before deciding
 whether to run another limit 5 backlog enrich batch.
 
+## 2026-05-24 Sixth Enriched Backlog Batch Review
+
+The follow-up Green review of ids `5594..5590` used only read-only commands and
+safe Prisma summaries. It did not run enrich/rescore `--write`,
+metric:snapshot `--write`, detect watch, external fetch, Telegram send,
+Notification update, scheduler/systemd, schema/migration, app code changes, or
+rawJson full dump.
+
+State stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`; Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+
+Batch review:
+
+- `5594` `Test Coin` / `TEST`: `partial`, `C / 0`, `metricsCount=3`
+- `5593` `KOWAKU` / `KOWAKU`: `partial`, `C / 0`, `metricsCount=3`
+- `5592` `Gad Sad` / `GAD`: `partial`, `C / 0`, `metricsCount=3`
+- `5591` `NEXT PWEASE TWEET EVERY SEC` / `BONERPHONE`: `partial`, `C / 0`,
+  `metricsCount=3`
+- `5590` `Sketichification` / `Sketchify`: `partial`, `C / 1`,
+  `metricsCount=3`
+
+All are `hardRejected=false`, have normalized text, reviewFlags,
+`enrichedAt`, and `rescoredAt`, and have no Notification or HolderSnapshot
+rows. Review flags show no website, X, Telegram, Metaplex hit, description, or
+links. `5590` is `C / 1` because scoreBreakdown contains a single core
+`cat` keyword hit tagged `animal`; `notifyCandidateCount` remains `0`.
+
+Report and queue findings:
+
+- `metrics:report` returns three GeckoTerminal Metrics per reviewed row.
+- representative windows for `5594` and `5590` have `metricCount=3`,
+  `fdvMetricCount=3`, delayed first FDV anchors around 146-151 minutes,
+  3h `thin`, 6h-24h `partial`, and `outcomeLabel=no_data`.
+- `hasAlertFdvAnchor=false`; `hasWindowFdvSamples=true` only once the windows
+  include the delayed FDV samples.
+- default queue is empty for enrich/metric/notify; 168h queue has
+  `enrichPendingCount=210`, `metricPendingCount=85`,
+  `staleReviewCount=210`, and `notifyCandidateCount=0`.
+
+The repeated enrich backlog Red batches have remained clean so far: no
+provider error, no 429, and no retry across the recorded batches. Next
+selection for the same command is ids `5589..5585`, all `mint_only`, score
+`C / 0`, `hardRejected=false`, `metricsCount=2`, and no Notification /
+HolderSnapshot rows.
+
+Recommended next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token update for up to five rows. Expected non-effects are Metric
+write, Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, repo-local data diff, and rawJson full dump. Do not add
+`--notify`.
+
 ## Fifth Enriched Backlog Batch Review
 
 Date: 2026-05-24 20:15 JST

@@ -1099,6 +1099,52 @@ Next selected step is Green: review ids `5594..5590` with read-only
 report/window/queue/planner checks. Do not proceed directly to another Red
 until that review confirms the batch boundary again.
 
+## 2026-05-24 Sixth Enriched Backlog Batch Review
+
+The Green review of ids `5594..5590` completed read-only. Counts stayed Token /
+Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`, Metric
+distribution stayed `0=1222`, `1=232`, `2+=87`, and Notification statuses
+stayed `captured=5`, `sent=5`, `failed=0`.
+
+All five reviewed rows are `partial`, non-hard-rejected, have normalized text,
+`enrichedAt`, `rescoredAt`, reviewFlags, and `metricsCount=3`. Four remain
+score `C / 0`; `5590` is `C / 1` from a single safe core `cat` keyword hit.
+No row has website, X, Telegram, Metaplex hit, description, links,
+Notification rows, or HolderSnapshot rows.
+
+Report/window checks stayed safe:
+
+- `metrics:report` reads three safe Metric summaries per row without raw
+  provider payloads.
+- representative `metrics:window-report` checks for `5594` and `5590` show
+  `metricCount=3`, `fdvMetricCount=3`, `entryAnchorQuality=delayed_180m`,
+  3h `thin`, 6h-24h `partial`, `outcomeLabel=no_data`, and no alert FDV
+  anchor.
+- target compare summary keeps the cohort unresolved because latest multiple /
+  peak fields are missing.
+
+Queue remains compatible with one more small enrich backlog batch: default
+queue is empty for enrich/metric/notify, and 168h queue has
+`enrichPendingCount=210`, `metricPendingCount=85`, `staleReviewCount=210`,
+`notifyCandidateCount=0`. Auto-send allowed candidates and retry candidates
+remain `0`.
+
+Recommended next step: repeat the bounded limit 5 enrich backlog Red once more.
+The next selection is ids `5589..5585`, all `mint_only`, GeckoTerminal-origin
+pump rows, score `C / 0`, `hardRejected=false`, and `metricsCount=2`.
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex lookup, and Token update for up to five rows.
+Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Do not add `--notify`.
+
 ## 2026-05-24 Fifth Enriched Backlog Batch Review
 
 The Green review of ids `5599..5595` stayed read-only/docs-only. Counts stayed
