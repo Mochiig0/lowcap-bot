@@ -921,3 +921,32 @@ fetch. Expected non-effects are Token write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Keep broader 168h Metric / enrich backlogs as later
 lanes; complete this five-token loop first.
+
+## 2026-05-24 Second Metric Snapshot Result
+
+The approved second Metric snapshot small Red completed:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result: `selected=5`, `written=5`, `skipped=0`, `error=0`,
+`interItemDelayMs=15000`, `interItemDelayCount=4`, no provider error, no 429,
+and no retry. Metric ids `1537..1541` were written.
+
+Counts moved Token / Metric / Notification / HolderSnapshot
+`1541 / 454 / 10 / 1 -> 1541 / 459 / 10 / 1`; Metric distribution moved
+`1222 / 237 / 82 -> 1222 / 232 / 87`. Notification statuses stayed
+`captured=5`, `sent=5`, `failed=0`; retry and auto-send candidates stayed
+`0`.
+
+All five target rows moved from `metricsCount=1` to `metricsCount=2` while
+remaining `partial`, score `C / 0`, `hardRejected=false`, with no
+Notification or HolderSnapshot rows. `metrics:window-report` shows 12h / 24h
+coverage improved to `partial`; shorter windows remain `thin`, and outcome
+stays `no_data` because there is no alert FDV anchor.
+
+Next selected lane: Green preflight for the 168h GeckoTerminal enrichPending
+backlog. The narrow five-token loop has now completed through second Metric
+and report verification, so broader backlog work should be audited read-only
+before any wider Red.

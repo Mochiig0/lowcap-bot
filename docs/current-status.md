@@ -4310,6 +4310,78 @@ scheduler/systemd `0`, repo-local data diff `0`, and rawJson full dump `0`.
 Keep `--interItemDelayMs 15000`; if 429 or provider error appears, do not retry
 or widen the command in the same task.
 
+## Second Metric Snapshot Result for Enriched Partial Five
+
+Date: 2026-05-24 02:10 JST
+
+The approved Red exact command ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Execution summary:
+
+- selectedCount: `5`
+- okCount / writtenCount: `5` / `5`
+- skippedCount / errorCount: `0` / `0`
+- interItemDelayMs / interItemDelayCount: `15000` / `4`
+- provider error: no
+- 429: no
+- retry: no
+- written Metric ids: `1537`, `1538`, `1539`, `1540`, `1541`
+
+Counts:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 454 / 10 / 1 -> 1541 / 459 / 10 / 1`
+- Metric distribution:
+  `0=1222`, `1=237`, `2+=82 -> 0=1222`, `1=232`, `2+=87`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+
+Target cohort after the run:
+
+| token id | symbol | metadataStatus | metrics before -> after | new Metric | latest observedAt | score | hardRejected | notifications | holderSnapshots |
+|---:|---|---|---:|---:|---|---|---|---:|---:|
+| 5624 | `BALTO` | `partial` | 1 -> 2 | 1537 | `2026-05-23T17:08:32.172Z` | `C` / `0` | `false` | 0 | 0 |
+| 5623 | `Bunker` | `partial` | 1 -> 2 | 1538 | `2026-05-23T17:08:47.672Z` | `C` / `0` | `false` | 0 | 0 |
+| 5622 | `BANKS` | `partial` | 1 -> 2 | 1539 | `2026-05-23T17:09:03.194Z` | `C` / `0` | `false` | 0 | 0 |
+| 5621 | `Camel` | `partial` | 1 -> 2 | 1540 | `2026-05-23T17:09:18.877Z` | `C` / `0` | `false` | 0 | 0 |
+| 5620 | `VAULT` | `partial` | 1 -> 2 | 1541 | `2026-05-23T17:09:34.410Z` | `C` / `0` | `false` | 0 | 0 |
+
+`metrics:report` read Metric ids `1541..1537` as the latest
+`geckoterminal.token_snapshot` rows with rawJson-free safe summary booleans
+present. The latest batch has `volume24h=0` for all five rows.
+
+`metrics:window-report` was checked for all five target mints:
+
+- all five now report `metricCount=2` and `fdvMetricCount=2`
+- 30m / 60m / 120m / 180m / 360m windows still use the first sample only and
+  remain `thin`
+- 12h and 24h windows now have two FDV samples and moved to
+  `fdvSampleCoverageLabel=partial`
+- `hasWindowFdvSamples=true`
+- `hasAlertFdvAnchor=false`
+- `entryAnchorQuality=near_30m`
+- `outcomeLabel=no_data`
+- `noDataReasons` still include `no_alert_anchor_near_entry` and
+  `no_peak_multiple`
+- 12h / 24h remain provisional
+
+The Red stayed inside its expected side-effect boundary. It wrote production
+Metric rows and fetched GeckoTerminal. It did not update Tokens, create/update
+Notifications, write HolderSnapshots, send Telegram, run retry / auto-send /
+detect / enrich-rescore / ops catchup, touch scheduler/systemd, create
+repo-local data diffs, or dump rawJson.
+
+Next recommended task: `Green: preflight 168h enrichPending backlog for
+GeckoTerminal pump tokens`. The five-token loop has now confirmed Token
+creation, first Metric, enrich/rescore, second Metric, and report visibility;
+the broader backlog should be audited read-only before any wider Token update
+or Metric write Red.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21

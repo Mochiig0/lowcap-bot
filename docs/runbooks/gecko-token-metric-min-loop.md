@@ -1303,3 +1303,43 @@ Expected side effects are external GeckoTerminal fetch and Metric write up to
 `+5`. Token update, Notification create/update, HolderSnapshot write, Telegram
 send, repo-local data diff, rawJson full dump, scheduler, and systemd are not
 expected. Do not retry or widen the command if a 429 or provider error appears.
+
+## 2026-05-24 Second Metric Snapshot Result
+
+The human-approved second Metric snapshot command ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+It selected the intended five partial rows and completed with
+`selected=5`, `written=5`, `skipped=0`, `error=0`,
+`interItemDelayMs=15000`, and `interItemDelayCount=4`. There was no provider
+error, no 429, and no retry.
+
+The cohort now has two Metrics each:
+
+- `5624` / `BALTO`: Metric `1532` then `1537`
+- `5623` / `Bunker`: Metric `1533` then `1538`
+- `5622` / `BANKS`: Metric `1534` then `1539`
+- `5621` / `Camel`: Metric `1535` then `1540`
+- `5620` / `VAULT`: Metric `1536` then `1541`
+
+Counts moved Token / Metric / Notification / HolderSnapshot
+`1541 / 454 / 10 / 1 -> 1541 / 459 / 10 / 1`. Metric distribution moved
+`0=1222`, `1=237`, `2+=82 -> 0=1222`, `1=232`, `2+=87`.
+Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+
+The run wrote only Metric rows and fetched GeckoTerminal. It did not update
+Tokens, create/update Notifications, write HolderSnapshots, send Telegram,
+touch scheduler/systemd, create repo-local data diffs, or dump rawJson.
+
+Read-only `metrics:window-report` confirmed the second sample moves 12h / 24h
+FDV coverage to `partial` for all five rows. Shorter windows remain `thin`,
+and `outcomeLabel` remains `no_data` because the no-Notification rows still
+have no alert FDV anchor near entry.
+
+This completes the narrow five-token minimum loop through Token creation,
+first Metric, enrich/rescore, second Metric, and report verification. Next,
+preflight the 168h GeckoTerminal enrichPending backlog before any wider Token
+update Red.

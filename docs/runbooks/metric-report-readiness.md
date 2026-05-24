@@ -1063,3 +1063,63 @@ surface from a single FDV point toward partial coverage. Expected non-effects
 remain Token write `0`, Notification create/update `0`, HolderSnapshot write
 `0`, Telegram send `0`, scheduler/systemd `0`, repo-local data diff `0`, and
 rawJson full dump `0`.
+
+## Second Metric Snapshot Report Check
+
+Date: 2026-05-24 02:10 JST
+
+The second bounded Metric snapshot Red completed and was followed by
+rawJson-free read-only report checks. No second Red command was run.
+
+Execution:
+
+- command:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write`
+- selected / written / skipped / error: `5 / 5 / 0 / 0`
+- interItemDelayMs / interItemDelayCount: `15000 / 4`
+- provider error: no
+- 429: no
+- retry: no
+
+DB state:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 454 / 10 / 1 -> 1541 / 459 / 10 / 1`
+- Metric distribution:
+  `0=1222`, `1=237`, `2+=82 -> 0=1222`, `1=232`, `2+=87`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+- retry and enabled auto-send candidates stayed `0`
+
+Target result:
+
+- `5624` / `BALTO`: Metric `1537`, `metricsCount=2`
+- `5623` / `Bunker`: Metric `1538`, `metricsCount=2`
+- `5622` / `BANKS`: Metric `1539`, `metricsCount=2`
+- `5621` / `Camel`: Metric `1540`, `metricsCount=2`
+- `5620` / `VAULT`: Metric `1541`, `metricsCount=2`
+
+All five stayed `metadataStatus=partial`, score `C / 0`,
+`hardRejected=false`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+`metrics:report` confirmed the five new rows are the latest
+`geckoterminal.token_snapshot` Metrics and printed only safe summary fields;
+no rawJson full dump occurred.
+
+`metrics:window-report` for all five rows confirmed:
+
+- `metricCount=2`
+- `fdvMetricCount=2`
+- 30m / 60m / 120m / 180m / 360m windows remain `thin`
+- 12h / 24h windows are now `partial`
+- `hasWindowFdvSamples=true`
+- `hasAlertFdvAnchor=false`
+- `entryAnchorQuality=near_30m`
+- `outcomeLabel=no_data`
+- `noDataReasons` include `no_alert_anchor_near_entry` and
+  `no_peak_multiple`
+- 12h / 24h are still provisional
+
+This confirms the second Metric improved longer-window sample coverage, but it
+does not change alert-anchored outcome classification for no-Notification rows.
+The next useful Green lane is a read-only preflight for the 168h
+GeckoTerminal enrichPending backlog.

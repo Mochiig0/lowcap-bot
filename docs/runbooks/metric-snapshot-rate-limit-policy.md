@@ -754,3 +754,55 @@ Policy:
   and rawJson full dump `0`.
 - If a 429 or provider error appears during the later Red, do not retry in the
   same task and do not widen the command.
+
+## Second Metric Snapshot Limit-5 Run
+
+Date: 2026-05-24 02:10 JST
+
+The approved Red command ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --write
+```
+
+Result:
+
+- selectedCount: `5`
+- okCount: `5`
+- writtenCount: `5`
+- skippedCount: `0`
+- errorCount: `0`
+- interItemDelayMs: `15000`
+- interItemDelayCount: `4`
+- provider error: no
+- 429 / rate-limit error: no
+- retry: no
+- written Metric ids: `1537..1541`
+
+Counts:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1541 / 454 / 10 / 1 -> 1541 / 459 / 10 / 1`
+- Metric distribution:
+  `0=1222`, `1=237`, `2+=82 -> 0=1222`, `1=232`, `2+=87`
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`
+
+The 15-second pacing stayed rate-limit clean again. Batch mode did not create
+Notification rows, send Telegram, update Tokens, write HolderSnapshot, touch
+scheduler / systemd, or create repo-local data diffs. Raw provider payloads and
+Metric rawJson were not dumped.
+
+Post-run report check:
+
+- `metrics:report` read the new Metric ids `1541..1537`
+- all five target rows moved from `metricsCount=1` to `metricsCount=2`
+- `metrics:window-report` shows 12h / 24h coverage improved from `thin` to
+  `partial` because each row now has two FDV samples in those windows
+- shorter windows remain `thin`
+- outcome remains `no_data` because there is still no alert FDV anchor near
+  entry
+
+Do not immediately widen to a large Metric run from this result. The next
+safer step is a Green preflight for the 168h GeckoTerminal enrichPending
+backlog, because the five-token loop has now completed its narrow Metric /
+enrich / second Metric confirmation.
