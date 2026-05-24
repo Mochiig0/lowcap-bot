@@ -238,6 +238,59 @@ now selection quality rather than pacing: half of the selected rows were
 candidate-selection improvement so recent Metrics are excluded before `--limit`
 is applied.
 
+## Exact Mint Metric 0 Backlog Result
+
+Date: 2026-05-24
+
+The current batch selector could not reach the 168h Metric 0 backlog
+(`ids 5380..5464`) because even `limit 75` selected already measured newer
+rows first. A human-approved exact-mint Red was run once to test the Metric 0
+backlog boundary:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Result:
+
+- mode: `single`
+- `selectedCount=1`
+- `okCount=1`
+- `writtenCount=1`
+- `skippedCount=0`
+- `errorCount=0`
+- provider error: none
+- 429: none
+- retry: none
+- `interItemDelayMs=0`, as expected for exact `--mint` mode
+- `notificationCaptureEnabled=false`
+- `notificationCreated=false`
+- `notificationSkippedReason=disabled_by_option`
+
+Counts moved:
+
+- Token: `1541 -> 1541`
+- Metric: `459 -> 460`
+- Notification: `10 -> 10`
+- HolderSnapshot: `1 -> 1`
+- Metric buckets: `0=1222, 1=232, 2+=87 -> 0=1221, 1=233, 2+=87`
+
+Target token id `5464` moved `metricsCount 0 -> 1` and received Metric
+`1542` with source `geckoterminal.token_snapshot` at
+`2026-05-24T13:52:10.586Z`. RawJson was not dumped; `metrics:report` showed
+only safe market-data booleans (`priceUsdPresent`, `fdvUsdPresent`,
+`reserveUsdPresent`, and `topPoolPresent` all true).
+
+The 168h queue moved `metricPendingCount 85 -> 84` while
+`notifyCandidateCount` stayed `0`. This confirms that exact `--mint` plus
+`--noNotificationCapture` can safely touch one true Metric 0 backlog item
+without Notification, Token, HolderSnapshot, Telegram, scheduler/systemd, or
+repo-local side effects.
+
+Next step should be a Green review / preflight before another exact-mint Red or
+a Yellow pending-first selector design. Do not use broad batch commands as a
+Metric 0 cleanup path until selection quality is fixed.
+
 ## Candidate Selection Improvement
 
 Date: 2026-05-19

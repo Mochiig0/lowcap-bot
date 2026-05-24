@@ -29,6 +29,18 @@ As of the successful ops-path checks, the full operator-visible Token to Metric
 loop has been manually confirmed, including capture-only ops notification records
 and one production Telegram ops live send for `metric_appended`:
 
+- an exact-mint Metric 0 backlog snapshot was later confirmed for token id
+  `5464`, mint `By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`, using:
+  `metric:snapshot:geckoterminal -- --mint ... --minGapMinutes 60 --noNotificationCapture --write`.
+  This bypassed the batch selector, appended exactly one
+  `geckoterminal.token_snapshot` Metric (`id=1542`,
+  `observedAt=2026-05-24T13:52:10.586Z`), and moved the token from
+  `metricsCount=0` to `metricsCount=1`. Notification capture stayed disabled
+  by option, Notification / Token / HolderSnapshot counts did not change,
+  Telegram was not sent, and `review:queue --sinceHours 168` moved
+  `metricPendingCount 85 -> 84`. `metrics:report` and
+  `metrics:window-report` confirmed the result rawJson-free.
+
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
 - `ops:catchup:gecko --write` completed that token through the token-only runner.

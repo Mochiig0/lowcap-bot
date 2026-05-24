@@ -12,19 +12,34 @@ Mint-driven accumulation includes mint-only ingest plus source-specific semi-aut
 Read-only inspection has lightweight views (`tokens:report`, `token:show`, `metrics:report`, `metric:show`), compare views (`tokens:compare-report`, `token:compare`), and Gecko-specific observation summary / timing helpers (`ops:summary:geckoterminal`, `compare:geckoterminal:dexscreener`).
 This repo is still not a generic bot platform and does not include queue / worker / scheduler orchestration, a generic multi-source adapter runtime, or trading automation.
 
-Latest checked state after offensive-safe enrich backlog consolidation:
+Latest checked state after exact-mint Metric 0 backlog snapshot:
 - Date: 2026-05-24
 - CodexCLI: codex-cli 0.133.0
-- HEAD before consolidation: a2ab80a docs: review eighth enriched backlog batch
-- Token / Metric / Notification / HolderSnapshot: 1541 / 459 / 10 / 1
-- Metric distribution: 0=1222, 1=232, 2+=87
+- HEAD before exact-mint snapshot: 619e097 docs: preflight exact mint metric backlog
+- Token / Metric / Notification / HolderSnapshot: 1541 / 460 / 10 / 1
+- Metric distribution: 0=1221, 1=233, 2+=87
 - Notification statuses: captured=5, sent=5, failed=0
 - failed count: 0
 - retry candidate count: 0
 - enabled auto-send allowed candidate count: 0
 - review:queue --pumpOnly --sinceHours 168:
   geckoOriginTokenCount=245, enrichPendingCount=200,
-  metricPendingCount=85, staleReviewCount=200, notifyCandidateCount=0
+  metricPendingCount=84, staleReviewCount=200, notifyCandidateCount=0
+
+Latest Red execution:
+- Command run exactly once:
+  pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+- Result: selected=1, written=1, skipped=0, error=0
+- Provider error=0, 429=0, retry=0
+- New Metric id=1542, source=geckoterminal.token_snapshot,
+  observedAt=2026-05-24T13:52:10.586Z
+- Token id 5464 moved metricsCount 0 -> 1
+- Notification capture did not happen:
+  notificationCaptureEnabled=false, notificationCreated=false,
+  notificationSkippedReason=disabled_by_option
+- Token write=0, Notification create/update=0, HolderSnapshot write=0,
+  Telegram send=0, repo-local data diff=0, rawJson full dump=0,
+  offensive raw text dump=0
 
 Recent enrich backlog progress:
 - 8 bounded 168h enrich/rescore Red batches completed successfully
@@ -81,27 +96,10 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Red: exact-mint Metric 0 backlog snapshot.
-Risk: Red. Human approval required. Run exactly one command only:
-pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
-
-Preflighted target:
-- token id 5464
-- mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump
-- geckoterminal.new_pools origin, pump mint
-- metadataStatus=mint_only
-- metricsCount=0
-- notificationCount=0
-- holderSnapshotCount=0
-- score C / 0
-- hardRejected=false
-- latestMetric=null
-
-Expected side effects: one external GeckoTerminal token snapshot fetch and at
-most one Metric write. Expected non-effects: Token write, Notification
-create/update, HolderSnapshot write, Telegram send, scheduler/systemd,
-repo-local data diff, rawJson full dump, offensive raw text dump. If
-successful, metricPendingCount should move 85 -> 84.
+Green: review exact-mint Metric 0 snapshot result and preflight the next exact
+mint Metric 0 backlog item. Confirm token id 5464 in read-only report/window
+context, confirm metricPendingCount remains 84 and notifyCandidateCount remains
+0, then choose exactly one next mint if another Red is warranted.
 
 Second choice:
 Design or preflight a pending-first batch selector for true Metric backlog

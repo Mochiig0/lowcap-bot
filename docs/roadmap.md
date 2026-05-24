@@ -9,6 +9,38 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
+Date: 2026-05-24
+
+The exact-mint Metric 0 backlog Red has now succeeded for token id `5464`.
+It used `--mint` to bypass the current batch selector, kept
+`--noNotificationCapture`, and wrote exactly one Metric row:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Result: `selectedCount=1`, `writtenCount=1`, `skippedCount=0`,
+`errorCount=0`, provider error `0`, 429 `0`, retry `0`, Notification capture
+`0`, Telegram send `0`. Counts moved only in Metric:
+`1541 / 459 / 10 / 1 -> 1541 / 460 / 10 / 1`, and Metric bucket counts moved
+`0=1222, 1=232, 2+=87 -> 0=1221, 1=233, 2+=87`. The 168h Gecko queue now
+reports `metricPendingCount=84`, `enrichPendingCount=200`,
+`staleReviewCount=200`, and `notifyCandidateCount=0`.
+
+Recommended next lane: **Green review of the exact-mint Metric 0 snapshot
+result and next Metric 0 candidate selection**. Confirm token id `5464` in
+read-only report/window context, then decide whether to run another exact-mint
+Metric 0 Red for the next backlog item or design a pending-first batch selector.
+Do not jump to a broad Metric batch yet; the current batch selector still
+prioritizes already measured rows before the true Metric 0 backlog.
+
+Still locked: token enrich/rescore writes without approval, scheduler, systemd,
+always-on auto live send, notification send/retry execution, detect watch write,
+ops catchup write, schema/migration/app code changes, rawJson full dump, and
+offensive raw text dump.
+
+## Previous Next Slice
+
 Date: 2026-05-23
 
 The auto-send single-shot slice is now consolidated. The completed Telegram /

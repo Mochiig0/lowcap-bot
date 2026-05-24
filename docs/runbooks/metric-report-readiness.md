@@ -197,6 +197,42 @@ pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 75 --sinceMinutes 14
 It still requires explicit human Red approval because it fetches GeckoTerminal
 and writes production Metric rows.
 
+## Exact Mint Metric 0 Report Check
+
+Date: 2026-05-24
+
+After the exact-mint Metric 0 backlog snapshot for token id `5464`, read-only
+report checks confirmed the new observation without dumping rawJson.
+
+`metrics:report` for token id `5464` returned one Metric:
+
+- Metric id `1542`
+- source `geckoterminal.token_snapshot`
+- `observedAt=2026-05-24T13:52:10.586Z`
+- `volume24h=0`
+- safe market-data booleans:
+  `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, `topPoolPresent=true`
+
+`metrics:window-report` for the same mint returned:
+
+- `readOnly=true`
+- `willWrite=false`
+- `willFetch=false`
+- `willSendTelegram=false`
+- `metricCount=1`
+- `fdvMetricCount=1`
+- `entryAnchorSource=first_fdv_metric_after_alerted_at`
+- `entryAnchorQuality=very_late_gt_360m`
+- 30m / 60m / 2h / 3h / 6h / 12h / 24h windows all stayed
+  `outcomeLabel=no_data`
+- no-data reasons included `no_alert_anchor_near_entry`,
+  `no_fdv_samples_in_window`, `no_peak_fdv`, and `no_peak_multiple`
+
+The result is expected for a very late first Metric on an older first-seen
+token: the row makes the Metric 0 backlog smaller and confirms report
+visibility, but it does not create a usable near-entry outcome window.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19
