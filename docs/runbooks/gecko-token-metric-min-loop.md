@@ -1452,6 +1452,46 @@ include `--noNotificationCapture` in any later human-approved write command,
 or design a pending-first batch selector before trying to reduce the Metric
 backlog in batch mode.
 
+## 2026-05-24 Exact-Mint Metric 0 Backlog Preflight
+
+The Green exact-mint preflight selected one Metric 0 row from ids
+`5380..5464` without running `metric:snapshot`, fetching external APIs, or
+writing DB state.
+
+Metric 0 backlog state:
+
+- ids `5380..5464`, count `85`
+- all are `geckoterminal.new_pools` origin pump rows
+- all are `metadataStatus=mint_only`
+- all have `metricsCount=0`
+- all are score `C / 0`
+- all are `hardRejected=false`
+- all have `notificationCount=0` and `holderSnapshotCount=0`
+- all have no latest Metric and no reviewFlags
+
+Selected candidate:
+
+- id `5464`
+- mint `By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`
+- `metricsCount=0`, `notificationCount=0`, `holderSnapshotCount=0`
+- `metadataStatus=mint_only`, score `C / 0`, `hardRejected=false`
+
+Exact `--mint` mode avoids the batch selector issue. `--minGapMinutes 60`
+should not skip this row because no latest Metric exists. `--noNotificationCapture`
+is required because exact `--mint --write` captures `metric_appended`
+Notifications by default.
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Expected side effects are one GeckoTerminal token snapshot fetch and at most
+one Metric write. Expected non-effects are Token write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler/systemd,
+repo-local data diff, rawJson full dump, and offensive raw text dump.
+
 ## Seventh Bounded Enrich Backlog Batch Review
 
 Date: 2026-05-24 20:43 JST

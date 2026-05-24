@@ -81,14 +81,27 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Green: exact-mint Metric 0 backlog preflight.
-Risk: Green. Stay read-only/docs-only; do not run metric:snapshot --write.
-The latest metric backlog preflight found that current batch
-metric:snapshot:geckoterminal selection is newest-first and does not reach the
-Metric 0 backlog ids 5380..5464 at limits 5 / 20 / 30 / 75. A later exact-mint
-Red, if approved, should use one known Metric 0 mint and include
---noNotificationCapture so exact --mint mode does not create a Notification
-row.
+Red: exact-mint Metric 0 backlog snapshot.
+Risk: Red. Human approval required. Run exactly one command only:
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+
+Preflighted target:
+- token id 5464
+- mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump
+- geckoterminal.new_pools origin, pump mint
+- metadataStatus=mint_only
+- metricsCount=0
+- notificationCount=0
+- holderSnapshotCount=0
+- score C / 0
+- hardRejected=false
+- latestMetric=null
+
+Expected side effects: one external GeckoTerminal token snapshot fetch and at
+most one Metric write. Expected non-effects: Token write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler/systemd,
+repo-local data diff, rawJson full dump, offensive raw text dump. If
+successful, metricPendingCount should move 85 -> 84.
 
 Second choice:
 Design or preflight a pending-first batch selector for true Metric backlog

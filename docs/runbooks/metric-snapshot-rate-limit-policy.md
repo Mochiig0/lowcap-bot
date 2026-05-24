@@ -929,3 +929,81 @@ Expected side-effect boundary for any later approved batch Metric Red remains
 Metric writes only: no Token write, no Notification create/update in batch
 mode, no HolderSnapshot write, no Telegram send, no scheduler/systemd, no
 repo-local data diff, no rawJson full dump, and no offensive raw text dump.
+
+## Exact-Mint Metric 0 Backlog Preflight
+
+Date: 2026-05-24 22:33 JST
+
+This Green preflight stayed read-only and docs-only. It did not run
+`metric:snapshot:geckoterminal`, did not use `--write`, did not fetch external
+APIs, did not write DB rows, did not create / update Notifications, and did
+not print rawJson or offensive raw text.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Token Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- failed count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Metric 0 backlog ids `5380..5464` were confirmed with safe summaries only:
+
+- count: `85`
+- source distribution: `geckoterminal.new_pools=85`
+- pump distribution: `true=85`
+- metadataStatus distribution: `mint_only=85`
+- metricsCount distribution: `0=85`
+- scoreRank / scoreTotal distribution: `C=85`, `0=85`
+- hardRejected distribution: `false=85`
+- Notification count distribution: `0=85`
+- HolderSnapshot count distribution: `0=85`
+- latest Metric present count: `0`
+- reviewFlags present count: `0`
+
+Selected exact-mint candidate:
+
+- token id: `5464`
+- mint: `By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`
+- source / origin: `geckoterminal.new_pools`
+- metadataStatus: `mint_only`
+- metricsCount: `0`
+- notificationCount: `0`
+- holderSnapshotCount: `0`
+- scoreRank / scoreTotal: `C / 0`
+- hardRejected: `false`
+- latestMetric: `null`
+- selectionAnchorAt: `2026-05-18T12:34:03.491Z`
+
+Boundary audit:
+
+- exact `--mint` mode selects the token directly and ignores batch ordering,
+  `--limit`, `--sinceMinutes`, and `--pumpOnly` selection concerns.
+- exact `--mint` mode still checks `--minGapMinutes`; because token `5464`
+  has no latest Metric for `geckoterminal.token_snapshot`, it should not be
+  skipped by `--minGapMinutes 60`.
+- exact `--mint --write` captures a `metric_appended` Notification by default,
+  so `--noNotificationCapture` is required for this Red candidate.
+- `--noNotificationCapture` makes `isNotificationCaptureEnabled(args)` false,
+  so the `maybeCreateByNotificationKey` path is not reached.
+- the write path in `metric:snapshot:geckoterminal` is `db.metric.create` only;
+  no Token update, HolderSnapshot write, or Telegram sender is imported or
+  called by this CLI.
+- exact `--mint` mode is not delayed by `--interItemDelayMs`; for one item,
+  pacing is not needed. The rate-limit risk is one GeckoTerminal token
+  snapshot fetch.
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Expected side effects if later approved: one external GeckoTerminal token
+snapshot fetch and at most one production Metric row. Expected non-effects:
+Token write `0`, Notification create/update `0`, HolderSnapshot write `0`,
+Telegram send `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson
+full dump `0`, and offensive raw text dump `0`. If successful,
+`metricPendingCount` should move `85 -> 84`, Metric count `459 -> 460`, and
+Token Metric buckets `0=1222 -> 1221`, `1=232 -> 233`, `2+=87`.

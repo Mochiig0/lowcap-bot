@@ -1305,6 +1305,40 @@ that `--noNotificationCapture` is part of the later exact `--mint --write`
 command. If broader Metric backlog processing is desired, design or preflight
 a pending-first batch selection path first.
 
+## Exact-Mint Metric 0 Report Follow-Up Preflight
+
+Date: 2026-05-24 22:33 JST
+
+The exact-mint preflight selected token id `5464` from the Metric 0 backlog:
+`By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`. The row is
+`geckoterminal.new_pools`, pump, `mint_only`, score `C / 0`,
+`hardRejected=false`, with `metricsCount=0`, `notificationCount=0`,
+`holderSnapshotCount=0`, and no latest Metric.
+
+The future write command can reduce report backlog by adding the first Metric
+to exactly this row. If it succeeds, expected report movement is:
+
+- `metricPendingCount`: `85 -> 84`
+- Metric count: `459 -> 460`
+- Token Metric distribution: `0=1222 -> 1221`, `1=232 -> 233`, `2+=87`
+- selected token `metricsCount`: `0 -> 1`
+
+Because exact `--mint --write` creates a `metric_appended` Notification by
+default, the command must include `--noNotificationCapture`. With that option,
+the preflighted write boundary is Metric only: no Notification create/update,
+no Token write, no HolderSnapshot write, and no Telegram send.
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Post-Red report checks, if approved and successful, should be read-only only:
+`metrics:report` for the mint, `metrics:window-report` for baseline no-data /
+thin state, and `review:queue:geckoterminal -- --pumpOnly --sinceHours 168`
+to confirm Metric pending decreased by one.
+
 ## Seventh Enriched Backlog Batch Report Review
 
 Date: 2026-05-24 20:43 JST

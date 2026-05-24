@@ -3657,6 +3657,65 @@ recommended step is another Green preflight that targets one Metric 0 row via
 exact `--mint` mode with `--noNotificationCapture`, or designs a pending-first
 batch selection before any Metric backlog Red.
 
+## 2026-05-24 Exact-Mint Metric 0 Backlog Preflight
+
+This Green preflight stayed read-only / docs-only and selected one Metric 0
+backlog row for a future exact-mint Red command. No `metric:snapshot` command
+was executed beyond `--help`; no `--write`, external fetch, DB write, Telegram
+send, Notification update, rawJson dump, or offensive raw text dump occurred.
+
+Current DB state stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`
+and Notification statuses `captured=5`, `sent=5`, `failed=0`. Failed
+notifications, retry candidates, and enabled auto-send allowed candidates all
+remain `0`.
+
+Metric 0 backlog ids `5380..5464` were confirmed as:
+
+- all 85 ids present
+- source / origin `geckoterminal.new_pools`
+- pump mints
+- `metadataStatus=mint_only`
+- `metricsCount=0`
+- score `C / 0`
+- `hardRejected=false`
+- `notificationCount=0`
+- `holderSnapshotCount=0`
+- latest Metric absent
+- reviewFlags absent
+
+Selected exact mint candidate:
+
+- token id `5464`
+- mint `By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`
+- source / origin `geckoterminal.new_pools`
+- `metadataStatus=mint_only`
+- `metricsCount=0`
+- `notificationCount=0`
+- `holderSnapshotCount=0`
+- score `C / 0`
+- `hardRejected=false`
+- latest Metric `null`
+
+Exact `--mint` mode avoids the batch selector problem. `--minGapMinutes 60`
+will only skip if a latest Metric exists for the same token/source; for this
+candidate there is none. Because exact `--mint --write` captures
+`metric_appended` Notification rows by default, the future command must include
+`--noNotificationCapture`. Source inspection confirms that
+`--noNotificationCapture` disables the `maybeCreateByNotificationKey` path,
+and the CLI has no Token update, HolderSnapshot write, or Telegram send path.
+
+Next Red exact command requiring human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Expected side effect is one external GeckoTerminal fetch and at most one Metric
+write. Expected non-effects are Token write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+rawJson full dump, and offensive raw text dump.
+
 ## 2026-05-24 Seventh Enriched Backlog Batch Review
 
 The Green review of ids `5589..5585` stayed read-only. Codex version was

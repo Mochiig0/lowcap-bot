@@ -1098,6 +1098,31 @@ pending-first batch selector for true Metric backlog accumulation.
 Scheduler, systemd, always-on auto live send, notification retry execution, and
 production auto-send remain locked.
 
+## 2026-05-24 Exact-Mint Metric 0 Red Candidate
+
+The exact-mint Metric 0 backlog preflight is complete. The selected row is
+token id `5464`, mint
+`By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump`. It is a
+GeckoTerminal-origin pump row with `metadataStatus=mint_only`,
+`metricsCount=0`, `notificationCount=0`, `holderSnapshotCount=0`,
+score `C / 0`, `hardRejected=false`, and no latest Metric.
+
+Next selected task: **Red exact-mint Metric 0 snapshot**.
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are one external
+GeckoTerminal token snapshot fetch and at most one production Metric row.
+Expected non-effects are Token write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+rawJson full dump, and offensive raw text dump.
+
+Do not use batch `--limit` for this target yet. Batch selection still does not
+reach the Metric 0 backlog. A pending-first batch selector remains a later
+Yellow/design option.
+
 ## 2026-05-24 Seventh Enrich Backlog Review Decision
 
 The seventh bounded 168h enrich backlog review inspected ids `5589..5585`
