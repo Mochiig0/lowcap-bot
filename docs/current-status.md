@@ -3614,6 +3614,85 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Fourth Enriched Backlog Batch Review
+
+Date: 2026-05-24 15:30 JST
+
+The Green review of ids `5604..5600` stayed read-only and docs-only. No
+`--write`, external fetch, DB write, Telegram send, Notification update,
+Metric snapshot, detect watch, scheduler/systemd, schema, migration, or app
+code change was performed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Reviewed ids `5604..5600` are all `metadataStatus=partial`, score `C / 0`,
+`hardRejected=false`, `metricsCount=3`, `notificationCount=0`, and
+`holderSnapshotCount=0`:
+
+- `5604` `31ogQ5srbvEjVmJ1SdKQoTCixkdnDd68WfHm752Gpump`: `Percy &amp; Penny`
+  / `HEROES`
+- `5603` `3PjYtKi7Ygf47ZBCE7QdEkQ9BVieVpxCwYzVQpmDpump`: `Avian Influenza`
+  / `Avian`
+- `5602` `FnNvePHJSYw1ec6nDSbXBQxo8couvRWButKN8Zwepump`: `SixSeven` / `67`
+- `5601` `2fS1DSBedPWHN7KSfsiBF9DmosWSbj1ERvSno8ippump`: `TeleClaw` /
+  `TeleClaw`
+- `5600` `2o1xZ8pqvcHBAeQzEUZ9eZeukMQG6S4DsQWFmUNQpump`: `foot` / `footcoin`
+
+All five have names/symbols, normalized text, reviewFlags, `enrichedAt`, and
+`rescoredAt`. Descriptions, website/X/Telegram/link flags, and Metaplex hits
+remain absent. The rows are not Notification candidates.
+
+Report/window findings:
+
+- `metrics:report` reads three GeckoTerminal token snapshot Metrics for each
+  row. Latest Metric ids are `1486..1490`, and safe market-data presence
+  booleans are shown without raw provider payload dumps.
+- `metrics:window-report` for `5604` uses firstSeen entry with
+  `entryAnchorQuality=delayed_120m`; 30m/60m are `no_data`, 2h is `thin`,
+  and 3h-24h are `partial`.
+- `metrics:window-report` for `5600` uses firstSeen entry with
+  `entryAnchorQuality=delayed_180m`; 30m/60m/2h are `no_data`, 3h is `thin`,
+  and 6h-24h are `partial`.
+- Both checked windows still have `outcomeLabel=no_data` because
+  `hasAlertFdvAnchor=false`; wider windows have `hasWindowFdvSamples=true`.
+- `tokens:compare-report` includes all five rows with
+  `metadataStatus=partial`, `minMetricsCount=3`, latest GeckoTerminal Metrics,
+  and unresolved outcome due missing multiple/peak fields.
+
+Queue/planner context stayed compatible with continuing the enrich backlog
+lane: default queue has `enrichPendingCount=0`, `metricPendingCount=0`,
+`notifyCandidateCount=0`; 168h queue has `enrichPendingCount=220`,
+`metricPendingCount=85`, `staleReviewCount=220`, `notifyCandidateCount=0`.
+Auto-send allowed candidates and retry candidates remain `0`.
+
+Next selection simulation for the same bounded enrich command is clear:
+eligible count `220`; selected ids `5599..5595`, all `mint_only`,
+GeckoTerminal-origin pump rows, score `C / 0`, `hardRejected=false`,
+`metricsCount=3`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+Recommendation: continue with one more limit 5 enrich backlog Red before any
+Metric/report follow-up. The report follow-up for `5604..5600` is second; the
+rows already have three Metrics and are readable, while the remaining backlog
+is still enrichPending.
+
+Next Red exact command, requiring human approval and not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token enrich/rescore/context/reviewFlags update for up to five
+rows. Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Do not add `--notify`.
+
 ## Third Enriched Backlog Batch Review
 
 Date: 2026-05-24 14:11 JST

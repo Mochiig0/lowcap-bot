@@ -1265,6 +1265,67 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## Fourth Enriched Backlog Batch Report Review
+
+Date: 2026-05-24 15:30 JST
+
+The read-only review of ids `5604..5600` confirmed that the fourth newly
+partial backlog batch is visible in Metric and compare reports without rawJson
+dumps. No `--write`, external fetch, DB write, Telegram send, Notification
+update, Metric snapshot, detect watch, scheduler/systemd, schema/migration, or
+app code change was performed.
+
+State stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Report summary:
+
+- all five rows are `partial`, score `C / 0`, `hardRejected=false`, with
+  names/symbols, normalized text, reviewFlags, and enrichment/rescore
+  timestamps
+- all five have `metricsCount=3`, `notificationCount=0`, and
+  `holderSnapshotCount=0`
+- descriptions, website/X/Telegram/link flags, and Metaplex hits remain absent
+- `metrics:report` reads three Metrics for each token; latest Metric ids are
+  `1486..1490`, and rows expose safe market-data presence booleans
+- `metrics:window-report` for `5604` shows firstSeen entry,
+  `entryAnchorQuality=delayed_120m`, 30m/60m `no_data`, 2h `thin`, and
+  3h-24h `partial`
+- `metrics:window-report` for `5600` shows firstSeen entry,
+  `entryAnchorQuality=delayed_180m`, 30m/60m/2h `no_data`, 3h `thin`, and
+  6h-24h `partial`
+- outcome remains `no_data` because there is no alert FDV anchor / peak
+  multiple, even though wider windows have FDV samples
+- `tokens:compare-report` includes all five rows with `minMetricsCount=3`,
+  latest GeckoTerminal Metric presence, and unresolved outcome
+
+Queue context stayed compatible with continuing the enrich backlog lane:
+default queue has `enrichPendingCount=0`, `metricPendingCount=0`,
+`notifyCandidateCount=0`; 168h queue has `enrichPendingCount=220`,
+`metricPendingCount=85`, `staleReviewCount=220`, `notifyCandidateCount=0`.
+
+Recommendation: continue with one more limit 5 enrich backlog Red before any
+Metric/report follow-up. The next selection is clear as ids `5599..5595`, all
+`mint_only`, GeckoTerminal-origin pump rows, score `C / 0`,
+`hardRejected=false`, and `metricsCount=3`.
+
+Next Red exact command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are Token updates for up to five rows after external
+GeckoTerminal and best-effort Metaplex fetches. Expected non-effects are Metric
+write, Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
+is required; do not add `--notify`.
+
 ## Third Enrich Backlog Batch Result
 
 Date: 2026-05-24 14:01 JST
