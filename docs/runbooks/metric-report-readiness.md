@@ -1174,3 +1174,36 @@ five rows after external GeckoTerminal and best-effort Metaplex fetches. It
 should not write Metrics, create/update Notifications, write HolderSnapshots,
 send Telegram, touch scheduler/systemd, create repo-local data diffs, or dump
 rawJson. Human approval is required; do not add `--notify`.
+
+## Enrich Backlog Batch Result
+
+Date: 2026-05-24 11:01 JST
+
+The human-approved bounded backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`, `error=0`,
+`contextWritten=5`, `metaplexAttempted=5`, `metaplexAvailable=0`,
+`notifyWouldSend=0`, `notifySent=0`, no provider error, no 429, and no retry.
+
+Selected ids `5619..5615` moved from `mint_only` to `partial`; each now has
+name/symbol and normalized text, remains score `C / 0`, remains
+`hardRejected=false`, has `enrichedAt` / `rescoredAt`, and has reviewFlags.
+Metaplex was attempted for all five and returned `metadata_account_missing=5`,
+so description/link/social flags remain absent.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`
+and Notification statuses `captured=5`, `sent=5`, `failed=0`. The 168h queue
+now shows `enrichPendingCount=235`, `metricPendingCount=85`,
+`staleReviewCount=235`, and `notifyCandidateCount=0`.
+
+This confirms the limit-5 backlog Token update boundary. It did not write
+Metrics, create/update Notifications, write HolderSnapshots, send Telegram,
+execute auto-send/retry, touch scheduler/systemd, create repo-local data
+diffs, or dump rawJson. Next work should stay Green: review this batch and
+decide whether to continue with another bounded enrich backlog Red or switch
+to Metric/report follow-up.

@@ -4477,6 +4477,80 @@ send `0`, scheduler/systemd `0`, repo-local data diff `0`, and rawJson full
 dump `0`. Do not add `--notify`; if 429 or provider error appears, do not
 retry or widen the command in the same task.
 
+## 168h GeckoTerminal Enrich Backlog Batch Result
+
+Date: 2026-05-24 11:01 JST
+
+CodexCLI: `codex-cli 0.133.0`
+
+The human-approved Red command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429 / rate-limit abort, and no retry. Metaplex lookup returned
+`metadata_account_missing=5`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`. Notification statuses stayed `captured=5`, `sent=5`, `failed=0`;
+retry candidate count and enabled auto-send allowed candidate count stayed
+`0`.
+
+Selected token updates:
+
+- `5619` `2qyZZqME7wy5vMBqBoFA7SB5EzoCr2ydeFZZkF2spump`: `mint_only ->
+  partial`, `BUYBACK WORKS NOW` / `COMPASS`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=5`, `notificationCount=1`,
+  `holderSnapshotCount=0`
+- `5618` `2k5wuRCdhL331w5mALdP34eejkQ3qQswykyipr3bpump`: `mint_only ->
+  partial`, `zynnner` / `zyn`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=4`, `notificationCount=0`, `holderSnapshotCount=0`
+- `5617` `7PX9QAupWVnDQEREbufTwtTNwqRUfaxMs6ZJou4Tpump`: `mint_only ->
+  partial`, `Carnegie UK Trust` / `CUKT`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=4`, `notificationCount=0`,
+  `holderSnapshotCount=0`
+- `5616` `9BJMK9UJyTPh52vDdLoo3THuW97XdyqLpUGemC1epump`: `mint_only ->
+  partial`, `LIBERTY ENLIGHTENING THE WORLD` / `LIBERTY`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=4`, `notificationCount=0`,
+  `holderSnapshotCount=0`
+- `5615` `Dspru8JZkVz3ewdJ7xQg18eW8ESbYH5wmoVbhFTHpump`: `mint_only ->
+  partial`, `BUYBACKS ARE OFF ON COIN` / `COMPASS`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=4`, `notificationCount=0`,
+  `holderSnapshotCount=0`
+
+All five have `descriptionPresent=false`, `normalizedTextPresent=true`,
+`enrichedAt` / `rescoredAt` set, and reviewFlags showing no website, X,
+Telegram, Metaplex hit, description, or links. No rawJson full dump was
+printed.
+
+Queue / planner after:
+
+- 24h `review:queue:geckoterminal -- --pumpOnly --limit 20`:
+  `geckoOriginTokenCount=5`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=235`,
+  `metricPendingCount=85`, `staleReviewCount=235`,
+  `notifyCandidateCount=0`
+- auto-send planner remained `allowedCandidateCount=0`; retry planner
+  remained `candidateCount=0`
+
+Expected side effects occurred only in the bounded Token update path:
+external GeckoTerminal fetch, best-effort Metaplex fetch, and Token
+enrich/rescore/context/reviewFlags update for 5 rows. Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, auto-send
+execution, retry execution, scheduler/systemd, app/schema/migration change,
+repo-local data diff, and rawJson full dump did not occur.
+
+Next useful task should be Green again: inspect this enriched backlog batch
+through read-only reports / queue state and decide whether the next Red should
+be another limit-5 enrich backlog batch, a small Metric follow-up for these
+five, or a pause for docs/handoff.
+
 ## Next Operating Slice Decision
 
 Date: 2026-05-21
