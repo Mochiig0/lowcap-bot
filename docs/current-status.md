@@ -3739,6 +3739,80 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## 2026-05-24 Eighth Enriched Backlog Batch Review
+
+Execution time: 2026-05-24 21:05 JST. Codex version:
+`codex-cli 0.133.0`.
+
+This Green review stayed read-only and inspected ids `5584..5580` after the
+eighth bounded enrich backlog Red. No `--write`, external fetch, Telegram
+send, Notification update, Metric snapshot, detect watch, scheduler/systemd,
+schema, migration, app code change, or rawJson full dump was performed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Batch readiness:
+
+- all five rows are `metadataStatus=partial`, `hardRejected=false`, have
+  normalized text, reviewFlags, and enrichment/rescore timestamps
+- ids `5584` and `5583` have offensive name/symbol values and are documented
+  only as `[offensive term]`; do not paste their raw name/symbol in docs,
+  handoff prompts, or final reports
+- `5582` is `Jester` / `Jester`, score `C / 0`
+- `5581` is `stop using ai` / `ai`, score `C / 1`; safe scoring detail shows
+  a learned AI-phrase hit from normalized text, not a notification candidate
+- `5580` is `Mintendo` / `MINTENDO`, score `C / 0`
+- all five have description absent and reviewFlags with no website, X,
+  Telegram, Metaplex hit, description, or links
+- all five have `metricsCount=2`, `notificationCount=0`, and
+  `holderSnapshotCount=0`
+
+Report/window review:
+
+- target Metric rows are readable through a redacted Prisma safe summary; the
+  broader `metrics:report` / `tokens:compare-report` package output was not
+  used for the full target set because ids `5584` / `5583` require offensive
+  name/symbol redaction
+- the compare state for all five remains `metadataStatus=partial`,
+  `minMetricsCount=2`, and unresolved / `multiple_missing`
+- `metrics:window-report` for `5581` and `5580` stayed read-only with
+  `willWrite=false`, `willFetch=false`, and `willSendTelegram=false`
+- both representative rows have `metricCount=2`, `fdvMetricCount=2`,
+  `hasAlertFdvAnchor=false`, and `hasWindowFdvSamples=true` in wider windows
+- `5581` uses firstSeen entry with `entryAnchorQuality=delayed_180m`; 30m /
+  60m / 2h are `no_data`, 3h / 6h / 12h are `thin`, and 24h is `partial`
+- `5580` uses firstSeen entry with `entryAnchorQuality=late_360m`; 30m / 60m /
+  2h / 3h are `no_data`, 6h / 12h are `thin`, and 24h is `partial`
+- outcome remains `no_data` because there is no alert FDV anchor / peak
+  multiple; rawJson was not dumped
+
+Queue and planner context:
+
+- default queue: `geckoOriginTokenCount=0`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+  `metricPendingCount=85`, `staleReviewCount=200`,
+  `notifyCandidateCount=0`
+- disabled and enabled auto-send planner both report allowed candidates `0`
+- retry planner reports candidate count `0`
+
+Decision: choose progress consolidation / handoff as the next step before
+another Red. Repeating the limit 5 enrich backlog Red is still technically
+safe, but eight consecutive bounded enrich batches have now run without
+provider error, 429, retry, Notification / Telegram effects, or Metric writes.
+The next useful Green should consolidate progress and offensive-safe reporting
+rules before selecting another write batch.
+
+No next Red exact command is fixed by this review. If the operator later
+chooses to resume the same lane, the known candidate remains the existing
+human-approved pattern, but it should be re-preflighted after consolidation.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch
 
 Execution time: 2026-05-24 20:23 JST.

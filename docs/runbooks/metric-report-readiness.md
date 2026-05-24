@@ -1344,6 +1344,46 @@ and the 168h queue moved to `enrichPendingCount=200`,
 Next report task should inspect ids `5584..5580` read-only. Docs intentionally
 redact offensive name/symbol values for two rows and avoid rawJson dumps.
 
+## Eighth Enrich Backlog Batch Report Review
+
+Date: 2026-05-24 21:05 JST
+
+The follow-up review of ids `5584..5580` stayed read-only and rawJson-free.
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`; Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+Retry and auto-send allowed candidates stayed `0`.
+
+The five tokens are all `partial`, non-hard-rejected, have normalized text,
+reviewFlags, and `metricsCount=2`. IDs `5584` and `5583` contain offensive
+name/symbol values and should be summarized only as `[offensive term]` in docs
+and final reports. `5581` is `C / 1` from a learned AI-phrase score hit; the
+others are `C / 0`. None has Notification or HolderSnapshot rows.
+
+Report handling:
+
+- target Metric rows were confirmed through a redacted Prisma safe summary
+  rather than broad package output for the full target set, preserving the
+  offensive-name redaction boundary
+- representative `metrics:window-report` checks for `5581` and `5580` printed
+  read-only safety fields and no raw provider payload
+- both representative rows have `metricCount=2`, `fdvMetricCount=2`,
+  `hasAlertFdvAnchor=false`, and FDV samples in wider windows
+- `5581`: firstSeen entry, `entryAnchorQuality=delayed_180m`; short windows
+  are `no_data`, 3h / 6h / 12h are `thin`, 24h is `partial`
+- `5580`: firstSeen entry, `entryAnchorQuality=late_360m`; short windows are
+  `no_data`, 6h / 12h are `thin`, 24h is `partial`
+- outcome stays `no_data` because no alert FDV anchor / peak multiple exists
+
+Queue context stayed healthy: default queue empty; 168h queue
+`enrichPendingCount=200`, `metricPendingCount=85`, `staleReviewCount=200`,
+`notifyCandidateCount=0`.
+
+Next report-oriented step should be Green progress consolidation / handoff.
+Another limit 5 enrich backlog Red is still possible after fresh preflight, but
+the current report finding does not require immediate Metric/report follow-up
+for ids `5584..5580`.
+
 ## Sixth Enrich Backlog Batch Follow-Up Point
 
 Date: 2026-05-24 20:23 JST

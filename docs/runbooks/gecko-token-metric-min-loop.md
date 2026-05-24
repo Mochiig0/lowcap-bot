@@ -1629,6 +1629,63 @@ scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 Next selected step: Green review of ids `5584..5580` before approving any
 additional write batch.
 
+## Eighth Enriched Backlog Batch Report Review
+
+Date: 2026-05-24 21:05 JST
+
+The read-only review of ids `5584..5580` confirmed that the eighth newly
+partial backlog batch is visible through safe summaries and representative
+window reports. No `--write`, external fetch, Metric snapshot, detect watch,
+Telegram send, Notification update, scheduler/systemd, schema, migration, app
+code change, or rawJson full dump was performed.
+
+State stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidates: `0`
+- auto-send allowed candidates: `0`
+
+Batch summary:
+
+- all five rows are `partial`, `hardRejected=false`, with normalized text,
+  reviewFlags, `enrichedAt`, and `rescoredAt`
+- `5584` and `5583` contain offensive name/symbol values; docs and final
+  reports must use `[offensive term]` only and avoid raw text
+- `5582` is `Jester` / `Jester`, score `C / 0`
+- `5581` is `stop using ai` / `ai`, score `C / 1`, from a learned AI-phrase
+  score hit; it is not a notify candidate
+- `5580` is `Mintendo` / `MINTENDO`, score `C / 0`
+- all five have `metricsCount=2`, `notificationCount=0`, and
+  `holderSnapshotCount=0`
+
+Report/window summary:
+
+- target Metrics are readable through a redacted Prisma safe summary; broad
+  package report output was intentionally avoided for the full target set to
+  preserve offensive-name redaction
+- representative `metrics:window-report` checks for `5581` and `5580` stayed
+  read-only and rawJson-free
+- both representative rows have `metricCount=2`, `fdvMetricCount=2`,
+  `hasAlertFdvAnchor=false`, and wider-window FDV samples
+- `5581` has `entryAnchorQuality=delayed_180m`; 3h / 6h / 12h are `thin`,
+  24h is `partial`
+- `5580` has `entryAnchorQuality=late_360m`; 6h / 12h are `thin`, 24h is
+  `partial`
+- outcome remains `no_data` because no alert FDV anchor / peak multiple exists
+
+Queue context: default queue is empty; 168h queue has
+`geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+`metricPendingCount=85`, `staleReviewCount=200`, and
+`notifyCandidateCount=0`.
+
+Recommendation: pause the repeat-Red rhythm for a Green progress consolidation
+/ handoff. The same limit 5 enrich backlog Red remains technically viable, but
+after eight consecutive clean batches the next higher-value step is to
+consolidate progress, remaining backlog, notifyCandidate state, 429/provider
+error history, and offensive-safe reporting rules.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch Result
 
 Approved Red command:

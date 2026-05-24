@@ -1157,6 +1157,36 @@ The 168h queue moved from `enrichPendingCount=205` to `200`, with
 Green: review ids `5584..5580` in report/window/queue and decide whether to
 continue another limit 5 enrich backlog Red or switch lanes.
 
+## 2026-05-24 Eighth Enriched Backlog Batch Review
+
+The read-only review of ids `5584..5580` is complete. Current counts stayed
+Token / Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`, Metric
+distribution `0=1222`, `1=232`, `2+=87`, and Notification statuses
+`captured=5`, `sent=5`, `failed=0`. Retry candidates and auto-send allowed
+candidates remain `0`.
+
+All five rows are `partial`, non-hard-rejected, have normalized text,
+reviewFlags, and `metricsCount=2`; none has Notification or HolderSnapshot
+rows. Two rows have offensive name/symbol values and must be documented only
+as `[offensive term]`, without raw text in reports or handoff. `5581` is the
+only score mover at `C / 1`, from a learned AI-phrase hit, and is not a notify
+candidate.
+
+Representative `metrics:window-report` checks for non-offensive rows `5581`
+and `5580` remained read-only and showed `metricCount=2`, `fdvMetricCount=2`,
+`hasAlertFdvAnchor=false`, and wider-window FDV samples. Outcome remains
+`no_data`; wider windows are `thin` or `partial`, not usable alert-anchored
+outcomes. RawJson was not dumped.
+
+Queue context is healthy but now calls for consolidation: default queue remains
+empty, 168h queue has `enrichPendingCount=200`, `metricPendingCount=85`,
+`staleReviewCount=200`, and `notifyCandidateCount=0`. After eight consecutive
+bounded enrich batches without 429, provider error, retry, Metric write,
+Notification update, HolderSnapshot write, or Telegram send, the next selected
+step is **Green progress consolidation / handoff**, not an immediate ninth
+Red. Repeat limit 5 enrich backlog remains the second candidate after a fresh
+preflight.
+
 ## 2026-05-24 Sixth Enrich Backlog Batch Result
 
 The sixth bounded 168h enrich backlog Red ran once with the approved command:
