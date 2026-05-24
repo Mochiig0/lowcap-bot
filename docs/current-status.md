@@ -3614,6 +3614,91 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Fifth Enriched Backlog Batch Review
+
+Date: 2026-05-24 20:15 JST
+
+The Green review of ids `5599..5595` stayed read-only and docs-only. No
+`--write`, external fetch, DB write, Telegram send, Notification update,
+Metric snapshot, detect watch, scheduler/systemd, schema, migration, or app
+code change was performed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Reviewed ids `5599..5595` are all `metadataStatus=partial`,
+`hardRejected=false`, `metricsCount=3`, `notificationCount=0`, and
+`holderSnapshotCount=0`:
+
+- `5599` `31V2Fdv4GssvzhJznYXB9HQSPn7jA5HdDoqNk56fpump`: `TROLL OF THE
+  UNITED STATES` / `TOTUS`, score `C / 0`
+- `5598` `JAo2uDfn5quJ3hiWtRrrZFpgtbTkZHpaUvKN4MXbpump`: `Delusional
+  Optimist` / `OPTIMIST`, score `C / 0`
+- `5597` `H9oE1Z8wfWC7vp9dnE1nyBkSrnTSkwKjze9Nz2krpump`: `Boner Phone` /
+  `Thumas`, score `C / 0`
+- `5596` `3Xxf4KCHhDUjAPJJUwVBei3PbnVDWHt7PndPRr86pump`: `Self-Replicating
+  Tweet` / `.....`, score `C / 1`
+- `5595` `AYFm1Y5cEQrpm2ByKHb8oX7Gt12e7NMW8TbqZ8Ahpump`: `KUROGANE` /
+  `KGANE`, score `C / 0`
+
+All five have names/symbols, normalized text, reviewFlags, `enrichedAt`, and
+`rescoredAt`. Descriptions, website/X/Telegram/link flags, and Metaplex hits
+remain absent. `5596` is `C / 1` because the safe score breakdown shows a
+single core keyword hit: key `cat`, score `+1`, tag `animal`, from normalized
+text `self replicating tweet`. It remains C-rank and is not a Notification
+candidate.
+
+Report/window findings:
+
+- `metrics:report` reads three GeckoTerminal token snapshot Metrics for each
+  row. Latest Metric ids are `1491..1495`, and safe market-data presence
+  booleans are shown without raw provider payload dumps.
+- `metrics:window-report` for `5596` uses firstSeen entry with
+  `entryAnchorQuality=delayed_180m`; 30m/60m/2h are `no_data`, 3h is `thin`,
+  and 6h-24h are `partial`.
+- `metrics:window-report` for `5599` uses firstSeen entry with
+  `entryAnchorQuality=delayed_180m`; 30m/60m/2h are `no_data`, 3h is `thin`,
+  and 6h-24h are `partial`.
+- Both checked windows still have `outcomeLabel=no_data` because
+  `hasAlertFdvAnchor=false`; wider windows have `hasWindowFdvSamples=true`.
+- `tokens:compare-report` includes all five rows with
+  `metadataStatus=partial`, `minMetricsCount=3`, latest GeckoTerminal Metrics,
+  and unresolved outcome due missing multiple/peak fields.
+
+Queue/planner context stayed compatible with continuing the enrich backlog
+lane: default queue has `geckoOriginTokenCount=0`, `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue has
+`enrichPendingCount=215`, `metricPendingCount=85`, `staleReviewCount=215`,
+`notifyCandidateCount=0`. Auto-send allowed candidates and retry candidates
+remain `0`.
+
+Next selection simulation for the same bounded enrich command is clear:
+eligible count `215`; selected ids `5594..5590`, all `mint_only`,
+GeckoTerminal-origin pump rows, score `C / 0`, `hardRejected=false`,
+`metricsCount=3`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+Recommendation: continue with one more limit 5 enrich backlog Red before any
+Metric/report follow-up. The report follow-up for `5599..5595` is second; the
+rows already have three Metrics and are readable, while the remaining backlog
+is still enrichPending.
+
+Next Red exact command, requiring human approval and not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token enrich/rescore/context/reviewFlags update for up to five
+rows. Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Do not add `--notify`.
+
 ## Fourth Enriched Backlog Batch Review
 
 Date: 2026-05-24 15:30 JST

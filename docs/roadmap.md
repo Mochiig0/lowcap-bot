@@ -1066,6 +1066,56 @@ rows. Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## 2026-05-24 Fifth Enriched Backlog Batch Review
+
+The Green review of ids `5599..5595` stayed read-only/docs-only. Counts stayed
+Token / Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`, Metric
+distribution `0=1222`, `1=232`, `2+=87`, and Notification statuses
+`captured=5`, `sent=5`, `failed=0`.
+
+The reviewed rows are all `metadataStatus=partial`, non-hard-rejected, and
+have names/symbols, normalized text, reviewFlags, `enrichedAt`, and
+`rescoredAt`. Descriptions, website/X/Telegram/link flags, Metaplex hits,
+Notifications, and HolderSnapshots remain absent. Each has `metricsCount=3`.
+`5596` is score `C / 1`; the safe score breakdown shows one core keyword hit,
+key `cat` for `+1`, and it is still not a notify candidate.
+
+Read-only report checks:
+
+- `metrics:report` reads three GeckoTerminal Metrics for each selected row
+  without dumping raw provider payloads.
+- `metrics:window-report` for representative ids `5596` and `5599` shows
+  firstSeen entry anchors, 3h `thin`, 6h-24h `partial`, and
+  `outcomeLabel=no_data` because there is no alert FDV anchor.
+- `tokens:compare-report` includes ids `5599..5595` as partial rows with
+  latest GeckoTerminal Metrics and unresolved outcome.
+
+Queue/planner context remains healthy: default queue has
+`enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`; 168h
+queue has `enrichPendingCount=215`, `metricPendingCount=85`,
+`staleReviewCount=215`, `notifyCandidateCount=0`; auto-send allowed and retry
+candidates are both `0`.
+
+Next selection for the same bounded enrich command is clear as ids
+`5594..5590`, all `mint_only`, GeckoTerminal-origin pump rows, score `C / 0`,
+non-hard-rejected, `metricsCount=3`, with no Notification or HolderSnapshot
+rows.
+
+Next selected step: repeat the limit 5 enrich backlog Red. Metric/report
+follow-up for `5599..5595` is second; broader Metric backlog is deferred.
+
+Next Red exact command, requiring human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+lookup, and Token enrich/rescore/context/reviewFlags update for up to five
+rows. Expected non-effects are Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+and rawJson full dump. Do not add `--notify`.
+
 ## 2026-05-24 Fifth Enrich Backlog Batch Result
 
 The approved bounded 168h enrich backlog Red ran once:
