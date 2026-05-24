@@ -1066,6 +1066,40 @@ rows. Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## 2026-05-24 Third Enrich Backlog Batch Result
+
+The approved bounded 168h enrich backlog Red ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`, `error=0`,
+`contextWritten=5`, `metaplexAttempted=5`, `metaplexAvailable=0`,
+`notifyWouldSend=0`, `notifySent=0`, no provider error, no 429, and no retry.
+Metaplex lookup returned `metadata_account_missing=5`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`; Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+The selected ids `5609..5605` moved from `mint_only` to `partial` with
+name/symbol present, normalized text present, `hardRejected=false`, and
+reviewFlags present. Scores stayed `C / 0` except `5607`, which moved to
+`B / 2`. Metrics stayed `3,3,3,3,3`; Notification and HolderSnapshot counts
+stayed `0`.
+
+Queue moved as expected: default 24h queue has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue now has
+`enrichPendingCount=225`, `metricPendingCount=85`, `staleReviewCount=225`,
+`notifyCandidateCount=0`. Auto-send allowed candidates and retry candidates
+remain `0`.
+
+Only the expected Token update path was used. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, repo-local data diff, or rawJson full dump. Next step
+should be Green: review this third enriched backlog batch and decide whether
+to run another small backlog enrich batch or shift to Metric/report follow-up.
+
 ## 2026-05-24 Next Enrich Backlog Batch Result
 
 The approved bounded 168h enrich backlog Red ran once:

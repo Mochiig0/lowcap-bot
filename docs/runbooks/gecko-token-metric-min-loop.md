@@ -1421,6 +1421,43 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## Third Enrich Backlog Batch Result
+
+Date: 2026-05-24 14:01 JST
+
+The human-approved bounded backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`, `error=0`,
+`contextWritten=5`, `metaplexAttempted=5`, `metaplexAvailable=0`,
+`notifyWouldSend=0`, `notifySent=0`, no provider error, no 429, and no retry.
+The run skipped `15` already-complete rows before selecting incomplete rows.
+
+Selected ids `5609..5605` moved from `mint_only` to `partial`. They now have
+names/symbols: `PESY` / `PESY`, `UPCOIN`, `Doge Coffee` / `DOGECOFFEE`,
+`The Predictor` / `KIM`, and `FUCKING FAT DILDO` / `FFD`. All remain
+`hardRejected=false`, description absent, normalized text present, and have
+reviewFlags present with no website, X, Telegram, Metaplex hit, description,
+or links. Score stayed `C / 0` except `5607`, which moved to `B / 2`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`
+and Notification statuses `captured=5`, `sent=5`, `failed=0`. The selected
+rows retained `metricsCount=3`, `notificationCount=0`, and
+`holderSnapshotCount=0`. The 168h queue moved from `enrichPendingCount=230`
+to `225`, with `metricPendingCount=85`, `staleReviewCount=225`, and
+`notifyCandidateCount=0`.
+
+This confirms the third repeat limit-5 backlog Token update boundary. It did
+not write Metrics, create/update Notifications, write HolderSnapshots, send
+Telegram, execute auto-send/retry, touch scheduler/systemd, create repo-local
+data diffs, or dump rawJson. Next work should stay Green: review this third
+batch and decide whether to continue with another bounded enrich backlog Red
+or switch to Metric/report follow-up.
+
 ## 2026-05-24 Next Enriched Backlog Batch Review
 
 The follow-up review stayed read-only and inspected ids `5614..5610` after the

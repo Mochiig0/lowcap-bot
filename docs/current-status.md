@@ -3614,6 +3614,60 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## Third Enrich Backlog Batch Result
+
+Date: 2026-05-24 14:01 JST
+
+The human-approved bounded 168h enrich backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection skipped `15` already-complete rows and
+no non-pump rows. Metaplex returned `metadata_account_missing=5`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`, and Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`. Retry candidates and enabled auto-send allowed candidates stayed
+`0`.
+
+Selected ids `5609..5605` moved from `mint_only` to `partial`:
+
+- `5609` `9q6qTiV9mr75Y2SfDHN12KKW2QzdrhsqK9tkUskQpump`: `PESY` / `PESY`,
+  score stayed `C / 0`
+- `5608` `4zmppuCdFZ5n8xPvuAPaUC5RnR68oShYhaAZyXFYpump`: symbol `UPCOIN`,
+  score stayed `C / 0`
+- `5607` `2vXN3KdTcsRAFdEVJNTD73YeqMtJnzueCsJRZbt4pump`: `Doge Coffee` /
+  `DOGECOFFEE`, score moved `C / 0` to `B / 2`
+- `5606` `HCNw4UENjCHjM4A3crRARYBKY2DLNEJjMTR4hWK7pump`: `The Predictor` /
+  `KIM`, score stayed `C / 0`
+- `5605` `G4ip41Yiq5DfiNbgebNcRJpigACbXfyjaaNP5RjTpump`: `FUCKING FAT DILDO`
+  / `FFD`, score stayed `C / 0`
+
+All five remain `hardRejected=false`, have normalized text, have
+`enrichedAt` / `rescoredAt`, have reviewFlags with no website, X, Telegram,
+Metaplex hit, description, or links, and have `metricsCount=3`,
+`notificationCount=0`, `holderSnapshotCount=0`.
+
+Queue moved as expected: default 24h queue has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue now has
+`enrichPendingCount=225`, `metricPendingCount=85`, `staleReviewCount=225`,
+and `notifyCandidateCount=0`.
+
+Only the expected Token update path was used. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, auto-send or
+retry execution, scheduler/systemd, repo-local data diff, or rawJson full
+dump.
+
+Next candidate: Green review of ids `5609..5605` via read-only
+report/window/queue, then decide whether to run another limit-5 enrich backlog
+Red or switch to Metric/report follow-up.
+
 ## Bounded Write Rehearsal Token Inspection
 
 Date: 2026-05-23 19:44 JST
