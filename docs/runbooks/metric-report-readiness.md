@@ -1338,6 +1338,32 @@ selection is ids `5589..5585`; all are `mint_only`, GeckoTerminal-origin pump
 rows, score `C / 0`, `hardRejected=false`, `metricsCount=2`, and have no
 Notification or HolderSnapshot rows.
 
+## Seventh Enrich Backlog Batch Follow-Up Point
+
+Date: 2026-05-24 20:38 JST
+
+The seventh bounded enrich backlog Red updated ids `5589..5585` from
+`mint_only` to `partial` without adding Metrics. Counts remained Token /
+Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`; Metric
+distribution remained `0=1222`, `1=232`, `2+=87`; Notification statuses
+remained `captured=5`, `sent=5`, `failed=0`.
+
+The selected rows now have names/symbols and `metricsCount=2`:
+
+- `5589` `zynnner` / `zyn`, score `C / 0`
+- `5588` `New Moon` / `Moon`, score `C / 0`
+- `5587` `Turtle Carl` / `Carl`, score `C / 0`
+- `5586` `SmilingFace` / `SmilingFace`, score `C / 0`
+- `5585` `Pelican` / `PELICAN`, score `C / 0`
+
+No row has Notification or HolderSnapshot rows, and no row became a notify
+candidate during the Red execution. The batch should be reviewed next with
+read-only `metrics:report`, `metrics:window-report`,
+`tokens:compare-report`, queue, auto-send planner, and retry planner checks.
+Expected report boundary is unchanged: no raw provider payload dump, no DB
+write, no external fetch, no Telegram send, and no Notification update during
+the Green review.
+
 ## Fifth Enriched Backlog Batch Report Review
 
 Date: 2026-05-24 20:15 JST

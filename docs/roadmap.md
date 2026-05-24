@@ -1145,6 +1145,39 @@ Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## 2026-05-24 Seventh Enrich Backlog Batch Result
+
+The seventh bounded 168h enrich backlog Red ran once with the approved command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+It completed successfully: `selected=5`, `enriched=5`, `rescored=5`,
+`skipped=0`, `error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection skipped `35` already-complete rows.
+
+Selected ids `5589..5585` moved from `mint_only` to `partial` with
+name/symbol and normalized text present: `zynnner` / `zyn`, `New Moon` /
+`Moon`, `Turtle Carl` / `Carl`, `SmilingFace` / `SmilingFace`, and `Pelican` /
+`PELICAN`. All five stayed score `C / 0`, `hardRejected=false`,
+`metricsCount=2`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`. The 168h queue moved to `enrichPendingCount=205`,
+`metricPendingCount=85`, `staleReviewCount=205`, `notifyCandidateCount=0`.
+Auto-send allowed candidates and retry candidates remain `0`.
+
+Expected non-effects held: no Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+or rawJson full dump.
+
+Next selected step is Green: review ids `5589..5585` with read-only
+report/window/queue/planner checks. Do not proceed directly to another Red
+until that review confirms the batch boundary again.
+
 ## 2026-05-24 Fifth Enriched Backlog Batch Review
 
 The Green review of ids `5599..5595` stayed read-only/docs-only. Counts stayed

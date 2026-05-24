@@ -3736,6 +3736,54 @@ rows. Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## 2026-05-24 Seventh 168h Enrich Backlog Batch
+
+Execution time: 2026-05-24 20:38 JST. Codex version: `codex-cli 0.133.0`.
+
+The approved Red command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection reported `skippedComplete=35`.
+Metaplex lookup returned `metadata_account_missing=5`.
+
+Selected ids `5589..5585` moved from `mint_only` to `partial`:
+
+- `5589` `zynnner` / `zyn`, score `C / 0`
+- `5588` `New Moon` / `Moon`, score `C / 0`
+- `5587` `Turtle Carl` / `Carl`, score `C / 0`
+- `5586` `SmilingFace` / `SmilingFace`, score `C / 0`
+- `5585` `Pelican` / `PELICAN`, score `C / 0`
+
+All five remain `hardRejected=false`, have names/symbols and normalized text,
+have no description/social/link flags, have `enrichedAt` / `rescoredAt`, and
+have reviewFlags. Metrics stayed `2` each, Notification count stayed `0`, and
+HolderSnapshot count stayed `0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`. Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`. Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+Retry candidates and allowed auto-send candidates stayed `0`.
+
+Queue after execution: default 24h queue has `geckoOriginTokenCount=0`,
+`enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`;
+168h queue has `geckoOriginTokenCount=245`, `enrichPendingCount=205`,
+`metricPendingCount=85`, `staleReviewCount=205`, and
+`notifyCandidateCount=0`.
+
+Expected non-effects held: no Metric write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
+scheduler/systemd, no repo-local data diff, and no rawJson full dump.
+
+Next step: Green review of ids `5589..5585` with read-only report / window /
+queue / planner checks before deciding whether to run another limit 5 enrich
+backlog batch or switch to Metric/report follow-up.
+
 ## Fifth Enriched Backlog Batch Review
 
 Date: 2026-05-24 20:15 JST

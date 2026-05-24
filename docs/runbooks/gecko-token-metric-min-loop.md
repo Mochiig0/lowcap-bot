@@ -1523,6 +1523,50 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Do not add
 `--notify`.
 
+## 2026-05-24 Seventh 168h Enrich Backlog Batch Result
+
+Approved Red command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`,
+`skipped=0`, `error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection reported `skippedComplete=35`, and
+Metaplex lookup returned `metadata_account_missing=5`.
+
+Selected ids `5589`, `5588`, `5587`, `5586`, and `5585` moved from
+`metadataStatus=mint_only` to `partial`:
+
+- `5589` `zynnner` / `zyn`, score `C / 0`
+- `5588` `New Moon` / `Moon`, score `C / 0`
+- `5587` `Turtle Carl` / `Carl`, score `C / 0`
+- `5586` `SmilingFace` / `SmilingFace`, score `C / 0`
+- `5585` `Pelican` / `PELICAN`, score `C / 0`
+
+All five have normalized text, `enrichedAt`, `rescoredAt`, and reviewFlags.
+Descriptions, website, X, Telegram, Metaplex hit, and links are absent. All
+remain `hardRejected=false`, with no score hits. Metrics stayed `2` for each
+row, Notification count stayed `0`, and HolderSnapshot count stayed `0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, and Notification statuses stayed `captured=5`,
+`sent=5`, `failed=0`. Queue after execution: 24h default
+`geckoOriginTokenCount=0`, `enrichPendingCount=0`, `metricPendingCount=0`,
+`notifyCandidateCount=0`; 168h `geckoOriginTokenCount=245`,
+`enrichPendingCount=205`, `metricPendingCount=85`,
+`staleReviewCount=205`, `notifyCandidateCount=0`.
+
+Only the expected Token update path was used. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, auto-send or
+retry execution, scheduler/systemd, repo-local data diff, or rawJson full
+dump.
+
+Next step should be Green read-only review of ids `5589..5585` before deciding
+whether to run another limit 5 backlog enrich batch.
+
 ## Fifth Enriched Backlog Batch Review
 
 Date: 2026-05-24 20:15 JST
