@@ -3614,6 +3614,54 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## 2026-05-24 Sixth 168h Enrich Backlog Batch
+
+Execution time: 2026-05-24 20:23 JST.
+
+The approved Red command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Metaplex lookup returned
+`metadata_account_missing=5`.
+
+Selected ids `5594..5590` moved from `mint_only` to `partial`:
+
+- `5594` `Test Coin` / `TEST`, score `C / 0`
+- `5593` `KOWAKU` / `KOWAKU`, score `C / 0`
+- `5592` `Gad Sad` / `GAD`, score `C / 0`
+- `5591` `NEXT PWEASE TWEET EVERY SEC` / `BONERPHONE`, score `C / 0`
+- `5590` `Sketichification` / `Sketchify`, score `C / 1`
+
+All five remain `hardRejected=false`, have names/symbols and normalized text,
+have no description/social/link flags, have `enrichedAt` / `rescoredAt`, and
+have reviewFlags. `5590` scored one core narrative point from the `cat`
+keyword; the other four stayed zero. Metrics stayed `3` each, Notification
+count stayed `0`, and HolderSnapshot count stayed `0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`. Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`. Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+Retry candidates and allowed auto-send candidates stayed `0`.
+
+Queue after execution: default 24h queue has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue has
+`enrichPendingCount=210`, `metricPendingCount=85`, `staleReviewCount=210`,
+and `notifyCandidateCount=0`.
+
+Expected non-effects held: no Metric write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
+scheduler/systemd, no repo-local data diff, and no rawJson full dump.
+
+Next step: Green review of ids `5594..5590` with read-only report / window /
+queue / planner checks before deciding whether to run another limit 5 enrich
+backlog batch or switch to Metric/report follow-up.
+
 ## Fifth Enriched Backlog Batch Review
 
 Date: 2026-05-24 20:15 JST

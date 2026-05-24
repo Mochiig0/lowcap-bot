@@ -1265,6 +1265,30 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## Sixth Enrich Backlog Batch Follow-Up Point
+
+Date: 2026-05-24 20:23 JST
+
+The sixth bounded enrich backlog Red updated ids `5594..5590` from
+`mint_only` to `partial` without adding Metrics. Counts remained Token /
+Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`; Metric
+distribution remained `0=1222`, `1=232`, `2+=87`; Notification statuses
+remained `captured=5`, `sent=5`, `failed=0`.
+
+The selected rows now have names/symbols and `metricsCount=3`:
+
+- `5594` `Test Coin` / `TEST`, score `C / 0`
+- `5593` `KOWAKU` / `KOWAKU`, score `C / 0`
+- `5592` `Gad Sad` / `GAD`, score `C / 0`
+- `5591` `NEXT PWEASE TWEET EVERY SEC` / `BONERPHONE`, score `C / 0`
+- `5590` `Sketichification` / `Sketchify`, score `C / 1`
+
+The batch should be reviewed next with read-only `metrics:report`,
+`metrics:window-report`, `tokens:compare-report`, queue, auto-send planner, and
+retry planner checks. Expected report boundary is unchanged: no raw provider
+payload dump, no DB write, no external fetch, no Telegram send, and no
+Notification update during the Green review.
+
 ## Fifth Enriched Backlog Batch Report Review
 
 Date: 2026-05-24 20:15 JST

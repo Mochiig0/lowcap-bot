@@ -1421,6 +1421,50 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## 2026-05-24 Sixth 168h Enrich Backlog Batch Result
+
+Approved Red command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`,
+`skipped=0`, `error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Metaplex lookup returned
+`metadata_account_missing=5`.
+
+Selected ids `5594`, `5593`, `5592`, `5591`, and `5590` moved from
+`metadataStatus=mint_only` to `partial`:
+
+- `5594` `Test Coin` / `TEST`, score `C / 0`
+- `5593` `KOWAKU` / `KOWAKU`, score `C / 0`
+- `5592` `Gad Sad` / `GAD`, score `C / 0`
+- `5591` `NEXT PWEASE TWEET EVERY SEC` / `BONERPHONE`, score `C / 0`
+- `5590` `Sketichification` / `Sketchify`, score `C / 1`
+
+All five have normalized text, `enrichedAt`, `rescoredAt`, and reviewFlags.
+Descriptions, website, X, Telegram, Metaplex hit, and links are absent. All
+remain `hardRejected=false`. `5590` has one safe scoring hit from the core
+`cat` keyword; the others have no score hits. Metrics stayed `3` for each
+row, Notification count stayed `0`, and HolderSnapshot count stayed `0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, and Notification statuses stayed `captured=5`,
+`sent=5`, `failed=0`. Queue after execution: 24h default
+`enrichPendingCount=0`, `metricPendingCount=0`, `notifyCandidateCount=0`;
+168h `enrichPendingCount=210`, `metricPendingCount=85`,
+`staleReviewCount=210`, `notifyCandidateCount=0`.
+
+Only the expected Token update path was used. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, auto-send or
+retry execution, scheduler/systemd, repo-local data diff, or rawJson full
+dump.
+
+Next step should be Green read-only review of ids `5594..5590` before deciding
+whether to run another limit 5 backlog enrich batch.
+
 ## Fifth Enriched Backlog Batch Review
 
 Date: 2026-05-24 20:15 JST
