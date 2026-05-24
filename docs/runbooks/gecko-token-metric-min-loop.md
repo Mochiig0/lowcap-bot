@@ -1458,6 +1458,43 @@ data diffs, or dump rawJson. Next work should stay Green: review this third
 batch and decide whether to continue with another bounded enrich backlog Red
 or switch to Metric/report follow-up.
 
+## Fourth Enrich Backlog Batch Result
+
+Date: 2026-05-24 15:15 JST
+
+The human-approved bounded backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Result: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`, `error=0`,
+`contextWritten=5`, `metaplexAttempted=5`, `metaplexAvailable=0`,
+`notifyWouldSend=0`, `notifySent=0`, no provider error, no 429, and no retry.
+The run skipped `20` already-complete rows before selecting incomplete rows.
+
+Selected ids `5604..5600` moved from `mint_only` to `partial`. They now have
+names/symbols: `Percy &amp; Penny` / `HEROES`, `Avian Influenza` / `Avian`,
+`SixSeven` / `67`, `TeleClaw` / `TeleClaw`, and `foot` / `footcoin`. All
+remain score `C / 0`, `hardRejected=false`, description absent, normalized
+text present, and have reviewFlags present with no website, X, Telegram,
+Metaplex hit, description, or links.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, with Metric distribution `0=1222`, `1=232`, `2+=87`
+and Notification statuses `captured=5`, `sent=5`, `failed=0`. The selected
+rows retained `metricsCount=3`, `notificationCount=0`, and
+`holderSnapshotCount=0`. The 168h queue moved from `enrichPendingCount=225`
+to `220`, with `metricPendingCount=85`, `staleReviewCount=220`, and
+`notifyCandidateCount=0`.
+
+This confirms the fourth repeat limit-5 backlog Token update boundary. It did
+not write Metrics, create/update Notifications, write HolderSnapshots, send
+Telegram, execute auto-send/retry, touch scheduler/systemd, create repo-local
+data diffs, or dump rawJson. Next work should stay Green: review this fourth
+batch and decide whether to continue with another bounded enrich backlog Red
+or switch to Metric/report follow-up.
+
 ## Third Enriched Backlog Batch Review
 
 Date: 2026-05-24 14:11 JST

@@ -3737,6 +3737,60 @@ Next candidate: Green review of ids `5609..5605` via read-only
 report/window/queue, then decide whether to run another limit-5 enrich backlog
 Red or switch to Metric/report follow-up.
 
+## Fourth Enrich Backlog Batch Result
+
+Date: 2026-05-24 15:15 JST
+
+The human-approved bounded 168h enrich backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection skipped `20` already-complete rows and
+no non-pump rows. Metaplex returned `metadata_account_missing=5`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`, and Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`. Retry candidates and enabled auto-send allowed candidates stayed
+`0`.
+
+Selected ids `5604..5600` moved from `mint_only` to `partial`:
+
+- `5604` `31ogQ5srbvEjVmJ1SdKQoTCixkdnDd68WfHm752Gpump`: `Percy &amp; Penny`
+  / `HEROES`, score stayed `C / 0`
+- `5603` `3PjYtKi7Ygf47ZBCE7QdEkQ9BVieVpxCwYzVQpmDpump`: `Avian Influenza`
+  / `Avian`, score stayed `C / 0`
+- `5602` `FnNvePHJSYw1ec6nDSbXBQxo8couvRWButKN8Zwepump`: `SixSeven` / `67`,
+  score stayed `C / 0`
+- `5601` `2fS1DSBedPWHN7KSfsiBF9DmosWSbj1ERvSno8ippump`: `TeleClaw` /
+  `TeleClaw`, score stayed `C / 0`
+- `5600` `2o1xZ8pqvcHBAeQzEUZ9eZeukMQG6S4DsQWFmUNQpump`: `foot` /
+  `footcoin`, score stayed `C / 0`
+
+All five remain `hardRejected=false`, have normalized text, have
+`enrichedAt` / `rescoredAt`, have reviewFlags with no website, X, Telegram,
+Metaplex hit, description, or links, and have `metricsCount=3`,
+`notificationCount=0`, `holderSnapshotCount=0`.
+
+Queue moved as expected: default 24h queue has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue now has
+`enrichPendingCount=220`, `metricPendingCount=85`, `staleReviewCount=220`,
+and `notifyCandidateCount=0`.
+
+Only the expected Token update path was used. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, auto-send or
+retry execution, scheduler/systemd, repo-local data diff, or rawJson full
+dump.
+
+Next candidate: Green review of ids `5604..5600` via read-only
+report/window/queue, then decide whether to run another limit-5 enrich backlog
+Red or switch to Metric/report follow-up.
+
 ## Bounded Write Rehearsal Token Inspection
 
 Date: 2026-05-23 19:44 JST
