@@ -3926,6 +3926,86 @@ Reason: the write lane has proven stable for eight batches, but the processed
 Notification absence, report usefulness, and whether metric backlog should
 take priority before another Red.
 
+## 2026-05-24 Recent Enriched Cohort Score / Report Analysis
+
+Execution time: 2026-05-24 21:35 JST. Codex version:
+`codex-cli 0.133.0`.
+
+This Green analysis stayed read-only / docs-only. It did not run
+`token:enrich-rescore --write`, `metric:snapshot --write`, detect watch,
+Telegram send, Notification update, scheduler/systemd, schema, migration, app
+code changes, rawJson full dumps, offensive raw text dumps, or external
+fetches. Broad target-set report commands were avoided when they could print
+offensive raw text; Prisma redacted safe summaries and representative
+non-offensive `metrics:window-report` samples were used instead.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+- default queue: `geckoOriginTokenCount=0`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+  `metricPendingCount=85`, `staleReviewCount=200`,
+  `notifyCandidateCount=0`
+
+Cohort scope for processed ids `5619..5580`:
+
+- processed token count: `40`
+- metadataStatus distribution: `partial=40`
+- metricsCount distribution: `2=10`, `3=25`, `4=4`, `5=1`
+- notificationCount distribution: `0=39`, `1=1`
+- holderSnapshotCount distribution: `0=40`
+- hardRejected distribution: `false=40`
+
+Score and notify analysis:
+
+- scoreRank distribution: `C=39`, `B=1`
+- scoreTotal distribution: `0=36`, `1=3`, `2=1`
+- reviewFlags true counts: website `0`, X `0`, Telegram `0`, Metaplex hit
+  `0`, description `0`, linkCount positive `0`
+- normalizedText present count: `40`
+- description present count: `0`
+- notifyCandidate count: `0`
+- `5607` `Doge Coffee` / `DOGECOFFEE` is `B / 2` from a core `dog` keyword
+  hit, but has no links, social fields, description, Metaplex hit, or
+  Notification row, so it is not a notify candidate
+- `5596` `Self-Replicating Tweet` / `.....` and `5590` `Sketichification` /
+  `Sketchify` are `C / 1` from core `cat` keyword hits
+- `5581` `stop using ai` / `ai` is `C / 1` from a learned AI-phrase hit
+- the `C / 0` majority has no score hits and no reviewFlags evidence
+- ids `5584` and `5583` remain offensive-safe only: report as
+  `[offensive term]`, not raw name/symbol
+
+Representative window analysis:
+
+- `5607` (`B / 2`, metricsCount `3`): `fdvMetricCount=3`,
+  `entryAnchorQuality=delayed_120m`; 30m / 60m are `no_data`, 2h is `thin`,
+  3h / 6h / 12h / 24h are `partial`; `hasAlertFdvAnchor=false`,
+  `hasWindowFdvSamples=true` from 2h onward, outcome `no_data`
+- `5581` (`C / 1`, metricsCount `2`): `fdvMetricCount=2`,
+  `entryAnchorQuality=delayed_180m`; 30m / 60m / 2h are `no_data`,
+  3h / 6h / 12h are `thin`, 24h is `partial`; `hasAlertFdvAnchor=false`,
+  outcome `no_data`
+- `5582` (`C / 0`, metricsCount `2`): `fdvMetricCount=2`,
+  `entryAnchorQuality=delayed_180m`; 30m / 60m / 2h are `no_data`,
+  3h / 6h / 12h are `thin`, 24h is `partial`; `hasAlertFdvAnchor=false`,
+  outcome `no_data`
+- common no-data reasons are `no_alert_anchor_near_entry` and
+  `no_peak_multiple`; early windows without FDV samples also include
+  `no_fdv_samples_in_window` and `no_peak_fdv`
+
+Decision: `notifyCandidate=0` is consistent with the observed cohort. The
+single `B / 2` row has only a core keyword hit and no social/link/description
+or alert-anchor evidence; the `C / 1` rows are similarly thin. The next best
+step is not a ninth enrich Red. Choose a Green metric backlog preflight for
+the remaining `metricPendingCount=85` to define selection, pacing, and a
+future human-approved Metric write command. Do not produce a Red command in
+this analysis task.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch
 
 Execution time: 2026-05-24 20:23 JST.

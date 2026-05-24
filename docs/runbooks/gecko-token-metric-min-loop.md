@@ -1761,6 +1761,53 @@ Metric backlog return conditions:
 
 Next selected task: Green recent enriched cohort score/report analysis.
 
+## Recent Enriched Cohort Score / Report Analysis
+
+Date: 2026-05-24 21:35 JST
+
+This Green analysis reviewed the 40-token processed cohort `5619..5580` with
+read-only Prisma summaries, representative window reports, queue checks, and
+planner checks. It did not write DB rows, fetch external APIs, send Telegram,
+update Notifications, run Metric snapshots, or dump rawJson / offensive raw
+text.
+
+Cohort scope:
+
+- processed tokens: `40`
+- metadataStatus: `partial=40`
+- metricsCount: `2=10`, `3=25`, `4=4`, `5=1`
+- notificationCount: `0=39`, `1=1`
+- holderSnapshotCount: `0=40`
+
+Score / notify:
+
+- scoreRank: `C=39`, `B=1`
+- scoreTotal: `0=36`, `1=3`, `2=1`
+- hardRejected: `0`
+- reviewFlags true counts: website `0`, X `0`, Telegram `0`, Metaplex hit
+  `0`, description `0`, linkCount positive `0`
+- notifyCandidate: `0`
+- `5607` `Doge Coffee` / `DOGECOFFEE` is `B / 2` from the core `dog` keyword,
+  but has no description, links, social flags, Metaplex hit, Notification row,
+  or alert-anchor outcome
+- `5596`, `5590`, and `5581` are `C / 1`
+- ids `5584` and `5583` remain redacted as `[offensive term]`
+
+Representative report/window behavior:
+
+- `5607`: `metricCount=3`, `fdvMetricCount=3`, 2h `thin`, 3h-24h `partial`,
+  no alert FDV anchor, outcome `no_data`
+- `5581`: `metricCount=2`, `fdvMetricCount=2`, 3h-12h `thin`, 24h `partial`,
+  no alert FDV anchor, outcome `no_data`
+- `5582`: `metricCount=2`, `fdvMetricCount=2`, 3h-12h `thin`, 24h `partial`,
+  no alert FDV anchor, outcome `no_data`
+
+Conclusion: notification absence is coherent with the data. The cohort is
+mostly score `C / 0`, has no social/link/description/Metaplex evidence, and
+window reports lack alert FDV anchors. The next step should switch from enrich
+backlog Red to Green metric backlog preflight for the remaining
+`metricPendingCount=85`.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch Result
 
 Approved Red command:

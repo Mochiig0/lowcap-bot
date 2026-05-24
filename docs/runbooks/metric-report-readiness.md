@@ -1419,6 +1419,40 @@ write more data immediately: compare score signals, no-link / no-description
 patterns, no-alert-anchor window behavior, and whether the remaining
 `metricPendingCount=85` should become the next Green preflight target.
 
+## Recent Enriched Cohort Window Analysis
+
+Date: 2026-05-24 21:35 JST
+
+The 40-token enriched cohort `5619..5580` was reviewed as a read-only report
+sample. Broad target-set report commands were avoided for rows that could print
+offensive raw text; representative non-offensive `metrics:window-report`
+commands and redacted Prisma summaries were used instead.
+
+Representative rows:
+
+- `5607` `Doge Coffee` / `DOGECOFFEE`, score `B / 2`, `metricCount=3`
+- `5581` `stop using ai` / `ai`, score `C / 1`, `metricCount=2`
+- `5582` `Jester` / `Jester`, score `C / 0`, `metricCount=2`
+
+Findings:
+
+- all reports stayed `readOnly=true`, `willWrite=false`, `willFetch=false`,
+  `willSendTelegram=false`
+- `5607` has `fdvMetricCount=3`, 2h `thin`, 3h / 6h / 12h / 24h `partial`,
+  and `entryAnchorQuality=delayed_120m`
+- `5581` and `5582` have `fdvMetricCount=2`, 3h / 6h / 12h `thin`, 24h
+  `partial`, and `entryAnchorQuality=delayed_180m`
+- every representative row has `hasAlertFdvAnchor=false`,
+  `hasWindowFdvSamples=true` in wider windows, and `outcomeLabel=no_data`
+- common no-data reasons are `no_alert_anchor_near_entry` and
+  `no_peak_multiple`
+
+Report conclusion: the current enriched cohort is readable, but the lack of
+alert FDV anchors means additional Token enrichment alone is unlikely to change
+outcome classification. The better next Green task is metric backlog preflight:
+inspect the remaining `metricPendingCount=85`, selection order, pacing, and
+rate-limit boundary before any Metric write Red.
+
 ## Sixth Enrich Backlog Batch Follow-Up Point
 
 Date: 2026-05-24 20:23 JST

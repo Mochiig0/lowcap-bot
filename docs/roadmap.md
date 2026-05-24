@@ -1224,6 +1224,35 @@ preflight, but it is second choice. Broader Metric backlog preflight is the
 third choice and should be selected when the operator wants to address
 `metricPendingCount=85` instead of adding more Token updates.
 
+## 2026-05-24 Recent Enriched Cohort Analysis
+
+The Green score/report analysis of ids `5619..5580` is complete. It stayed
+read-only and used redacted safe summaries for offensive-sensitive rows.
+
+Findings:
+
+- cohort size: `40`, all `metadataStatus=partial`
+- scoreRank distribution: `C=39`, `B=1`
+- scoreTotal distribution: `0=36`, `1=3`, `2=1`
+- hardRejected: `0`
+- notifyCandidate: `0`
+- website / X / Telegram / Metaplex / description / links: all `0`
+- metricsCount distribution: `2=10`, `3=25`, `4=4`, `5=1`
+- `5607` is the only `B / 2`, from a core `dog` keyword hit
+- `5596`, `5590`, and `5581` are `C / 1`
+
+Representative `metrics:window-report` checks for `5607`, `5581`, and `5582`
+showed readable FDV samples in wider windows but no alert FDV anchor. Outcome
+therefore remains `no_data`; coverage is `thin` or `partial` depending on the
+window and metric count. This supports the decision that `notifyCandidate=0`
+is expected, not a planner anomaly.
+
+Next selected lane: **broader metric backlog preflight**. The enrich backlog
+Red can resume later, but the current cohort is thin in metadata/context and
+does not produce notification candidates. The remaining `metricPendingCount=85`
+is the better next Green target for selection, pacing, and rate-limit
+preflight. Do not run Metric write yet.
+
 ## 2026-05-24 Sixth Enrich Backlog Batch Result
 
 The sixth bounded 168h enrich backlog Red ran once with the approved command:

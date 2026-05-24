@@ -81,8 +81,10 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Green: recent enriched cohort score/report analysis.
-Risk: Green. Stay read-only/docs-only and preserve offensive-safe redaction.
+Green: metric backlog preflight for remaining GeckoTerminal metricPendingCount=85.
+Risk: Green. Stay read-only/docs-only; do not run metric:snapshot --write.
+The goal is to inspect selection order, rate-limit pacing, and one future exact
+Red command candidate only if safe.
 
 Second choice:
 Repeat limit 5 enrich backlog Red after a fresh Green preflight and human
@@ -90,8 +92,8 @@ approval. Known command if selected later:
 pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
 
 Third choice:
-Metric backlog preflight if the operator wants to address metricPendingCount=85
-and outcome/report coverage rather than continue Token updates.
+Repeat / deepen recent enriched cohort analysis if scoring or notification
+threshold questions come up.
 
 Do not choose next:
 Scheduler / systemd or always-on auto live send. Auto-send is single-shot verified only.

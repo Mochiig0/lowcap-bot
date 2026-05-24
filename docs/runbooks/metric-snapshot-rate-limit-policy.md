@@ -806,3 +806,30 @@ Do not immediately widen to a large Metric run from this result. The next
 safer step is a Green preflight for the 168h GeckoTerminal enrichPending
 backlog, because the five-token loop has now completed its narrow Metric /
 enrich / second Metric confirmation.
+
+## Metric Backlog Return Point After Enriched Cohort Analysis
+
+Date: 2026-05-24 21:35 JST
+
+After eight bounded enrich backlog batches and the follow-up score/report
+analysis of processed ids `5619..5580`, the next recommended lane is Green
+metric backlog preflight. Current 168h queue still reports
+`metricPendingCount=85`; the enriched cohort analysis found
+`notifyCandidateCount=0`, no social/link/description/Metaplex evidence, and no
+alert FDV anchors in representative window reports.
+
+Preflight scope for the next task:
+
+- stay read-only
+- inspect `metricPendingCount=85` selection order and candidate safety
+- confirm whether candidates are Metric 0 or stale measured rows
+- keep `--pumpOnly`, small limit, explicit `--minGapMinutes`, and
+  `--interItemDelayMs 15000` under consideration
+- do not produce or run a Metric write Red until the preflight fixes one exact
+  command and expected side effects
+
+Expected future Metric Red boundary, if approved later: external GeckoTerminal
+fetch and Metric writes only. Expected non-effects remain Token update,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, repo-local data diff, rawJson full dump, and offensive raw
+text dump.
