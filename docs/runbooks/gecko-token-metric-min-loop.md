@@ -1474,3 +1474,37 @@ fetch, best-effort Metaplex lookup, and Token enrich/rescore/context/reviewFlags
 update for up to five rows. Expected non-effects are Metric write,
 Notification create/update, HolderSnapshot write, Telegram send, repo-local
 data diff, scheduler/systemd, and rawJson full dump.
+
+## 2026-05-24 Next 168h Enrich Backlog Batch Result
+
+The approved bounded backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Metaplex lookup returned
+`metadata_account_missing=5`.
+
+The selected ids `5614`, `5613`, `5612`, `5611`, and `5610` moved from
+`metadataStatus=mint_only` to `partial`. They now have names/symbols:
+`Buttcoin` / `Buttcoin`, `LITERALLY SAYS "USD1 ON THE BLOG` / `COMPASS`,
+`SO GENNY 10 MIL` / `COMPASS`, `Justice for Wilkie &amp; Keijo` / `W&amp;K`,
+and `ITS A USD1 MASCOT` / `COMPASS`. All remained score `C / 0`,
+`hardRejected=false`, description absent, normalized text present, and
+reviewFlags present with no website, X, Telegram, Metaplex hit, description,
+or links.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`. The selected rows retained metrics counts
+`3,3,3,3,3`, notification counts `0`, and holderSnapshot count `0`. The 168h
+queue moved from `enrichPendingCount=235` to `230`, with
+`metricPendingCount=85`, `staleReviewCount=230`, and
+`notifyCandidateCount=0`.
+
+Expected non-effects held: no Metric write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
+scheduler/systemd, no repo-local data diff, and no rawJson full dump.
