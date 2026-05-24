@@ -1265,6 +1265,46 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## Fifth Enrich Backlog Batch Result
+
+Date: 2026-05-24 16:30 JST
+
+The fifth bounded 168h enrich backlog Red completed with the same command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry.
+
+The selected ids `5599..5595` are now `metadataStatus=partial` and remain
+report candidates for the next Green review:
+
+- all five have names/symbols and normalized text
+- descriptions and website / X / Telegram / link / Metaplex flags remain
+  absent
+- four rows stayed score `C / 0`; `5596` became score `C / 1`
+- all five remain `hardRejected=false`
+- all five have `metricsCount=3`, `notificationCount=0`, and
+  `holderSnapshotCount=0`
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`, Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`, and Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`. Queue context stayed compatible with continuing the enrich backlog
+lane: default queue has `enrichPendingCount=0`, `metricPendingCount=0`,
+`notifyCandidateCount=0`; 168h queue has `enrichPendingCount=215`,
+`metricPendingCount=85`, `staleReviewCount=215`, `notifyCandidateCount=0`.
+
+The run only used the Token update path. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, scheduler /
+systemd, repo-local data diff, or rawJson full dump. The next read-only step
+is to review ids `5599..5595` in `metrics:report`,
+`metrics:window-report`, `tokens:compare-report`, queue, and planner state.
+
 ## Fourth Enriched Backlog Batch Report Review
 
 Date: 2026-05-24 15:30 JST

@@ -3693,6 +3693,59 @@ rows. Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## Fifth Enrich Backlog Batch Result
+
+Date: 2026-05-24 16:30 JST
+
+The human-approved bounded 168h enrich backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`,
+`skipped=0`, `error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection reported `skippedComplete=25`.
+Metaplex lookup returned `metadata_account_missing=5`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`; Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`; Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+
+Selected ids `5599..5595` moved from `mint_only` to `partial`:
+
+- `5599` `31V2Fdv4GssvzhJznYXB9HQSPn7jA5HdDoqNk56fpump`: `TROLL OF THE
+  UNITED STATES` / `TOTUS`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=3`, `notificationCount=0`, `holderSnapshotCount=0`
+- `5598` `JAo2uDfn5quJ3hiWtRrrZFpgtbTkZHpaUvKN4MXbpump`: `Delusional
+  Optimist` / `OPTIMIST`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=3`, `notificationCount=0`, `holderSnapshotCount=0`
+- `5597` `H9oE1Z8wfWC7vp9dnE1nyBkSrnTSkwKjze9Nz2krpump`: `Boner Phone` /
+  `Thumas`, score `C / 0`, `hardRejected=false`, `metricsCount=3`,
+  `notificationCount=0`, `holderSnapshotCount=0`
+- `5596` `3Xxf4KCHhDUjAPJJUwVBei3PbnVDWHt7PndPRr86pump`: `Self-Replicating
+  Tweet` / `.....`, score `C / 1`, `hardRejected=false`, `metricsCount=3`,
+  `notificationCount=0`, `holderSnapshotCount=0`
+- `5595` `AYFm1Y5cEQrpm2ByKHb8oX7Gt12e7NMW8TbqZ8Ahpump`: `KUROGANE` /
+  `KGANE`, score `C / 0`, `hardRejected=false`, `metricsCount=3`,
+  `notificationCount=0`, `holderSnapshotCount=0`
+
+All five have normalized text, reviewFlags, `enrichedAt`, and `rescoredAt`.
+Descriptions, website/X/Telegram/link flags, and Metaplex hits remain absent.
+
+Queue moved as expected: default 24h queue has `enrichPendingCount=0`,
+`metricPendingCount=0`, `notifyCandidateCount=0`; 168h queue now has
+`enrichPendingCount=215`, `metricPendingCount=85`, `staleReviewCount=215`,
+`notifyCandidateCount=0`. Auto-send allowed candidates and retry candidates
+remain `0`.
+
+Only the expected Token update path was used. There was no Metric write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, repo-local data diff, or rawJson full dump. Next step
+should be Green: review ids `5599..5595` in read-only report/window/queue and
+then decide whether to continue the bounded enrich backlog lane.
+
 ## Third Enriched Backlog Batch Review
 
 Date: 2026-05-24 14:11 JST

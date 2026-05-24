@@ -1502,6 +1502,49 @@ Metric write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Do not add
 `--notify`.
 
+## Fifth Enrich Backlog Batch Result
+
+Date: 2026-05-24 16:30 JST
+
+The approved bounded backlog command ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+Execution summary: `selected=5`, `enriched=5`, `rescored=5`, `skipped=0`,
+`error=0`, `contextWritten=5`, `metaplexAttempted=5`,
+`metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`, no provider
+error, no 429, and no retry. Selection reported `skippedComplete=25`.
+Metaplex lookup returned `metadata_account_missing=5`.
+
+The selected ids `5599`, `5598`, `5597`, `5596`, and `5595` moved from
+`metadataStatus=mint_only` to `partial`. They now have names/symbols:
+`TROLL OF THE UNITED STATES` / `TOTUS`, `Delusional Optimist` / `OPTIMIST`,
+`Boner Phone` / `Thumas`, `Self-Replicating Tweet` / `.....`, and `KUROGANE`
+/ `KGANE`. All remained `hardRejected=false`, description absent, normalized
+text present, and reviewFlags present with no website, X, Telegram, Metaplex
+hit, description, or links.
+
+Scores stayed low: `5599`, `5598`, `5597`, and `5595` are score `C / 0`;
+`5596` became score `C / 1`. All selected rows retained `metricsCount=3`,
+`notificationCount=0`, and `holderSnapshotCount=0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 459 / 10 / 1`. Metric distribution stayed `0=1222`, `1=232`,
+`2+=87`; Notification statuses stayed `captured=5`, `sent=5`, `failed=0`.
+The 168h queue moved from `enrichPendingCount=220` to `215`, with
+`metricPendingCount=85`, `staleReviewCount=215`, and
+`notifyCandidateCount=0`.
+
+Expected non-effects held: no Metric write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
+scheduler/systemd, no repo-local data diff, and no rawJson full dump.
+
+Next work should be Green: review ids `5599..5595` with read-only
+`metrics:report`, `metrics:window-report`, `tokens:compare-report`, queue, and
+planner checks before another Red.
+
 ## Third Enrich Backlog Batch Result
 
 Date: 2026-05-24 14:01 JST
