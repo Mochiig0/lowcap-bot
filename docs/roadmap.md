@@ -1187,6 +1187,43 @@ step is **Green progress consolidation / handoff**, not an immediate ninth
 Red. Repeat limit 5 enrich backlog remains the second candidate after a fresh
 preflight.
 
+## 2026-05-24 Offensive-Safe Enrich Backlog Consolidation
+
+The docs/handoff consolidation after eight bounded enrich backlog Reds is now
+complete. Processed scope is ids `5619..5580`: 8 batches, 40 tokens, all moved
+to `partial`. The 168h enrichPending queue moved `240 -> 200`; remaining
+context is `geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+`metricPendingCount=85`, `staleReviewCount=200`, and
+`notifyCandidateCount=0`.
+
+Quality summary for the processed 40-row cohort:
+
+- scoreRank distribution: `C=39`, `B=1`
+- scoreTotal distribution: `0=36`, `1=3`, `2=1`
+- hardRejected: `0`
+- description / website / X / Telegram / Metaplex / links present: `0`
+- notifyCandidate: `0`
+- notable examples: `5607` is `B / 2`; `5596`, `5590`, and `5581` are
+  `C / 1`
+
+Offensive-safe rule is fixed for this lane: when a token name/symbol is
+offensive, docs and final reports must use `[offensive term]` or count-based
+summary only. Do not run broad target-set reports when they would print
+offensive raw text; use redacted Prisma safe summaries or representative
+non-offensive report samples. Continue avoiding Metric rawJson, provider raw
+bodies, secrets, and env values.
+
+Safety summary: the eight Reds only used the Token update path. Metric writes,
+Notification create/update, HolderSnapshot writes, Telegram sends, auto-send
+execution, retry execution, scheduler/systemd, repo-local data diffs, provider
+errors, 429s, and rawJson/offensive raw dumps stayed at `0`.
+
+Next selected lane: **recent enriched cohort score/report analysis** as a Green
+task. A ninth limit 5 enrich backlog Red is still possible after fresh
+preflight, but it is second choice. Broader Metric backlog preflight is the
+third choice and should be selected when the operator wants to address
+`metricPendingCount=85` instead of adding more Token updates.
+
 ## 2026-05-24 Sixth Enrich Backlog Batch Result
 
 The sixth bounded 168h enrich backlog Red ran once with the approved command:

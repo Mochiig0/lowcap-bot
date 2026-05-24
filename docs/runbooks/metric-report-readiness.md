@@ -1384,6 +1384,41 @@ Another limit 5 enrich backlog Red is still possible after fresh preflight, but
 the current report finding does not require immediate Metric/report follow-up
 for ids `5584..5580`.
 
+## Offensive-Safe Enriched Cohort Report Handoff
+
+Date: 2026-05-24 21:20 JST
+
+The processed enrich backlog cohort now contains 40 partial tokens
+(`5619..5580`) created by eight successful bounded Red batches. Report and
+window checks are usable, but two rows introduced an offensive name/symbol
+handling constraint that applies to future report tasks.
+
+Report-safe cohort facts:
+
+- all 40 rows are `partial`
+- scoreRank distribution is `C=39`, `B=1`
+- scoreTotal distribution is `0=36`, `1=3`, `2=1`
+- no hard rejects
+- no website, X, Telegram, Metaplex hit, description, or link flags
+- notifyCandidate remains `0`
+- `metricsCount` distribution is `2=10`, `3=25`, `4=4`, `5=1`
+
+Report handling rule:
+
+- for offensive name/symbol rows, print only `[offensive term]`, row counts, or
+  other redacted labels
+- do not use broad target-set `metrics:report` or `tokens:compare-report`
+  output when it would print offensive raw text
+- prefer redacted Prisma safe summaries plus representative non-offensive
+  `metrics:window-report` samples
+- keep `Metric.rawJson`, provider raw bodies, secrets, env, and offensive raw
+  text out of docs and final reports
+
+The next report lane task should analyze the recent enriched cohort rather than
+write more data immediately: compare score signals, no-link / no-description
+patterns, no-alert-anchor window behavior, and whether the remaining
+`metricPendingCount=85` should become the next Green preflight target.
+
 ## Sixth Enrich Backlog Batch Follow-Up Point
 
 Date: 2026-05-24 20:23 JST

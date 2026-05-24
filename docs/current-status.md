@@ -3813,6 +3813,119 @@ No next Red exact command is fixed by this review. If the operator later
 chooses to resume the same lane, the known candidate remains the existing
 human-approved pattern, but it should be re-preflighted after consolidation.
 
+## 2026-05-24 Offensive-Safe Enrich Backlog Consolidation
+
+Execution time: 2026-05-24 21:20 JST. Codex version:
+`codex-cli 0.133.0`.
+
+This Green consolidation stayed read-only / docs-only. It fixed the handoff
+state after eight consecutive bounded 168h GeckoTerminal enrich backlog Red
+batches and did not run `--write`, external fetch, Telegram send,
+Notification update, Metric snapshot, detect watch, scheduler/systemd,
+schema, migration, app code change, rawJson full dump, or offensive raw text
+dump.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+- default queue: `geckoOriginTokenCount=0`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=200`,
+  `metricPendingCount=85`, `staleReviewCount=200`,
+  `notifyCandidateCount=0`
+
+Progress:
+
+- processed batch count: `8`
+- processed token count: `40`
+- processed ids: `5619..5580`
+- enrichPending moved `240 -> 200`
+- remaining enrichPending: `200`
+- each batch selected `5`, enriched `5`, rescored `5`, and wrote context for
+  `5`
+- selected-item skipped stayed `0`; `skippedComplete` increased as already
+  completed rows accumulated
+- provider error, 429, command error, and retry stayed `0` across the repeated
+  Red batches
+
+Processed cohort quality for ids `5619..5580`:
+
+- metadataStatus distribution: `partial=40`
+- scoreRank distribution: `C=39`, `B=1`
+- scoreTotal distribution: `0=36`, `1=3`, `2=1`
+- hardRejected count: `0`
+- notifyCandidate count: `0`
+- description present count: `0`
+- normalizedText present count: `40`
+- reviewFlags true counts: website `0`, X `0`, Telegram `0`, Metaplex hit
+  `0`, description `0`, linkCount positive `0`
+- Metrics distribution inside processed cohort: `2=10`, `3=25`, `4=4`, `5=1`
+- existing Notification rows inside processed cohort: `1` (`5619` only)
+
+Notable safe score examples:
+
+- `5607` `Doge Coffee` / `DOGECOFFEE`: `B / 2` from a core `dog` keyword hit
+- `5596` `Self-Replicating Tweet` / `.....`: `C / 1` from a core `cat`
+  keyword hit
+- `5590` `Sketichification` / `Sketchify`: `C / 1` from a core `cat`
+  keyword hit
+- `5581` `stop using ai` / `ai`: `C / 1` from a learned AI-phrase hit
+- ids `5584` and `5583` have offensive name/symbol values and must be
+  reported only as `[offensive term]`
+
+Offensive-safe handling policy for this lane:
+
+- docs, final reports, and handoff prompts must not print offensive raw
+  name/symbol values
+- use `[offensive term]`, `offensive name/symbol redacted`, or count-based
+  summaries for those rows
+- do not run broad report commands for a target set when their output would
+  print offensive raw text; use redacted Prisma safe summaries or representative
+  non-offensive report samples instead
+- raw provider bodies, Metric `rawJson`, env values, Telegram identifiers, and
+  secrets remain out of docs and final reports
+
+Safety boundary:
+
+- expected and observed write path in Red: Token enrich/rescore/context/
+  reviewFlags update only
+- Metric write: `0`
+- Notification create/update: `0`
+- HolderSnapshot write: `0`
+- Telegram send: `0`
+- auto-send execution: `0`
+- retry execution: `0`
+- scheduler/systemd: locked
+- repo-local data diff from Red runs: `0`
+- rawJson full dump and offensive raw text dump: `0`
+
+Red may resume only if a fresh Green preflight confirms counts and queue are
+still healthy, `notifyCandidateCount=0`, failed/retry candidates remain `0`,
+the next selection is clear and does not require raw offensive text output, and
+Token update remains the only write boundary. The known bounded command is:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+```
+
+It still requires human approval and must not add `--notify`.
+
+Metric backlog lane should be preferred when the operator wants to address the
+remaining `metricPendingCount=85`, improve outcome/report data, or stop adding
+Token updates. That lane needs its own Green preflight and a separate
+human-approved Metric write Red; do not reuse the enrich backlog command for
+Metric accumulation.
+
+Next selected task: `Green: recent enriched cohort score/report analysis`.
+Reason: the write lane has proven stable for eight batches, but the processed
+40-row cohort now deserves a bounded offensive-safe analysis of score signals,
+Notification absence, report usefulness, and whether metric backlog should
+take priority before another Red.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch
 
 Execution time: 2026-05-24 20:23 JST.

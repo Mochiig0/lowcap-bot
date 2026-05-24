@@ -12,15 +12,41 @@ Mint-driven accumulation includes mint-only ingest plus source-specific semi-aut
 Read-only inspection has lightweight views (`tokens:report`, `token:show`, `metrics:report`, `metric:show`), compare views (`tokens:compare-report`, `token:compare`), and Gecko-specific observation summary / timing helpers (`ops:summary:geckoterminal`, `compare:geckoterminal:dexscreener`).
 This repo is still not a generic bot platform and does not include queue / worker / scheduler orchestration, a generic multi-source adapter runtime, or trading automation.
 
-Latest checked state after CodexCLI update recovery:
-- Date: 2026-05-23
+Latest checked state after offensive-safe enrich backlog consolidation:
+- Date: 2026-05-24
 - CodexCLI: codex-cli 0.133.0
-- HEAD before consolidation: 7090996 docs: review auto send post execution state
-- Token / Metric / Notification / HolderSnapshot: 1536 / 449 / 10 / 1
+- HEAD before consolidation: a2ab80a docs: review eighth enriched backlog batch
+- Token / Metric / Notification / HolderSnapshot: 1541 / 459 / 10 / 1
+- Metric distribution: 0=1222, 1=232, 2+=87
 - Notification statuses: captured=5, sent=5, failed=0
-- manual live-send candidate count: 0
+- failed count: 0
 - retry candidate count: 0
 - enabled auto-send allowed candidate count: 0
+- review:queue --pumpOnly --sinceHours 168:
+  geckoOriginTokenCount=245, enrichPendingCount=200,
+  metricPendingCount=85, staleReviewCount=200, notifyCandidateCount=0
+
+Recent enrich backlog progress:
+- 8 bounded 168h enrich/rescore Red batches completed successfully
+- processed ids: 5619..5580, 40 tokens total
+- enrichPending moved 240 -> 200
+- each batch had selected=5, enriched=5, rescored=5, contextWritten=5,
+  metaplexAttempted=5, metaplexAvailable=0, notifyWouldSend=0, notifySent=0
+- provider error=0, 429=0, retry=0
+- side effects stayed Token update only; Metric write, Notification
+  create/update, HolderSnapshot write, Telegram send, scheduler/systemd, and
+  rawJson full dump stayed 0
+
+Processed cohort quality:
+- metadataStatus partial=40
+- scoreRank distribution: C=39, B=1
+- scoreTotal distribution: 0=36, 1=3, 2=1
+- hardRejected=0, notifyCandidate=0
+- website/X/Telegram/Metaplex/description/link presence=0
+- notable safe examples: 5607 B/2; 5596, 5590, 5581 C/1
+- ids 5584 and 5583 have offensive name/symbol values; never print their raw
+  text in docs, handoff, or final reports. Use "[offensive term]" or
+  count-based summaries only.
 
 Telegram / Notification completed slice:
 - manual approved live send succeeded for id 7 and id 8
@@ -55,11 +81,17 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Green: review bounded new-pool watch readiness before Red rehearsal.
-Risk: Green while read-only / docs-first; Red only if a later task runs --write, --watch, or checkpoint-changing execution.
+Green: recent enriched cohort score/report analysis.
+Risk: Green. Stay read-only/docs-only and preserve offensive-safe redaction.
 
 Second choice:
-Metric accumulation / report lane, if the next chat should prioritize safer data quality over monitoring-loop readiness.
+Repeat limit 5 enrich backlog Red after a fresh Green preflight and human
+approval. Known command if selected later:
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --write
+
+Third choice:
+Metric backlog preflight if the operator wants to address metricPendingCount=85
+and outcome/report coverage rather than continue Token updates.
 
 Do not choose next:
 Scheduler / systemd or always-on auto live send. Auto-send is single-shot verified only.
