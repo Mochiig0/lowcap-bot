@@ -1066,6 +1066,32 @@ rows. Expected non-effects are Metric write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 and rawJson full dump. Do not add `--notify`.
 
+## 2026-05-24 Seventh Enrich Backlog Review Decision
+
+The seventh bounded 168h enrich backlog review inspected ids `5589..5585`
+read-only after they were moved to `partial`. Current state remains Token /
+Metric / Notification / HolderSnapshot `1541 / 459 / 10 / 1`, Metric
+distribution `0=1222`, `1=232`, `2+=87`, and Notification statuses
+`captured=5`, `sent=5`, `failed=0`.
+
+The batch is healthy: all five reviewed rows are `partial`, score `C / 0`,
+`hardRejected=false`, have normalized text / reviewFlags / enrichment and
+rescore timestamps, and have `metricsCount=2`, `notificationCount=0`,
+`holderSnapshotCount=0`. Read-only report/window checks show two GeckoTerminal
+token snapshot Metrics per row, 3h-12h `thin`, 24h `partial`, and unresolved
+`no_data` outcomes because no alert FDV anchor / peak multiple exists.
+
+Queue context remains stable: default queue has no pending/candidate rows; 168h
+queue has `enrichPendingCount=205`, `metricPendingCount=85`,
+`staleReviewCount=205`, and `notifyCandidateCount=0`. Auto-send allowed
+candidates and retry candidates remain `0`.
+
+Next selected step: Green progress consolidation / handoff. Repeat limit 5
+enrich backlog Red is second, but after seven consecutive successful Red
+batches with no provider error, no 429, no retry, and no notify/Metric side
+effects, a short consolidation is the safer next operating step. Scheduler,
+systemd, always-on auto live send, and retry execution remain locked.
+
 ## 2026-05-24 Sixth Enrich Backlog Batch Result
 
 The sixth bounded 168h enrich backlog Red ran once with the approved command:

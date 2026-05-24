@@ -1265,6 +1265,46 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## Seventh Enriched Backlog Batch Report Review
+
+Date: 2026-05-24 20:43 JST
+
+The read-only report check for ids `5589..5585` confirmed that the seventh
+bounded enrich backlog batch is visible in the report layer without rawJson
+payloads and without side effects.
+
+Target rows:
+
+- `5589` `zynnner` / `zyn`
+- `5588` `New Moon` / `Moon`
+- `5587` `Turtle Carl` / `Carl`
+- `5586` `SmilingFace` / `SmilingFace`
+- `5585` `Pelican` / `PELICAN`
+
+All five are `partial`, score `C / 0`, `hardRejected=false`, have normalized
+text and reviewFlags, and have `metricsCount=2`, `notificationCount=0`,
+`holderSnapshotCount=0`.
+
+Report findings:
+
+- `metrics:report` reads two GeckoTerminal token snapshot Metrics per row.
+  Latest Metric ids are `1501..1505`, previous ids are `1316..1320`.
+- The report exposes safe market-data presence fields and does not dump raw
+  provider payloads.
+- Representative `metrics:window-report` checks for `5589` and `5585` use
+  firstSeen as entry with `entryAnchorQuality=delayed_180m`.
+- 30m / 60m / 2h windows are `no_data`; 3h / 6h / 12h windows are `thin`; 24h
+  is `partial`.
+- `hasWindowFdvSamples=true` begins at 3h, but `hasAlertFdvAnchor=false`; the
+  outcome stays `no_data`.
+- Target compare summary remains unresolved because latest multiple / peak
+  fields are missing.
+
+This confirms the report layer is adequate for the seventh batch. The next
+recommended operating step is not another report command, but a Green progress
+consolidation / handoff across the repeated enrich backlog batches before more
+write batches are approved.
+
 ## Sixth Enrich Backlog Batch Follow-Up Point
 
 Date: 2026-05-24 20:23 JST

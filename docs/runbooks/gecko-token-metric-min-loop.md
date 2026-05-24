@@ -1421,6 +1421,76 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## Seventh Bounded Enrich Backlog Batch Review
+
+Date: 2026-05-24 20:43 JST
+
+This Green review stayed read-only and inspected ids `5589..5585` after the
+seventh bounded 168h enrich backlog Red. No `--write`, external fetch, detect
+watch, Metric snapshot, Telegram send, Notification update, scheduler/systemd,
+schema, migration, app code change, or rawJson full dump was performed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1541 / 459 / 10 / 1`
+- Metric distribution: `0=1222`, `1=232`, `2+=87`
+- Notification statuses: `captured=5`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Batch readiness:
+
+- `5589` `zynnner` / `zyn`
+- `5588` `New Moon` / `Moon`
+- `5587` `Turtle Carl` / `Carl`
+- `5586` `SmilingFace` / `SmilingFace`
+- `5585` `Pelican` / `PELICAN`
+
+All five are `metadataStatus=partial`, score `C / 0`, non-hard-rejected, and
+have names/symbols, normalized text, reviewFlags, `enrichedAt`, and
+`rescoredAt`. Descriptions, website, X, Telegram, Metaplex hit, and links are
+absent. Each has `metricsCount=2`, `notificationCount=0`, and
+`holderSnapshotCount=0`.
+
+Report findings:
+
+- `metrics:report` reads two GeckoTerminal token snapshot Metrics for each
+  selected row; latest Metric ids are `1501..1505`, previous ids are
+  `1316..1320`.
+- `metrics:window-report` for `5589` and `5585` uses firstSeen as entry with
+  `entryAnchorQuality=delayed_180m`; 30m / 60m / 2h windows are `no_data`,
+  3h / 6h / 12h are `thin`, and 24h is `partial`.
+- `hasWindowFdvSamples=true` begins at 3h, but `hasAlertFdvAnchor=false`, so
+  outcome remains `no_data`.
+- Target compare summary remains unresolved because latest multiple / peak
+  fields are missing.
+
+Queue context:
+
+- default queue: `geckoOriginTokenCount=0`, `enrichPendingCount=0`,
+  `metricPendingCount=0`, `notifyCandidateCount=0`
+- 168h queue: `geckoOriginTokenCount=245`, `enrichPendingCount=205`,
+  `metricPendingCount=85`, `staleReviewCount=205`, `notifyCandidateCount=0`
+- auto-send allowed candidates: `0`
+- retry candidates: `0`
+
+Candidate comparison:
+
+- repeat limit 5 enrich backlog Red would move `enrichPendingCount` from
+  `205` to `200` with the same Token-only write boundary.
+- Metric/report follow-up for ids `5589..5585` is useful later, but these rows
+  are already readable and have two Metrics.
+- broader metric backlog preflight can address the remaining `metricPending=85`
+  later, but it is a separate lane.
+- progress consolidation / handoff is now the preferred next step because
+  seven consecutive bounded enrich backlog Red batches have completed without
+  provider error, 429, retry, notify side effects, Metric writes, or
+  HolderSnapshot writes.
+
+Next selected step: Green progress consolidation / handoff. Do not run the next
+write batch until the accumulated progress, score distribution,
+`notifyCandidate=0` context, and remaining backlog are summarized.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch Result
 
 Approved Red command:

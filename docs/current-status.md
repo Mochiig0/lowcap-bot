@@ -3614,6 +3614,46 @@ Findings:
 
 Detailed notes live in `docs/runbooks/metric-report-readiness.md`.
 
+## 2026-05-24 Seventh Enriched Backlog Batch Review
+
+The Green review of ids `5589..5585` stayed read-only. Codex version was
+`codex-cli 0.133.0`. Counts stayed Token / Metric / Notification /
+HolderSnapshot `1541 / 459 / 10 / 1`, Metric distribution stayed `0=1222`,
+`1=232`, `2+=87`, and Notification statuses stayed `captured=5`, `sent=5`,
+`failed=0`.
+
+The reviewed rows are all `metadataStatus=partial`, score `C / 0`,
+`hardRejected=false`, with names/symbols, normalized text, reviewFlags, and
+`enrichedAt` / `rescoredAt` present. Descriptions and social/link flags remain
+absent. Each has `metricsCount=2`, `notificationCount=0`, and
+`holderSnapshotCount=0`: `5589` `zynnner` / `zyn`, `5588` `New Moon` /
+`Moon`, `5587` `Turtle Carl` / `Carl`, `5586` `SmilingFace` /
+`SmilingFace`, and `5585` `Pelican` / `PELICAN`.
+
+Report checks stayed raw-free. `metrics:report` reads two GeckoTerminal token
+snapshot Metrics for each selected row; latest Metric ids are `1501..1505`,
+and previous ids are `1316..1320`. `metrics:window-report` for `5589` and
+`5585` uses firstSeen as entry with `entryAnchorQuality=delayed_180m`; 30m /
+60m / 2h windows are `no_data`, 3h / 6h / 12h are `thin`, and 24h is
+`partial`. Outcome remains `no_data` because there is no alert FDV anchor /
+peak multiple; `hasWindowFdvSamples=true` begins at 3h. Target compare summary
+remains unresolved because latest multiple / peak fields are missing.
+
+Queue and planner context remained stable: default queue has
+`geckoOriginTokenCount=0`, `enrichPendingCount=0`, `metricPendingCount=0`,
+`notifyCandidateCount=0`; 168h queue has `geckoOriginTokenCount=245`,
+`enrichPendingCount=205`, `metricPendingCount=85`, `staleReviewCount=205`,
+`notifyCandidateCount=0`. Auto-send allowed candidates and retry candidates
+remain `0`.
+
+Recommendation changed from immediately repeating another Red batch to a Green
+progress consolidation / handoff. Seven consecutive bounded enrich backlog Red
+batches have completed without provider error, 429, retry, Notification
+create/update, Telegram send, Metric write, HolderSnapshot write, or repo-local
+data diff. The repeat limit 5 enrich backlog command remains technically
+available, but the next selected step should consolidate progress, score /
+notifyCandidate distribution, and remaining backlog before another write.
+
 ## 2026-05-24 Sixth 168h Enrich Backlog Batch
 
 Execution time: 2026-05-24 20:23 JST.
