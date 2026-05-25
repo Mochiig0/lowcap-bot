@@ -398,6 +398,49 @@ Second `--onlyMetricPending` batch result review, 2026-05-26 06:21 JST:
 - Next Red candidate, human approval required:
   `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
 
+Third `--onlyMetricPending` batch Metric 0 Red, 2026-05-26 06:30 JST:
+
+- Command executed once:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Result: `selectedCount=5`, `okCount=5`, `writtenCount=5`,
+  `skippedCount=0`, `errorCount=0`, provider error `0`, 429 `0`, retry `0`.
+- Pacing held: `interItemDelayMs=15000`, `interItemDelayCount=4`.
+- Selected ids were `5452`, `5451`, `5450`, `5449`, and `5448`. All moved
+  from `metricsCount=0` to `metricsCount=1`.
+- New Metric ids: `1563`, `1564`, `1565`, `1566`, and `1567`, all source
+  `geckoterminal.token_snapshot`, observed from
+  `2026-05-25T21:29:02.206Z` through `2026-05-25T21:30:04.800Z`.
+- Counts moved only in Metric:
+  Token / Metric / Notification / HolderSnapshot
+  `1556 / 471 / 14 / 1 -> 1556 / 476 / 14 / 1`.
+- Metric buckets moved `0=1225`, `1=244`, `2+=87` to
+  `0=1220`, `1=249`, `2+=87`.
+- Notification capture did not occur:
+  `notificationCaptureEnabled=false`, `notificationCreated=false`,
+  `notificationSkippedReason=not_single_mint_mode`.
+- Notification statuses stayed `captured=9`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Representative report checks stayed rawJson-free. Metric id `1564` for token
+  id `5451` has price / FDV / reserve / top-pool present in
+  `metrics:report`; Metric id `1563` for token id `5452` has reserve present
+  with price / FDV / top-pool absent.
+- Representative `metrics:window-report` stayed rawJson-free. Token id `5451`
+  has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples from 30m through 24h, and `outcomeLabel=no_data`. Token id `5452`
+  has `metricCount=1`, `fdvMetricCount=0`, `entryAnchorQuality=none`, and
+  `outcomeLabel=no_data`.
+- Queue context after the Red: default 24h reports `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; 168h reports
+  `metricPendingCount=0`, `enrichPendingCount=0`,
+  `staleReviewCount=0`, `notifyCandidateCount=0`.
+- Non-effects held: Token write `0`, Notification create/update `0`,
+  HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+  rawJson full dump `0`, offensive raw text dump `0`, and no app/schema
+  changes.
+- Next task should be Green review of this third batch result before another
+  `--onlyMetricPending --write` Red.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

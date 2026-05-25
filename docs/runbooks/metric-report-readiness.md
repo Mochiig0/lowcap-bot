@@ -110,6 +110,19 @@ selected ids `5452..5448`, so another bounded batch Red is available after
 human approval if the operator wants to continue older Metric-zero backlog
 cleanup.
 
+That bounded batch Red later succeeded. Ids `5452`, `5451`, `5450`, `5449`,
+and `5448` now have `metricsCount=1` with Metric ids `1563..1567`. Counts
+moved only in Metric `1556 / 471 / 14 / 1 -> 1556 / 476 / 14 / 1`; Metric
+buckets moved `0=1225, 1=244, 2+=87 -> 0=1220, 1=249, 2+=87`. Notification
+capture did not occur and statuses stayed `captured=9`, `sent=5`, `failed=0`.
+Representative report/window checks stayed rawJson-free: token id `5451` /
+Metric id `1564` has price / FDV / reserve / top-pool present and
+`entryAnchorQuality=very_late_gt_360m`; token id `5452` / Metric id `1563`
+has reserve present with price / FDV / top-pool absent and
+`entryAnchorQuality=none`. Both representative windows remain
+`outcomeLabel=no_data` because there are no FDV samples in the original entry
+windows.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

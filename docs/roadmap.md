@@ -222,6 +222,20 @@ Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
 scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
 offensive raw text dump `0`.
 
+That next bounded pending-first Metric snapshot batch Red is complete:
+`selected=5`, `written=5`, `skipped=0`, `error=0`, provider error `0`,
+429 `0`, retry `0`, `interItemDelayMs=15000`, and
+`interItemDelayCount=4`. It selected ids `5452`, `5451`, `5450`, `5449`, and
+`5448`, moving all five from `metricsCount=0` to `metricsCount=1`. Counts
+moved only in Metric: `1556 / 471 / 14 / 1 -> 1556 / 476 / 14 / 1`; Metric
+buckets moved `0=1225, 1=244, 2+=87 -> 0=1220, 1=249, 2+=87`. Notification
+capture stayed off and Notification statuses remained `captured=9`, `sent=5`,
+`failed=0`.
+
+Recommended next lane: **Green review of this third onlyMetricPending batch
+result**. Confirm ids `5452..5448` in report/window context and re-run the
+fetch-free pending-first preview before approving any further batch Red.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

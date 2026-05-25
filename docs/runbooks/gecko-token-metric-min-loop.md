@@ -128,6 +128,17 @@ and one production Telegram ops live send for `metric_appended`:
   another bounded Red with the same command shape and human approval. This is
   older rolling-window backlog cleanup; the default and 168h review queues now
   show `metricPendingCount=0`.
+- the third human-approved `--onlyMetricPending` batch Red then succeeded
+  with the same bounded command shape: `selected=5`, `written=5`, `skipped=0`,
+  `error=0`, provider error `0`, 429 `0`, retry `0`,
+  `interItemDelayMs=15000`, and `interItemDelayCount=4`. Ids `5452`, `5451`,
+  `5450`, `5449`, and `5448` moved from `metricsCount=0` to
+  `metricsCount=1` with Metric ids `1563..1567`. Counts moved only in Metric
+  `1556 / 471 / 14 / 1 -> 1556 / 476 / 14 / 1`; Metric buckets moved
+  `0=1225, 1=244, 2+=87 -> 0=1220, 1=249, 2+=87`. Notification capture,
+  Token write, HolderSnapshot write, Telegram send, scheduler/systemd, rawJson
+  full dump, offensive raw text dump, and app/schema changes remained `0`.
+  Next step should be a Green review before another batch Red.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
