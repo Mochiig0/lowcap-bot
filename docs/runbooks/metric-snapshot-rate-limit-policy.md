@@ -161,6 +161,60 @@ either widen `sinceMinutes`, add a fixed backlog-range planner, or use an
 exact-mint fallback. Do not change the Red command ad hoc without a fresh
 read-only preview.
 
+## Pending-first Selector Re-window Preflight
+
+Date: 2026-05-25 22:49 JST
+
+The re-window preflight stayed read-only and docs-only. It did not run
+`--write`, did not fetch GeckoTerminal, did not write DB state, did not create
+or update Notification rows, did not send Telegram, and did not dump rawJson or
+offensive raw text.
+
+Why `10080` no longer selected rows:
+
+- id `5462`: first-seen `detectedAt=2026-05-18T12:31:57.412Z`, about
+  `10157` minutes old;
+- id `5461`: first-seen `detectedAt=2026-05-18T12:30:54.667Z`, about
+  `10158` minutes old;
+- id `5460`: first-seen `detectedAt=2026-05-18T12:29:51.863Z`, about
+  `10159` minutes old.
+
+The `10080` minute rolling cutoff therefore missed the newest Metric-zero
+backlog rows by about `77` to `79` minutes. The remaining Metric-zero backlog
+matching GeckoTerminal `new_pools`, pump mints, `mint_only`, score `C / 0`,
+and `hardRejected=false` contains `258` rows in ids `5200..5462`. All are
+outside `10080` minutes but inside `20160` minutes at this preflight time.
+
+Dry-run previews:
+
+- `--sinceMinutes 10080 --limit 5`: `selectedCount=0`;
+- `--sinceMinutes 20160 --limit 5`: `selectedCount=5`, ids `5462`, `5461`,
+  `5460`, `5459`, `5458`;
+- `--sinceMinutes 43200 --limit 5`: `selectedCount=5`, same first five ids;
+- `--sinceMinutes 20160 --limit 3`: `selectedCount=3`, ids `5462`, `5461`,
+  `5460`.
+
+The selected ids are all `metricsCount=0`, `latestMetricObservedAt=null`,
+`notificationCount=0`, `holderSnapshotCount=0`, `metadataStatus=mint_only`,
+score `C / 0`, and `hardRejected=false`.
+
+Decision: `--sinceMinutes 20160` is the smallest tested stable expanded window
+and avoids adding selector code now. Choose limit 5 rather than limit 3 because
+the preview exposes five safe Metric-zero rows while keeping the write
+boundary small.
+
+Next Red candidate, not executed in this preflight:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects: external GeckoTerminal fetches and Metric writes up to
+5 rows. Expected non-effects: Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
+`0`.
+
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not
 as a fully Green batch.

@@ -128,6 +128,27 @@ selection**. Decide one narrow selection policy before Red: widen
 `sinceMinutes`, add an explicit fixed backlog range/planner, or fall back to a
 single exact mint. Keep scheduler/systemd and broad automation locked.
 
+That re-window preflight is complete. The Metric-zero backlog rows ids
+`5462..5460` were about `10157..10159` minutes old, so the `10080` minute
+window missed them by roughly `77..79` minutes. A read-only
+`--onlyMetricPending` preview with `--sinceMinutes 20160` selected ids
+`5462`, `5461`, `5460`, `5459`, and `5458`; `--sinceMinutes 43200` selected
+the same first five rows. No provider fetch, DB write, Notification update,
+Telegram send, rawJson full dump, or offensive raw text dump was performed.
+
+Recommended next lane: **Red bounded pending-first Metric snapshot batch**,
+human approval required:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects are external GeckoTerminal fetches and Metric writes up
+to 5 rows. Expected non-effects are Token write `0`, Notification
+create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

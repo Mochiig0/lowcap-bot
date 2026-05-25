@@ -58,6 +58,16 @@ cutoff had advanced past ids `5462..5460`. The command remained read-only and
 fetch-free. No Red command is recommended until a Green re-window preflight
 chooses a stable selection policy.
 
+The re-window preflight at 2026-05-25 22:49 JST confirmed the cause and a safe
+next window. Ids `5462..5460` were about `10157..10159` minutes old, so they
+were just outside `10080` minutes. `--sinceMinutes 20160 --limit 5` selected
+ids `5462`, `5461`, `5460`, `5459`, and `5458` as fetch-free
+`selection_preview` rows. All selected rows are `mint_only`, score `C / 0`,
+`metricsCount=0`, `latestMetricObservedAt=null`, `notificationCount=0`, and
+`holderSnapshotCount=0`. The next Red candidate is the same bounded batch shape
+with `--sinceMinutes 20160`, `--limit 5`, `--onlyMetricPending`,
+`--noNotificationCapture`, and `--write`, pending human approval.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

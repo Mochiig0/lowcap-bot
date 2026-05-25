@@ -203,6 +203,45 @@ Pending-first Metric batch selector Yellow, 2026-05-25 21:29 JST:
   decide whether to use a slightly wider rolling window, an absolute fixed
   backlog range, or exact-mint fallback for ids `5462..5460` before any Red.
 
+`--onlyMetricPending` re-window preflight, 2026-05-25 22:49 JST:
+
+- This was read-only / docs-only. No `metric:snapshot:geckoterminal --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler /
+  systemd, rawJson full dump, or offensive raw text dump was performed.
+- Current counts are Token / Metric / Notification / HolderSnapshot
+  `1556 / 461 / 14 / 1`.
+- Metric buckets are `0=1235`, `1=234`, `2+=87`.
+- Notification statuses are `captured=9`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Ids `5462`, `5461`, and `5460` are still Metric-zero safe rows. Their
+  first-seen `detectedAt`, `createdAt`, and `importedAt` are around
+  `2026-05-18T12:29:51Z` to `2026-05-18T12:31:57Z`, or about
+  `10157` to `10159` minutes before the preflight.
+- The `10080` minute window misses those rows by about `77` to `79` minutes.
+  The remaining Metric-zero backlog matching GeckoTerminal `new_pools`, pump,
+  `mint_only`, score `C / 0`, and `hardRejected=false` has `258` rows, with
+  ids `5200..5462`; all were inside `20160` minutes and outside `10080`
+  minutes at preflight time.
+- Production preview remained fetch-free / write-free:
+  `--sinceMinutes 10080` selected `0`; `--sinceMinutes 20160` selected ids
+  `5462`, `5461`, `5460`, `5459`, and `5458`; `--sinceMinutes 43200`
+  selected the same first five rows. A limit 3 preview with `20160` selected
+  ids `5462`, `5461`, and `5460`.
+- Selected rows are all GeckoTerminal `new_pools` pump mints,
+  `metadataStatus=mint_only`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=0`, `latestMetric=null`, `notificationCount=0`, and
+  `holderSnapshotCount=0`.
+- Queue context: default 24h reports `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; 168h reports
+  `metricPendingCount=0`, `enrichPendingCount=41`,
+  `staleReviewCount=41`, `notifyCandidateCount=0`.
+- Decision: use a bounded expanded window rather than add selector code now.
+  `sinceMinutes=20160` is the smallest tested stable window that recovers the
+  Metric-zero backlog. Limit 5 is preferred because the preview has five safe
+  rows and the Red boundary remains small.
+- Next Red candidate, human approval required:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

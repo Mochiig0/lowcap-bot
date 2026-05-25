@@ -77,6 +77,19 @@ and one production Telegram ops live send for `metric_appended`:
   Metric-zero candidates, but not inside that rolling window. No batch Red
   command should be issued until a re-window Green preflight chooses a stable
   selection policy.
+- the re-window Green preflight then confirmed ids `5462..5460` were about
+  `10157..10159` minutes old, so `10080` missed them narrowly. A fetch-free
+  `--onlyMetricPending` preview with `--sinceMinutes 20160 --limit 5`
+  selected ids `5462`, `5461`, `5460`, `5459`, and `5458`, all
+  `metricsCount=0`, `latestMetricObservedAt=null`, `notificationCount=0`,
+  `holderSnapshotCount=0`, `mint_only`, and score `C / 0`. The next Red
+  candidate is:
+
+  ```bash
+  pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+  ```
+
+  Human approval is required.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
