@@ -139,6 +139,19 @@ and one production Telegram ops live send for `metric_appended`:
   Token write, HolderSnapshot write, Telegram send, scheduler/systemd, rawJson
   full dump, offensive raw text dump, and app/schema changes remained `0`.
   Next step should be a Green review before another batch Red.
+- that Green review confirmed ids `5452..5448` in read-only report/window
+  context. All five are `metricsCount=1`, `notificationCount=0`, and
+  `holderSnapshotCount=0`; token id `5451` has price / FDV / reserve /
+  top-pool present, while ids `5452`, `5450`, `5449`, and `5448` have reserve
+  present with price / FDV / top-pool absent. Representative windows stayed
+  `outcomeLabel=no_data`: id `5451` has `fdvMetricCount=1` with a very late
+  FDV anchor, and id `5452` has `fdvMetricCount=0`. Queue default and 168h
+  views remain `metricPendingCount=0`, `enrichPendingCount=0`, and
+  `notifyCandidateCount=0`, but the expanded fetch-free `--onlyMetricPending`
+  preview selected the next older Metric-zero rows, ids `5447..5443`.
+  Recommended next step is one more bounded pending-first Metric snapshot Red
+  with human approval; if a future preview returns `selectedCount=0`, switch to
+  rolling-window / older Metric-zero backlog policy instead.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.

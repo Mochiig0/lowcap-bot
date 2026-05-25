@@ -496,6 +496,80 @@ repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
 Next step should be a Green review of this third batch result before another
 `--onlyMetricPending --write` Red.
 
+## Third Pending-first Selector Batch Review
+
+Reviewed 2026-05-26 06:36 JST as read-only / docs-only. No `--write`,
+external fetch, DB write, Telegram send, Notification create/update,
+rawJson full dump, or offensive raw text dump was executed.
+
+Current state stayed:
+
+- Token / Metric / Notification / HolderSnapshot: `1556 / 476 / 14 / 1`;
+- Metric buckets: `0=1220`, `1=249`, `2+=87`;
+- Notification statuses: `captured=9`, `sent=5`, `failed=0`;
+- auto-send allowed candidate count `0`;
+- retry candidate count `0`.
+
+Batch result review:
+
+- ids `5452`, `5451`, `5450`, `5449`, and `5448` are readable as
+  `metricsCount=1`, `metadataStatus=mint_only`, score `C / 0`,
+  `hardRejected=false`, `notificationCount=0`, and `holderSnapshotCount=0`;
+- Metric ids are `1563`, `1564`, `1565`, `1566`, and `1567`, source
+  `geckoterminal.token_snapshot`;
+- `metrics:report` needed the `node --import tsx` fallback because the package
+  script hit the known tsx IPC limitation;
+- token id `5451` / Metric id `1564` has price / FDV / reserve / top-pool
+  present;
+- token ids `5452`, `5450`, `5449`, and `5448` have reserve present with
+  price / FDV / top-pool absent.
+
+Representative window review:
+
+- token id `5451`: `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples, `outcomeLabel=no_data`;
+- token id `5452`: `metricCount=1`, `fdvMetricCount=0`,
+  `entryAnchorQuality=none`, no alert FDV anchor, no window FDV samples,
+  `outcomeLabel=no_data`.
+
+Queue and selector context:
+
+- default 24h queue: `metricPendingCount=0`, `enrichPendingCount=0`,
+  `notifyCandidateCount=0`;
+- 168h queue: `metricPendingCount=0`, `enrichPendingCount=0`,
+  `staleReviewCount=0`, `notifyCandidateCount=0`;
+- post-review preview command stayed selection-only:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+- preview result: `dryRun=true`, `writeEnabled=false`,
+  `onlyMetricPending=true`, `selectedCount=5`, status `selection_preview`;
+- selected ids: `5447`, `5446`, `5445`, `5444`, `5443`;
+- all selected rows are `metricsCount=0`, `latestMetricObservedAt=null`,
+  `notificationCount=0`, `holderSnapshotCount=0`,
+  `metadataStatus=mint_only`, source `geckoterminal.new_pools`.
+
+Decision: because the preview still selects exactly five Metric-zero rows and
+the prior three pending-first batches had no provider error, 429, retry,
+Notification capture, Token write, HolderSnapshot write, or Telegram send, the
+next step can be one more bounded pending-first Metric snapshot Red. Treat this
+as older rolling-window backlog cleanup, not current 168h queue pressure.
+
+Next Red candidate, not executed in this review:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects: external GeckoTerminal fetch and Metric writes up to 5
+rows. Expected non-effects: Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
+`0`.
+
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not
 as a fully Green batch.
