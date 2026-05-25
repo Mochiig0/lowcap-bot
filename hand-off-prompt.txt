@@ -15,7 +15,7 @@ This repo is still not a generic bot platform and does not include queue / worke
 Latest checked state after exact-mint Metric 0 backlog snapshot:
 - Date: 2026-05-24
 - CodexCLI: codex-cli 0.133.0
-- HEAD before exact-mint snapshot: 619e097 docs: preflight exact mint metric backlog
+- HEAD before exact-mint review: 5f3e75a docs: record exact mint metric backlog snapshot
 - Token / Metric / Notification / HolderSnapshot: 1541 / 460 / 10 / 1
 - Metric distribution: 0=1221, 1=233, 2+=87
 - Notification statuses: captured=5, sent=5, failed=0
@@ -40,6 +40,20 @@ Latest Red execution:
 - Token write=0, Notification create/update=0, HolderSnapshot write=0,
   Telegram send=0, repo-local data diff=0, rawJson full dump=0,
   offensive raw text dump=0
+
+Latest Green review:
+- token id 5464 remains metricsCount=1 with Metric id 1542
+- metrics:report is rawJson-free and shows safe booleans:
+  priceUsdPresent=true, fdvUsdPresent=true, reserveUsdPresent=true,
+  topPoolPresent=true
+- metrics:window-report shows metricCount=1, fdvMetricCount=1,
+  entryAnchorQuality=very_late_gt_360m, and no_data windows
+- remaining Metric 0 backlog in ids 5380..5463 is 84 rows
+- all 84 are geckoterminal.new_pools pump mints, metadataStatus=mint_only,
+  metricsCount=0, scoreRank=C, hardRejected=false, notificationCount=0,
+  holderSnapshotCount=0
+- next exact-mint candidate is token id 5463:
+  CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump
 
 Recent enrich backlog progress:
 - 8 bounded 168h enrich/rescore Red batches completed successfully
@@ -96,10 +110,15 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Green: review exact-mint Metric 0 snapshot result and preflight the next exact
-mint Metric 0 backlog item. Confirm token id 5464 in read-only report/window
-context, confirm metricPendingCount remains 84 and notifyCandidateCount remains
-0, then choose exactly one next mint if another Red is warranted.
+Red: run the second exact-mint Metric 0 backlog snapshot.
+Risk: Red. Human approval required. Run exactly one command only:
+pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write
+
+Expected side effects: one external GeckoTerminal token snapshot fetch and at
+most one Metric write. Expected non-effects: Token write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler/systemd,
+repo-local data diff, rawJson full dump, offensive raw text dump. If
+successful, metricPendingCount should move 84 -> 83.
 
 Second choice:
 Design or preflight a pending-first batch selector for true Metric backlog

@@ -36,6 +36,35 @@ Latest exact-mint Metric 0 backlog Red, 2026-05-24 22:53 JST:
   HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
   repo-local data diff `0`, rawJson full dump `0`, offensive raw text dump `0`.
 
+Latest exact-mint Metric 0 result review, 2026-05-24 23:44 JST:
+
+- This was read-only / docs-only. No `metric:snapshot:geckoterminal --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler /
+  systemd, rawJson full dump, or offensive raw text dump was performed.
+- Current counts stayed Token / Metric / Notification / HolderSnapshot
+  `1541 / 460 / 10 / 1`.
+- Metric buckets stayed `0=1221`, `1=233`, `2+=87`.
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Token id `5464` remains `metadataStatus=mint_only`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=1`, `notificationCount=0`,
+  `holderSnapshotCount=0`.
+- Metric id `1542` remains source `geckoterminal.token_snapshot` at
+  `2026-05-24T13:52:10.586Z`. `metrics:report` shows safe market-data
+  booleans `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, and `topPoolPresent=true`.
+- `metrics:window-report` still shows `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples for 30m through 24h, and `outcomeLabel=no_data`.
+- Remaining Metric 0 backlog in ids `5380..5463`: `84` rows. All are
+  `geckoterminal.new_pools`, pump mints, `metadataStatus=mint_only`,
+  `metricsCount=0`, score `C`, `hardRejected=false`,
+  `notificationCount=0`, and `holderSnapshotCount=0`.
+- Next exact-mint candidate is token id `5463`, mint
+  `CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump`.
+- Recommended next Red, human approval required:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

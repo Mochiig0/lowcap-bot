@@ -291,6 +291,66 @@ Next step should be a Green review / preflight before another exact-mint Red or
 a Yellow pending-first selector design. Do not use broad batch commands as a
 Metric 0 cleanup path until selection quality is fixed.
 
+## Exact Mint Metric 0 Review And Next Candidate
+
+Date: 2026-05-24 23:44 JST
+
+This follow-up stayed read-only and docs-only. It did not run
+`metric:snapshot:geckoterminal --write`, did not fetch GeckoTerminal, did not
+write DB rows, did not create / update Notifications, did not send Telegram,
+and did not dump rawJson or offensive raw text.
+
+Result review for token id `5464`:
+
+- current `metricsCount=1`
+- Metric id `1542`
+- source `geckoterminal.token_snapshot`
+- `observedAt=2026-05-24T13:52:10.586Z`
+- `notificationCount=0`
+- `holderSnapshotCount=0`
+- Notification capture remained absent
+- `metrics:report` showed safe booleans `priceUsdPresent=true`,
+  `fdvUsdPresent=true`, `reserveUsdPresent=true`, `topPoolPresent=true`
+- `metrics:window-report` showed `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no checked
+  window FDV samples, and `outcomeLabel=no_data`
+
+Remaining Metric 0 backlog:
+
+- ids range: `5380..5463`
+- remaining count: `84`
+- source distribution: `geckoterminal.new_pools=84`
+- metadataStatus distribution: `mint_only=84`
+- metricsCount distribution: `0=84`
+- scoreRank distribution: `C=84`
+- hardRejected distribution: `false=84`
+- notificationCount distribution: `0=84`
+- holderSnapshotCount distribution: `0=84`
+
+Next exact-mint candidate:
+
+- token id: `5463`
+- mint: `CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump`
+- source / origin: `geckoterminal.new_pools`
+- metadataStatus: `mint_only`
+- metricsCount: `0`
+- notificationCount: `0`
+- holderSnapshotCount: `0`
+- scoreRank / scoreTotal: `C / 0`
+- hardRejected: `false`
+
+Recommended next Red exact command, not executed here:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Reason: one more exact-mint Red gives a second proof that the Metric 0 backlog
+can be reduced safely with one selected mint, one Metric write, and
+Notification capture disabled. The longer-term fix remains a Yellow
+pending-first selector design; broad batch Metric Red should wait until the
+selector can target Metric 0 rows before `--limit` is applied.
+
 ## Candidate Selection Improvement
 
 Date: 2026-05-19

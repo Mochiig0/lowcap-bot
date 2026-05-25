@@ -233,6 +233,26 @@ The result is expected for a very late first Metric on an older first-seen
 token: the row makes the Metric 0 backlog smaller and confirms report
 visibility, but it does not create a usable near-entry outcome window.
 
+## Exact Mint Metric 0 Review Recheck
+
+Date: 2026-05-24 23:44 JST
+
+The follow-up Green review re-ran the read-only report checks for token id
+`5464`. Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 460 / 10 / 1`, with Metric buckets `0=1221`, `1=233`, `2+=87`.
+
+`metrics:report` continued to return one row, Metric id `1542`, with source
+`geckoterminal.token_snapshot`, `observedAt=2026-05-24T13:52:10.586Z`,
+`volume24h=0`, and rawJson-free safe market-data booleans all true for
+price, FDV, reserve, and top pool.
+
+`metrics:window-report` continued to show `metricCount=1`,
+`fdvMetricCount=1`, `entryAnchorQuality=very_late_gt_360m`, no alert FDV
+anchor, no FDV samples in 30m through 24h windows, and `outcomeLabel=no_data`.
+This confirms the report remains readable and safe, while also confirming that
+a very late first Metric should be treated as backlog coverage rather than
+near-entry outcome evidence.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

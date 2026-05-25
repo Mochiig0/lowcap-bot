@@ -40,6 +40,14 @@ and one production Telegram ops live send for `metric_appended`:
   Telegram was not sent, and `review:queue --sinceHours 168` moved
   `metricPendingCount 85 -> 84`. `metrics:report` and
   `metrics:window-report` confirmed the result rawJson-free.
+- the follow-up read-only review selected token id `5463`, mint
+  `CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump`, as the next exact-mint
+  Metric 0 backlog candidate. It is a GeckoTerminal `new_pools` pump mint,
+  `metadataStatus=mint_only`, `metricsCount=0`, `notificationCount=0`,
+  `holderSnapshotCount=0`, score `C / 0`, and `hardRejected=false`. The next
+  human-approved Red can use the same exact-mint boundary with
+  `--minGapMinutes 60 --noNotificationCapture --write` to prove the pattern a
+  second time before pending-first batch selector work.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.

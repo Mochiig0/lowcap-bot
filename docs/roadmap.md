@@ -27,12 +27,35 @@ Result: `selectedCount=1`, `writtenCount=1`, `skippedCount=0`,
 reports `metricPendingCount=84`, `enrichPendingCount=200`,
 `staleReviewCount=200`, and `notifyCandidateCount=0`.
 
-Recommended next lane: **Green review of the exact-mint Metric 0 snapshot
-result and next Metric 0 candidate selection**. Confirm token id `5464` in
-read-only report/window context, then decide whether to run another exact-mint
-Metric 0 Red for the next backlog item or design a pending-first batch selector.
-Do not jump to a broad Metric batch yet; the current batch selector still
-prioritizes already measured rows before the true Metric 0 backlog.
+The follow-up Green review is now complete. Token id `5464` remains readable in
+`metrics:report` / `metrics:window-report`, `notificationCount=0`,
+`holderSnapshotCount=0`, and the 168h queue still reports
+`metricPendingCount=84` with `notifyCandidateCount=0`. The remaining Metric 0
+backlog in ids `5380..5463` contains 84 eligible rows, all
+`geckoterminal.new_pools`, pump mints, `mint_only`, `metricsCount=0`,
+score `C`, `hardRejected=false`, `notificationCount=0`, and
+`holderSnapshotCount=0`.
+
+Recommended next lane: **one more exact-mint Metric 0 Red for reproducibility**.
+This keeps the write boundary at one Metric row while confirming the successful
+exact-mint pattern on a second backlog item before investing in selector
+implementation:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are one external
+GeckoTerminal token snapshot fetch and at most one Metric write. Expected
+non-effects are Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
+`0`.
+
+Second choice: Yellow design for a pending-first Metric batch selector. That is
+the longer-term fix for the 84-row Metric 0 backlog, because the current batch
+selector still prioritizes already measured rows before the true Metric 0
+backlog. Do not jump to broad batch Red until selection quality is fixed.
 
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
