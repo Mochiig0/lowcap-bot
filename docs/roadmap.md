@@ -163,6 +163,25 @@ Recommended next lane: **Green review of the onlyMetricPending batch result**.
 Confirm the five new Metric rows through report/window context, queue/planner
 state, and side-effect boundaries before approving another batch Red.
 
+That Green review is complete. The five rows `5462..5458` are readable in
+safe report/window context, all have `metricsCount=1`, and Notification /
+HolderSnapshot counts stayed zero for those tokens. The post-Red
+`--onlyMetricPending` preview remains fetch-free and selects the next five
+Metric-zero rows, ids `5457`, `5456`, `5455`, `5454`, and `5453`.
+
+Recommended next lane: **repeat the bounded pending-first Metric snapshot
+batch Red**, human approval required:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects are external GeckoTerminal fetches and Metric writes up
+to 5 rows. Expected non-effects remain Token write `0`, Notification
+create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

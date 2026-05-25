@@ -283,6 +283,45 @@ Pending-first Metric batch selector Yellow, 2026-05-25 21:29 JST:
 - Next task should be Green review of this first batch result before another
   `--onlyMetricPending --write` Red.
 
+`--onlyMetricPending` batch result review, 2026-05-25 23:19 JST:
+
+- This was read-only / docs-only. No `metric:snapshot:geckoterminal --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler /
+  systemd, rawJson full dump, or offensive raw text dump was performed.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `1556 / 466 / 14 / 1`.
+- Metric buckets stayed `0=1230`, `1=239`, `2+=87`.
+- Notification statuses stayed `captured=9`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Reviewed ids `5462`, `5461`, `5460`, `5459`, and `5458`. All remain
+  `metadataStatus=mint_only`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+- Metric ids `1553..1557` remain source `geckoterminal.token_snapshot`.
+  `metrics:report` confirmed id `1555` has price / FDV / reserve / top-pool
+  booleans present, while id `1553` has reserve present with price / FDV /
+  top-pool absent.
+- Representative `metrics:window-report` remained rawJson-free. Token id
+  `5460` has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples from 30m through 24h, and `outcomeLabel=no_data`. Token id `5462`
+  has `metricCount=1`, `fdvMetricCount=0`, `entryAnchorQuality=none`, and
+  `outcomeLabel=no_data`.
+- The post-Red `--onlyMetricPending` preview remained fetch-free /
+  write-free and selected the next five Metric-zero rows: ids `5457`, `5456`,
+  `5455`, `5454`, and `5453`, all with `metricsCount=0`,
+  `latestMetricObservedAt=null`, `notificationCount=0`, and
+  `holderSnapshotCount=0`.
+- Queue context: default 24h reports `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; 168h reports
+  `metricPendingCount=0`, `enrichPendingCount=12`,
+  `staleReviewCount=12`, `notifyCandidateCount=0`.
+- Recommendation: run one more bounded `--onlyMetricPending` batch Red with
+  the same command shape. The rolling 168h review queue no longer reports
+  metricPending rows, but the expanded `20160` minute pending-first preview
+  has a clear selectedCount of `5`.
+- Next Red candidate, human approval required:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

@@ -77,6 +77,14 @@ shows `metricCount=1`, `fdvMetricCount=1`,
 `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
 samples, and `outcomeLabel=no_data`.
 
+The follow-up Green review reconfirmed the same report shape. Ids `5462..5458`
+are all readable with `metricsCount=1`, `notificationCount=0`, and
+`holderSnapshotCount=0`. Token id `5462` has `metricCount=1` but
+`fdvMetricCount=0`, so its window report remains `no_data` with
+`entryAnchorQuality=none`. The post-Red pending-first preview selected the next
+five Metric-zero rows ids `5457..5453`, so another bounded batch Red is
+available after human approval.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

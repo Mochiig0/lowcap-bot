@@ -101,6 +101,12 @@ and one production Telegram ops live send for `metric_appended`:
   Token write, HolderSnapshot write, Telegram send, scheduler/systemd, rawJson
   full dump, and offensive raw text dump remained `0`. Next step should be a
   Green review before another batch Red.
+- that Green review confirmed ids `5462..5458` are readable in
+  `metrics:report` / `metrics:window-report`, remain `metricsCount=1`, and
+  still have `notificationCount=0` and `holderSnapshotCount=0`. A subsequent
+  fetch-free `--onlyMetricPending` preview selected the next Metric-zero rows,
+  ids `5457`, `5456`, `5455`, `5454`, and `5453`, so the next candidate is
+  another bounded Red with the same command shape and human approval.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
