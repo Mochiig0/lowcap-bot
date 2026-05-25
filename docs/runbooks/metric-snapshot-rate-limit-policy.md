@@ -383,6 +383,58 @@ repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
 Next step should be a Green review of this second batch result before another
 `--onlyMetricPending --write` Red.
 
+## Second Pending-first Selector Batch Review
+
+Date: 2026-05-26 06:21 JST
+
+The Green review after the second batch stayed read-only and docs-only. It did
+not run `metric:snapshot:geckoterminal --write`, did not fetch GeckoTerminal,
+did not write DB state, did not create or update Notifications, did not send
+Telegram, and did not dump rawJson or offensive raw text.
+
+Review results:
+
+- Token / Metric / Notification / HolderSnapshot stayed
+  `1556 / 471 / 14 / 1`;
+- Metric buckets stayed `0=1225`, `1=244`, `2+=87`;
+- Notification statuses stayed `captured=9`, `sent=5`, `failed=0`;
+- retry candidate count stayed `0`;
+- enabled auto-send allowed candidate count stayed `0`.
+
+Ids `5457`, `5456`, `5455`, `5454`, and `5453` all remained
+`metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+Representative reports were readable without rawJson:
+
+- token id `5457` / Metric id `1558`: reserve present, price / FDV /
+  top-pool absent;
+- token id `5453` / Metric id `1562`: reserve present, price / FDV /
+  top-pool absent;
+- `metrics:window-report` for token ids `5457` and `5453`:
+  `metricCount=1`, `fdvMetricCount=0`, `entryAnchorQuality=none`, no alert
+  FDV anchor, no window FDV samples, `outcomeLabel=no_data`.
+
+Post-Red selection preview:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+The preview stayed fetch-free and write-free. It selected ids `5452`, `5451`,
+`5450`, `5449`, and `5448`, all `metricsCount=0`,
+`latestMetricObservedAt=null`, `notificationCount=0`, and
+`holderSnapshotCount=0`.
+
+Decision: another bounded pending-first Metric Red is valid. The 24h and 168h
+review queues report `metricPendingCount=0`, but the expanded `20160` minute
+pending-first selector still exposes older Metric-zero rows. Treat continued
+Red execution as older rolling-window backlog cleanup.
+
+Next Red candidate, not executed in this review:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not
 as a fully Green batch.

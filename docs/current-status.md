@@ -360,6 +360,44 @@ Second `--onlyMetricPending` batch Metric 0 Red, 2026-05-26 05:53 JST:
 - Next task should be Green review of this second batch result before another
   `--onlyMetricPending --write` Red.
 
+Second `--onlyMetricPending` batch result review, 2026-05-26 06:21 JST:
+
+- This was read-only / docs-only. No `metric:snapshot:geckoterminal --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler /
+  systemd, rawJson full dump, or offensive raw text dump was performed.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `1556 / 471 / 14 / 1`.
+- Metric buckets stayed `0=1225`, `1=244`, `2+=87`.
+- Notification statuses stayed `captured=9`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Reviewed ids `5457`, `5456`, `5455`, `5454`, and `5453`. All remain
+  `metadataStatus=mint_only`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+- Metric ids `1558..1562` remain source `geckoterminal.token_snapshot`.
+  Safe market-data booleans for all five are price absent, FDV absent,
+  reserve present, and `volume24h=0`; top-pool is absent in `metrics:report`
+  for representative rows.
+- Representative `metrics:window-report` remained rawJson-free. Token ids
+  `5457` and `5453` both have `metricCount=1`, `fdvMetricCount=0`,
+  `entryAnchorQuality=none`, no alert FDV anchor, no window FDV samples from
+  30m through 24h, and `outcomeLabel=no_data`.
+- The post-Red `--onlyMetricPending` preview remained fetch-free /
+  write-free and selected the next five Metric-zero rows: ids `5452`, `5451`,
+  `5450`, `5449`, and `5448`, all with `metricsCount=0`,
+  `latestMetricObservedAt=null`, `notificationCount=0`, and
+  `holderSnapshotCount=0`.
+- Queue context: default 24h reports `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; 168h reports
+  `metricPendingCount=0`, `enrichPendingCount=0`,
+  `staleReviewCount=0`, `notifyCandidateCount=0`.
+- Rolling 168h queue is now fully clear, but the expanded `20160` minute
+  pending-first preview still has a clear selectedCount of `5`. Treat this as
+  older rolling-window backlog cleanup, not current 168h queue pressure.
+- Recommendation: run one more bounded `--onlyMetricPending` batch Red with
+  the same command shape, then review again.
+- Next Red candidate, human approval required:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

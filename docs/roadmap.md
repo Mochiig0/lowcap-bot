@@ -197,6 +197,31 @@ Recommended next lane: **Green review of the second onlyMetricPending batch
 result**. Confirm ids `5457..5453` in report/window context and re-run the
 fetch-free pending-first preview before approving any further batch Red.
 
+That Green review is complete. Ids `5457..5453` are readable in
+`metrics:report` and representative `metrics:window-report` output, all remain
+`metricsCount=1`, and Notification / HolderSnapshot counts stayed zero for
+those tokens. Their representative window reports have `metricCount=1`,
+`fdvMetricCount=0`, `entryAnchorQuality=none`, no alert FDV anchor, no window
+FDV samples, and `outcomeLabel=no_data`. The rolling 24h and 168h queues now
+show `metricPendingCount=0`, `enrichPendingCount=0`, and
+`notifyCandidateCount=0`, but the expanded `20160` minute
+`--onlyMetricPending` preview remains fetch-free and selects the next five
+older Metric-zero rows, ids `5452`, `5451`, `5450`, `5449`, and `5448`.
+
+Recommended next lane: **one more bounded pending-first Metric snapshot
+batch Red**, human approval required:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+This should be treated as older rolling-window backlog cleanup, not current
+168h queue pressure. Expected side effects are external GeckoTerminal fetches
+and Metric writes up to 5 rows. Expected non-effects remain Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

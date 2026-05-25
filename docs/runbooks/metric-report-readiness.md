@@ -97,6 +97,19 @@ report has `metricCount=1`, `fdvMetricCount=0`,
 `entryAnchorQuality=none`, no alert FDV anchor, no window FDV samples, and
 `outcomeLabel=no_data`.
 
+The follow-up Green review reconfirmed the same report shape for the second
+batch. Ids `5457..5453` all remain `metricsCount=1`,
+`notificationCount=0`, and `holderSnapshotCount=0`; Metric ids `1558..1562`
+remain source `geckoterminal.token_snapshot`. Representative
+`metrics:report` output for ids `5457` and `5453` shows reserve present with
+price / FDV / top-pool absent. Representative `metrics:window-report` output
+for ids `5457` and `5453` has `metricCount=1`, `fdvMetricCount=0`,
+`entryAnchorQuality=none`, no alert FDV anchor, no window FDV samples, and
+`outcomeLabel=no_data`. The next fetch-free `--onlyMetricPending` preview
+selected ids `5452..5448`, so another bounded batch Red is available after
+human approval if the operator wants to continue older Metric-zero backlog
+cleanup.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:
