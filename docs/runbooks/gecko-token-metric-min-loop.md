@@ -90,6 +90,17 @@ and one production Telegram ops live send for `metric_appended`:
   ```
 
   Human approval is required.
+- the first human-approved batch Red using that command succeeded:
+  `selected=5`, `written=5`, `skipped=0`, `error=0`, provider error `0`,
+  429 `0`, retry `0`, `interItemDelayMs=15000`, and
+  `interItemDelayCount=4`. Ids `5462`, `5461`, `5460`, `5459`, and `5458`
+  moved from `metricsCount=0` to `metricsCount=1` with Metric ids
+  `1553..1557`. Counts moved only in Metric
+  `1556 / 461 / 14 / 1 -> 1556 / 466 / 14 / 1`; Metric buckets moved
+  `0=1235, 1=234, 2+=87 -> 0=1230, 1=239, 2+=87`. Notification capture,
+  Token write, HolderSnapshot write, Telegram send, scheduler/systemd, rawJson
+  full dump, and offensive raw text dump remained `0`. Next step should be a
+  Green review before another batch Red.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.

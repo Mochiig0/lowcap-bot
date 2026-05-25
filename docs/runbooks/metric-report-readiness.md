@@ -68,6 +68,15 @@ ids `5462`, `5461`, `5460`, `5459`, and `5458` as fetch-free
 with `--sinceMinutes 20160`, `--limit 5`, `--onlyMetricPending`,
 `--noNotificationCapture`, and `--write`, pending human approval.
 
+That Red batch later succeeded. The five selected rows now have
+`metricsCount=1` with Metric ids `1553..1557`. `metrics:report` confirms
+rawJson-free safe market-data booleans for representative rows: id `5460` has
+price / FDV / reserve / top-pool present, while id `5462` has reserve present
+with price / FDV / top-pool absent. `metrics:window-report` for id `5460`
+shows `metricCount=1`, `fdvMetricCount=1`,
+`entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+samples, and `outcomeLabel=no_data`.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:
