@@ -85,6 +85,18 @@ are all readable with `metricsCount=1`, `notificationCount=0`, and
 five Metric-zero rows ids `5457..5453`, so another bounded batch Red is
 available after human approval.
 
+The next human-approved `--onlyMetricPending` batch Red also succeeded. Ids
+`5457`, `5456`, `5455`, `5454`, and `5453` now have `metricsCount=1` with
+Metric ids `1558..1562`. Counts moved only in Metric
+`1556 / 466 / 14 / 1 -> 1556 / 471 / 14 / 1`; Metric buckets moved
+`0=1230, 1=239, 2+=87 -> 0=1225, 1=244, 2+=87`. Notification capture did not
+occur and statuses stayed `captured=9`, `sent=5`, `failed=0`.
+Representative report/window checks stayed rawJson-free: token id `5457` /
+Metric id `1558` has reserve present with price / FDV absent, and its window
+report has `metricCount=1`, `fdvMetricCount=0`,
+`entryAnchorQuality=none`, no alert FDV anchor, no window FDV samples, and
+`outcomeLabel=no_data`.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

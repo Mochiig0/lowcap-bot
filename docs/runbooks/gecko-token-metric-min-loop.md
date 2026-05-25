@@ -107,6 +107,17 @@ and one production Telegram ops live send for `metric_appended`:
   fetch-free `--onlyMetricPending` preview selected the next Metric-zero rows,
   ids `5457`, `5456`, `5455`, `5454`, and `5453`, so the next candidate is
   another bounded Red with the same command shape and human approval.
+- the second human-approved `--onlyMetricPending` batch Red then succeeded
+  with the same bounded command shape: `selected=5`, `written=5`, `skipped=0`,
+  `error=0`, provider error `0`, 429 `0`, retry `0`,
+  `interItemDelayMs=15000`, and `interItemDelayCount=4`. Ids `5457`, `5456`,
+  `5455`, `5454`, and `5453` moved from `metricsCount=0` to
+  `metricsCount=1` with Metric ids `1558..1562`. Counts moved only in Metric
+  `1556 / 466 / 14 / 1 -> 1556 / 471 / 14 / 1`; Metric buckets moved
+  `0=1230, 1=239, 2+=87 -> 0=1225, 1=244, 2+=87`. Notification capture,
+  Token write, HolderSnapshot write, Telegram send, scheduler/systemd, rawJson
+  full dump, offensive raw text dump, and app/schema changes remained `0`.
+  Next step should be a Green review before another batch Red.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
