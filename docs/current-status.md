@@ -533,6 +533,55 @@ Repeated `--onlyMetricPending` batch Metric 0 Red, 2026-05-26 06:43 JST:
 - Next task should be Green review of this repeated batch result before
   another `--onlyMetricPending --write` Red.
 
+Repeated `--onlyMetricPending` batch result review, 2026-05-26 06:55 JST:
+
+- This was read-only / docs-only. No `--write`, external fetch, DB write,
+  Telegram send, Notification create/update, rawJson full dump, or offensive
+  raw text dump was executed.
+- Current counts stayed Token / Metric / Notification / HolderSnapshot
+  `1556 / 481 / 14 / 1`.
+- Metric buckets are `0=1215`, `1=254`, `2+=87`; Notification statuses are
+  `captured=9`, `sent=5`, `failed=0`.
+- Ids `5447`, `5446`, `5445`, `5444`, and `5443` are readable as
+  `metricsCount=1`, `metadataStatus=mint_only`, score `C / 0`,
+  `hardRejected=false`, `notificationCount=0`, and `holderSnapshotCount=0`.
+  Metric ids are `1568..1572`, source `geckoterminal.token_snapshot`,
+  observed from `2026-05-25T21:42:05.001Z` through
+  `2026-05-25T21:43:07.488Z`.
+- `metrics:report` confirmed token id `5446` / Metric id `1569` has price /
+  FDV / reserve / top-pool present. Token id `5447` / Metric id `1568` has
+  reserve present with price / FDV / top-pool absent. The other three selected
+  rows follow the same reserve-only safe market-data shape as `5447`.
+- Representative `metrics:window-report` checks stayed rawJson-free. Token id
+  `5446` has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples, and `outcomeLabel=no_data`. Token id `5447` has `metricCount=1`,
+  `fdvMetricCount=0`, `entryAnchorQuality=none`, no alert FDV anchor, no
+  window FDV samples, and `outcomeLabel=no_data`.
+- Queue context remains clear: default 24h reports `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; 168h reports
+  `metricPendingCount=0`, `enrichPendingCount=0`, `staleReviewCount=0`,
+  `notifyCandidateCount=0`.
+- Auto-send planners stayed read-only and selected no allowed candidate with
+  the feature disabled or enabled. Retry planner stayed `candidateCount=0`.
+- Post-review `--onlyMetricPending` preview remained fetch-free and
+  write-free. It selected ids `5442`, `5441`, `5440`, `5439`, and `5438`,
+  all with `metricsCount=0`, `latestMetricObservedAt=null`,
+  `notificationCount=0`, `holderSnapshotCount=0`, `metadataStatus=mint_only`,
+  source `geckoterminal.new_pools`, and status `selection_preview`.
+- Rolling 24h / 168h queues are complete, but the expanded `20160` minute
+  pending-first selector still exposes older Metric-zero cleanup work. Because
+  `selectedCount=5` and the selected rows are clear, the next step can be
+  another bounded `--onlyMetricPending` batch Red rather than a policy-only
+  detour.
+- Next Red candidate, human approval required and not executed here:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Expected side effects: external GeckoTerminal fetch and Metric writes up to
+  5 rows. Expected non-effects: Token write `0`, Notification create/update
+  `0`, HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+  repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
+  `0`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

@@ -160,6 +160,28 @@ has reserve present with price / FDV / top-pool absent and
 `outcomeLabel=no_data` because there are no FDV samples in the original entry
 windows.
 
+The follow-up Green review of ids `5447..5443` also stayed read-only /
+docs-only. All five rows remained readable, with Metric ids `1568..1572`,
+`metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+Safe market-data booleans were:
+
+- token id `5446`: price / FDV / reserve / top-pool present;
+- token ids `5447`, `5445`, `5444`, and `5443`: reserve present, price / FDV /
+  top-pool absent.
+
+Representative `metrics:window-report` output stayed `outcomeLabel=no_data`.
+Token id `5446` has `metricCount=1`, `fdvMetricCount=1`, and
+`entryAnchorQuality=very_late_gt_360m`; token id `5447` has
+`metricCount=1`, `fdvMetricCount=0`, and `entryAnchorQuality=none`. Neither
+representative row has an alert FDV anchor or in-window FDV samples.
+
+The post-review `--onlyMetricPending` preview stayed fetch-free and
+write-free, selecting ids `5442..5438` as the next five Metric-zero rows.
+Therefore another bounded pending-first Metric snapshot Red is available after
+human approval. If that preview later returns `selectedCount=0`, switch to a
+Green rolling-window / older Metric-zero backlog policy task instead of issuing
+another Red command.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

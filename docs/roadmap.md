@@ -274,6 +274,30 @@ Recommended next lane: **Green review of this repeated onlyMetricPending batch
 result**. Confirm ids `5447..5443` in report/window context and re-run the
 fetch-free pending-first preview before approving any further batch Red.
 
+That Green review is complete. Ids `5447..5443` are readable through
+`metrics:report` and representative `metrics:window-report` checks. Token id
+`5446` / Metric id `1569` has price / FDV / reserve / top-pool present and
+`entryAnchorQuality=very_late_gt_360m`; token id `5447` / Metric id `1568`
+has reserve present with price / FDV / top-pool absent and
+`entryAnchorQuality=none`. Both representative windows remain
+`outcomeLabel=no_data`, with no alert FDV anchor and no in-window FDV samples.
+Queue context remains clear in both default and 168h views:
+`metricPendingCount=0`, `enrichPendingCount=0`, and `notifyCandidateCount=0`.
+The post-review `--onlyMetricPending` preview remained fetch-free /
+write-free and selected the next five older Metric-zero rows, ids `5442`,
+`5441`, `5440`, `5439`, and `5438`.
+
+Recommended next lane: **repeat the bounded pending-first Metric snapshot
+batch Red**, human approval required:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+This remains older rolling-window Metric-zero cleanup. If a future preview
+returns `selectedCount=0`, switch to a Green rolling-window / older-backlog
+policy task instead of issuing another Red command.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and
