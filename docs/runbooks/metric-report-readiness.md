@@ -207,6 +207,23 @@ recommended next Red, if any, is a smaller limit 5 continuation rather than
 another limit 50. If a future preview drops to zero, switch to rolling-window /
 older Metric-zero backlog policy.
 
+That smaller limit 5 Red later succeeded. Ids `5392`, `5391`, `5390`, `5389`,
+and `5388` now have `metricsCount=1` with Metric ids `1623..1627`. Counts
+moved only in Metric `1556 / 531 / 14 / 1 -> 1556 / 536 / 14 / 1`; Metric
+buckets moved `0=1165, 1=304, 2+=87 -> 0=1160, 1=309, 2+=87`. Notification
+capture did not occur and statuses stayed `captured=9`, `sent=5`, `failed=0`.
+
+Representative `metrics:report` checks stayed rawJson-free: token id `5391` /
+Metric id `1624` has price / FDV / reserve / top-pool present, while token id
+`5392` / Metric id `1623` has reserve present with price / FDV / top-pool
+absent. Representative window reports remain `outcomeLabel=no_data`: token id
+`5391` has `metricCount=1`, `fdvMetricCount=1`, and
+`entryAnchorQuality=very_late_gt_360m`; token id `5392` has `metricCount=1`,
+`fdvMetricCount=0`, and `entryAnchorQuality=none`.
+
+Next step should be a Green review of ids `5392..5388` before another batch
+Red.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

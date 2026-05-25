@@ -11,6 +11,20 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The post-large-batch bounded pending-first Metric Red with limit 5 has now
+succeeded. It selected ids `5392..5388`, wrote Metric ids `1623..1627`, and
+moved all five rows from `metricsCount=0` to `metricsCount=1`. Result:
+`selected=5`, `written=5`, `skipped=0`, `error=0`, provider error `0`,
+429 `0`, retry `0`, Notification capture `0`, `interItemDelayMs=15000`, and
+`interItemDelayCount=4`. Counts moved only in Metric
+`1556 / 531 / 14 / 1 -> 1556 / 536 / 14 / 1`; Metric buckets moved
+`0=1165, 1=304, 2+=87 -> 0=1160, 1=309, 2+=87`.
+
+Recommendation: **Green review of this bounded limit 5 result**. Confirm the
+five rows through report/window context, queue/planner state, and side-effect
+boundaries before approving another batch Red. Do not jump straight back to
+limit 50.
+
 The large pending-first Metric backlog batch has now been reviewed. The
 human-approved limit 50 Red succeeded with `selected=50`, `written=50`,
 `skipped=0`, `error=0`, provider error `0`, 429 `0`, retry `0`, and

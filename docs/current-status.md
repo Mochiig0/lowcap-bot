@@ -6,6 +6,39 @@ This repository is an MVP for mint-driven token accumulation, single-source DexS
 
 Latest exact-mint Metric 0 backlog Red, 2026-05-24 22:53 JST:
 
+- Bounded `--onlyMetricPending` limit 5 Red after the large batch,
+  2026-05-26 07:35 JST:
+  - Command executed once:
+    `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  - Result: `selected=5`, `written=5`, `skipped=0`, `error=0`,
+    provider error `0`, 429 `0`, retry `0`, `interItemDelayMs=15000`,
+    `interItemDelayCount=4`, Notification capture `0`.
+  - Selected ids `5392`, `5391`, `5390`, `5389`, and `5388` moved
+    `metricsCount=0 -> 1`; new Metric ids are `1623..1627`.
+  - Counts moved only in Metric:
+    Token / Metric / Notification / HolderSnapshot
+    `1556 / 531 / 14 / 1 -> 1556 / 536 / 14 / 1`.
+  - Metric buckets moved `0=1165, 1=304, 2+=87` to
+    `0=1160, 1=309, 2+=87`.
+  - Notification statuses stayed `captured=9`, `sent=5`, `failed=0`;
+    retry candidate count `0`; enabled auto-send allowed candidate count `0`.
+  - Selected rows stayed bounded: `notificationCount=0`,
+    `holderSnapshotCount=0`, `metadataStatus=mint_only`, score `C / 0`,
+    `hardRejected=false`.
+  - Safe market-data summary: id `5391` / Metric `1624` has price / FDV /
+    reserve / top-pool present; ids `5392`, `5390`, `5389`, and `5388` have
+    reserve present with price / FDV / top-pool absent.
+  - Representative windows remained `outcomeLabel=no_data`: id `5391` has
+    `metricCount=1`, `fdvMetricCount=1`,
+    `entryAnchorQuality=very_late_gt_360m`; id `5392` has
+    `metricCount=1`, `fdvMetricCount=0`, `entryAnchorQuality=none`.
+  - Queue default and 168h views both report `metricPendingCount=0`,
+    `enrichPendingCount=0`, and `notifyCandidateCount=0`.
+  - Non-effects held: Token write `0`, Notification create/update `0`,
+    HolderSnapshot write `0`, Telegram send `0`, repo-local data diff `0`,
+    rawJson full dump `0`, offensive raw text dump `0`.
+  - Next step should be a Green review before another Red batch.
+
 - Large `--onlyMetricPending` Metric 0 backlog review, 2026-05-26 07:27 JST:
   - Reviewed the human-approved limit 50 Red:
     `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.

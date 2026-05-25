@@ -196,6 +196,17 @@ and one production Telegram ops live send for `metric_appended`:
   `notifyCandidateCount=0`, while the expanded fetch-free preview still
   selects the next older Metric-zero rows. If continuing, prefer a smaller
   limit 5 Red before any further large batch.
+- that post-large-batch limit 5 Red then succeeded: `selected=5`,
+  `written=5`, `skipped=0`, `error=0`, provider error `0`, 429 `0`, retry
+  `0`, Notification capture `0`, `interItemDelayMs=15000`, and
+  `interItemDelayCount=4`. Ids `5392`, `5391`, `5390`, `5389`, and `5388`
+  moved from `metricsCount=0` to `metricsCount=1` with Metric ids
+  `1623..1627`. Counts moved only in Metric
+  `1556 / 531 / 14 / 1 -> 1556 / 536 / 14 / 1`; Metric buckets moved
+  `0=1165, 1=304, 2+=87 -> 0=1160, 1=309, 2+=87`. Notification create/update,
+  Token write, HolderSnapshot write, Telegram send, rawJson full dump, and
+  offensive raw text dump remained `0`. Next step should be a Green review of
+  ids `5392..5388` before another batch Red.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.

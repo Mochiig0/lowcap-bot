@@ -782,6 +782,64 @@ scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
 offensive raw text dump `0`. Second choice is a Green rolling-window / older
 Metric-zero backlog policy task.
 
+## Post-large Limit 5 Pending-first Batch Result
+
+Executed 2026-05-26 07:35 JST with the bounded command shape:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Result:
+
+- `selectedCount=5`;
+- `okCount=5`;
+- `writtenCount=5`;
+- `skippedCount=0`;
+- `errorCount=0`;
+- provider error `0`;
+- 429 `0`;
+- retry `0`;
+- `interItemDelayMs=15000`;
+- `interItemDelayCount=4`.
+
+Selected ids `5392`, `5391`, `5390`, `5389`, and `5388` all moved from
+`metricsCount=0` to `metricsCount=1`. New Metric ids are `1623`, `1624`,
+`1625`, `1626`, and `1627`, all source `geckoterminal.token_snapshot`.
+
+Counts moved only in Metric:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1556 / 531 / 14 / 1 -> 1556 / 536 / 14 / 1`;
+- Metric buckets:
+  `0=1165, 1=304, 2+=87 -> 0=1160, 1=309, 2+=87`.
+
+Notification capture remained disabled for the batch path:
+`notificationCaptureEnabled=false`, `notificationCreated=false`, and
+`notificationSkippedReason=not_single_mint_mode`. Notification statuses stayed
+`captured=9`, `sent=5`, `failed=0`; auto-send allowed candidate count stayed
+`0`; retry candidate count stayed `0`.
+
+Representative reports stayed rawJson-free:
+
+- token id `5391` / Metric id `1624`: price / FDV / reserve / top-pool safe
+  booleans present;
+- token ids `5392`, `5390`, `5389`, and `5388`: reserve present, price / FDV /
+  top-pool absent;
+- `metrics:window-report` for token id `5391`: `metricCount=1`,
+  `fdvMetricCount=1`, `entryAnchorQuality=very_late_gt_360m`, no alert FDV
+  anchor, no window FDV samples, `outcomeLabel=no_data`;
+- `metrics:window-report` for token id `5392`: `metricCount=1`,
+  `fdvMetricCount=0`, `entryAnchorQuality=none`, `outcomeLabel=no_data`.
+
+Non-effects held: Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
+`0`.
+
+Next step should be a Green review of this bounded limit 5 result before
+another `--onlyMetricPending --write` Red.
+
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not
 as a fully Green batch.
