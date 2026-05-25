@@ -37,6 +37,13 @@ these item-level provider errors.
 `metric:snapshot:geckoterminal` currently behaves as follows:
 
 - batch mode is selected when `--mint` is omitted;
+- batch mode now supports opt-in `--onlyMetricPending`, which narrows
+  candidate selection to Metric-zero tokens before `--limit`;
+- default batch selection is unchanged when `--onlyMetricPending` is omitted;
+- exact `--mint` mode rejects `--onlyMetricPending` because exact mint
+  selection is already explicit;
+- `--onlyMetricPending` dry-run is a selection preview and does not fetch
+  GeckoTerminal snapshots; `--write` uses the existing Metric append path;
 - selected tokens are processed sequentially in a `for` loop;
 - there is no item-to-item delay in one-shot batch mode;
 - each item calls GeckoTerminal once through `fetch(.../tokens/{mint}?include=top_pools)`;
@@ -52,6 +59,55 @@ these item-level provider errors.
 - exact `--mint` mode can capture `metric_appended` Notification rows, but batch
   mode does not capture Notification rows;
 - Telegram send is not part of this command.
+
+## Pending-first Selector Yellow
+
+Date: 2026-05-25
+
+The Metric 0 backlog selector gap is now addressed by an opt-in CLI option:
+`--onlyMetricPending`.
+
+Implementation notes:
+
+- option name: `--onlyMetricPending`;
+- scope: batch mode only;
+- exact `--mint` with `--onlyMetricPending` exits with a usage error;
+- default selection is not changed;
+- `--pumpOnly`, `--sinceMinutes`, `--limit`, and `--minGapMinutes` remain
+  compatible;
+- MVP definition of pending is `metricsCount=0`;
+- dry-run with `--onlyMetricPending` returns selection preview rows without
+  provider fetch;
+- preview rows include `metadataStatus`, `metricsCount`, `notificationCount`,
+  `holderSnapshotCount`, and `latestMetricObservedAt`;
+- rawJson, raw provider payloads, offensive raw text, env values, and secrets
+  are not printed.
+
+Production read-only preview:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --onlyMetricPending --noNotificationCapture
+```
+
+Result: selected ids `5462`, `5461`, and `5460` in the current rolling window.
+All were GeckoTerminal `new_pools` pump mints with
+`metadataStatus=mint_only`, `metricsCount=0`, `notificationCount=0`,
+`holderSnapshotCount=0`, and `latestMetricObservedAt=null`. The command was
+read-only: no external fetch, DB write, Notification create/update, Telegram
+send, Token write, Metric write, HolderSnapshot write, scheduler/systemd,
+rawJson full dump, or offensive raw text dump.
+
+Next Red candidate after a Green preflight:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required before that command. Expected side effects are
+external GeckoTerminal fetches and Metric writes up to the selected count.
+Expected non-effects are Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`, repo-local
+data diff `0`, rawJson full dump `0`, and offensive raw text dump `0`.
 
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not

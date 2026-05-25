@@ -26,6 +26,31 @@ After improved Metric accumulation through limit 75:
   `metricPendingCount=85`, so Metric 0 rows remain available for future
   bounded Metric accumulation.
 
+## Pending-first Selection Preview
+
+As of 2026-05-25, `metric:snapshot:geckoterminal` has an opt-in
+`--onlyMetricPending` batch selector for Metric-zero backlog previews.
+
+- Default batch selection is unchanged when `--onlyMetricPending` is omitted.
+- Exact `--mint` mode rejects `--onlyMetricPending`.
+- `--onlyMetricPending` dry-run does not fetch GeckoTerminal snapshots and does
+  not write DB rows.
+- Preview rows include safe selection fields:
+  `metadataStatus`, `metricsCount`, `notificationCount`,
+  `holderSnapshotCount`, and `latestMetricObservedAt`.
+
+Read-only production preview:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --onlyMetricPending --noNotificationCapture
+```
+
+The preview selected ids `5462`, `5461`, and `5460` in the current rolling
+window. All were `mint_only`, `metricsCount=0`, `notificationCount=0`,
+`holderSnapshotCount=0`, and `latestMetricObservedAt=null`. No provider fetch,
+DB write, Telegram send, Notification update, rawJson full dump, or offensive
+raw text dump was performed.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

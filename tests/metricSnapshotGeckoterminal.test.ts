@@ -43,6 +43,7 @@ type MetricSnapshotGeckoterminalOutput = {
     sinceCutoff: string | null;
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
+    onlyMetricPending: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
     selectedSummary: {
@@ -69,9 +70,14 @@ type MetricSnapshotGeckoterminalOutput = {
       originSource: string | null;
       selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
       isGeckoterminalOrigin: boolean;
+      metadataStatus: string;
+      metricsCount: number;
+      notificationCount: number;
+      holderSnapshotCount: number;
+      latestMetricObservedAt: string | null;
     };
     metricSource: string;
-    status: "ok" | "error" | "skipped_recent_metric";
+    status: "ok" | "error" | "skipped_recent_metric" | "selection_preview";
     metricCandidate?: {
       observedAt: string;
       source: string;
@@ -1061,6 +1067,132 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     });
   });
 
+  await t.test("onlyMetricPending previews Metric-zero batch candidates without changing default selection", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "only-metric-pending.db")}`;
+      const geckoSnapshotFile = join(dir, "gecko-only-metric-pending-snapshot.json");
+      const now = Date.now();
+      const newerMeasuredMint = "MetricSnapshotMeasured11111111111111111111111pump";
+      const newerNonPumpPendingMint = "MetricSnapshotPendingNonPump111111111111111111";
+      const pendingMintA = "MetricSnapshotPendingA111111111111111111111111pump";
+      const pendingMintB = "MetricSnapshotPendingB111111111111111111111111pump";
+      const pendingMintC = "MetricSnapshotPendingC111111111111111111111111pump";
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: newerMeasuredMint,
+        createdAt: new Date(now - 10 * 1_000),
+        metadataStatus: "mint_only",
+      });
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: newerNonPumpPendingMint,
+        createdAt: new Date(now - 20 * 1_000),
+        metadataStatus: "mint_only",
+      });
+      for (const [index, mint] of [pendingMintA, pendingMintB, pendingMintC].entries()) {
+        await seedMetricSelectionToken(databaseUrl, {
+          mint,
+          createdAt: new Date(now - (30 + index * 10) * 1_000),
+          metadataStatus: "mint_only",
+        });
+      }
+      await seedRecentMetric(databaseUrl, {
+        mint: newerMeasuredMint,
+        observedAt: new Date(now - 60 * 1_000),
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, newerMeasuredMint);
+
+      const defaultResult = await runMetricSnapshotGeckoterminal(
+        ["--limit", "1", "--sinceMinutes", "10"],
+        { databaseUrl, geckoSnapshotFile },
+      );
+      assert.equal(defaultResult.ok, true);
+
+      const defaultParsed = JSON.parse(
+        defaultResult.stdout,
+      ) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(defaultParsed.selection.onlyMetricPending, false);
+      assert.equal(defaultParsed.items[0]?.token.mint, newerMeasuredMint);
+      assert.equal(defaultParsed.items[0]?.token.metricsCount, 1);
+      assert.equal(defaultParsed.items[0]?.status, "ok");
+
+      const pendingPreviewResult = await runMetricSnapshotGeckoterminal(
+        [
+          "--limit",
+          "2",
+          "--sinceMinutes",
+          "10",
+          "--pumpOnly",
+          "--onlyMetricPending",
+          "--minGapMinutes",
+          "60",
+        ],
+        { databaseUrl },
+      );
+      assert.equal(pendingPreviewResult.ok, true);
+
+      const pendingParsed = JSON.parse(
+        pendingPreviewResult.stdout,
+      ) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(pendingParsed.mode, "recent_batch");
+      assert.equal(pendingParsed.dryRun, true);
+      assert.equal(pendingParsed.writeEnabled, false);
+      assert.equal(pendingParsed.selection.pumpOnly, true);
+      assert.equal(pendingParsed.selection.onlyMetricPending, true);
+      assert.equal(pendingParsed.selection.selectedCount, 2);
+      assert.deepEqual(
+        pendingParsed.items.map((item) => item.token.mint),
+        [pendingMintA, pendingMintB],
+      );
+      assert.equal(
+        pendingParsed.items.every((item) => item.status === "selection_preview"),
+        true,
+      );
+      assert.equal(
+        pendingParsed.items.every((item) => item.token.metricsCount === 0),
+        true,
+      );
+      assert.equal(
+        pendingParsed.items.every((item) => item.token.notificationCount === 0),
+        true,
+      );
+      assert.equal(
+        pendingParsed.items.every((item) => item.token.holderSnapshotCount === 0),
+        true,
+      );
+      assert.equal(
+        pendingParsed.items.every((item) => item.token.latestMetricObservedAt === null),
+        true,
+      );
+      assert.equal(
+        pendingParsed.items.every((item) => item.metricCandidate === undefined),
+        true,
+      );
+      assert.equal(pendingParsed.summary.okCount, 0);
+      assert.equal(pendingParsed.summary.writtenCount, 0);
+      assert.equal(pendingPreviewResult.stdout.includes("rawJson"), false);
+
+      assert.deepEqual(await readMetrics(databaseUrl, pendingMintA), []);
+      assert.deepEqual(await readNotifications(databaseUrl, pendingMintA), []);
+    });
+  });
+
+  await t.test("rejects onlyMetricPending in exact mint mode", async () => {
+    const result = await runMetricSnapshotGeckoterminal([
+      "--mint",
+      "MetricSnapshotExactPending11111111111111111111pump",
+      "--onlyMetricPending",
+    ]);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /--onlyMetricPending is only valid in batch mode without --mint/,
+    );
+  });
+
   await t.test("excludes recent batch metrics before applying limit", async () => {
     await withTempDir(async (dir) => {
       const databaseUrl = `file:${join(dir, "batch-min-gap-before-limit.db")}`;
@@ -1213,7 +1345,7 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--intervalSeconds and --maxIterations require --watch/);
     assert.match(
       result.stderr,
-      /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--notificationRehearsalTag <TAG>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
+        /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--onlyMetricPending\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--notificationRehearsalTag <TAG>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
     );
   });
 

@@ -134,6 +134,39 @@ Second exact-mint result review and next-lane decision, 2026-05-25 21:12 JST:
   exact-mint Red only if the operator explicitly wants one more production
   proof before selector implementation.
 
+Pending-first Metric batch selector Yellow, 2026-05-25 21:29 JST:
+
+- Implemented opt-in `metric:snapshot:geckoterminal -- --onlyMetricPending`.
+- Default batch selection is unchanged when `--onlyMetricPending` is omitted.
+- Exact `--mint` mode rejects `--onlyMetricPending`; exact mint selection is
+  already explicit and remains unaffected.
+- In batch mode, `--onlyMetricPending` narrows selection to Metric-zero tokens
+  before `--limit`, while preserving `--pumpOnly`, `--sinceMinutes`, and
+  `--minGapMinutes` compatibility.
+- `--onlyMetricPending` dry-run is a selection preview. It does not call the
+  GeckoTerminal provider, does not write DB rows, does not create/update
+  Notification rows, and does not send Telegram.
+- Preview output now includes rawJson-free candidate fields:
+  `metadataStatus`, `metricsCount`, `notificationCount`,
+  `holderSnapshotCount`, and `latestMetricObservedAt`.
+- Production read-only preview was run without `--write`:
+  `node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --onlyMetricPending --noNotificationCapture`.
+  It selected 3 current rolling-window Metric-zero candidates, ids `5462`,
+  `5461`, and `5460`, all `mint_only`, `metricsCount=0`,
+  `notificationCount=0`, `holderSnapshotCount=0`, and
+  `latestMetricObservedAt=null`.
+- Rolling `review:queue:geckoterminal -- --pumpOnly --sinceHours 168` at this
+  point reports `metricPendingCount=3`, `enrichPendingCount=120`,
+  `staleReviewCount=120`, and `notifyCandidateCount=0`. This is a rolling
+  cutoff effect; the fixed historic Metric 0 backlog remains broader.
+- Production `--write` was not run. External provider fetch was not performed
+  by the preview. Telegram send, Notification create/update, Token write,
+  Metric write, HolderSnapshot write, scheduler/systemd, rawJson full dump, and
+  offensive raw text dump were all `0`.
+- Next Green should preflight the new selector output and, if still clean,
+  prepare the human-approved Red candidate:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash
@@ -205,7 +238,7 @@ pnpm metric:add -- --mint <MINT> [--source <SOURCE>] [--launchPrice <NUM>] [--pe
 ```
 
 ```bash
-pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
+pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--onlyMetricPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]
 ```
 
 ```bash

@@ -90,6 +90,31 @@ should preserve current default ordering when omitted, should work in dry-run
 and write mode, should keep exact `--mint` behavior unchanged, and should emit
 rawJson-free selected-candidate summaries before any Red batch is approved.
 
+That Yellow implementation is complete. `metric:snapshot:geckoterminal` now
+supports opt-in `--onlyMetricPending` for batch mode only. The default selector
+is unchanged when the option is omitted, and exact `--mint` mode rejects the
+option so existing single-mint behavior remains explicit. With `--write`
+omitted, `--onlyMetricPending` is a selection preview and does not fetch
+GeckoTerminal. The production preview:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --onlyMetricPending --noNotificationCapture
+```
+
+selected ids `5462`, `5461`, and `5460` in the current rolling window, all
+`metadataStatus=mint_only`, `metricsCount=0`, `notificationCount=0`,
+`holderSnapshotCount=0`, and `latestMetricObservedAt=null`. No production
+write, provider fetch, Telegram send, Notification update, rawJson full dump,
+or offensive raw text dump was performed.
+
+Recommended next lane: **Green preflight for the new pending-first selector**.
+Confirm the selected candidates and side-effect boundary one more time, then
+prepare this human-approved Red candidate if clean:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

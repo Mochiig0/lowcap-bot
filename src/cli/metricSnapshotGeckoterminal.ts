@@ -33,6 +33,7 @@ type MetricSnapshotArgs = {
   sinceMinutes: number;
   pumpOnly: boolean;
   prioritizeRichPending: boolean;
+  onlyMetricPending: boolean;
   minGapMinutes?: number;
   interItemDelayMs: number;
   intervalSeconds: number;
@@ -52,6 +53,10 @@ type SelectedToken = {
   metadataStatus: string;
   hasReviewFlagsJson: boolean;
   reviewFlagsCount: number;
+  metricsCount: number;
+  notificationCount: number;
+  holderSnapshotCount: number;
+  latestMetricObservedAt: string | null;
   selectionAnchorAt: string;
   selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
   isGeckoterminalOrigin: boolean;
@@ -120,9 +125,14 @@ type ProcessedTokenResult = {
     selectionAnchorAt: string;
     selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
     isGeckoterminalOrigin: boolean;
+    metadataStatus: string;
+    metricsCount: number;
+    notificationCount: number;
+    holderSnapshotCount: number;
+    latestMetricObservedAt: string | null;
   };
   metricSource: string;
-  status: "ok" | "error" | "skipped_recent_metric";
+  status: "ok" | "error" | "skipped_recent_metric" | "selection_preview";
   metricCandidate?: MetricCandidate;
   writeSummary: {
     dryRun: boolean;
@@ -158,6 +168,7 @@ type CliOutput = {
     sinceCutoff: string | null;
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
+    onlyMetricPending: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
     selectedSummary: SelectedTokenSummary;
@@ -186,6 +197,7 @@ type WatchCycleResult = {
     sinceCutoff: string | null;
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
+    onlyMetricPending: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
     selectedSummary: SelectedTokenSummary;
@@ -222,6 +234,7 @@ type WatchOutput = {
     sinceMinutes: number | null;
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
+    onlyMetricPending: boolean;
     selectedSummary: SelectedTokenSummary;
   };
   cycleCount: number;
@@ -255,7 +268,7 @@ class CliUsageError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--notificationRehearsalTag <TAG>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--onlyMetricPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--notificationRehearsalTag <TAG>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
@@ -264,6 +277,8 @@ function getUsageText(): string {
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     `- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter`,
     `- recent batch mode may also prefer non-mint_only and review-flagged rows via experimental --prioritizeRichPending; default selection order stays unchanged when omitted`,
+    `- recent batch mode may be narrowed to Metric-zero rows via opt-in --onlyMetricPending; exact --mint mode rejects that option because the target is already explicit`,
+    `- --onlyMetricPending dry-run is a selection preview and does not fetch GeckoTerminal snapshots; --write uses the existing Metric append path`,
     `- batch mode excludes recent Metric rows before --limit when --minGapMinutes is set; exact --mint mode still skips before fetch when the latest Metric for the same token+source is still recent`,
     `- waits --interItemDelayMs between selected batch items when set; default is 0 and exact --mint mode is not delayed`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
@@ -334,6 +349,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     pumpOnly: false,
     prioritizeRichPending: false,
+    onlyMetricPending: false,
     interItemDelayMs: 0,
     intervalSeconds: DEFAULT_INTERVAL_SECONDS,
     source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
@@ -350,6 +366,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
       key === "--write" ||
       key === "--watch" ||
       key === "--prioritizeRichPending" ||
+      key === "--onlyMetricPending" ||
       key === "--noNotificationCapture"
     ) {
       if (key === "--write") {
@@ -358,6 +375,8 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
         out.watch = true;
       } else if (key === "--noNotificationCapture") {
         out.noNotificationCapture = true;
+      } else if (key === "--onlyMetricPending") {
+        out.onlyMetricPending = true;
       } else {
         out.prioritizeRichPending = true;
       }
@@ -414,6 +433,10 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     (normalizedArgv.includes("--intervalSeconds") || normalizedArgv.includes("--maxIterations"))
   ) {
     throw new CliUsageError("--intervalSeconds and --maxIterations require --watch");
+  }
+
+  if (out.mint && out.onlyMetricPending) {
+    throw new CliUsageError("--onlyMetricPending is only valid in batch mode without --mint");
   }
 
   if (out.notificationRehearsalTag !== undefined) {
@@ -637,6 +660,11 @@ function buildSelectedToken(token: {
   entrySnapshot: unknown;
   metadataStatus: string;
   reviewFlagsJson: unknown;
+  metrics?: { observedAt: Date }[];
+  _count?: {
+    metrics?: number;
+    holderSnapshots?: number;
+  };
 }): SelectedToken {
   const firstSeen = extractFirstSeenSourceSnapshot(token.entrySnapshot);
   const originSource =
@@ -655,12 +683,44 @@ function buildSelectedToken(token: {
     metadataStatus: token.metadataStatus,
     hasReviewFlagsJson: hasStoredReviewFlags(token.reviewFlagsJson),
     reviewFlagsCount: countReviewFlags(reviewFlags),
+    metricsCount: token._count?.metrics ?? 0,
+    notificationCount: 0,
+    holderSnapshotCount: token._count?.holderSnapshots ?? 0,
+    latestMetricObservedAt: token.metrics?.[0]?.observedAt.toISOString() ?? null,
     selectionAnchorAt: detectedAt ?? token.createdAt.toISOString(),
     selectionAnchorKind: detectedAt ? "firstSeenDetectedAt" : "createdAt",
     isGeckoterminalOrigin:
       token.source === GECKOTERMINAL_NEW_POOLS_SOURCE ||
       originSource === GECKOTERMINAL_NEW_POOLS_SOURCE,
   };
+}
+
+async function attachNotificationCounts(tokens: SelectedToken[]): Promise<SelectedToken[]> {
+  if (tokens.length === 0) {
+    return tokens;
+  }
+
+  const counts = await db.notification.groupBy({
+    by: ["tokenId"],
+    where: {
+      tokenId: {
+        in: tokens.map((token) => token.id),
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+  const countByTokenId = new Map(
+    counts
+      .filter((item): item is typeof item & { tokenId: number } => item.tokenId !== null)
+      .map((item) => [item.tokenId, item._count._all]),
+  );
+
+  return tokens.map((token) => ({
+    ...token,
+    notificationCount: countByTokenId.get(token.id) ?? 0,
+  }));
 }
 
 function getRichPendingPriorityScore(token: SelectedToken): number {
@@ -827,6 +887,19 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
         entrySnapshot: true,
         metadataStatus: true,
         reviewFlagsJson: true,
+        metrics: {
+          orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+          take: 1,
+          select: {
+            observedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            metrics: true,
+            holderSnapshots: true,
+          },
+        },
       },
     });
 
@@ -836,7 +909,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
 
     return {
       mode: "single",
-      selectedTokens: [buildSelectedToken(token)],
+      selectedTokens: await attachNotificationCounts([buildSelectedToken(token)]),
       sinceCutoff: null,
       skippedNonPumpCount: 0,
     };
@@ -848,6 +921,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
       createdAt: {
         gte: sinceCutoff,
       },
+      ...(args.onlyMetricPending ? { metrics: { none: {} } } : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
@@ -858,6 +932,19 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
       entrySnapshot: true,
       metadataStatus: true,
       reviewFlagsJson: true,
+      metrics: {
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: {
+          observedAt: true,
+        },
+      },
+      _count: {
+        select: {
+          metrics: true,
+          holderSnapshots: true,
+        },
+      },
     },
   });
 
@@ -886,7 +973,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
   const orderedTokens = args.prioritizeRichPending
     ? prioritizeRichPendingTokens(gapEligibleTokens)
     : gapEligibleTokens;
-  const selectedTokens = orderedTokens.slice(0, args.limit);
+  const selectedTokens = await attachNotificationCounts(orderedTokens.slice(0, args.limit));
 
   return {
     mode: "recent_batch",
@@ -1036,6 +1123,40 @@ function parseSanitizedSnapshot(raw: unknown): SanitizedSnapshot {
   };
 }
 
+function buildProcessedTokenView(token: SelectedToken): ProcessedTokenResult["token"] {
+  return {
+    id: token.id,
+    mint: token.mint,
+    currentSource: token.currentSource,
+    originSource: token.originSource,
+    createdAt: token.createdAt,
+    selectionAnchorAt: token.selectionAnchorAt,
+    selectionAnchorKind: token.selectionAnchorKind,
+    isGeckoterminalOrigin: token.isGeckoterminalOrigin,
+    metadataStatus: token.metadataStatus,
+    metricsCount: token.metricsCount,
+    notificationCount: token.notificationCount,
+    holderSnapshotCount: token.holderSnapshotCount,
+    latestMetricObservedAt: token.latestMetricObservedAt,
+  };
+}
+
+function buildSelectionPreviewResult(
+  token: SelectedToken,
+  args: MetricSnapshotArgs,
+): ProcessedTokenResult {
+  return {
+    token: buildProcessedTokenView(token),
+    metricSource: args.source,
+    status: "selection_preview",
+    writeSummary: buildWriteSummary({
+      args,
+      wouldCreateMetric: true,
+      metricId: null,
+    }),
+  };
+}
+
 async function processToken(
   token: SelectedToken,
   args: MetricSnapshotArgs,
@@ -1047,16 +1168,7 @@ async function processToken(
         const diffMs = Date.now() - Date.parse(latestObservedAt);
         if (diffMs < args.minGapMinutes * 60_000) {
           return {
-            token: {
-              id: token.id,
-              mint: token.mint,
-              currentSource: token.currentSource,
-              originSource: token.originSource,
-              createdAt: token.createdAt,
-              selectionAnchorAt: token.selectionAnchorAt,
-              selectionAnchorKind: token.selectionAnchorKind,
-              isGeckoterminalOrigin: token.isGeckoterminalOrigin,
-            },
+            token: buildProcessedTokenView(token),
             metricSource: args.source,
             status: "skipped_recent_metric",
             writeSummary: buildWriteSummary({
@@ -1124,16 +1236,7 @@ async function processToken(
     }
 
     return {
-      token: {
-        id: token.id,
-        mint: token.mint,
-        currentSource: token.currentSource,
-        originSource: token.originSource,
-        createdAt: token.createdAt,
-        selectionAnchorAt: token.selectionAnchorAt,
-        selectionAnchorKind: token.selectionAnchorKind,
-        isGeckoterminalOrigin: token.isGeckoterminalOrigin,
-      },
+      token: buildProcessedTokenView(token),
       metricSource: args.source,
       status: "ok",
       metricCandidate,
@@ -1147,16 +1250,7 @@ async function processToken(
     };
   } catch (error) {
     return {
-      token: {
-        id: token.id,
-        mint: token.mint,
-        currentSource: token.currentSource,
-        originSource: token.originSource,
-        createdAt: token.createdAt,
-        selectionAnchorAt: token.selectionAnchorAt,
-        selectionAnchorKind: token.selectionAnchorKind,
-        isGeckoterminalOrigin: token.isGeckoterminalOrigin,
-      },
+      token: buildProcessedTokenView(token),
       metricSource: args.source,
       status: "error",
       writeSummary: buildWriteSummary({
@@ -1186,6 +1280,21 @@ async function executeSnapshotCycle(
   args: MetricSnapshotArgs,
 ): Promise<SnapshotExecutionResult> {
   const selection = await selectTokens(args);
+  if (args.onlyMetricPending && !args.write) {
+    return {
+      mode: selection.mode,
+      sinceCutoff: selection.sinceCutoff,
+      selectedTokens: selection.selectedTokens,
+      skippedNonPumpCount: selection.skippedNonPumpCount,
+      items: selection.selectedTokens.map((token) => buildSelectionPreviewResult(token, args)),
+      rateLimited: false,
+      rateLimitedCount: 0,
+      abortedDueToRateLimit: false,
+      skippedAfterRateLimit: 0,
+      interItemDelayCount: 0,
+    };
+  }
+
   const items: ProcessedTokenResult[] = [];
   let rateLimited = false;
   let rateLimitedCount = 0;
@@ -1243,6 +1352,7 @@ function buildOneShotOutput(
       sinceCutoff: execution.sinceCutoff,
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
+      onlyMetricPending: !args.mint && args.onlyMetricPending,
       selectedCount: execution.selectedTokens.length,
       skippedNonPumpCount: execution.skippedNonPumpCount,
       selectedSummary: summarizeSelectedTokens(execution.selectedTokens),
@@ -1277,6 +1387,7 @@ function createFailedCycleResult(
       sinceCutoff: null,
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
+      onlyMetricPending: !args.mint && args.onlyMetricPending,
       selectedCount: 0,
       skippedNonPumpCount: 0,
       selectedSummary: summarizeSelectedTokens([]),
@@ -1314,6 +1425,7 @@ function buildWatchCycleResult(
       sinceCutoff: execution.sinceCutoff,
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
+      onlyMetricPending: !args.mint && args.onlyMetricPending,
       selectedCount: execution.selectedTokens.length,
       skippedNonPumpCount: execution.skippedNonPumpCount,
       selectedSummary: summarizeSelectedTokens(execution.selectedTokens),
@@ -1378,6 +1490,7 @@ function buildWatchOutput(
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
+      onlyMetricPending: !args.mint && args.onlyMetricPending,
       selectedSummary: cycles.reduce<SelectedTokenSummary>(
         (summary, cycle) => {
           summary.mintOnlyCount += cycle.selection.selectedSummary.mintOnlyCount;

@@ -61,6 +61,16 @@ and one production Telegram ops live send for `metric_appended`:
   ever needed, token id `5462` /
   `63HTSDqidfB3ruuUAmjg9KbaSzWw7gkxAF2TKY6epump` is the next safe candidate,
   but no Red command is recommended by default.
+- the Yellow selector implementation is now complete. `metric:snapshot:geckoterminal`
+  supports batch-only `--onlyMetricPending`, leaves default selection unchanged,
+  rejects the option with exact `--mint`, and uses dry-run as a selection
+  preview without GeckoTerminal fetch. Production read-only preview selected
+  ids `5462`, `5461`, and `5460`, all `metricsCount=0`,
+  `notificationCount=0`, `holderSnapshotCount=0`, and
+  `latestMetricObservedAt=null`. No production write, provider fetch,
+  Notification update, Telegram send, rawJson full dump, or offensive raw text
+  dump was performed. The next step should be a Green preflight before any
+  `--onlyMetricPending --write` Red.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
