@@ -260,6 +260,20 @@ This is still older rolling-window Metric-zero cleanup. If a future preview
 returns `selectedCount=0`, switch to a Green rolling-window / older-backlog
 policy task instead of issuing another Red command.
 
+That repeated bounded pending-first Metric snapshot batch Red is complete:
+`selected=5`, `written=5`, `skipped=0`, `error=0`, provider error `0`,
+429 `0`, retry `0`, `interItemDelayMs=15000`, and
+`interItemDelayCount=4`. It selected ids `5447`, `5446`, `5445`, `5444`, and
+`5443`, moving all five from `metricsCount=0` to `metricsCount=1`. Counts
+moved only in Metric: `1556 / 476 / 14 / 1 -> 1556 / 481 / 14 / 1`; Metric
+buckets moved `0=1220, 1=249, 2+=87 -> 0=1215, 1=254, 2+=87`. Notification
+capture stayed off and Notification statuses remained `captured=9`, `sent=5`,
+`failed=0`.
+
+Recommended next lane: **Green review of this repeated onlyMetricPending batch
+result**. Confirm ids `5447..5443` in report/window context and re-run the
+fetch-free pending-first preview before approving any further batch Red.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and
