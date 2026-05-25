@@ -701,6 +701,87 @@ HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
 repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
 `0`.
 
+## Large Pending-first Selector Batch Review
+
+Reviewed 2026-05-26 07:27 JST as read-only / docs-only. No `--write`,
+external fetch, DB write, Telegram send, Notification create/update,
+rawJson full dump, or offensive raw text dump was executed during the review.
+
+The preceding human-approved limit 50 Red used:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Execution result stayed clean: `selected=50`, `written=50`, `skipped=0`,
+`error=0`, provider error `0`, 429 `0`, retry `0`, and Notification capture
+`0`. `interItemDelayMs=15000` and `interItemDelayCount=49`.
+
+Batch result review:
+
+- target ids: `5442..5393`;
+- Metric ids: `1573..1622`;
+- all 50 target rows are now `metricsCount=1`;
+- target notification count total `0`;
+- target holder snapshot count total `0`;
+- Token / Metric / Notification / HolderSnapshot:
+  `1556 / 531 / 14 / 1`;
+- Metric buckets: `0=1165`, `1=304`, `2+=87`;
+- Notification statuses: `captured=9`, `sent=5`, `failed=0`;
+- auto-send allowed candidate count `0`;
+- retry candidate count `0`.
+
+Safe market-data distribution across Metric ids `1573..1622`:
+`reserveUsdPresent=50`, `priceUsdPresent=12`, `fdvUsdPresent=12`, and
+`topPoolPresent=12`.
+
+Representative report/window review:
+
+- token id `5442` / Metric id `1573`: price / FDV / reserve / top-pool
+  present; `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples, `outcomeLabel=no_data`;
+- token id `5440` / Metric id `1575`: reserve present with price / FDV /
+  top-pool absent; `metricCount=1`, `fdvMetricCount=0`,
+  `entryAnchorQuality=none`, no alert FDV anchor, no window FDV samples,
+  `outcomeLabel=no_data`;
+- token id `5393` / Metric id `1622`: reserve present with price / FDV /
+  top-pool absent.
+
+Queue and selector context:
+
+- default 24h queue: `metricPendingCount=0`, `enrichPendingCount=0`,
+  `notifyCandidateCount=0`;
+- 168h queue: `metricPendingCount=0`, `enrichPendingCount=0`,
+  `staleReviewCount=0`, `notifyCandidateCount=0`;
+- post-review preview command stayed selection-only and fetch/write-free:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 50 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+- preview result: `dryRun=true`, `writeEnabled=false`,
+  `onlyMetricPending=true`, `selectedCount=50`, status `selection_preview`;
+- first five selected ids: `5392`, `5391`, `5390`, `5389`, `5388`;
+- all preview rows shown are `metricsCount=0`, `latestMetricObservedAt=null`,
+  `notificationCount=0`, `holderSnapshotCount=0`, and
+  `metadataStatus=mint_only`.
+
+Decision: do not automatically repeat limit 50. If continuing Metric-zero
+cleanup, the next Red should step down to limit 5 to confirm stability after
+the large batch:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects: external GeckoTerminal
+fetch and Metric writes up to 5 rows. Expected non-effects: Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`. Second choice is a Green rolling-window / older
+Metric-zero backlog policy task.
+
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not
 as a fully Green batch.

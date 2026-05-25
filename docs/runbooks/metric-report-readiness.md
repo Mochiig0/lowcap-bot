@@ -182,6 +182,31 @@ human approval. If that preview later returns `selectedCount=0`, switch to a
 Green rolling-window / older Metric-zero backlog policy task instead of issuing
 another Red command.
 
+The later human-approved limit 50 pending-first Metric batch succeeded and the
+follow-up review stayed read-only. Ids `5442..5393` now have
+`metricsCount=1` with Metric ids `1573..1622`; counts moved only in Metric
+`1556 / 481 / 14 / 1 -> 1556 / 531 / 14 / 1`, and Metric buckets moved
+`0=1215, 1=254, 2+=87 -> 0=1165, 1=304, 2+=87`. Notification statuses stayed
+`captured=9`, `sent=5`, `failed=0`, and target tokens still have total
+`notificationCount=0` and `holderSnapshotCount=0`.
+
+Safe market-data distribution across the 50 new Metric rows is
+`reserveUsdPresent=50`, `priceUsdPresent=12`, `fdvUsdPresent=12`, and
+`topPoolPresent=12`. Representative `metrics:report` checks stayed
+rawJson-free: id `5442` / Metric `1573` has price / FDV / reserve / top-pool
+present; ids `5440` / Metric `1575` and `5393` / Metric `1622` have reserve
+present with price / FDV / top-pool absent. Representative window reports
+remain `outcomeLabel=no_data`: id `5442` has `fdvMetricCount=1` with
+`entryAnchorQuality=very_late_gt_360m`, while id `5440` has
+`fdvMetricCount=0` with `entryAnchorQuality=none`.
+
+The post-review `--onlyMetricPending` preview with `--limit 50` stayed
+fetch-free and write-free, selecting another 50 Metric-zero rows; the first
+five are ids `5392..5388`. Because a large batch just succeeded, the
+recommended next Red, if any, is a smaller limit 5 continuation rather than
+another limit 50. If a future preview drops to zero, switch to rolling-window /
+older Metric-zero backlog policy.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

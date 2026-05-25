@@ -9,7 +9,43 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-05-24
+Date: 2026-05-26
+
+The large pending-first Metric backlog batch has now been reviewed. The
+human-approved limit 50 Red succeeded with `selected=50`, `written=50`,
+`skipped=0`, `error=0`, provider error `0`, 429 `0`, retry `0`, and
+Notification capture `0`. It moved ids `5442..5393` from `metricsCount=0` to
+`metricsCount=1` with Metric ids `1573..1622`; counts moved only in Metric
+`1556 / 481 / 14 / 1 -> 1556 / 531 / 14 / 1`, and Metric buckets moved
+`0=1215, 1=254, 2+=87 -> 0=1165, 1=304, 2+=87`.
+
+The Green review confirmed no Token write, Notification create/update,
+HolderSnapshot write, Telegram send, rawJson full dump, or offensive raw text
+dump. Queue default and 168h views still report `metricPendingCount=0`,
+`enrichPendingCount=0`, and `notifyCandidateCount=0`; enabled auto-send
+allowed candidate count and retry candidate count are both `0`.
+
+The post-review `--onlyMetricPending` preview stayed fetch-free and
+write-free. With `--limit 50 --sinceMinutes 20160`, it selected the next 50
+older Metric-zero candidates; the first five are ids `5392..5388`.
+
+Recommended next lane: **one smaller bounded pending-first Metric snapshot Red
+with limit 5**, not another limit 50 immediately. This confirms post-large-batch
+stability while keeping the write boundary small:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetches and Metric writes up to 5 rows. Expected non-effects are Token write
+`0`, Notification create/update `0`, HolderSnapshot write `0`, Telegram send
+`0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`,
+and offensive raw text dump `0`.
+
+Second choice: Green rolling-window / older Metric-zero backlog policy. Use
+that if the next preview shrinks materially or if operators want to stop older
+backlog cleanup after the large batch.
 
 The exact-mint Metric 0 backlog Red has now succeeded for token id `5464`.
 It used `--mint` to bypass the current batch selector, kept

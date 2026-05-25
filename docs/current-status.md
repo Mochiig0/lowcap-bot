@@ -6,6 +6,45 @@ This repository is an MVP for mint-driven token accumulation, single-source DexS
 
 Latest exact-mint Metric 0 backlog Red, 2026-05-24 22:53 JST:
 
+- Large `--onlyMetricPending` Metric 0 backlog review, 2026-05-26 07:27 JST:
+  - Reviewed the human-approved limit 50 Red:
+    `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  - Result remained consistent: `selected=50`, `written=50`, `skipped=0`,
+    `error=0`, provider error `0`, 429 `0`, retry `0`, Notification capture
+    `0`.
+  - Target ids `5442..5393` now all have `metricsCount=1`; Metric ids are
+    `1573..1622`.
+  - Counts are Token / Metric / Notification / HolderSnapshot
+    `1556 / 531 / 14 / 1`; Metric buckets are `0=1165`, `1=304`, `2+=87`.
+    Notification statuses remain `captured=9`, `sent=5`, `failed=0`.
+  - Selected-token side effects stayed bounded: total `notificationCount=0`
+    and `holderSnapshotCount=0` for the 50 reviewed tokens; Token write `0`,
+    Notification create/update `0`, HolderSnapshot write `0`, Telegram send
+    `0`, rawJson full dump `0`, and offensive raw text dump `0`.
+  - Safe market-data distribution for Metric ids `1573..1622`:
+    `reserveUsdPresent=50`, `priceUsdPresent=12`, `fdvUsdPresent=12`,
+    `topPoolPresent=12`.
+  - Representative report/window checks stayed rawJson-free: token id `5442`
+    has price / FDV / reserve / top-pool present, `metricCount=1`,
+    `fdvMetricCount=1`, `entryAnchorQuality=very_late_gt_360m`, and
+    `outcomeLabel=no_data`; token id `5440` has reserve present only,
+    `metricCount=1`, `fdvMetricCount=0`, `entryAnchorQuality=none`, and
+    `outcomeLabel=no_data`.
+  - Queue default and 168h views both report `metricPendingCount=0`,
+    `enrichPendingCount=0`, and `notifyCandidateCount=0`; retry candidate
+    count `0`; enabled auto-send allowed candidate count `0`.
+  - The post-review fetch-free `--onlyMetricPending` preview with limit 50
+    selected the next 50 older Metric-zero candidates. First five are ids
+    `5392`, `5391`, `5390`, `5389`, and `5388`, all `metricsCount=0`,
+    `notificationCount=0`, `holderSnapshotCount=0`, `mint_only`, and
+    `latestMetricObservedAt=null`.
+  - Recommendation: do **not** immediately repeat another limit 50 Red. The
+    next human-approved Red, if chosen, should be a smaller limit 5 continuation
+    to confirm post-large-batch stability:
+    `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 20160 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+    Second choice is a Green rolling-window / older Metric-zero backlog policy
+    task.
+
 - Command executed once:
   `pnpm -s metric:snapshot:geckoterminal -- --mint By3ztQbGVGGPC9vMUzpXdq78QXNusrnZaJLd7sSzpump --minGapMinutes 60 --noNotificationCapture --write`
 - Target token: id `5464`, GeckoTerminal `new_pools`, `metadataStatus=mint_only`,

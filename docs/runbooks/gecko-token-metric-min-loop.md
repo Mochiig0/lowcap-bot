@@ -176,6 +176,26 @@ and one production Telegram ops live send for `metric_appended`:
   Recommended next step is one more bounded pending-first Metric snapshot Red
   with human approval; if a future preview returns `selectedCount=0`, switch to
   rolling-window / older Metric-zero backlog policy instead.
+- a later human-approved pending-first batch raised the limit to 50 and
+  succeeded cleanly: `selected=50`, `written=50`, `skipped=0`, `error=0`,
+  provider error `0`, 429 `0`, retry `0`, Notification capture `0`,
+  `interItemDelayMs=15000`, and `interItemDelayCount=49`. It moved ids
+  `5442..5393` from `metricsCount=0` to `metricsCount=1` with Metric ids
+  `1573..1622`. Counts moved only in Metric
+  `1556 / 481 / 14 / 1 -> 1556 / 531 / 14 / 1`; Metric buckets moved
+  `0=1215, 1=254, 2+=87 -> 0=1165, 1=304, 2+=87`. Notification create/update,
+  Token write, HolderSnapshot write, Telegram send, rawJson full dump, and
+  offensive raw text dump remained `0`.
+- the read-only follow-up review of that limit 50 batch confirmed ids
+  `5442..5393` are all `metricsCount=1`, have total `notificationCount=0` and
+  `holderSnapshotCount=0`, and are readable through representative
+  `metrics:report` / `metrics:window-report` checks. Safe market-data
+  distribution across Metric ids `1573..1622` is `reserveUsdPresent=50`,
+  `priceUsdPresent=12`, `fdvUsdPresent=12`, and `topPoolPresent=12`.
+  Queue default and 168h views remain `metricPendingCount=0` and
+  `notifyCandidateCount=0`, while the expanded fetch-free preview still
+  selects the next older Metric-zero rows. If continuing, prefer a smaller
+  limit 5 Red before any further large batch.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
