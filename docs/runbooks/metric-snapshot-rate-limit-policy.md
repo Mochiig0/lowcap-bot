@@ -351,6 +351,56 @@ Notification capture disabled. The longer-term fix remains a Yellow
 pending-first selector design; broad batch Metric Red should wait until the
 selector can target Metric 0 rows before `--limit` is applied.
 
+## Second Exact Mint Metric 0 Backlog Result
+
+Date: 2026-05-25 19:58 JST
+
+The second exact-mint Red was run once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write
+```
+
+Result:
+
+- mode: `single`
+- `selectedCount=1`
+- `okCount=1`
+- `writtenCount=1`
+- `skippedCount=0`
+- `errorCount=0`
+- provider error: none
+- 429: none
+- retry: none
+- `interItemDelayMs=0`, as expected for exact `--mint` mode
+- `notificationCaptureEnabled=false`
+- `notificationCreated=false`
+- `notificationSkippedReason=disabled_by_option`
+
+Counts moved:
+
+- Token: `1541 -> 1541`
+- Metric: `460 -> 461`
+- Notification: `10 -> 10`
+- HolderSnapshot: `1 -> 1`
+- Metric buckets: `0=1221, 1=233, 2+=87 -> 0=1220, 1=234, 2+=87`
+
+Target token id `5463` moved `metricsCount 0 -> 1` and received Metric
+`1543` with source `geckoterminal.token_snapshot` at
+`2026-05-25T10:57:38.651Z`. `metrics:report` showed rawJson-free safe
+market-data booleans (`priceUsdPresent`, `fdvUsdPresent`,
+`reserveUsdPresent`, and `topPoolPresent` all true).
+
+The 168h queue moved `metricPendingCount 84 -> 83` while
+`notifyCandidateCount` stayed `0`. This is the second successful proof that
+exact `--mint` plus `--noNotificationCapture` can reduce the true Metric 0
+backlog by one row without Token, Notification, HolderSnapshot, Telegram,
+scheduler/systemd, repo-local, rawJson dump, or offensive raw text side
+effects.
+
+Next step should be Green: review this second exact-mint result and decide
+between a third one-item Red and Yellow pending-first batch selector design.
+
 ## Candidate Selection Improvement
 
 Date: 2026-05-19

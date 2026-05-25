@@ -65,6 +65,37 @@ Latest exact-mint Metric 0 result review, 2026-05-24 23:44 JST:
 - Recommended next Red, human approval required:
   `pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write`.
 
+Second exact-mint Metric 0 backlog Red, 2026-05-25 19:58 JST:
+
+- Command executed once:
+  `pnpm -s metric:snapshot:geckoterminal -- --mint CGdKYBWU1haEHKoy1nrgkBbDWqQMLYV7aJj2ye1Npump --minGapMinutes 60 --noNotificationCapture --write`
+- Target token: id `5463`, GeckoTerminal `new_pools`, `metadataStatus=mint_only`,
+  score `C / 0`, `hardRejected=false`.
+- Result: `selectedCount=1`, `okCount=1`, `writtenCount=1`,
+  `skippedCount=0`, `errorCount=0`, provider error `0`, 429 `0`, retry `0`.
+- New Metric: id `1543`, source `geckoterminal.token_snapshot`,
+  `observedAt=2026-05-25T10:57:38.651Z`.
+- Counts moved only in Metric:
+  Token / Metric / Notification / HolderSnapshot
+  `1541 / 460 / 10 / 1 -> 1541 / 461 / 10 / 1`.
+- Metric bucket counts moved `0=1221, 1=233, 2+=87` to
+  `0=1220, 1=234, 2+=87`.
+- Token id `5463` moved `metricsCount 0 -> 1`; `notificationCount=0` and
+  `holderSnapshotCount=0` stayed unchanged.
+- Notification capture was disabled by option:
+  `notificationCaptureEnabled=false`, `notificationCreated=false`,
+  `notificationSkippedReason=disabled_by_option`.
+- `review:queue:geckoterminal -- --pumpOnly --sinceHours 168` now reports
+  `metricPendingCount=83`, `enrichPendingCount=200`,
+  `staleReviewCount=200`, and `notifyCandidateCount=0`.
+- `metrics:report` and `metrics:window-report` confirmed the new row
+  rawJson-free. The window report has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, and checked windows remain
+  `outcomeLabel=no_data`.
+- Non-effects held: Token write `0`, Notification create/update `0`,
+  HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+  repo-local data diff `0`, rawJson full dump `0`, offensive raw text dump `0`.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

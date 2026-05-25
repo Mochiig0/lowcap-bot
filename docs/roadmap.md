@@ -57,6 +57,20 @@ the longer-term fix for the 84-row Metric 0 backlog, because the current batch
 selector still prioritizes already measured rows before the true Metric 0
 backlog. Do not jump to broad batch Red until selection quality is fixed.
 
+The second exact-mint Metric 0 Red has now succeeded for token id `5463`:
+`selected=1`, `written=1`, `skipped=0`, `error=0`, provider error `0`,
+429 `0`, retry `0`, and Notification capture `0`. Counts moved only in
+Metric, `1541 / 460 / 10 / 1 -> 1541 / 461 / 10 / 1`, with Metric buckets
+`0=1221, 1=233, 2+=87 -> 0=1220, 1=234, 2+=87`. The 168h queue now reports
+`metricPendingCount=83` and `notifyCandidateCount=0`.
+
+Recommended next lane: **Green review of the second exact-mint result and
+decision point**. Confirm id `5463` in report/window context, then choose one:
+either run a third exact-mint Metric 0 Red for one more reproducibility sample,
+or start Yellow design for a pending-first Metric batch selector. The selector
+work is the durable solution; another exact mint is useful only if the operator
+wants one more production proof before implementation.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

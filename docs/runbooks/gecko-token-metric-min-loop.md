@@ -48,6 +48,13 @@ and one production Telegram ops live send for `metric_appended`:
   human-approved Red can use the same exact-mint boundary with
   `--minGapMinutes 60 --noNotificationCapture --write` to prove the pattern a
   second time before pending-first batch selector work.
+- that second exact-mint Red was then confirmed: token id `5463` received
+  Metric `1543`, source `geckoterminal.token_snapshot`, observed at
+  `2026-05-25T10:57:38.651Z`, and moved `metricsCount=0 -> 1`. Counts moved
+  only in Metric (`460 -> 461`), Notification capture stayed disabled by
+  option, Telegram was not sent, and the 168h queue moved
+  `metricPendingCount 84 -> 83`. `metrics:report` and
+  `metrics:window-report` confirmed the result rawJson-free.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.

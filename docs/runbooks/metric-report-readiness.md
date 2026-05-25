@@ -253,6 +253,41 @@ This confirms the report remains readable and safe, while also confirming that
 a very late first Metric should be treated as backlog coverage rather than
 near-entry outcome evidence.
 
+## Second Exact Mint Metric 0 Report Check
+
+Date: 2026-05-25 19:58 JST
+
+After the second exact-mint Metric 0 backlog snapshot for token id `5463`,
+read-only report checks confirmed the new observation without dumping rawJson.
+
+`metrics:report` for token id `5463` returned one Metric:
+
+- Metric id `1543`
+- source `geckoterminal.token_snapshot`
+- `observedAt=2026-05-25T10:57:38.651Z`
+- `volume24h=0`
+- safe market-data booleans:
+  `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, `topPoolPresent=true`
+
+`metrics:window-report` for the same mint returned:
+
+- `readOnly=true`
+- `willWrite=false`
+- `willFetch=false`
+- `willSendTelegram=false`
+- `metricCount=1`
+- `fdvMetricCount=1`
+- `entryAnchorSource=first_fdv_metric_after_alerted_at`
+- `entryAnchorQuality=very_late_gt_360m`
+- 30m / 60m / 2h / 3h / 6h / 12h / 24h windows all stayed
+  `outcomeLabel=no_data`
+- no-data reasons included `no_alert_anchor_near_entry`,
+  `no_fdv_samples_in_window`, `no_peak_fdv`, and `no_peak_multiple`
+
+As with token id `5464`, this result confirms Metric 0 backlog coverage and
+rawJson-free report visibility, not near-entry outcome evidence.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19
