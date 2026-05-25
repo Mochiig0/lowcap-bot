@@ -109,6 +109,58 @@ Expected non-effects are Token write `0`, Notification create/update `0`,
 HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`, repo-local
 data diff `0`, rawJson full dump `0`, and offensive raw text dump `0`.
 
+## Pending-first Selector Preflight
+
+Date: 2026-05-25 22:21 JST
+
+The first production preflight of `--onlyMetricPending` after implementation
+confirmed the selector boundary but did not produce a Red command.
+
+Command checked without `--write`:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+Result:
+
+- `dryRun=true`;
+- `writeEnabled=false`;
+- `onlyMetricPending=true`;
+- `selectedCount=0`;
+- `items=[]`;
+- no provider fetch;
+- no DB write;
+- no Notification create/update;
+- no Telegram send;
+- no rawJson full dump;
+- no offensive raw text dump.
+
+Reason: the rolling 168h / `10080` minute cutoff moved past ids `5462..5460`
+between Yellow implementation and this preflight. Those three rows remain
+Metric-zero safe candidates, but they are no longer selected by the current
+rolling window.
+
+Current read-only state:
+
+- Token / Metric / Notification / HolderSnapshot: `1556 / 461 / 14 / 1`;
+- Metric buckets: `0=1235`, `1=234`, `2+=87`;
+- Notification statuses: `captured=9`, `sent=5`, `failed=0`;
+- 24h queue: `metricPendingCount=0`, `enrichPendingCount=0`,
+  `notifyCandidateCount=0`;
+- 168h queue: `metricPendingCount=0`, `enrichPendingCount=71`,
+  `staleReviewCount=71`, `notifyCandidateCount=0`;
+- auto-send allowed candidate count `0`;
+- retry candidate count `0`.
+
+Decision: no batch Red command should be issued from this preflight. A limit 3
+or limit 5 Red with `--sinceMinutes 10080` would currently be a no-op.
+
+Next Green should decide the re-window policy for pending-first Metric backlog:
+either widen `sinceMinutes`, add a fixed backlog-range planner, or use an
+exact-mint fallback. Do not change the Red command ad hoc without a fresh
+read-only preview.
+
 In one-shot batch mode, `429` does not throw out of the whole command. The CLI
 can exit `0` while reporting `errorCount>0`. Treat this as partial success, not
 as a fully Green batch.

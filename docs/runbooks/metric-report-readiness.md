@@ -51,6 +51,13 @@ window. All were `mint_only`, `metricsCount=0`, `notificationCount=0`,
 DB write, Telegram send, Notification update, rawJson full dump, or offensive
 raw text dump was performed.
 
+Follow-up preflight at 2026-05-25 22:21 JST used the same selector shape with
+`--sinceMinutes 10080`, `--limit 5`, `--minGapMinutes 60`, and
+`--interItemDelayMs 15000`. It returned `selectedCount=0` because the rolling
+cutoff had advanced past ids `5462..5460`. The command remained read-only and
+fetch-free. No Red command is recommended until a Green re-window preflight
+chooses a stable selection policy.
+
 ## Read-Only Commands Confirmed
 
 The following commands were inspected or executed as read-only reports:

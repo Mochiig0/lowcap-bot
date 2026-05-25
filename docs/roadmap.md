@@ -115,6 +115,19 @@ prepare this human-approved Red candidate if clean:
 pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
 ```
 
+That Green preflight is complete, but it did **not** produce a Red command.
+At 2026-05-25 22:21 JST, the rolling `--sinceMinutes 10080` cutoff had moved
+past ids `5462..5460`, so the production preview returned
+`selectedCount=0`. The selector still behaved safely (`dryRun=true`,
+`writeEnabled=false`, `selection_preview`, no provider fetch, no DB write), and
+ids `5462..5460` remain Metric-zero safe candidates outside that rolling
+window. Do not run a no-op batch Red.
+
+Recommended next lane: **Green re-window preflight for pending-first Metric
+selection**. Decide one narrow selection policy before Red: widen
+`sinceMinutes`, add an explicit fixed backlog range/planner, or fall back to a
+single exact mint. Keep scheduler/systemd and broad automation locked.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

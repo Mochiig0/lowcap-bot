@@ -167,6 +167,42 @@ Pending-first Metric batch selector Yellow, 2026-05-25 21:29 JST:
   prepare the human-approved Red candidate:
   `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
 
+`--onlyMetricPending` Red preflight, 2026-05-25 22:21 JST:
+
+- This was read-only / docs-only. No `metric:snapshot:geckoterminal --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler /
+  systemd, rawJson full dump, or offensive raw text dump was performed.
+- Current counts are Token / Metric / Notification / HolderSnapshot
+  `1556 / 461 / 14 / 1`.
+- Metric buckets are `0=1235`, `1=234`, `2+=87`.
+- Notification statuses are `captured=9`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Package-script help still hits the known tsx IPC sandbox error, so the
+  fallback `node --import tsx src/cli/metricSnapshotGeckoterminal.ts --help`
+  was used and confirmed `--onlyMetricPending` is documented.
+- Source inspection confirmed the dry-run branch returns `selection_preview`
+  before `processToken(...)`, so it does not call `fetchTokenSnapshotRaw(...)`.
+- Production preview command:
+  `node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 5 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture`
+  returned `dryRun=true`, `writeEnabled=false`, `onlyMetricPending=true`,
+  `selectedCount=0`, and `items=[]`.
+- The earlier candidates ids `5462`, `5461`, and `5460` remain safe
+  Metric-zero rows: GeckoTerminal `new_pools`, pump mints,
+  `metadataStatus=mint_only`, score `C / 0`, `hardRejected=false`,
+  `metricsCount=0`, `notificationCount=0`, `holderSnapshotCount=0`, and
+  `latestMetric=null`.
+- Rolling queue context now reports default 24h `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; 168h
+  `metricPendingCount=0`, `enrichPendingCount=71`,
+  `staleReviewCount=71`, `notifyCandidateCount=0`.
+- Decision: do not issue a batch Red exact command from this preflight.
+  `--onlyMetricPending` works, but the proposed `--sinceMinutes 10080` window
+  currently selects zero rows, so both limit 3 and limit 5 Red commands would
+  be no-op candidates.
+- Next useful task is a Green re-window preflight for the pending-first selector:
+  decide whether to use a slightly wider rolling window, an absolute fixed
+  backlog range, or exact-mint fallback for ids `5462..5460` before any Red.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash

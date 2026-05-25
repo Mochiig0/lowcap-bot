@@ -71,6 +71,12 @@ and one production Telegram ops live send for `metric_appended`:
   Notification update, Telegram send, rawJson full dump, or offensive raw text
   dump was performed. The next step should be a Green preflight before any
   `--onlyMetricPending --write` Red.
+- that Green preflight later found `selectedCount=0` for the proposed
+  `--sinceMinutes 10080` batch Red because the rolling cutoff moved past the
+  remaining Metric-zero candidates. Ids `5462..5460` are still safe
+  Metric-zero candidates, but not inside that rolling window. No batch Red
+  command should be issued until a re-window Green preflight chooses a stable
+  selection policy.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.
