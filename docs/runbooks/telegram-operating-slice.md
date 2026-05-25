@@ -23,6 +23,12 @@ Outcome/report work is paused at Policy C:
 The next operating slice can return to manual Telegram work. Auto live send,
 scheduler, worker, queue, and systemd delivery remain locked.
 
+`pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly` now includes enabled
+auto-send and retry planner state in the broader bounded-operation decision. It
+is read-only and does not send Telegram or update Notification rows. If it
+reports an allowed auto-send candidate or retry candidate, stop and run the
+dedicated Green review before any live send or retry execution.
+
 ## Current DB State
 
 Read-only state:

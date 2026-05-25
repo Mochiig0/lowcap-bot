@@ -11,6 +11,25 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The 6H bounded operation planner Yellow is complete. `pnpm -s
+ops:plan:bounded -- --hours 6 --pumpOnly` is read-only / dry-run and now reads
+DB counts, Gecko review queue state, enabled auto-send planner state, and retry
+planner state before choosing exactly one next operator step. It does not
+fetch, write, send Telegram, update Notification rows, execute retries, create
+scheduler/systemd units, or run any watch loop.
+
+Current planner runtime result recommends `detect_watch_dry_run` because the
+6h/default queue is clear and rolling 168h has no metric, enrich, stale-review,
+or notify backlog. Candidate command string:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60
+```
+
+This is a dry-run candidate only. It does not include `--write`; production
+detect write rehearsal, metric snapshot Red, enrich/rescore Red, auto live send,
+scheduler, and systemd remain human-gated and locked until explicitly approved.
+
 The post-large-batch bounded pending-first Metric Red with limit 5 has now
 succeeded. It selected ids `5392..5388`, wrote Metric ids `1623..1627`, and
 moved all five rows from `metricsCount=0` to `metricsCount=1`. Result:

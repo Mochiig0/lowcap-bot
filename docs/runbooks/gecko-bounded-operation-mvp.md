@@ -13,6 +13,31 @@ investigation OS: detect one pump.fun candidate, enrich it, append bounded
 Metric observations, and verify the saved state without exposing rawJson or
 secrets.
 
+## 6H Planner
+
+Use `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly` before choosing the next
+manual bounded operation step. The planner is read-only / dry-run:
+
+- reads DB counts, Metric bucket counts, Notification status counts, enabled
+  auto-send planner state, retry planner state, and Gecko review queue summaries
+  for default, requested, and 168h windows
+- emits exactly one `nextRecommendedStep`
+- emits a command candidate string only; it does not execute the candidate
+- keeps scheduler/systemd/always-on auto live send locked
+- performs no DB write, external fetch, Telegram send, Notification update,
+  retry execution, rawJson full dump, or offensive raw text dump
+
+When queue state is clear, the planner prefers a 6H-style detect dry-run
+candidate:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60
+```
+
+This is not a write rehearsal. Any command containing `--write`, any
+Notification send, and any scheduler/systemd action still requires separate
+human approval.
+
 ## Current Proven Scope
 
 - `detect:geckoterminal:new-pools` pump-only watch write has passed three times with

@@ -16,6 +16,16 @@ append, and rawJson-free report confirmation, use
 This minimum-loop document remains the evidence log for individual mint
 progression and Metric time-series confirmation.
 
+Before choosing a new bounded operation command, run the read-only planner:
+
+```bash
+pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly
+```
+
+It only reports the next recommended step and command candidates as strings. It
+does not run detect watch, metric snapshot writes, enrich/rescore writes,
+Notification send, retry execution, external fetch, scheduler, or systemd.
+
 For records copied from this minimum loop, keep only safe summaries: statuses,
 counts, mint / Metric ids, sources, `observedAt`, `metricsCount`, latest Metric
 and `recentMetrics` summaries, and rawJson-free safe summary booleans. Do not

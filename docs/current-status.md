@@ -4,6 +4,33 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+6H bounded operation planner Yellow, 2026-05-26 08:00 JST:
+
+- Added `pnpm -s ops:plan:bounded` as a read-only / dry-run planner for the
+  next manual bounded operation step. The CLI reads DB counts, Gecko review
+  queue state, enabled auto-send planner state, and retry planner state, then
+  returns one `nextRecommendedStep` plus a command candidate string when safe.
+- The planner does not execute `metric:snapshot --write`, token
+  enrich/rescore, detect watch, notification send, retry execution, external
+  fetch, DB write, Telegram send, scheduler, or systemd.
+- Current runtime check:
+  `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly` returned
+  `readOnly=true`, `dryRun=true`, Token / Metric / Notification /
+  HolderSnapshot `1556 / 536 / 14 / 1`, Metric buckets
+  `0=1160`, `1=309`, `2+=87`, Notification statuses
+  `captured=9`, `sent=5`, `failed=0`, retry candidate count `0`, and enabled
+  auto-send allowed candidate count `0`.
+- Queue state from the planner: 6h and default windows have
+  `metricPendingCount=0`, `enrichPendingCount=0`, and
+  `notifyCandidateCount=0`; rolling 168h has `geckoOriginTokenCount=5` and no
+  pending metric/enrich/notify work.
+- Recommended step is `detect_watch_dry_run`; the candidate string is:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60`.
+  It is a dry-run candidate only and does not include `--write`.
+- Scheduler/systemd/always-on auto live send remain locked. Red command
+  candidates emitted by the planner are strings only and still require human
+  approval before any write-capable command is run.
+
 Latest exact-mint Metric 0 backlog Red, 2026-05-24 22:53 JST:
 
 - Bounded `--onlyMetricPending` limit 5 Red after the large batch,

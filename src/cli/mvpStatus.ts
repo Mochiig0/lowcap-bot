@@ -21,6 +21,7 @@ const REQUIRED_COMMANDS = [
   "token:enrich-rescore:geckoterminal",
   "metric:snapshot:geckoterminal",
   "ops:summary:geckoterminal",
+  "ops:plan:bounded",
   "review:queue:geckoterminal",
 ] as const;
 
