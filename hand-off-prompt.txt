@@ -23,8 +23,9 @@ Latest checked state after second exact-mint Metric 0 backlog snapshot:
 - retry candidate count: 0
 - enabled auto-send allowed candidate count: 0
 - review:queue --pumpOnly --sinceHours 168:
-  geckoOriginTokenCount=245, enrichPendingCount=200,
-  metricPendingCount=83, staleReviewCount=200, notifyCandidateCount=0
+  metricPendingCount is now 19 because the rolling 168h cutoff moved forward
+  to 2026-05-18T12:12:18.233Z on 2026-05-25; fixed id range 5380..5462 still
+  has 83 Metric 0 backlog rows.
 
 Latest Red execution:
 - Command run exactly once:
@@ -110,18 +111,33 @@ Do not run without explicit approval:
 - app code change for docs-only tasks
 
 Recommended next task:
-Green: review second exact-mint Metric 0 snapshot result and decide whether to
-run a third exact-mint Metric 0 Red or move to Yellow pending-first batch
-selector design. Confirm token id 5463 in report/window context, confirm
-metricPendingCount remains 83 and notifyCandidateCount remains 0, then choose
-one next task.
+Yellow: design and implement a pending-first Metric batch selector for
+metric:snapshot:geckoterminal.
+
+Recommended shape:
+- add an opt-in option such as --onlyMetricPending
+- do not change default selection when the option is omitted
+- keep exact --mint behavior unchanged
+- in batch mode, filter/order Metric 0 or metric-pending rows before --limit
+  is applied
+- dry-run without --write must print selected ids / mints / metricsCount /
+  metadataStatus / latestMetric / notificationCount / holderSnapshotCount
+  without rawJson or offensive raw text
+- tests should cover default selection unchanged, opt-in pending-first
+  selection, minGap interaction, pumpOnly interaction, exact --mint unaffected,
+  and Notification capture boundaries
+
+Do not emit a Red command by default. A third exact-mint Red remains possible
+only if the operator explicitly wants another one-row production proof. If so,
+the next safe candidate is token id 5462:
+63HTSDqidfB3ruuUAmjg9KbaSzWw7gkxAF2TKY6epump
 
 Second choice:
-Design or preflight a pending-first batch selector for true Metric backlog
-accumulation. Current batch commands such as:
+Run a third exact-mint Metric 0 Red after a fresh Green preflight and human
+approval. Current batch commands such as:
 pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --write
 would write Metrics to already measured rows first and would not reduce
-metricPendingCount=85.
+the fixed Metric 0 backlog.
 
 Third choice:
 Repeat limit 5 enrich backlog Red after a fresh Green preflight and human

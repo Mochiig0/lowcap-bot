@@ -288,6 +288,26 @@ read-only report checks confirmed the new observation without dumping rawJson.
 As with token id `5464`, this result confirms Metric 0 backlog coverage and
 rawJson-free report visibility, not near-entry outcome evidence.
 
+## Second Exact Mint Review Recheck
+
+Date: 2026-05-25 21:12 JST
+
+The follow-up Green review re-ran the read-only report checks for token id
+`5463`. Counts stayed Token / Metric / Notification / HolderSnapshot
+`1541 / 461 / 10 / 1`, with Metric buckets `0=1220`, `1=234`, `2+=87`.
+
+`metrics:report` continued to return one row, Metric id `1543`, with source
+`geckoterminal.token_snapshot`, `observedAt=2026-05-25T10:57:38.651Z`,
+`volume24h=0`, and rawJson-free safe market-data booleans all true for
+price, FDV, reserve, and top pool.
+
+`metrics:window-report` continued to show `metricCount=1`,
+`fdvMetricCount=1`, `entryAnchorQuality=very_late_gt_360m`, no alert FDV
+anchor, no FDV samples in 30m through 24h windows, and `outcomeLabel=no_data`.
+This matches token id `5464`: exact-mint snapshots reduce Metric 0 backlog and
+confirm report visibility, but very late first Metrics are not near-entry
+outcome evidence.
+
 ## Metric Accumulation Decision Preflight
 
 Date: 2026-05-19

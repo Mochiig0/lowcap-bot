@@ -55,6 +55,12 @@ and one production Telegram ops live send for `metric_appended`:
   option, Telegram was not sent, and the 168h queue moved
   `metricPendingCount 84 -> 83`. `metrics:report` and
   `metrics:window-report` confirmed the result rawJson-free.
+- the next Green review confirmed that both exact-mint Metric 0 snapshots
+  behaved the same way and selected the durable next lane as Yellow
+  pending-first Metric batch selector design. If a third exact-mint proof is
+  ever needed, token id `5462` /
+  `63HTSDqidfB3ruuUAmjg9KbaSzWw7gkxAF2TKY6epump` is the next safe candidate,
+  but no Red command is recommended by default.
 
 - Gecko detector selected one pump mint candidate.
 - `detect:geckoterminal:new-pools --write` created one mint-only `Token`.

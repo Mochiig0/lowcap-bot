@@ -401,6 +401,89 @@ effects.
 Next step should be Green: review this second exact-mint result and decide
 between a third one-item Red and Yellow pending-first batch selector design.
 
+## Second Exact Mint Review And Selector Decision
+
+Date: 2026-05-25 21:12 JST
+
+This Green review stayed read-only and docs-only. It did not run
+`metric:snapshot:geckoterminal --write`, did not fetch GeckoTerminal, did not
+write DB rows, did not create / update Notifications, did not send Telegram,
+and did not dump rawJson or offensive raw text.
+
+Result review for token id `5463`:
+
+- current `metricsCount=1`
+- Metric id `1543`
+- source `geckoterminal.token_snapshot`
+- `observedAt=2026-05-25T10:57:38.651Z`
+- `notificationCount=0`
+- `holderSnapshotCount=0`
+- Notification capture remained absent
+- `metrics:report` showed safe booleans `priceUsdPresent=true`,
+  `fdvUsdPresent=true`, `reserveUsdPresent=true`, `topPoolPresent=true`
+- `metrics:window-report` showed `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no checked
+  window FDV samples, and `outcomeLabel=no_data`
+
+Exact-mint reproducibility:
+
+- token ids `5464` and `5463` both had `selected=1`, `written=1`,
+  `skipped=0`, `error=0`
+- both runs used exact `--mint --minGapMinutes 60 --noNotificationCapture --write`
+- both runs created exactly one Metric and no Notification
+- Token, HolderSnapshot, Telegram, scheduler/systemd, repo-local data,
+  rawJson dump, and offensive raw text side effects stayed absent
+- provider error, 429, and retry were all absent in both runs
+
+Remaining Metric 0 backlog:
+
+- fixed id range `5380..5462`: `83` rows
+- source distribution: `geckoterminal.new_pools=83`
+- metadataStatus distribution: `mint_only=83`
+- metricsCount distribution: `0=83`
+- scoreRank distribution: `C=83`
+- hardRejected distribution: `false=83`
+- notificationCount distribution: `0=83`
+- holderSnapshotCount distribution: `0=83`
+- next exact-mint candidate, if needed later: token id `5462`, mint
+  `63HTSDqidfB3ruuUAmjg9KbaSzWw7gkxAF2TKY6epump`
+
+Rolling queue note:
+
+- `review:queue:geckoterminal -- --pumpOnly --sinceHours 168` now reports
+  `metricPendingCount=19`, not `83`, because the current date is
+  2026-05-25 and the 168h cutoff advanced to `2026-05-18T12:12:18.233Z`.
+- The fixed backlog range remains useful for explicit Metric 0 cleanup, but a
+  pending-first batch selector should define whether it is bounded by
+  `sinceMinutes`, explicit id/mint inputs, or a broader backlog mode.
+
+Decision:
+
+- Prefer **Yellow pending-first Metric batch selector design** next.
+- Do not issue a third exact-mint Red command by default. The exact-mint
+  boundary has enough proof for implementation planning.
+- A third exact-mint Red remains available later only if the operator wants one
+  more one-row production proof before selector work.
+
+Pending-first selector design notes:
+
+- option name candidates: `--onlyMetricPending`, `--metricPendingFirst`,
+  `--metricsCount 0`
+- preferred first implementation: `--onlyMetricPending`
+- default selection must not change when the option is omitted
+- exact `--mint` mode must stay unchanged
+- opt-in batch mode should filter / order Metric 0 or metric-pending rows
+  before `--limit` is applied
+- dry-run without `--write` must show selected ids / mints / metricsCount /
+  metadataStatus / latestMetric / notificationCount / holderSnapshotCount
+  without rawJson
+- tests must cover default selection unchanged, opt-in pending-first selection,
+  `--minGapMinutes` interaction, `--pumpOnly` interaction, exact `--mint`
+  unaffected, and Notification capture boundaries
+- Red batch execution should wait for a Green preflight after Yellow
+  implementation, with expected Metric writes only and Notification / Telegram
+  / Token / HolderSnapshot writes still blocked
+
 ## Candidate Selection Improvement
 
 Date: 2026-05-19

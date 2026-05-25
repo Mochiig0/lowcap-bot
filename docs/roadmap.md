@@ -71,6 +71,25 @@ or start Yellow design for a pending-first Metric batch selector. The selector
 work is the durable solution; another exact mint is useful only if the operator
 wants one more production proof before implementation.
 
+That Green review is now complete. The result stayed stable: id `5463` is
+readable in `metrics:report` and `metrics:window-report`, Notification capture
+did not occur, auto-send / retry planners remain at zero allowed candidates,
+and the fixed id range `5380..5462` still contains 83 Metric 0 rows. The
+rolling `--sinceHours 168` queue now shows only `metricPendingCount=19`
+because the current date is 2026-05-25 and older backlog rows are aging out of
+that rolling window.
+
+Recommended next lane: **Yellow pending-first Metric batch selector design**.
+Do not produce a Red exact command by default. The exact-mint path has already
+proved the write boundary twice; the next useful step is to design and test a
+batch selector that can target Metric 0 / metric-pending rows before `--limit`
+is applied, without changing default selection behavior.
+
+Preferred option shape to design: `--onlyMetricPending`. It should be opt-in,
+should preserve current default ordering when omitted, should work in dry-run
+and write mode, should keep exact `--mint` behavior unchanged, and should emit
+rawJson-free selected-candidate summaries before any Red batch is approved.
+
 Still locked: token enrich/rescore writes without approval, scheduler, systemd,
 always-on auto live send, notification send/retry execution, detect watch write,
 ops catchup write, schema/migration/app code changes, rawJson full dump, and

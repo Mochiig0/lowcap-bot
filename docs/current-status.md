@@ -96,6 +96,44 @@ Second exact-mint Metric 0 backlog Red, 2026-05-25 19:58 JST:
   HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
   repo-local data diff `0`, rawJson full dump `0`, offensive raw text dump `0`.
 
+Second exact-mint result review and next-lane decision, 2026-05-25 21:12 JST:
+
+- This was read-only / docs-only. No `metric:snapshot:geckoterminal --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler /
+  systemd, rawJson full dump, or offensive raw text dump was performed.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `1541 / 461 / 10 / 1`.
+- Metric buckets stayed `0=1220`, `1=234`, `2+=87`.
+- Notification statuses stayed `captured=5`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Token id `5463` remains `metadataStatus=mint_only`, score `C / 0`,
+  `hardRejected=false`, `metricsCount=1`, `notificationCount=0`,
+  `holderSnapshotCount=0`.
+- Metric id `1543` remains source `geckoterminal.token_snapshot` at
+  `2026-05-25T10:57:38.651Z`; `metrics:report` shows safe booleans
+  `priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`,
+  and `topPoolPresent=true`.
+- `metrics:window-report` shows `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=very_late_gt_360m`, no alert FDV anchor, no window FDV
+  samples for 30m through 24h, and `outcomeLabel=no_data`.
+- Exact-mint reproducibility is now proven twice: token ids `5464` and `5463`
+  both had `selected=1`, `written=1`, `skipped=0`, `error=0`,
+  Notification capture disabled, provider error `0`, 429 `0`, retry `0`, and
+  only Metric count changed.
+- Fixed-id remaining Metric 0 backlog in ids `5380..5462`: `83` rows. All are
+  `geckoterminal.new_pools`, pump mints, `metadataStatus=mint_only`,
+  `metricsCount=0`, score `C`, `hardRejected=false`,
+  `notificationCount=0`, and `holderSnapshotCount=0`.
+- Rolling `review:queue:geckoterminal -- --pumpOnly --sinceHours 168` now
+  reports only `metricPendingCount=19` because the current date moved to
+  2026-05-25 and the 168h cutoff advanced to
+  `2026-05-18T12:12:18.233Z`. The fixed backlog range still has 83 rows, but
+  many are aging out of the rolling 168h view.
+- Recommendation: move next to **Yellow pending-first Metric batch selector
+  design**. Do not issue another exact-mint Red by default; use a third
+  exact-mint Red only if the operator explicitly wants one more production
+  proof before selector implementation.
+
 `src/index.ts` is the CLI help hub. The current CLI set is:
 
 ```bash
