@@ -52,6 +52,13 @@ during implementation. A future paced enrich Red can use:
 `pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write`
 with separate human approval and no `--notify`.
 
+The paced enrich Red preflight is also complete. It stayed read-only and used
+Prisma selection simulation because the enrich CLI fetches externally even in
+dry-run. Limit 20 selects ids `6082..6063`; all selected rows have existing
+Metric coverage (`metricsCount=1`) and no Notification / HolderSnapshot rows.
+No report/window changes are expected from the next enrich Red because it is a
+Token-context update lane, not a Metric append lane.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

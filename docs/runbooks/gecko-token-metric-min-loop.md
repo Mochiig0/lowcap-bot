@@ -110,6 +110,18 @@ It still must omit `--notify`; expected non-effects remain Metric write,
 Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, and rawJson full dump.
 
+Read-only preflight after that implementation confirmed the next slice. The
+production CLI preview was not run because enrich/rescore dry-run fetches
+externally. Prisma selection simulation for `--pumpOnly --sinceMinutes 360`
+selects ids `6082..6063` for limit 20, starting at the prior 429 row. All 20
+are `mint_only`, `metricsCount=1`, `notificationCount=0`,
+`holderSnapshotCount=0`, score `C / 0`, and `hardRejected=false`. Limit 50
+would select ids `6082..6033`, but the safer first paced restart is limit 20:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

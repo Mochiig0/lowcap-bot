@@ -87,6 +87,12 @@ enrich Red candidate remains `--notify`-free:
 Expected Telegram send and Notification create/update remain `0`; any live
 send still requires a separate notification preflight and human-approved Red.
 
+Read-only preflight confirmed that candidate should target ids `6082..6063`
+with `metadataStatus=mint_only`, `metricsCount=1`, `notificationCount=0`, and
+`holderSnapshotCount=0`. Auto-send planners remain closed: failed count `0`,
+retry candidate `0`, enabled auto-send allowed candidate `0`, and
+`selectedNotificationId=null`. Do not add `--notify` to the paced enrich Red.
+
 ## Current DB State
 
 Read-only state:

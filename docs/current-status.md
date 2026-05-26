@@ -35,6 +35,55 @@ Yellow enrich/rescore pacing implementation, 2026-05-26:
   and Token update up to 20; expected non-effects are Metric write,
   Notification create/update, HolderSnapshot write, and Telegram send.
 
+Paced enrich/rescore Red preflight, 2026-05-26:
+
+- This Green pass stayed read-only / docs-only. It did not run
+  `token:enrich-rescore --write`, Metric snapshot write, detect watch/write,
+  Notification send, retry execution, auto live send, scheduler/systemd,
+  `pnpm smoke`, schema/migration, app code change, rawJson full dump, or
+  offensive raw text dump.
+- Help confirms `--interItemDelayMs <MS>` is exposed. The CLI help command
+  exits through usage status, but the output includes the pacing option and
+  states it delays between selected batch items with default `0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` remains read-only
+  and unblocked: `blockedBy=[]`, `stopConditionCodes=[]`. The current
+  one-step recommendation still prioritizes Metric pending because
+  `metricPendingCount` remains non-zero, but the implemented enrich command
+  builder includes `--interItemDelayMs 15000` when enrich becomes ready.
+- Current state: Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1`; metadata statuses `mint_only=1732`,
+  `partial=200`, `enriched=13`; Notification statuses `captured=17`,
+  `sent=5`, `failed=0`; retry candidate `0`; enabled auto-send allowed
+  candidate `0`.
+- Queue context is safe: default and 168h views both show
+  `metricPendingCount=289`, `enrichPendingCount=354`,
+  `notifyCandidateCount=0`; stale review count is time-dependent and was
+  `241..242` during this preflight. The current 6h planner window has
+  `enrichPendingCount=113` and `metricPendingCount=48`.
+- Production `token:enrich-rescore` preview was not run because that CLI
+  fetches externally even without `--write`. Prisma read-only simulation for
+  `--pumpOnly --sinceMinutes 360` found `cohort360Count=117` and
+  `enrichPendingCount=112`: all `geckoterminal.new_pools`,
+  `metadataStatus=mint_only`, score rank `C`, `hardRejected=false`, with
+  notification total `0` and holderSnapshot total `0`. Metrics distribution
+  inside that pending set is `metricsCount 0=47`, `1=65`.
+- Limit 20 selection is clear and starts exactly at the prior 429 row:
+  ids `6082..6063`. All 20 are `mint_only`, `metricsCount=1`,
+  `notificationCount=0`, `holderSnapshotCount=0`, score `C / 0`,
+  `hardRejected=false`, and have no name / symbol / normalizedText /
+  reviewFlags. Limit 50 would select ids `6082..6033`.
+- Decision: issue one human-approval Red candidate for the conservative paced
+  limit 20 restart. Do not attach `--notify`.
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token update up to 20. Expected non-effects are Metric write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, rawJson full dump `0`, and offensive raw text dump `0`.
+
 Post-6H Metric pending snapshot limit 50 Red, 2026-05-26 16:10-16:23 JST:
 
 - Human-approved exact command executed:

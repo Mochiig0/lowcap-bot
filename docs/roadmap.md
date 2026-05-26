@@ -11,6 +11,30 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Green preflight after the pacing implementation is complete. Help output
+includes `--interItemDelayMs <MS>`, and read-only Prisma simulation confirms
+the next paced enrich/rescore slice is unambiguous. For
+`--pumpOnly --sinceMinutes 360`, the enrich-pending set is `112` rows, all
+`geckoterminal.new_pools`, `metadataStatus=mint_only`, score rank `C`,
+`hardRejected=false`, and with Notification / HolderSnapshot totals `0`.
+Limit 20 selects ids `6082..6063`, starting at the previous HTTP 429 row; all
+20 have `metricsCount=1`, `notificationCount=0`, and
+`holderSnapshotCount=0`. Limit 50 would select ids `6082..6033`, but the first
+paced production use should stay smaller.
+
+Recommended next step: **Red paced post-6H enrich/rescore, limit 20**. Exact
+command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex fetch, and Token update up to 20. Expected
+non-effects are Metric write, Notification create/update, HolderSnapshot
+write, Telegram send, scheduler / systemd, rawJson full dump, and offensive
+raw text dump. Do not attach `--notify`.
+
 Yellow implementation of the enrich/rescore pacing boundary is complete.
 `token:enrich-rescore:geckoterminal` now accepts
 `--interItemDelayMs <ms>` as an opt-in batch pacing flag. The default remains

@@ -73,6 +73,28 @@ now include `--interItemDelayMs 15000` so the post-run workflow does not repeat
 the unpaced limit 50 enrich command that hit HTTP 429 after five Token
 updates.
 
+Paced enrich restart preflight, 2026-05-26: production
+`token:enrich-rescore` preview was not run because the CLI fetches externally
+even without `--write`. A Prisma read-only simulation for
+`--pumpOnly --sinceMinutes 360` found `112` enrich-pending rows. Limit 20
+selects ids `6082..6063`, beginning with the previous 429 row; all 20 are
+`mint_only`, `metricsCount=1`, `notificationCount=0`,
+`holderSnapshotCount=0`, score `C / 0`, and `hardRejected=false`. Limit 50
+would select ids `6082..6033`, but the first paced production restart should
+stay conservative.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token updates up to 20. Expected non-effects are Metric write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump. Do not add
+`--notify`.
+
 Green / Yellow verification rule: do not use `pnpm smoke` as proof of
 read-only behavior against the active DB. It is an operational smoke path and
 can write Token / Notification rows. For no-write planner or runbook work, use
