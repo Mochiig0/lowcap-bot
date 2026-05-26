@@ -97,6 +97,33 @@ older backlog in the broader windows: default and rolling 168h both show
 and `notifyCandidateCount=0`. The requested 6h post-run window is clear, so
 the planner reports `no_action_queue_clear` for that narrow window.
 
+Follow-up paced enrich limit 50 preflight, 2026-05-26: read-only checks
+confirmed ids `6082..6063` are all `partial` after the paced limit 20 Red, with
+name / symbol / normalized text present, enrichment timestamps set,
+safe reviewFlags present, `metricsCount=1`, `notificationCount=0`, and
+`holderSnapshotCount=0`. Score distribution in that completed slice is
+`C/0=19` and `B/2=1`; all remain `hardRejected=false`.
+
+Production enrich CLI preview was not run because it fetches externally even
+without `--write`. Prisma read-only simulation for
+`--pumpOnly --sinceMinutes 720` found `211` enrich candidates. Limit 50 selects
+ids `6062..6013`; all are `mint_only`, score rank `C`,
+`hardRejected=false`, `notificationCount=0`, and `holderSnapshotCount=0`.
+Metrics distribution in the selected 50 is `metricsCount=1` for 45 rows and
+`metricsCount=0` for 5 rows.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token updates up to 50. Expected non-effects are Metric write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump. Do not add
+`--notify`.
+
 Paced enrich restart re-window, 2026-05-26: the planned paced Red was not run
 because the final read-only check showed `--sinceMinutes 360` had aged out the
 target rows. The requested 6h planner window had no Metric or enrich pending

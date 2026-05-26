@@ -155,6 +155,26 @@ enriched/rescored timestamps. They remain `metricsCount=1`,
 Metric write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, rawJson full dump, and offensive raw text dump stayed `0`.
 
+The follow-up Green preflight confirmed the next Token-context slice can move
+to limit 50 with the same pacing. ids `6082..6063` are all `partial` with
+safe reviewFlags and normalized text present, `metricsCount=1`,
+`notificationCount=0`, and `holderSnapshotCount=0`; the slice score
+distribution is `C/0=19` and `B/2=1`.
+
+Prisma read-only selection simulation for `--pumpOnly --sinceMinutes 720`
+selects ids `6062..6013` at limit 50. All selected rows are `mint_only`,
+score rank `C`, `hardRejected=false`, `notificationCount=0`, and
+`holderSnapshotCount=0`; 45 rows have `metricsCount=1` and the final 5 have
+`metricsCount=0`. The next human-approved Red candidate is:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Do not add `--notify`. Expected writes remain Token updates only; Metric
+write, Notification create/update, HolderSnapshot write, Telegram send, and
+rawJson full dump should stay at `0`.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

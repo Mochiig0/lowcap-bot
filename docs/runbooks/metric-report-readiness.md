@@ -76,6 +76,20 @@ and `holderSnapshotCount=0`. No rawJson dump was needed; representative report
 review for this step used Prisma safe summary rather than printing raw token
 text.
 
+Follow-up limit 50 preflight also remains outside the Metric report lane.
+Prisma read-only selection simulation for the next paced enrich command
+selects ids `6062..6013`; 45 selected rows already have `metricsCount=1` and
+5 have `metricsCount=0`. Since the proposed command is
+`token:enrich-rescore:geckoterminal`, no Metric rows are expected to be
+created and report/window outputs are expected to remain unchanged until a
+separate Metric snapshot lane runs.
+
+Next Token-context Red candidate:
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write`.
+It must omit `--notify`; expected non-effects include Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, rawJson full
+dump, and offensive raw text dump.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

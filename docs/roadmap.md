@@ -11,6 +11,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Latest Green preflight confirms the paced enrich/rescore lane can move from
+limit 20 to limit 50. ids `6082..6063` from the prior Red are now all
+`partial`; no 429 recurred, Notification / Telegram remained closed, and the
+selected-row notification / holder totals are `0`.
+
+Read-only Prisma selection simulation for `--pumpOnly --sinceMinutes 720`
+shows `candidateCount=211`. Limit 50 selects ids `6062..6013`, all
+`metadataStatus=mint_only`, score rank `C`, `hardRejected=false`,
+`notificationCount=0`, and `holderSnapshotCount=0`. The selected 50 include
+45 rows with `metricsCount=1` and 5 rows with `metricsCount=0`; this is still
+a Token-context update step, not a Metric append step.
+
+Recommended next step: **Red paced post-6H enrich/rescore, limit 50**. Exact
+command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex fetch, and Token updates up to 50. Expected
+non-effects are Metric write, Notification create/update, HolderSnapshot
+write, Telegram send, scheduler/systemd, rawJson full dump, and offensive raw
+text dump. Do not attach `--notify`.
+
 The re-windowed paced enrich/rescore Red completed successfully. Exact command:
 
 ```bash

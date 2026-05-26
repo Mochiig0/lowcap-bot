@@ -82,6 +82,51 @@ Re-windowed paced enrich/rescore Red, 2026-05-26:
   age out between preflight and execution. Recalculate `sinceMinutes` before a
   delayed post-run command.
 
+Paced enrich/rescore limit 50 preflight, 2026-05-26:
+
+- This Green pass stayed read-only / docs-only. It did not run
+  `token:enrich-rescore --write`, Metric snapshot write, detect watch/write,
+  Notification send, retry execution, auto live send, scheduler/systemd,
+  `pnpm smoke`, schema/migration, app code change, rawJson full dump, or
+  offensive raw text dump.
+- The previous paced enrich Red result was reconfirmed. ids `6082..6063` are
+  all `partial`, with name / symbol / normalized text present, enrichment and
+  rescore timestamps set, safe reviewFlags present, `metricsCount=1`,
+  `notificationCount=0`, and `holderSnapshotCount=0`. Score distribution in
+  that slice is `C/0=19` and `B/2=1`; all remain `hardRejected=false`.
+- Current state remains Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1`; metadata statuses are `mint_only=1712`,
+  `partial=220`, `enriched=13`; Notification statuses are `captured=17`,
+  `sent=5`, `failed=0`; retry candidate `0`; enabled auto-send allowed
+  candidate `0`.
+- Queue context: default and rolling 168h both show older backlog with
+  `metricPendingCount=289`, `enrichPendingCount=334`,
+  `staleReviewCount=334`, and `notifyCandidateCount=0`. The requested 6h
+  planner window remains clear, so `ops:plan:bounded --postRunPlan` reports
+  `nextRecommendedStep=detect_watch_dry_run` /
+  `recommendedFirstStep=no_action_queue_clear` for that narrow rolling view.
+- Production enrich CLI preview was not run because it fetches externally even
+  without `--write`. Prisma read-only simulation for `--pumpOnly
+  --sinceMinutes 720` found `candidateCount=211`. Limit 20 selects ids
+  `6062..6043`; limit 50 selects ids `6062..6013`.
+- Limit 50 selection is clear and safe for the next bounded Red: all selected
+  rows are `mint_only`, score rank `C`, `hardRejected=false`,
+  `notificationCount=0`, and `holderSnapshotCount=0`. Metrics distribution in
+  the selected 50 is `metricsCount=1` for 45 rows and `metricsCount=0` for the
+  last 5 rows, so the Red remains a Token-context update lane, not a Metric
+  lane.
+- Recommended next human-approved Red candidate:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token updates up to 50. Expected non-effects are Metric write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, rawJson full dump `0`, and offensive raw text dump `0`.
+Do not attach `--notify`.
+
 Paced enrich/rescore re-window preflight, 2026-05-26:
 
 - The previously approved paced Red was not executed. A final read-only

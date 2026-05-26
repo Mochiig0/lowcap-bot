@@ -108,6 +108,15 @@ Notification count stayed `22`, statuses stayed `captured=17`, `sent=5`,
 stayed `0`, and selected auto-send Notification stayed `null`. Telegram send
 and Notification create/update remained `0`.
 
+Follow-up Green preflight for the next paced enrich batch keeps the same
+Telegram boundary. The next selected limit 50 slice is ids `6062..6013`; all
+selected rows have `notificationCount=0` and `holderSnapshotCount=0`, and
+auto-send / retry planners remain closed (`allowed=0`, retry candidate `0`,
+selected Notification `null`). The next Red candidate remains `--notify`-free:
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write`.
+Expected Telegram send and Notification create/update remain `0`; any live
+send still requires a separate notification preflight and human-approved Red.
+
 ## Current DB State
 
 Read-only state:
