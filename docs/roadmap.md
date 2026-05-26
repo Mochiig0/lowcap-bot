@@ -11,54 +11,35 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
-Latest Green preflight confirms the paced enrich/rescore lane can move from
-limit 20 to limit 50. ids `6082..6063` from the prior Red are now all
-`partial`; no 429 recurred, Notification / Telegram remained closed, and the
-selected-row notification / holder totals are `0`.
-
-Read-only Prisma selection simulation for `--pumpOnly --sinceMinutes 720`
-shows `candidateCount=211`. Limit 50 selects ids `6062..6013`, all
-`metadataStatus=mint_only`, score rank `C`, `hardRejected=false`,
-`notificationCount=0`, and `holderSnapshotCount=0`. The selected 50 include
-45 rows with `metricsCount=1` and 5 rows with `metricsCount=0`; this is still
-a Token-context update step, not a Metric append step.
-
-Recommended next step: **Red paced post-6H enrich/rescore, limit 50**. Exact
-command:
-
-```bash
-pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
-```
-
-Human approval is required. Expected side effects are external GeckoTerminal
-fetch, best-effort Metaplex fetch, and Token updates up to 50. Expected
-non-effects are Metric write, Notification create/update, HolderSnapshot
-write, Telegram send, scheduler/systemd, rawJson full dump, and offensive raw
-text dump. Do not attach `--notify`.
-
-That Red later ran once and succeeded. Exact command:
+Latest Red continued the paced enrich/rescore lane with the same limit 50
+boundary. Exact command:
 
 ```bash
 pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
 ```
 
 Result: `selected=50`, `enriched=50`, `rescored=50`, `contextWritten=50`,
-`error=0`, `metaplexAttempted=50`, `metaplexAvailable=3`,
+`error=0`, `metaplexAttempted=50`, `metaplexAvailable=4`,
 `notifyWouldSend=0`, `notifySent=0`, `interItemDelayMs=15000`,
 `interItemDelayCount=49`, provider error `0`, 429 `0`, and retry `0`.
-Ids `6062..6013` moved `mint_only -> partial`.
+Ids `6012..5963` moved `mint_only -> partial`.
 
 Counts stayed Token / Metric / Notification / HolderSnapshot
-`1945 / 606 / 22 / 1`; metadata statuses moved `mint_only=1712`,
-`partial=220`, `enriched=13` to `mint_only=1662`, `partial=270`,
+`1945 / 606 / 22 / 1`; metadata statuses moved `mint_only=1662`,
+`partial=270`, `enriched=13` to `mint_only=1612`, `partial=320`,
 `enriched=13`. Metric write, Notification create/update, HolderSnapshot write,
 Telegram send, scheduler/systemd, rawJson full dump, and offensive raw text
 dump stayed `0`.
 
-Next recommended Green: review the completed paced limit 50 result and decide
-whether to continue enrich with another paced batch or return to Metric
-pending backlog. The 6h planner window is clear, while default / 168h windows
-still show older `metricPendingCount=289` and `enrichPendingCount=284`.
+Queue after still shows older backlog outside the 6h planner window:
+default / 168h `metricPendingCount=289`, `enrichPendingCount=234`,
+`staleReviewCount=289`, `notifyCandidateCount=0`. `ops:plan:bounded
+--postRunPlan` remains unblocked but reports the requested 6h window as clear.
+
+Recommended next step: **Green review of the second paced limit 50 result**.
+Decide whether to continue another paced enrich batch or return to Metric
+pending backlog. Do not use scheduler/systemd, auto live send, retry
+execution, `pnpm smoke`, or `--notify`.
 
 The re-windowed paced enrich/rescore Red completed successfully. Exact command:
 

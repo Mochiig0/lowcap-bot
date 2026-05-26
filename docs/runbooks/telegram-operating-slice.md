@@ -124,6 +124,14 @@ Notification count stayed `22`, statuses stayed `captured=17`, `sent=5`,
 stayed `0`, and selected auto-send Notification stayed `null`. Telegram send
 and Notification create/update remained `0`.
 
+The following paced limit 50 enrich Red used the same `--notify`-free boundary
+and also kept Telegram closed. It enriched and rescored ids `6012..5963` with
+`notifyWouldSend=0`, `notifySent=0`, provider error `0`, 429 `0`, and retry
+`0`. Notification count stayed `22`, statuses stayed `captured=17`,
+`sent=5`, `failed=0`, retry candidate stayed `0`, enabled auto-send allowed
+candidate stayed `0`, and selected auto-send Notification stayed `null`.
+Telegram send and Notification create/update remained `0`.
+
 ## Current DB State
 
 Read-only state:

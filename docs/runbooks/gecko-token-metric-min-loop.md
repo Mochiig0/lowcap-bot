@@ -149,6 +149,22 @@ error `0`, 429 `0`, and retry `0`. Counts stayed
 `partial=200`, `enriched=13` to `mint_only=1712`, `partial=220`,
 `enriched=13`.
 
+The paced enrich lane then ran two limit 50 batches with the same
+`--sinceMinutes 720 --interItemDelayMs 15000` boundary. The first moved ids
+`6062..6013` to `partial`; the second moved ids `6012..5963` to `partial`.
+Both completed with `selected=50`, `enriched=50`, `rescored=50`,
+`skipped=0`, `error=0`, `notifyWouldSend=0`, `notifySent=0`,
+`interItemDelayCount=49`, provider error `0`, 429 `0`, and retry `0`.
+Counts stayed `1945 / 606 / 22 / 1`; metadata now stands at
+`mint_only=1612`, `partial=320`, `enriched=13`.
+
+These were Token-context updates only. Metric write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler/systemd,
+repo-local runtime data diff, rawJson full dump, and offensive raw text dump
+remained `0`. The broader queues still have older backlog:
+`metricPendingCount=289`, `enrichPendingCount=234`, `staleReviewCount=289`,
+and `notifyCandidateCount=0`.
+
 The selected rows now have name / symbol / normalized text and
 enriched/rescored timestamps. They remain `metricsCount=1`,
 `notificationCount=0`, `holderSnapshotCount=0`, and `hardRejected=false`.

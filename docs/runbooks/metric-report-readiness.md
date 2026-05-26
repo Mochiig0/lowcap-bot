@@ -97,6 +97,15 @@ rows were created by the enrich command. Report/window Metric outputs should
 therefore remain unchanged until a separate Metric snapshot lane runs. The
 post-check used Prisma safe summary rather than printing raw token text.
 
+A second paced limit 50 Token-context Red also succeeded without appending
+Metrics. Selected ids `6012..5963` all moved to `partial`; all 50 selected
+rows currently have `metricsCount=0`, so no report/window Metric rows exist
+for that specific slice yet. This confirms again that
+`token:enrich-rescore:geckoterminal` with `--interItemDelayMs 15000` updates
+Token context only. Metric count stayed `606`, Notification count stayed `22`,
+HolderSnapshot count stayed `1`, Telegram send stayed `0`, and no rawJson full
+dump or offensive raw text dump was needed.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:
