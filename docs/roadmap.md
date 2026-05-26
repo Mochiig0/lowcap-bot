@@ -11,6 +11,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The human-approved post-6H Metric pending snapshot Red has completed. Exact
+command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Result: `selected=20`, `written=20`, `skipped=0`, `error=0`,
+`interItemDelayMs=15000`, `interItemDelayCount=19`, provider error `0`,
+429 `0`, retry `0`, and Notification capture `0`. Selected ids `6087..6068`
+now have `metricsCount=1`; new Metric ids are `1637..1656`. Counts moved only
+in Metric: Token / Metric / Notification / HolderSnapshot
+`1930 / 536 / 18 / 1 -> 1930 / 556 / 18 / 1`; Metric buckets moved
+`0=1534, 1=309, 2+=87 -> 0=1514, 1=329, 2+=87`. Notification statuses stayed
+`captured=13`, `sent=5`, `failed=0`; retry candidate count and enabled
+auto-send allowed candidate count stayed `0`.
+
+Queue after still recommends the same lane: default and rolling 168h views have
+`metricPendingCount=339`, `enrichPendingCount=359`,
+`staleReviewCount=38`, and `notifyCandidateCount=0`.
+`ops:plan:bounded -- --hours 6 --pumpOnly` still returns
+`nextRecommendedStep=metric_pending_snapshot` with no blockers or stop
+conditions. The next step should be a Green review/preflight before another
+Metric write Red; do not jump directly to a larger batch.
+
 Green preflight for the post-6H metric pending lane is complete. It confirmed
 the 6H write cohort as ids `5729..6087` with count `359`, all
 `geckoterminal.new_pools`, `mint_only`, score `C / 0`, `hardRejected=false`.

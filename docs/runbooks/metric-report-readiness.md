@@ -74,6 +74,16 @@ conservative limit 20 Metric snapshot batch with `--write`, pending human
 approval; it should write Metric rows only and should not create/update
 Notification rows or send Telegram.
 
+That Red later succeeded. Ids `6087..6068` now have `metricsCount=1` with
+Metric ids `1637..1656`. `metrics:report` confirmed representative ids
+`6087`, `6079`, and `6068` rawJson-free: all three have price / FDV / reserve
+/ top-pool present. `metrics:window-report` confirmed the fresh observation
+shape: id `6087` has `metricCount=1`, `fdvMetricCount=1`,
+`entryAnchorQuality=near_30m`, and `outcomeLabel=no_data`; id `6079` has
+`metricCount=1`, `fdvMetricCount=1`, `entryAnchorQuality=acceptable_60m`,
+30m `no_data`, and 60m+ thin FDV samples. Notification capture remained `0`
+and no Telegram send occurred.
+
 Follow-up preflight at 2026-05-25 22:21 JST used the same selector shape with
 `--sinceMinutes 10080`, `--limit 5`, `--minGapMinutes 60`, and
 `--interItemDelayMs 15000`. It returned `selectedCount=0` because the rolling

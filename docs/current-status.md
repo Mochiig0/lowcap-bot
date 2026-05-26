@@ -4,6 +4,51 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Metric pending snapshot after 6H write rehearsal Red, 2026-05-26 14:36-14:42 JST:
+
+- Human-approved exact command executed once:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Result: `selected=20`, `written=20`, `skipped=0`, `error=0`,
+  `interItemDelayMs=15000`, `interItemDelayCount=19`; provider error `0`,
+  429 `0`, retry `0`, Notification capture `0`
+  (`notificationSkippedReason=not_single_mint_mode`).
+- Selected ids `6087..6068` moved `metricsCount=0 -> 1`; new Metric ids are
+  `1637..1656`, source `geckoterminal.token_snapshot`, observed between
+  `2026-05-26T05:37:04.014Z` and `2026-05-26T05:41:59.554Z`.
+- Counts moved only in Metric:
+  Token / Metric / Notification / HolderSnapshot
+  `1930 / 536 / 18 / 1 -> 1930 / 556 / 18 / 1`.
+- Metric buckets moved `0=1534`, `1=309`, `2+=87` to
+  `0=1514`, `1=329`, `2+=87`.
+- Notification statuses stayed `captured=13`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Selected rows stayed bounded: `notificationCount=0`,
+  `holderSnapshotCount=0`, `metadataStatus=mint_only`, score `C / 0`, and
+  `hardRejected=false`.
+- Command safe summaries for all 20 Metric candidates had price / FDV /
+  reserve / top-pool present. Representative rawJson-free `metrics:report`
+  confirmed ids `6087`, `6079`, and `6068` each have
+  `priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+  `topPoolPresent=true`.
+- Representative `metrics:window-report` stayed read-only and rawJson-free:
+  id `6087` has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=near_30m`, `outcomeLabel=no_data`, and window FDV
+  samples present from the 30m window onward; id `6079` has `metricCount=1`,
+  `fdvMetricCount=1`, `entryAnchorQuality=acceptable_60m`, 30m window
+  `no_data`, and 60m+ thin FDV samples.
+- Queue after: default 24h has `metricPendingCount=339`,
+  `enrichPendingCount=359`, `staleReviewCount=38`, `notifyCandidateCount=0`;
+  rolling 168h has the same `metricPendingCount=339`,
+  `enrichPendingCount=359`, `staleReviewCount=38`, and
+  `notifyCandidateCount=0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly` still recommends
+  `metric_pending_snapshot` with the same limit 20 candidate and no blockers
+  or stop conditions.
+- Non-effects held: Token write `0`, Notification create/update `0`,
+  HolderSnapshot write `0`, Telegram send `0`, auto-send execution `0`, retry
+  execution `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson full
+  dump `0`, and offensive raw text dump `0`.
+
 Metric pending preflight after 6H write rehearsal, 2026-05-26 14:15 JST:
 
 - This Green pass ran read-only / docs-only checks after the successful 6H

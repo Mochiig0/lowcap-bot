@@ -54,6 +54,20 @@ Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, rawJson full dump, and offensive raw text dump should stay
 at `0`.
 
+That Red candidate later ran once and succeeded. It selected ids `6087..6068`,
+appended Metric ids `1637..1656`, and moved all 20 rows from `metricsCount=0`
+to `metricsCount=1`. Counts moved only in Metric:
+`1930 / 536 / 18 / 1 -> 1930 / 556 / 18 / 1`; Metric buckets moved
+`0=1534, 1=309, 2+=87 -> 0=1514, 1=329, 2+=87`. Result summary:
+`selected=20`, `written=20`, `skipped=0`, `error=0`, provider error `0`,
+429 `0`, retry `0`, Notification capture `0`,
+`interItemDelayMs=15000`, and `interItemDelayCount=19`. Representative
+`metrics:report` / `metrics:window-report` checks for ids `6087`, `6079`, and
+`6068` were rawJson-free and showed Metric rows readable through the report
+layer. Token write, Notification create/update, HolderSnapshot write,
+Telegram send, scheduler/systemd, repo-local data diff, rawJson full dump, and
+offensive raw text dump stayed at `0`.
+
 For records copied from this minimum loop, keep only safe summaries: statuses,
 counts, mint / Metric ids, sources, `observedAt`, `metricsCount`, latest Metric
 and `recentMetrics` summaries, and rawJson-free safe summary booleans. Do not

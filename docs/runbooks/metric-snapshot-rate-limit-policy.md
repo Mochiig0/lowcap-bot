@@ -105,6 +105,19 @@ Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
 scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
 offensive raw text dump `0`.
 
+That human-approved limit 20 Red later executed once and succeeded:
+`selected=20`, `written=20`, `skipped=0`, `error=0`, provider error `0`,
+429 `0`, retry `0`, `interItemDelayMs=15000`, `interItemDelayCount=19`, and
+Notification capture `0` (`notificationSkippedReason=not_single_mint_mode`).
+Selected ids `6087..6068` moved `metricsCount=0 -> 1`; new Metric ids are
+`1637..1656`. Counts moved only in Metric:
+`1930 / 536 / 18 / 1 -> 1930 / 556 / 18 / 1`, with Metric buckets
+`0=1534, 1=309, 2+=87 -> 0=1514, 1=329, 2+=87`. Notification statuses stayed
+`captured=13`, `sent=5`, `failed=0`; retry and enabled auto-send allowed
+candidates stayed `0`. No Token write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
+rawJson full dump, or offensive raw text dump occurred.
+
 ## Pending-first Selector Yellow
 
 Date: 2026-05-25

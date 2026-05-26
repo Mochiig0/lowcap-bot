@@ -106,6 +106,66 @@ snapshot before any Metric write Red is approved. Do not enable scheduler,
 systemd, always-on auto live send, Notification send, or retry execution from
 this result.
 
+## Metric Pending Snapshot After 6H Write
+
+Date: 2026-05-26 14:36-14:42 JST
+
+Human-approved Red execution ran exactly one bounded Metric pending snapshot:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Result:
+
+- `selected=20`
+- `written=20`
+- `skipped=0`
+- `error=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=19`
+- provider error: `0`
+- 429: `0`
+- retry: `0`
+- Notification capture: `0`
+
+State movement:
+
+- selected ids `6087..6068`
+- new Metric ids `1637..1656`
+- selected rows moved `metricsCount=0 -> 1`
+- Token / Metric / Notification / HolderSnapshot:
+  `1930 / 536 / 18 / 1 -> 1930 / 556 / 18 / 1`
+- Metric buckets:
+  `0=1534`, `1=309`, `2+=87` -> `0=1514`, `1=329`, `2+=87`
+- Notification statuses stayed `captured=13`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+
+Representative rawJson-free report checks:
+
+- ids `6087`, `6079`, and `6068` are readable through `metrics:report` with
+  Metric ids `1637`, `1645`, and `1656`
+- each representative row has price / FDV / reserve / top-pool present
+- id `6087` window report has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=near_30m`, and `outcomeLabel=no_data`
+- id `6079` window report has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=acceptable_60m`, 30m `no_data`, and 60m+ thin FDV samples
+
+Post-run queue / planner:
+
+- default 24h queue: `metricPendingCount=339`, `enrichPendingCount=359`,
+  `staleReviewCount=38`, `notifyCandidateCount=0`
+- rolling 168h queue: `metricPendingCount=339`, `enrichPendingCount=359`,
+  `staleReviewCount=38`, `notifyCandidateCount=0`
+- `ops:plan:bounded -- --hours 6 --pumpOnly` still recommends
+  `metric_pending_snapshot`, with no blockers or stop conditions
+
+Non-effects held: Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, auto-send execution `0`, retry
+execution `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson full
+dump `0`, and offensive raw text dump `0`.
+
 ## Metric Pending Preflight After 6H Write
 
 Date: 2026-05-26 14:15 JST
