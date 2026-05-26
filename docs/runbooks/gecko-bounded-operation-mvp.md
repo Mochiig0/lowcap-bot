@@ -66,6 +66,16 @@ always-on auto live send, retry execution, and Notification send remain locked.
 (Token `1930 -> 1945`, Notification `18 -> 22`) and should not be used as a
 production no-write validation command.
 
+Green / Yellow verification rule: do not use `pnpm smoke` as proof of
+read-only behavior against the active DB. It is an operational smoke path and
+can write Token / Notification rows. For no-write planner or runbook work, use
+`pnpm exec tsc --noEmit`, targeted `node --import tsx --test ...`, CLI
+`--help`, `pnpm -s mvp:status`, `pnpm -s ops:plan:bounded -- --hours 6
+--pumpOnly --postRunPlan`, `notification:auto-send:plan`,
+`notification:retry:plan`, and `review:queue:geckoterminal`. Use `pnpm smoke`
+only with an explicitly isolated temp DB or a separately approved
+side-effecting verification.
+
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:
 

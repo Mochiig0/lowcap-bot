@@ -11,6 +11,16 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Operational safety note: `pnpm smoke` is not a Green / Yellow no-write
+verification command for this active DB. During the `ops:plan:bounded
+--postRunPlan` Yellow verification it created smoke/rehearsal DB rows, moving
+Token `1930 -> 1945` and Notification `18 -> 22`; Metric and HolderSnapshot
+did not change and Telegram was not sent. Future no-write validation should use
+typecheck, targeted tests, CLI `--help`, `mvp:status`, `ops:plan:bounded`,
+`notification:auto-send:plan`, `notification:retry:plan`, and
+`review:queue:geckoterminal`. Run `pnpm smoke` only with an explicit isolated
+temp DB or as a separately approved side-effecting check.
+
 The bounded operation planner has been extended for 6H post-run workflow
 planning. `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan`
 keeps the existing one-step `nextRecommendedStep` output and adds an ordered

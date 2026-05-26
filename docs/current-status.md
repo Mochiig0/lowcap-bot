@@ -4,6 +4,36 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Smoke verification side-effect review, 2026-05-26 16:02 JST:
+
+- This Green pass was read-only / docs-only. It did not run `pnpm smoke`,
+  `--write`, external fetch, DB write, Telegram send, Notification update,
+  scheduler/systemd, rawJson full dump, or offensive raw text dump.
+- The previous Yellow verification for `ops:plan:bounded --postRunPlan`
+  accidentally ran `pnpm smoke` against the active DB. That command is
+  side-effecting in this repo: Token count moved `1930 -> 1945` and
+  Notification count moved `18 -> 22`. Metric and HolderSnapshot counts did
+  not change, and Telegram was not sent.
+- Current read-only state after the smoke side effect: Token / Metric /
+  Notification / HolderSnapshot `1945 / 556 / 22 / 1`; Metric buckets
+  `0=1529`, `1=329`, `2+=87`; Notification statuses `captured=17`,
+  `sent=5`, `failed=0`.
+- Notification safety remains closed: retry candidate count `0`, enabled
+  auto-send allowed candidate count `0`, and both disabled/enabled
+  `notification:auto-send:plan` runs selected `selectedNotificationId=null`.
+  The planner reports smoke/rehearsal blockers for `18` Notifications.
+- Green / Yellow no-write validation must not use `pnpm smoke` unless an
+  isolated temp DB is explicitly configured. Prefer `pnpm exec tsc --noEmit`,
+  targeted `node --import tsx --test ...`, CLI `--help`, `mvp:status`,
+  `ops:plan:bounded`, `notification:auto-send:plan`,
+  `notification:retry:plan`, and `review:queue:geckoterminal`.
+- Next human-approved Red candidate is still the post-6H Metric pending
+  snapshot limit 50:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Expected side effects are external GeckoTerminal fetch and Metric write up
+  to 50; expected non-effects are Token write `0`, Notification
+  create/update `0`, HolderSnapshot write `0`, and Telegram send `0`.
+
 Post-run workflow planner Yellow, 2026-05-26 15:20 JST:
 
 - `pnpm -s ops:plan:bounded` now supports `--postRunPlan`.

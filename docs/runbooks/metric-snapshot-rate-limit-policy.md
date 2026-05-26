@@ -6,6 +6,16 @@ This is a read-only / docs-only preflight for GeckoTerminal Metric snapshot
 rate-limit handling. It does not run `metric:snapshot:geckoterminal`, does not
 fetch external APIs, and does not write production DB state.
 
+Verification safety update, 2026-05-26: do not use `pnpm smoke` as Green /
+Yellow no-write validation against the active DB. It was run during
+`ops:plan:bounded --postRunPlan` implementation verification and wrote
+smoke/rehearsal rows, moving Token `1930 -> 1945` and Notification `18 -> 22`.
+Metric and HolderSnapshot did not change, and Telegram was not sent. For
+Metric snapshot preflight and docs-only work, prefer `pnpm exec tsc --noEmit`,
+targeted tests, CLI `--help`, fetch-free `--onlyMetricPending` previews,
+`mvp:status`, `ops:plan:bounded`, `notification:auto-send:plan`,
+`notification:retry:plan`, and `review:queue:geckoterminal`.
+
 ## Starting Point
 
 The bounded Metric accumulation limit 10 Red run completed with partial

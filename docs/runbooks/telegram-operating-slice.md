@@ -42,6 +42,17 @@ stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;
 enabled auto-send allowed candidate count stayed `0`. The next planner
 recommendation is Metric pending snapshot preflight, not Telegram execution.
 
+During the later `ops:plan:bounded --postRunPlan` Yellow verification,
+`pnpm smoke` was run against the active DB and created four additional
+captured smoke/rehearsal Notification rows, moving Notification count
+`18 -> 22` and Token count `1930 -> 1945`. It did not send Telegram and did
+not change Metric or HolderSnapshot counts. Current read-only planners keep the
+notification boundary closed: failed count `0`, retry candidate count `0`,
+enabled auto-send allowed candidate count `0`, `selectedNotificationId=null`,
+and `18` Notifications blocked as smoke/rehearsal rows. Do not use
+`pnpm smoke` as a Green / Yellow no-write verification command on the active
+DB.
+
 ## Current DB State
 
 Read-only state:
