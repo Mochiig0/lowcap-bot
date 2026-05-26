@@ -50,6 +50,26 @@ Notification capture `0`. Token write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, and rawJson full dump
 remained `0`.
 
+Post-6H enrich/rescore preflight later confirmed the next loop step should move
+from Metric acquisition to Token context creation. The 24h Gecko pump
+enrich-pending cohort is `359` rows, all `geckoterminal.new_pools`,
+`metadataStatus=mint_only`, score `C`, `hardRejected=false`,
+`notificationCount=0`, and `holderSnapshotCount=0`; Metric distribution is
+`0=289`, `1=70`. Because `token:enrich-rescore:geckoterminal` fetches live
+snapshots even without `--write`, production selection was simulated read-only
+with Prisma. `--pumpOnly --limit 50 --sinceMinutes 360` selects ids
+`6087..6038`, all currently `metricsCount=1`. The next human-approved Red can
+run this exact command, with no `--notify`:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write
+```
+
+Expected writes are Token enrich/rescore/context updates up to 50. Metric
+write, Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump should stay
+at `0`.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

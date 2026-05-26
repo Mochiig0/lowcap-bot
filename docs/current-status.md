@@ -48,6 +48,49 @@ Post-6H Metric pending snapshot limit 50 Red, 2026-05-26 16:10-16:23 JST:
   Telegram send `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson
   full dump `0`, and offensive raw text dump `0`.
 
+Post-6H enrich/rescore preflight, 2026-05-26 16:48 JST:
+
+- This Green pass was read-only / docs-only. It did not run
+  `token:enrich-rescore:geckoterminal --write`, `metric:snapshot --write`,
+  detect watch/write, Notification send, retry execution, auto-send execution,
+  scheduler/systemd, `pnpm smoke`, rawJson full dump, or offensive raw text
+  dump.
+- Metric acquisition proof is now sufficient for the 6H cohort. The next
+  operating lane should move to Token context creation with
+  `token:enrich-rescore:geckoterminal`, without `--notify`.
+- Source inspection confirmed `token:enrich-rescore:geckoterminal` selects
+  recent GeckoTerminal-origin rows missing name or symbol, uses
+  `firstSeenSourceSnapshot.detectedAt` as the batch anchor when present, and
+  fetches live GeckoTerminal token snapshots even in dry-run. Therefore no
+  production dry-run preview was executed; selection was reproduced with
+  Prisma read-only queries.
+- Current DB state: Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1`; Metric buckets `0=1479`, `1=379`, `2+=87`;
+  metadata statuses `mint_only=1737`, `partial=195`, `enriched=13`;
+  Notification statuses `captured=17`, `sent=5`, `failed=0`.
+- Safety planners remain closed: retry candidate count `0`, disabled and
+  enabled auto-send allowed candidate count `0`, and selected auto-send
+  Notification remains `null`.
+- 24h Gecko pump enrich-pending cohort count is `359`, all
+  `geckoterminal.new_pools`, `metadataStatus=mint_only`, score rank `C`,
+  `hardRejected=false`, `notificationCount=0`, and `holderSnapshotCount=0`.
+  Metric count distribution is `0=289`, `1=70`.
+- Read-only selection simulation for `--pumpOnly --limit 50 --sinceMinutes 360`
+  selected ids `6087..6038`; the first 20 are `6087..6068`. All selected rows
+  are `metadataStatus=mint_only`, score `C / 0`, `hardRejected=false`,
+  `notificationCount=0`, `holderSnapshotCount=0`, and currently
+  `metricsCount=1`.
+- Candidate comparison: limit 20 is conservative but slow for a 359-row
+  enrich backlog; limit 50 matches the post-run planner default and the Metric
+  lane's proven batch size. Metric-pending continuation is now secondary.
+- Next human-approved Red candidate:
+  `pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write`.
+  Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+  metadata fetch, and Token update up to 50. Expected non-effects are Metric
+  write `0`, Notification create/update `0`, HolderSnapshot write `0`,
+  Telegram send `0`, scheduler/systemd `0`, rawJson full dump `0`, and
+  offensive raw text dump `0`.
+
 Smoke verification side-effect review, 2026-05-26 16:02 JST:
 
 - This Green pass was read-only / docs-only. It did not run `pnpm smoke`,

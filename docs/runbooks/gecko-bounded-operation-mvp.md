@@ -87,6 +87,32 @@ Metric pending snapshot limit 50 Red ran once with `--onlyMetricPending` and
 `metricPendingCount=289`, `enrichPendingCount=359`, `staleReviewCount=137`,
 and `notifyCandidateCount=0` in both default 24h and rolling 168h views.
 
+Post-6H enrich/rescore preflight, 2026-05-26: Metric acquisition proof is
+sufficient for this bounded run, so the next workflow step can move to Token
+context creation. `token:enrich-rescore:geckoterminal` is not a read-only
+preview command in production because it fetches GeckoTerminal token snapshots
+even without `--write`; selection was therefore reproduced with Prisma
+read-only queries.
+
+The enrich-pending cohort has `359` GeckoTerminal `new_pools` pump rows, all
+`metadataStatus=mint_only`, score `C`, `hardRejected=false`,
+`notificationCount=0`, and `holderSnapshotCount=0`. Metric count distribution
+within that cohort is `0=289`, `1=70`. The `--sinceMinutes 360 --limit 50`
+selection would target ids `6087..6038`; all selected rows are still
+`mint_only`, score `C / 0`, `notificationCount=0`, `holderSnapshotCount=0`,
+and currently `metricsCount=1`.
+
+Next human-approved Red candidate, without `--notify`:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+metadata fetch, and Token update up to 50. Expected non-effects are Metric
+write, Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump.
+
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:
 

@@ -11,25 +11,42 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
-The post-6H Metric pending snapshot limit 50 Red has completed successfully.
-It selected ids `6067..6018`, wrote Metric ids `1666..1715`, and moved all 50
-rows from `metricsCount=0` to `metricsCount=1`. Result: `selected=50`,
-`written=50`, `skipped=0`, `error=0`, provider error `0`, 429 `0`, retry `0`,
-Notification capture `0`, `interItemDelayMs=15000`, and
-`interItemDelayCount=49`.
+The post-6H Metric acquisition lane has enough proof to move to Token context
+creation. Exact-mint Metric snapshots, `--onlyMetricPending`, post-6H limit 20,
+and post-6H limit 50 have all succeeded without 429/provider error,
+Notification capture, Token write, HolderSnapshot write, or Telegram send.
 
 Current state is Token / Metric / Notification / HolderSnapshot
 `1945 / 606 / 22 / 1`; Metric buckets `0=1479`, `1=379`, `2+=87`;
+metadata statuses `mint_only=1737`, `partial=195`, `enriched=13`;
 Notification statuses `captured=17`, `sent=5`, `failed=0`; retry candidate
-count and enabled auto-send allowed candidate count are both `0`. Queue still
-points to Metric follow-up: default 24h and rolling 168h have
-`metricPendingCount=289`, `enrichPendingCount=359`,
-`staleReviewCount=137`, and `notifyCandidateCount=0`.
+count and enabled auto-send allowed candidate count are both `0`.
 
-Recommended next step: **Green review of the limit 50 Metric pending result**
-before another Metric write Red. If the review remains clean, the following Red
-can continue the same bounded Metric lane with limit 50. Enrich/rescore remains
-pending behind the Metric backlog.
+Green preflight for post-6H enrich/rescore confirmed the 24h Gecko pump
+enrich-pending cohort is `359` rows, all `geckoterminal.new_pools`,
+`metadataStatus=mint_only`, score rank `C`, `hardRejected=false`,
+`notificationCount=0`, and `holderSnapshotCount=0`. Metric distribution inside
+that enrich backlog is `0=289`, `1=70`.
+
+Source inspection shows `token:enrich-rescore:geckoterminal` fetches live
+GeckoTerminal token snapshots even without `--write`, so no production dry-run
+preview was executed. Prisma read-only selection simulation for
+`--pumpOnly --limit 50 --sinceMinutes 360` selected ids `6087..6038`; all are
+`mint_only`, score `C / 0`, `hardRejected=false`, `notificationCount=0`,
+`holderSnapshotCount=0`, and currently `metricsCount=1`.
+
+Recommended next step: **Red bounded post-6H enrich/rescore, limit 50**. Do
+not attach `--notify`:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex metadata fetch, and Token update up to 50.
+Expected non-effects are Metric write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`, rawJson
+full dump `0`, and offensive raw text dump `0`.
 
 Operational safety note: `pnpm smoke` is not a Green / Yellow no-write
 verification command for this active DB. During the `ops:plan:bounded

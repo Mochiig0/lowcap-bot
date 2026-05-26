@@ -53,6 +53,14 @@ and `18` Notifications blocked as smoke/rehearsal rows. Do not use
 `pnpm smoke` as a Green / Yellow no-write verification command on the active
 DB.
 
+Post-6H enrich/rescore preflight, 2026-05-26: notification safety remains
+closed before moving from Metric proof to Token context creation. Notification
+statuses are `captured=17`, `sent=5`, `failed=0`; retry candidate count is
+`0`; enabled auto-send allowed candidate count is `0`; selected auto-send
+Notification is `null`. The next enrich/rescore Red candidate must not include
+`--notify`, must not send Telegram, and is expected to leave Notification
+create/update at `0`.
+
 ## Current DB State
 
 Read-only state:

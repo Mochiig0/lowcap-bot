@@ -16,6 +16,14 @@ id `6067` and id `6018` are readable and rawJson-free: both have
 samples in later windows. id `6067` has `entryAnchorQuality=delayed_180m`;
 id `6018` has `entryAnchorQuality=late_360m`.
 
+Metric acquisition confirmation is now sufficient for the post-6H cohort. The
+next bounded workflow step is Token enrich/rescore preflight and then a
+human-approved enrich Red, not more Metric proof. The proposed enrich command
+is `pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write`
+with no `--notify`; it should update Token context only and should not write
+Metric rows, create/update Notifications, write HolderSnapshot rows, or send
+Telegram.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:
