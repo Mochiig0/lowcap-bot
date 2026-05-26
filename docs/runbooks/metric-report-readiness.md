@@ -6,6 +6,16 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Latest report check, 2026-05-26: after the post-6H Metric pending snapshot
+limit 50 Red, selected ids `6067..6018` all have `metricsCount=1` and Metric
+ids `1666..1715`. Representative rawJson-free `metrics:report` checks for ids
+`6067`, `6042`, and `6018` each returned one Metric with price / FDV /
+reserve / top-pool present. Representative `metrics:window-report` checks for
+id `6067` and id `6018` are readable and rawJson-free: both have
+`metricCount=1`, `fdvMetricCount=1`, `outcomeLabel=no_data`, and thin FDV
+samples in later windows. id `6067` has `entryAnchorQuality=delayed_180m`;
+id `6018` has `entryAnchorQuality=late_360m`.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

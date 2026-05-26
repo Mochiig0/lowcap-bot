@@ -76,6 +76,17 @@ can write Token / Notification rows. For no-write planner or runbook work, use
 only with an explicitly isolated temp DB or a separately approved
 side-effecting verification.
 
+Latest bounded Metric follow-up, 2026-05-26: the human-approved post-6H
+Metric pending snapshot limit 50 Red ran once with `--onlyMetricPending` and
+`--noNotificationCapture`. It selected ids `6067..6018`, wrote Metric ids
+`1666..1715`, and returned `selected=50`, `written=50`, `skipped=0`,
+`error=0`, provider error `0`, 429 `0`, retry `0`, and Notification capture
+`0`. Counts moved only in Metric:
+`1945 / 556 / 22 / 1 -> 1945 / 606 / 22 / 1`. Metric buckets moved
+`0=1529, 1=329, 2+=87 -> 0=1479, 1=379, 2+=87`. Queue after still has
+`metricPendingCount=289`, `enrichPendingCount=359`, `staleReviewCount=137`,
+and `notifyCandidateCount=0` in both default 24h and rolling 168h views.
+
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:
 

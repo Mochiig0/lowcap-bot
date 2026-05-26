@@ -38,6 +38,18 @@ enrich/rescore, report review, notification planner review, and optional
 auto-send planner review. It emits command candidates only, with Metric and
 enrich post-run limits defaulting to `50`; it does not execute any command.
 
+Latest post-6H Metric pending update, 2026-05-26: bounded
+`metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
+`--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,
+`--interItemDelayMs 15000`, `--noNotificationCapture`, and `--write`. It
+selected ids `6067..6018`, wrote Metric ids `1666..1715`, and moved all 50
+rows from `metricsCount=0` to `metricsCount=1`. Result:
+`selected=50`, `written=50`, `skipped=0`, `error=0`,
+`interItemDelayCount=49`, provider error `0`, 429 `0`, retry `0`, and
+Notification capture `0`. Token write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, and rawJson full dump
+remained `0`.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

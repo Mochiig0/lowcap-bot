@@ -16,6 +16,16 @@ targeted tests, CLI `--help`, fetch-free `--onlyMetricPending` previews,
 `mvp:status`, `ops:plan:bounded`, `notification:auto-send:plan`,
 `notification:retry:plan`, and `review:queue:geckoterminal`.
 
+Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
+ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
+Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,
+`error=0`, `interItemDelayCount=49`, provider error `0`, 429 `0`, retry `0`,
+and Notification capture `0`. Counts moved only in Metric:
+`1945 / 556 / 22 / 1 -> 1945 / 606 / 22 / 1`; Metric buckets moved
+`0=1529, 1=329, 2+=87 -> 0=1479, 1=379, 2+=87`. Queue after still has
+`metricPendingCount=289`, so a Green review should decide whether to continue
+bounded limit 50 Metric writes or pause for enrich/report sequencing.
+
 ## Starting Point
 
 The bounded Metric accumulation limit 10 Red run completed with partial
