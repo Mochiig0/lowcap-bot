@@ -24,6 +24,15 @@ with no `--notify`; it should update Token context only and should not write
 Metric rows, create/update Notifications, write HolderSnapshot rows, or send
 Telegram.
 
+As of 2026-05-27, `ops:run:bounded` can plan the full bounded post-detect
+pipeline in one place. Its plan-only output includes a Metric pending snapshot
+phase and then an enrich/rescore phase, both using
+`computedSinceMinutes = hours * 60 + postRunBufferMinutes`. With the defaults,
+6h operation emits `--sinceMinutes 420` for those post-run phases. The runner
+still does not append Metrics or enrich Tokens unless a separate
+human-approved `--execute` run is used; production execute was not run during
+implementation.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

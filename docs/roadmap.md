@@ -9,6 +9,58 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
+Date: 2026-05-27
+
+Yellow implementation added a default-safe bounded pipeline runner:
+`pnpm -s ops:run:bounded`. The CLI treats the full 6H flow as one bounded
+pipeline:
+
+1. preflight
+2. detect write
+3. Metric pending snapshot
+4. enrich/rescore
+5. report review
+6. notification planner review
+
+Default behavior is plan-only: without `--execute`, it only reads DB/queue/
+notification state and emits command candidates. It does not fetch, write,
+send Telegram, update Notifications, run retry execution, use scheduler/systemd,
+or run `pnpm smoke`.
+
+The runner computes post-run windows as:
+
+```text
+computedSinceMinutes = hours * 60 + postRunBufferMinutes
+```
+
+With defaults, a 6h run uses `420` minutes for post-run Metric/enrich phases,
+so the pipeline is less exposed to rolling-window drift than manual split
+execution.
+
+Plan-only runtime check:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline.json
+```
+
+returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+`computedSinceMinutes=420`, `maxIterations=360`, all phases `planned`,
+`blockedBy=[]`, and `stopConditionCodes=[]`. The command candidates are:
+
+- detect write with `--watch --write --checkpointFile /tmp/...`
+- Metric pending snapshot with `--onlyMetricPending --noNotificationCapture`
+  and `--interItemDelayMs 15000`
+- enrich/rescore with `--interItemDelayMs 15000` and no `--notify`
+- read-only review queue and notification planner commands
+
+Recommended next step: **Green preflight for `ops:run:bounded --execute`**.
+Do not execute the runner until human approval fixes an exact checkpoint path
+and confirms the current failed/retry/auto-send planner state is still clear.
+Scheduler/systemd, auto live send, retry execution, notification send, and
+`pnpm smoke` remain locked.
+
+## Recent Operating Log
+
 Date: 2026-05-26
 
 Latest Red continued the paced enrich/rescore lane with the same limit 50
@@ -35,11 +87,6 @@ Queue after still shows older backlog outside the 6h planner window:
 default / 168h `metricPendingCount=289`, `enrichPendingCount=234`,
 `staleReviewCount=289`, `notifyCandidateCount=0`. `ops:plan:bounded
 --postRunPlan` remains unblocked but reports the requested 6h window as clear.
-
-Recommended next step: **Green review of the second paced limit 50 result**.
-Decide whether to continue another paced enrich batch or return to Metric
-pending backlog. Do not use scheduler/systemd, auto live send, retry
-execution, `pnpm smoke`, or `--notify`.
 
 The re-windowed paced enrich/rescore Red completed successfully. Exact command:
 

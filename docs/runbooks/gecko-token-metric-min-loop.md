@@ -26,6 +26,26 @@ It only reports the next recommended step and command candidates as strings. It
 does not run detect watch, metric snapshot writes, enrich/rescore writes,
 Notification send, retry execution, external fetch, scheduler, or systemd.
 
+For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
+first:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline.json
+```
+
+Without `--execute`, this is read-only and only emits the one-pass phase plan:
+detect write, Metric pending snapshot, enrich/rescore, report review, and
+notification planner review. The post-run Metric/enrich commands use
+`computedSinceMinutes = hours * 60 + postRunBufferMinutes`, which defaults to
+`420` for a 6h run with a 60m buffer. This keeps the minimum loop closer to
+actual operations and avoids relying on a stale 6h rolling window after manual
+handoff delays.
+
+Production execution still requires a separate human-approved `--execute`
+turn with a `/tmp` checkpoint path. The runner does not implement Telegram
+send, Notification send, retry execution, auto live send, scheduler, systemd,
+or `pnpm smoke`.
+
 To see the full post-run sequence after a bounded 6H detect write, include
 `--postRunPlan`:
 

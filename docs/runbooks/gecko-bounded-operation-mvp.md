@@ -52,6 +52,50 @@ them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate
 limit and keeps its previous default of `20`.
 
+## 6H Pipeline Runner
+
+`pnpm -s ops:run:bounded` is the default-safe bounded pipeline runner. It is
+not a scheduler, systemd unit, queue worker, retry engine, auto live sender, or
+Telegram sender.
+
+Default mode is plan-only:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline.json
+```
+
+Without `--execute`, it performs read-only preflight, prints the phase command
+candidates, and does not execute detect watch, Metric snapshot, enrich/rescore,
+report commands, notification planners, external fetches, DB writes,
+Notification updates, Telegram sends, scheduler/systemd actions, rawJson full
+dumps, offensive raw text dumps, or `pnpm smoke`.
+
+The runner phases are:
+
+1. `preflight`
+2. `detect_write`
+3. `metric_pending_snapshot`
+4. `enrich_rescore`
+5. `report_review`
+6. `notification_plan_review`
+
+`computedSinceMinutes` is `hours * 60 + postRunBufferMinutes`. Defaults are
+`hours=6` and `postRunBufferMinutes=60`, so the Metric/enrich post-run
+commands use `--sinceMinutes 420`. This buffer is intended to reduce the
+rolling-window drift that occurred when detect, Metric, and enrich were
+manually split across separate operator turns.
+
+`--execute` is required for production execution. With `--execute`,
+`--checkpointFile` is required and must be outside the repo. The write phases
+run in order: detect write, Metric pending snapshot, then enrich/rescore. If a
+write phase fails, later phases are skipped conservatively. The enrich command
+candidate omits `--notify`; notification send, retry execution, auto live
+send, scheduler, and systemd are not implemented by this runner.
+
+Plan-only verification on 2026-05-27 returned `readOnly=true`, `dryRun=true`,
+`executeRequested=false`, `computedSinceMinutes=420`, `maxIterations=360`,
+all phases `planned`, and no blockers. Production `--execute` was not run.
+
 Current runtime check after the 6H write rehearsal and first Metric follow-up:
 the workflow recommends `metric_pending_snapshot` first and emits:
 

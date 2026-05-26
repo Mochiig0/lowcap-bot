@@ -36,6 +36,15 @@ They do not send Telegram, do not update Notification rows, and do not unlock
 auto live send. Any live send or auto-send execution still requires a separate
 human-approved Red.
 
+`pnpm -s ops:run:bounded` now plans the same bounded pipeline as a default-safe
+runner. Without `--execute`, it is read-only and only emits candidates for
+detect write, Metric pending snapshot, enrich/rescore, report review, and
+notification planner review. Its notification phase contains only
+`notification:auto-send:plan`, the enabled auto-send planner, and
+`notification:retry:plan`; it does not execute notification send, retry
+execution, auto live send, Telegram live send, scheduler, or systemd. The
+enrich phase omits `--notify`.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

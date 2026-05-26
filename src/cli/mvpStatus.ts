@@ -22,6 +22,7 @@ const REQUIRED_COMMANDS = [
   "metric:snapshot:geckoterminal",
   "ops:summary:geckoterminal",
   "ops:plan:bounded",
+  "ops:run:bounded",
   "review:queue:geckoterminal",
 ] as const;
 

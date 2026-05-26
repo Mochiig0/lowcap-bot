@@ -4,6 +4,42 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow bounded pipeline runner implementation, 2026-05-27:
+
+- Added `pnpm -s ops:run:bounded`, a default-safe 6H bounded pipeline runner.
+  Without `--execute` it is read-only / plan-only and only emits phase command
+  candidates; it does not run detect watch, Metric snapshot, enrich/rescore,
+  report commands, notification planners, external fetches, DB writes,
+  Telegram sends, Notification updates, scheduler/systemd, or `pnpm smoke`.
+- The planned phase order is `preflight`, `detect_write`,
+  `metric_pending_snapshot`, `enrich_rescore`, `report_review`, and
+  `notification_plan_review`.
+- `computedSinceMinutes` is `hours * 60 + postRunBufferMinutes`; the default
+  6h + 60m buffer emits `420` minutes. This is meant to reduce rolling-window
+  drift between detect completion and post-run Metric/enrich phases.
+- `--execute` is required for any production execution. When execution is
+  requested, `--checkpointFile` is required and must be outside the repo.
+  Write phases run in order and later write phases are skipped after a prior
+  phase failure. Notification send, retry execution, auto live send,
+  scheduler, and systemd are not implemented.
+- Plan-only runtime check:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline.json`
+  returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`, all pipeline phases
+  planned, and no blockers. Command candidates include the bounded detect
+  write, Metric pending snapshot with `--onlyMetricPending
+  --noNotificationCapture`, enrich/rescore with `--interItemDelayMs 15000`
+  and no `--notify`, review queue checks, auto-send planners, and retry
+  planner.
+- Verification stayed non-production: `pnpm exec tsc --noEmit`,
+  `node --import tsx --test tests/opsRunBounded.test.ts`,
+  `tests/opsPlanBounded.test.ts`, `tests/indexHelpHub.test.ts`, CLI help,
+  read-only runner plan, `ops:plan:bounded --postRunPlan`,
+  `notification:auto-send:plan`, enabled auto-send plan, and
+  `notification:retry:plan`. Production `ops:run:bounded --execute`,
+  detect watch/write, Metric write, Token enrich/rescore write, notification
+  send, retry execution, scheduler/systemd, and `pnpm smoke` were not run.
+
 Yellow enrich/rescore pacing implementation, 2026-05-26:
 
 - `token:enrich-rescore:geckoterminal` now supports opt-in
