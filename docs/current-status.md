@@ -48,6 +48,50 @@ Post-6H Metric pending snapshot limit 50 Red, 2026-05-26 16:10-16:23 JST:
   Telegram send `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson
   full dump `0`, and offensive raw text dump `0`.
 
+Post-6H enrich/rescore 429 boundary Green review, 2026-05-26 17:22 JST:
+
+- This pass was read-only / docs-only. It did not run
+  `token:enrich-rescore:geckoterminal --write`, Metric snapshot write, detect
+  watch/write, Notification send, retry execution, auto-send execution,
+  scheduler/systemd, `pnpm smoke`, schema/migration, app code changes,
+  rawJson full dump, or offensive raw text dump.
+- Current DB state is unchanged after the prior partial Red:
+  Token / Metric / Notification / HolderSnapshot `1945 / 606 / 22 / 1`;
+  Metric buckets `0=1479`, `1=379`, `2+=87`; metadata statuses
+  `mint_only=1732`, `partial=200`, `enriched=13`; Notification statuses
+  `captured=17`, `sent=5`, `failed=0`.
+- Safety planners remain closed: retry candidate count `0`, enabled
+  auto-send allowed candidate count `0`, and selected auto-send Notification
+  `null`.
+- Read-only selected-range check for ids `6087..6038` confirmed the partial
+  result: ids `6087..6083` are `partial`; ids `6082..6038` remain
+  `mint_only`. All 50 have `metricsCount=1`, `notificationCount=0`,
+  `holderSnapshotCount=0`, score `C / 0`, and `hardRejected=false`.
+- The updated five have name / symbol / normalized text present,
+  `enrichedAt` / `rescoredAt` set, and safe reviewFlags keys
+  `descriptionPresent`, `hasTelegram`, `hasWebsite`, `hasX`, `linkCount`, and
+  `metaplexHit`. The 45 not-updated rows have no normalized text, no
+  enrichment timestamps, and no reviewFlags. id `6082` is the 429 boundary row.
+- Queue state remains open but safe: default and rolling 168h both show
+  `metricPendingCount=289`, `enrichPendingCount=354`,
+  `staleReviewCount=196`, and `notifyCandidateCount=0`. The requested 6h
+  planner window has `metricPendingCount=93`, `enrichPendingCount=158`,
+  `staleReviewCount=0`, and `notifyCandidateCount=0`.
+- Source/help inspection confirmed `token:enrich-rescore:geckoterminal`
+  currently supports `--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`,
+  `--write`, and `--notify`; it has no `--interItemDelayMs` or equivalent
+  pacing option. The batch loop processes selected tokens sequentially and
+  stops on HTTP 429 with `rateLimited=true`,
+  `abortedDueToRateLimit=true`, and `skippedAfterRateLimit`.
+- Decision: do not issue another Red command from this Green. The 429 happened
+  at the sixth selected item after five fast successes, so the problem is a
+  rate-limit / pacing boundary rather than selection ambiguity.
+- Next task should be Yellow: add an opt-in pacing option to
+  `token:enrich-rescore:geckoterminal`, likely `--interItemDelayMs <ms>`, with
+  default behavior unchanged, batch-mode delay between selected items, HTTP
+  429 stop semantics preserved, tests, docs, and no production write/fetch in
+  the implementation turn.
+
 Post-6H enrich/rescore limit 50 Red, 2026-05-26 17:09 JST:
 
 - Human-approved exact command executed once:

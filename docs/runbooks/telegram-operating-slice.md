@@ -71,6 +71,14 @@ auto-send allowed candidate count `0`. Do not proceed to Notification send or
 auto-send from this result; the next step is a Green rate-limit review of the
 Token enrich lane.
 
+The Green rate-limit review kept the Telegram boundary closed. Failed
+Notification count, retry candidate count, and enabled auto-send allowed
+candidate count are all `0`; selected auto-send Notification remains `null`.
+The next task is not Notification send or auto-send. It is a Yellow
+enrich/rescore pacing implementation so Token context fetches can proceed
+without immediately re-triggering 429. Any future enrich Red must still omit
+`--notify` unless a separate notification preflight explicitly approves it.
+
 ## Current DB State
 
 Read-only state:

@@ -11,6 +11,25 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Green review of the partial enrich/rescore Red is complete. Read-only checks
+confirmed ids `6087..6083` are now `partial`, while ids `6082..6038` remain
+`mint_only`; all selected rows still have `metricsCount=1`,
+`notificationCount=0`, `holderSnapshotCount=0`, score `C / 0`, and
+`hardRejected=false`. No retry or second command has been run.
+
+`token:enrich-rescore:geckoterminal --help` and source inspection show no
+current `--interItemDelayMs` or equivalent pacing option. The batch loop is
+sequential and stops on HTTP 429 with `rateLimited=true`,
+`abortedDueToRateLimit=true`, and `skippedAfterRateLimit` set. Because the
+previous limit 50 Red succeeded for five fast items and then hit 429 on the
+sixth, the next slice should be implementation, not another immediate Red.
+
+Recommended next step: **Yellow: add pacing option to token enrich/rescore
+geckoterminal**. Scope should be an opt-in batch-mode option such as
+`--interItemDelayMs <ms>`, default behavior unchanged, delay between selected
+items, existing 429 stop behavior preserved, targeted tests, and docs update.
+The Yellow turn must not run production enrich writes or external fetches.
+
 The human-approved post-6H enrich/rescore limit 50 Red ran once and partially
 completed before a provider 429 stopped the batch. Exact command:
 

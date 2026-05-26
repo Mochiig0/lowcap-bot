@@ -136,6 +136,27 @@ Next step should be a Green review of the 429/rate-limit boundary before any
 second enrich Red. Avoid repeating the same limit 50 enrich command without a
 fresh preflight or smaller bounded plan.
 
+That Green review confirmed the boundary. The current CLI has no
+`--interItemDelayMs` or equivalent pacing option; supported arguments are
+`--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`, `--write`, and
+`--notify`. The implementation processes selected tokens sequentially and
+already stops on HTTP 429, preserving `rateLimited`,
+`abortedDueToRateLimit`, and `skippedAfterRateLimit` summary fields.
+
+Do not resume the post-6H enrich lane with another Red until pacing is added or
+a smaller bounded command is separately preflighted after cooldown. Preferred
+next engineering step is Yellow implementation of an opt-in batch pacing flag,
+mirroring the Metric snapshot lane:
+
+```bash
+--interItemDelayMs <ms>
+```
+
+Default behavior should remain unchanged. The option should delay between
+selected enrich items, preserve 429 stop behavior, avoid `--notify` by
+default, add tests, and update this runbook. The Yellow implementation must
+not run production `token:enrich-rescore --write` or external fetches.
+
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:
 

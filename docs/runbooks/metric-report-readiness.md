@@ -35,6 +35,14 @@ Notification count, HolderSnapshot count, and Telegram send all stayed
 unchanged. The next report-related task should be a Green review of this
 partial enrich result and its 429 boundary before another enrich Red.
 
+The Green 429 boundary review confirmed this is not a report/window data
+problem. The selected rows all remain reportable through their existing Metric
+rows, and the failed enrich batch did not write Metrics. The issue is the
+Token-context fetch cadence: `token:enrich-rescore:geckoterminal` has no
+inter-item delay option today. Next work should add opt-in pacing to the
+enrich/rescore CLI before another large enrich Red, while keeping report CLIs
+read-only and rawJson-free.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

@@ -87,6 +87,14 @@ stayed `0`. Do not immediately repeat the same enrich command; run a Green
 rate-limit review before deciding whether to use a smaller enrich batch or add
 guard/backoff behavior.
 
+The follow-up Green rate-limit review found no existing pacing flag on
+`token:enrich-rescore:geckoterminal`. Batch processing is sequential and stops
+on HTTP 429, but it currently has no delay between selected items. For the
+manual minimum loop, the next enrich/rescore improvement should be an opt-in
+`--interItemDelayMs <ms>` style option before continuing larger post-6H enrich
+batches. Until that exists, any small restart Red should require a fresh
+cooldown/preflight and must remain `--notify`-free.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,
