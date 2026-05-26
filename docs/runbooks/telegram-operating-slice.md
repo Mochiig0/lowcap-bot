@@ -61,6 +61,16 @@ Notification is `null`. The next enrich/rescore Red candidate must not include
 `--notify`, must not send Telegram, and is expected to leave Notification
 create/update at `0`.
 
+That enrich/rescore Red later ran once without `--notify` and without
+`--live`. It partially updated five Token rows before HTTP 429 stopped the
+batch: `selected=50`, `enriched=5`, `rescored=5`, `error=1`,
+`rateLimited=true`, and `skippedAfterRateLimit=44`. Notification and Telegram
+boundaries held: `notifyWouldSend=0`, `notifySent=0`, Notification
+create/update `0`, Telegram send `0`, retry execution `0`, and enabled
+auto-send allowed candidate count `0`. Do not proceed to Notification send or
+auto-send from this result; the next step is a Green rate-limit review of the
+Token enrich lane.
+
 ## Current DB State
 
 Read-only state:

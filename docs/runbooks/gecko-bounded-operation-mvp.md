@@ -113,6 +113,29 @@ metadata fetch, and Token update up to 50. Expected non-effects are Metric
 write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, rawJson full dump, and offensive raw text dump.
 
+That Red later ran once. It did not use `--notify` or `--live`. The batch was
+not a full success: it selected `50` rows but updated only the first `5` before
+the provider returned HTTP 429 and the command aborted. Summary:
+`enriched=5`, `rescored=5`, `contextWritten=5`, `error=1`,
+`rateLimited=true`, `abortedDueToRateLimit=true`, and
+`skippedAfterRateLimit=44`. Ids `6087..6083` moved `mint_only -> partial`; id
+`6082` hit the 429; ids `6081..6038` stayed `mint_only`.
+
+The side-effect boundary held. Token row updates occurred for the five
+successful rows, while Token count, Metric count, Notification count, and
+HolderSnapshot count stayed `1945 / 606 / 22 / 1`. Metadata statuses moved
+`mint_only=1737`, `partial=195`, `enriched=13` to `mint_only=1732`,
+`partial=200`, `enriched=13`. `notifyWouldSend=0`, `notifySent=0`,
+Notification create/update `0`, Telegram send `0`, Metric write `0`, and
+HolderSnapshot write `0`.
+
+After the partial enrich batch, both default and rolling 168h queues still show
+`metricPendingCount=289`, `enrichPendingCount=354`, `staleReviewCount=183`,
+and `notifyCandidateCount=0`; retry and auto-send candidates remain `0`.
+Next step should be a Green review of the 429/rate-limit boundary before any
+second enrich Red. Avoid repeating the same limit 50 enrich command without a
+fresh preflight or smaller bounded plan.
+
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:
 

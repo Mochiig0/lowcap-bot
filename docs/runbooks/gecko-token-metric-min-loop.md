@@ -70,6 +70,23 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, rawJson full dump, and offensive raw text dump should stay
 at `0`.
 
+The approved post-6H enrich/rescore Red later ran once with that exact command.
+It selected ids `6087..6038`, but this was a partial result because HTTP 429
+stopped the batch after five Token updates. Result summary:
+`selected=50`, `enriched=5`, `rescored=5`, `contextWritten=5`, `error=1`,
+`rateLimited=true`, `abortedDueToRateLimit=true`, and
+`skippedAfterRateLimit=44`. Ids `6087..6083` moved `mint_only -> partial`;
+ids `6082..6038` remain `mint_only`.
+
+The command preserved the non-effects expected for this loop stage:
+Metric write `0`, Notification create/update `0`, HolderSnapshot write `0`,
+Telegram send `0`, retry execution `0`, scheduler/systemd `0`, rawJson full
+dump `0`, and offensive raw text dump `0`. Notification statuses stayed
+`captured=17`, `sent=5`, `failed=0`; retry and enabled auto-send candidates
+stayed `0`. Do not immediately repeat the same enrich command; run a Green
+rate-limit review before deciding whether to use a smaller enrich batch or add
+guard/backoff behavior.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

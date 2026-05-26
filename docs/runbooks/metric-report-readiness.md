@@ -24,6 +24,17 @@ with no `--notify`; it should update Token context only and should not write
 Metric rows, create/update Notifications, write HolderSnapshot rows, or send
 Telegram.
 
+That enrich Red later ran once and produced a partial result. It selected ids
+`6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
+HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:
+`selected=50`, `enriched=5`, `rescored=5`, `contextWritten=5`, `error=1`,
+`rateLimited=true`, `abortedDueToRateLimit=true`, and
+`skippedAfterRateLimit=44`. Because this was a Token context update lane, no
+new report/window Metric rows were expected or written. Metric count,
+Notification count, HolderSnapshot count, and Telegram send all stayed
+unchanged. The next report-related task should be a Green review of this
+partial enrich result and its 429 boundary before another enrich Red.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

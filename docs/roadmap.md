@@ -11,6 +11,34 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The human-approved post-6H enrich/rescore limit 50 Red ran once and partially
+completed before a provider 429 stopped the batch. Exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write
+```
+
+Result: `selected=50`, `enriched=5`, `rescored=5`, `contextWritten=5`,
+`error=1`, `rateLimited=true`, `abortedDueToRateLimit=true`, and
+`skippedAfterRateLimit=44`. Ids `6087..6083` moved from `mint_only` to
+`partial`; id `6082` hit HTTP 429; ids `6081..6038` were not updated. Counts
+stayed Token / Metric / Notification / HolderSnapshot `1945 / 606 / 22 / 1`;
+metadata statuses moved `mint_only=1737`, `partial=195`, `enriched=13` to
+`mint_only=1732`, `partial=200`, `enriched=13`.
+
+Notification and Telegram boundaries held: `notifyWouldSend=0`,
+`notifySent=0`, Notification create/update `0`, Telegram send `0`, Metric
+write `0`, and HolderSnapshot write `0`. Notification statuses remain
+`captured=17`, `sent=5`, `failed=0`; retry candidate count and enabled
+auto-send allowed candidate count remain `0`.
+
+Recommended next step: **Green review of the partial enrich/rescore result and
+rate-limit boundary**. Do not immediately repeat the same limit 50 enrich Red.
+The next Green should decide whether to use a smaller enrich batch, add or
+document a rate-limit/backoff guard for this lane, or return to Metric pending
+first. Scheduler, systemd, always-on auto-send, Notification send, and retry
+execution remain locked.
+
 The post-6H Metric acquisition lane has enough proof to move to Token context
 creation. Exact-mint Metric snapshots, `--onlyMetricPending`, post-6H limit 20,
 and post-6H limit 50 have all succeeded without 429/provider error,

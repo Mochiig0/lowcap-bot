@@ -48,6 +48,55 @@ Post-6H Metric pending snapshot limit 50 Red, 2026-05-26 16:10-16:23 JST:
   Telegram send `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson
   full dump `0`, and offensive raw text dump `0`.
 
+Post-6H enrich/rescore limit 50 Red, 2026-05-26 17:09 JST:
+
+- Human-approved exact command executed once:
+  `pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --write`.
+  No retry, no second command, no `--notify`, and no `--live` were used.
+- Result was partial due to provider rate limit: `selected=50`, `enriched=5`,
+  `rescored=5`, `contextWritten=5`, `error=1`, `rateLimited=true`,
+  `rateLimitedCount=1`, `abortedDueToRateLimit=true`, and
+  `skippedAfterRateLimit=44`. The error row was id `6082` with HTTP 429.
+- Metaplex was attempted for the five successfully enriched rows, with
+  `metaplexAttempted=5`, `metaplexAvailable=0`, and
+  `metadata_account_missing=5`.
+- `notifyWouldSend=0` and `notifySent=0`. Notification / Telegram behavior did
+  not activate.
+- Counts stayed stable: Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1 -> 1945 / 606 / 22 / 1`. This was Token row update
+  only; Metric write `0`, Notification create/update `0`, HolderSnapshot write
+  `0`, and Telegram send `0`.
+- Metadata status moved as expected for the five successful rows:
+  `mint_only=1737`, `partial=195`, `enriched=13` to
+  `mint_only=1732`, `partial=200`, `enriched=13`.
+- Selected ids were `6087..6038`. Only ids `6087..6083` moved
+  `mint_only -> partial`; ids `6082..6038` remain `mint_only` because the
+  batch aborted at the 429. All 50 selected rows still have `metricsCount=1`,
+  `notificationCount=0`, and `holderSnapshotCount=0`.
+- The five updated rows have name / symbol / normalized text present,
+  `enrichedAt` / `rescoredAt` set between `2026-05-26T08:09:33.640Z` and
+  `2026-05-26T08:09:35.525Z`, score `C / 0`, `hardRejected=false`, and safe
+  reviewFlags keys only. Descriptions remain absent.
+- Queue after: default and rolling 168h both have `metricPendingCount=289`,
+  `enrichPendingCount=354`, `staleReviewCount=183`, and
+  `notifyCandidateCount=0`. The requested 6h planner window has
+  `metricPendingCount=106`, `enrichPendingCount=171`, `staleReviewCount=0`,
+  and `notifyCandidateCount=0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` remains unblocked:
+  `nextRecommendedStep=metric_pending_snapshot`,
+  `postRunPlan.recommendedFirstStep=metric_pending_snapshot`, `blockedBy=[]`,
+  and `stopConditionCodes=[]`.
+- Notification statuses stayed `captured=17`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`;
+  selected auto-send Notification remains `null`.
+- Raw provider JSON was not dumped. Raw token names/symbols from the command
+  output are intentionally not repeated in docs; only safe/redacted summaries
+  are recorded.
+- Next useful step should be Green: review this partial enrich result and
+  decide whether to retry enrich with a smaller bounded limit, add/backfill a
+  rate-limit guard/backoff, or return to Metric pending first. Do not run an
+  immediate second enrich Red without fresh preflight.
+
 Post-6H enrich/rescore preflight, 2026-05-26 16:48 JST:
 
 - This Green pass was read-only / docs-only. It did not run
