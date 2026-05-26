@@ -33,6 +33,14 @@ still does not append Metrics or enrich Tokens unless a separate
 human-approved `--execute` run is used; production execute was not run during
 implementation.
 
+The 2026-05-27 execute preflight kept report/review bounded and read-only.
+The candidate runner command will execute Metric pending snapshot before
+enrich/rescore, then run review queue and notification planner checks as
+read-only phases. Report phases must remain rawJson-free. Expected Metric
+write is at most 50 from the Metric phase; expected Notification create/update,
+Telegram send, HolderSnapshot write, retry execution, auto live send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump are all `0`.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

@@ -46,6 +46,20 @@ turn with a `/tmp` checkpoint path. The runner does not implement Telegram
 send, Notification send, retry execution, auto live send, scheduler, systemd,
 or `pnpm smoke`.
 
+The 2026-05-27 execute preflight selected
+`/tmp/lowcap-bot-6h-pipeline-20260527.json` as the checkpoint path. The path
+is repo-outside, `/tmp` exists, and the file is absent, so no overwrite
+question is pending. The next Red may use:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json --metricLimit 50 --enrichLimit 50 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This executes the minimum loop as a bounded pipeline: detect write, Metric
+pending snapshot, enrich/rescore, report review, then notification planner
+review. It still does not include Telegram send, Notification send, retry
+execution, auto live send, scheduler, systemd, or `pnpm smoke`.
+
 To see the full post-run sequence after a bounded 6H detect write, include
 `--postRunPlan`:
 

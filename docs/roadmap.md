@@ -11,6 +11,36 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
+Green preflight for the default-safe bounded pipeline runner execute path is
+complete. Current DB state is Token / Metric / Notification / HolderSnapshot
+`1945 / 606 / 22 / 1`, metadata statuses `mint_only=1612`,
+`partial=320`, `enriched=13`, Metric buckets `0=1479`, `1=379`, `2+=87`, and
+Notification statuses `captured=17`, `sent=5`, `failed=0`. Retry candidate
+count and enabled auto-send allowed candidate count are both `0`.
+
+`pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json`
+returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+`computedSinceMinutes=420`, `maxIterations=360`, all phases planned,
+`blockedBy=[]`, and `stopConditionCodes=[]`. The checkpoint path is repo
+outside, parent `/tmp` exists, and the file does not exist yet.
+
+Recommended next step: **Red bounded pipeline runner execute**. Exact command:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json --metricLimit 50 --enrichLimit 50 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, bounded detect watch up to 6h, production DB Token create/reuse,
+checkpoint write, Metric snapshot up to 50, token enrich/rescore up to 50,
+best-effort Metaplex fetch, and read-only report/notification planner checks.
+Expected non-effects are Notification create/update, Telegram send,
+HolderSnapshot write, retry execution, auto live send execution,
+scheduler/systemd, repo-local data diff, rawJson full dump, offensive raw text
+dump, and `pnpm smoke`.
+
+## Recent Operating Log
+
 Yellow implementation added a default-safe bounded pipeline runner:
 `pnpm -s ops:run:bounded`. The CLI treats the full 6H flow as one bounded
 pipeline:
@@ -52,14 +82,6 @@ returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
   and `--interItemDelayMs 15000`
 - enrich/rescore with `--interItemDelayMs 15000` and no `--notify`
 - read-only review queue and notification planner commands
-
-Recommended next step: **Green preflight for `ops:run:bounded --execute`**.
-Do not execute the runner until human approval fixes an exact checkpoint path
-and confirms the current failed/retry/auto-send planner state is still clear.
-Scheduler/systemd, auto live send, retry execution, notification send, and
-`pnpm smoke` remain locked.
-
-## Recent Operating Log
 
 Date: 2026-05-26
 

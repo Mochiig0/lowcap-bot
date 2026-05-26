@@ -40,6 +40,53 @@ Yellow bounded pipeline runner implementation, 2026-05-27:
   detect watch/write, Metric write, Token enrich/rescore write, notification
   send, retry execution, scheduler/systemd, and `pnpm smoke` were not run.
 
+Green bounded pipeline execute preflight, 2026-05-27:
+
+- This pass stayed read-only / docs-only. It did not run
+  `ops:run:bounded --execute`, detect watch/write, Metric snapshot write,
+  token enrich/rescore write, notification send, retry execution, auto live
+  send, scheduler/systemd, `pnpm smoke`, schema/migration, app code change,
+  rawJson full dump, or offensive raw text dump.
+- Current DB state: Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1`; metadata statuses `mint_only=1612`,
+  `partial=320`, `enriched=13`; Metric buckets `0=1479`, `1=379`,
+  `2+=87`; Notification statuses `captured=17`, `sent=5`, `failed=0`.
+- Safety planners are clear: failed Notification count `0`, retry candidate
+  count `0`, enabled auto-send allowed candidate count `0`, selected
+  auto-send Notification `null`.
+- `ops:run:bounded` plan-only with checkpoint
+  `/tmp/lowcap-bot-6h-pipeline-20260527.json` returned `readOnly=true`,
+  `dryRun=true`, `executeRequested=false`, `computedSinceMinutes=420`,
+  `maxIterations=360`, all phases planned, `blockedBy=[]`, and
+  `stopConditionCodes=[]`.
+- Planned phase candidates are detect write with checkpoint, Metric pending
+  snapshot with `--onlyMetricPending --noNotificationCapture
+  --interItemDelayMs 15000`, enrich/rescore with `--interItemDelayMs 15000`
+  and no `--notify`, review queue default/168h, auto-send planners, and retry
+  planner.
+- Queue context still has older backlog outside the requested 6h window:
+  default and rolling 168h both show `metricPendingCount=289`,
+  `enrichPendingCount=234`, `staleReviewCount=289`, and
+  `notifyCandidateCount=0`. `ops:plan:bounded --postRunPlan` remains
+  unblocked but reports the requested 6h window clear.
+- Checkpoint path review: `/tmp/lowcap-bot-6h-pipeline-20260527.json` is
+  outside the repo, parent `/tmp` exists, and the file does not currently
+  exist.
+- Next human-approved Red exact command:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json --metricLimit 50 --enrichLimit 50 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Expected side effects are external GeckoTerminal fetch, bounded detect watch
+up to 6h, production DB Token create/reuse, checkpoint write, Metric snapshot
+up to 50, token enrich/rescore up to 50, best-effort Metaplex fetch, and
+read-only report/notification planner checks. Expected non-effects are
+Notification create/update `0`, Telegram send `0`, HolderSnapshot write `0`,
+retry execution `0`, auto live send execution `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, offensive raw text dump `0`,
+and `pnpm smoke` `0`.
+
 Yellow enrich/rescore pacing implementation, 2026-05-26:
 
 - `token:enrich-rescore:geckoterminal` now supports opt-in

@@ -45,6 +45,14 @@ notification planner review. Its notification phase contains only
 execution, auto live send, Telegram live send, scheduler, or systemd. The
 enrich phase omits `--notify`.
 
+The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
+planner remains allowed `0`, selected Notification `null`; retry planner
+candidate count remains `0`; Notification statuses remain `captured=17`,
+`sent=5`, `failed=0`. The next pipeline Red candidate uses
+`ops:run:bounded --execute`, but its notification phase is planner-only.
+Expected Telegram send, Notification create/update, retry execution, and auto
+live send execution remain `0`.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

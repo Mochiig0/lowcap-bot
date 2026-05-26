@@ -96,6 +96,28 @@ Plan-only verification on 2026-05-27 returned `readOnly=true`, `dryRun=true`,
 `executeRequested=false`, `computedSinceMinutes=420`, `maxIterations=360`,
 all phases `planned`, and no blockers. Production `--execute` was not run.
 
+Execute preflight on 2026-05-27 stayed read-only / docs-only and fixed the
+next human-approved Red command. Current safety state is failed Notification
+`0`, retry candidate `0`, enabled auto-send allowed candidate `0`,
+`blockedBy=[]`, and `stopConditionCodes=[]`. The chosen checkpoint path is
+`/tmp/lowcap-bot-6h-pipeline-20260527.json`; it is outside the repo, `/tmp`
+exists, and the file does not already exist.
+
+Next exact Red candidate:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json --metricLimit 50 --enrichLimit 50 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Expected side effects are external GeckoTerminal fetch, bounded detect watch
+up to 6h, production DB Token create/reuse, checkpoint write, Metric snapshot
+up to 50, token enrich/rescore up to 50, best-effort Metaplex fetch, and
+read-only report/notification planner checks. Expected non-effects are
+Notification create/update `0`, Telegram send `0`, HolderSnapshot write `0`,
+retry execution `0`, auto live send execution `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, offensive raw text dump `0`,
+and `pnpm smoke` `0`.
+
 Current runtime check after the 6H write rehearsal and first Metric follow-up:
 the workflow recommends `metric_pending_snapshot` first and emits:
 
