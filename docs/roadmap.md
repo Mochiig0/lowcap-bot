@@ -11,6 +11,33 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The re-windowed paced enrich/rescore Red completed successfully. Exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Result: `selected=20`, `enriched=20`, `rescored=20`, `contextWritten=20`,
+`error=0`, `metaplexAttempted=20`, `metaplexAvailable=0`,
+`notifyWouldSend=0`, `notifySent=0`, `interItemDelayMs=15000`,
+`interItemDelayCount=19`, provider error `0`, 429 `0`, and retry `0`.
+Ids `6082..6063` moved `mint_only -> partial`; all have
+`metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1945 / 606 / 22 / 1`; metadata statuses moved `mint_only=1732`,
+`partial=200`, `enriched=13` to `mint_only=1712`, `partial=220`,
+`enriched=13`. Metric write, Notification create/update, HolderSnapshot write,
+Telegram send, scheduler/systemd, rawJson full dump, and offensive raw text
+dump stayed `0`.
+
+Next recommended Green: review whether the next enrich/rescore slice should
+continue with `--sinceMinutes 720 --interItemDelayMs 15000` and a bounded
+limit 20/50, or whether Metric pending backlog should be reduced first.
+Because the requested 6h planner window is now clear while default / 168h
+windows still have older backlog, do not rely on `--hours 6` alone for
+post-run follow-up after time has passed.
+
 Green re-window preflight found that the previous paced enrich Red candidate
 with `--sinceMinutes 360` had aged out before execution. The intended restart
 slice ids `6082..6063` remains unchanged and still has

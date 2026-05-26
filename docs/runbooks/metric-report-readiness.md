@@ -69,6 +69,13 @@ desired first 20 selection. The updated enrich Red candidate is:
 This remains a Token-context lane; report/window Metric rows are not expected
 to change.
 
+That re-windowed Token-context Red completed successfully. It did not append
+Metrics, so report/window Metric rows are unchanged. Selected ids `6082..6063`
+all moved to `partial`, still with `metricsCount=1`, `notificationCount=0`,
+and `holderSnapshotCount=0`. No rawJson dump was needed; representative report
+review for this step used Prisma safe summary rather than printing raw token
+text.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

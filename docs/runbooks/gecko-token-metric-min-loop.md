@@ -139,6 +139,22 @@ Do not add `--notify`. Expected writes remain Token updates only; Metric
 write, Notification create/update, HolderSnapshot write, Telegram send, and
 rawJson full dump should stay at `0`.
 
+That re-windowed paced Red later succeeded. It selected ids `6082..6063`,
+updated all 20 from `mint_only` to `partial`, and returned `selected=20`,
+`enriched=20`, `rescored=20`, `contextWritten=20`, `error=0`,
+`metaplexAttempted=20`, `metaplexAvailable=0`, `notifyWouldSend=0`,
+`notifySent=0`, `interItemDelayMs=15000`, `interItemDelayCount=19`, provider
+error `0`, 429 `0`, and retry `0`. Counts stayed
+`1945 / 606 / 22 / 1`, while metadata statuses moved `mint_only=1732`,
+`partial=200`, `enriched=13` to `mint_only=1712`, `partial=220`,
+`enriched=13`.
+
+The selected rows now have name / symbol / normalized text and
+enriched/rescored timestamps. They remain `metricsCount=1`,
+`notificationCount=0`, `holderSnapshotCount=0`, and `hardRejected=false`.
+Metric write, Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump stayed `0`.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

@@ -35,6 +35,53 @@ Yellow enrich/rescore pacing implementation, 2026-05-26:
   and Token update up to 20; expected non-effects are Metric write,
   Notification create/update, HolderSnapshot write, and Telegram send.
 
+Re-windowed paced enrich/rescore Red, 2026-05-26:
+
+- Human-approved exact command executed once:
+  `pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write`.
+  No retry, no second command, no `--notify`, no `--live`, and no smoke run.
+- Result: `selected=20`, `enriched=20`, `rescored=20`, `skipped=0`,
+  `error=0`, `contextWritten=20`, `metaplexAttempted=20`,
+  `metaplexAvailable=0`, `notifyWouldSend=0`, `notifySent=0`,
+  `interItemDelayMs=15000`, `interItemDelayCount=19`,
+  provider error `0`, 429 `0`, retry `0`.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1`. This was Token row update only; Metric write `0`,
+  Notification create/update `0`, HolderSnapshot write `0`, and Telegram send
+  `0`.
+- Metadata statuses moved `mint_only=1732`, `partial=200`, `enriched=13` to
+  `mint_only=1712`, `partial=220`, `enriched=13`.
+- Selected ids `6082..6063` all moved `mint_only -> partial`. Safe mint
+  summary: first `3bgL3m...pump`, `8mLjXQ...pump`, `2Dbg4h...pump`; last
+  `F39Ta9...pump`, `8jHWBQ...pump`, `7kKFwZ...pump`. All selected rows now
+  have name / symbol / normalized text present, `enrichedAt` and `rescoredAt`
+  set, `metricsCount=1`, `notificationCount=0`, and
+  `holderSnapshotCount=0`; descriptions remain absent.
+- Score distribution within the selected 20 is `C/0` for 19 rows and `B/2`
+  for 1 row; all remain `hardRejected=false`. Safe reviewFlags keys are
+  `descriptionPresent`, `hasTelegram`, `hasWebsite`, `hasX`, `linkCount`, and
+  `metaplexHit`.
+- Metaplex returned no available secondary metadata for this batch:
+  `metadata_account_missing=20`.
+- Queue after: default 24h and rolling 168h both show
+  `metricPendingCount=289`, `enrichPendingCount=334`,
+  `staleReviewCount=334`, and `notifyCandidateCount=0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` remains unblocked:
+  `blockedBy=[]`, `stopConditionCodes=[]`. The requested 6h rolling window is
+  clear, so it reports `nextRecommendedStep=detect_watch_dry_run` and
+  `postRunPlan.recommendedFirstStep=no_action_queue_clear`; the broader
+  default / 168h windows still show older Metric and enrich backlog.
+- Notification statuses remain `captured=17`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`; selected
+  auto-send Notification remains `null`.
+- Docs and final reports intentionally keep only safe/redacted summaries. No
+  rawJson full dump, offensive raw text dump, secrets, schema/migration change,
+  app code change, scheduler/systemd action, or repo-local runtime data diff
+  occurred.
+- Operational note retained: post-run Red commands using a rolling window can
+  age out between preflight and execution. Recalculate `sinceMinutes` before a
+  delayed post-run command.
+
 Paced enrich/rescore re-window preflight, 2026-05-26:
 
 - The previously approved paced Red was not executed. A final read-only

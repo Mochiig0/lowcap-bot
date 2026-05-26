@@ -73,6 +73,30 @@ now include `--interItemDelayMs 15000` so the post-run workflow does not repeat
 the unpaced limit 50 enrich command that hit HTTP 429 after five Token
 updates.
 
+Re-windowed paced enrich restart result, 2026-05-26: the human-approved Red
+ran exactly once with the recalculated 720-minute window:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+It completed without the previous 429: `selected=20`, `enriched=20`,
+`rescored=20`, `skipped=0`, `error=0`, `contextWritten=20`,
+`metaplexAttempted=20`, `metaplexAvailable=0`, `notifyWouldSend=0`,
+`notifySent=0`, `interItemDelayMs=15000`, `interItemDelayCount=19`,
+provider error `0`, 429 `0`, and retry `0`. Ids `6082..6063` moved
+`mint_only -> partial`. Token count did not change, but those 20 Token rows
+were updated with name / symbol / normalized text, enrichment timestamps, and
+safe reviewFlags.
+
+The side-effect boundary held: Metric write `0`, Notification create/update
+`0`, HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+rawJson full dump `0`, and offensive raw text dump `0`. Queue after still has
+older backlog in the broader windows: default and rolling 168h both show
+`metricPendingCount=289`, `enrichPendingCount=334`, `staleReviewCount=334`,
+and `notifyCandidateCount=0`. The requested 6h post-run window is clear, so
+the planner reports `no_action_queue_clear` for that narrow window.
+
 Paced enrich restart re-window, 2026-05-26: the planned paced Red was not run
 because the final read-only check showed `--sinceMinutes 360` had aged out the
 target rows. The requested 6h planner window had no Metric or enrich pending
