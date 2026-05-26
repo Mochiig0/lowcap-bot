@@ -26,6 +26,18 @@ It only reports the next recommended step and command candidates as strings. It
 does not run detect watch, metric snapshot writes, enrich/rescore writes,
 Notification send, retry execution, external fetch, scheduler, or systemd.
 
+To see the full post-run sequence after a bounded 6H detect write, include
+`--postRunPlan`:
+
+```bash
+pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan
+```
+
+The post-run plan is still read-only. It orders Metric pending snapshot,
+enrich/rescore, report review, notification planner review, and optional
+auto-send planner review. It emits command candidates only, with Metric and
+enrich post-run limits defaulting to `50`; it does not execute any command.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

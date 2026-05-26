@@ -81,6 +81,7 @@ test("queue clear recommends detect watch dry-run without write", () => {
   const result = buildBoundedOperationPlan(input(), BASE_OPTIONS);
 
   assert.equal(result.nextRecommendedStep, "detect_watch_dry_run");
+  assert.equal(result.postRunPlan, undefined);
   assert.equal(result.humanApprovalRequired, false);
   assert.match(result.redCommandCandidate ?? "", /detect:geckoterminal:new-pools/);
   assert.doesNotMatch(result.redCommandCandidate ?? "", /--write/);
@@ -187,4 +188,126 @@ test("stale-only queue recommends report review", () => {
 
   assert.equal(result.nextRecommendedStep, "report_review");
   assert.equal(result.redCommandCandidate, null);
+});
+
+test("post-run plan adds metric workflow with limit 50 without changing next step", () => {
+  const result = buildBoundedOperationPlan(
+    withRequestedQueue({
+      metricPendingCount: 339,
+      enrichPendingCount: 359,
+      geckoOriginTokenCount: 359,
+    }),
+    {
+      ...BASE_OPTIONS,
+      postRunPlan: true,
+    },
+  );
+
+  assert.equal(result.nextRecommendedStep, "metric_pending_snapshot");
+  assert.equal(result.redCommandCandidate?.includes("--limit 20"), true);
+  assert.equal(result.postRunPlan?.recommendedFirstStep, "metric_pending_snapshot");
+
+  const metricStep = result.postRunPlan?.steps.find(
+    (step) => step.stepName === "metric_pending_snapshot",
+  );
+  assert.equal(metricStep?.status, "ready");
+  assert.match(metricStep?.commandCandidate ?? "", /--limit 50/);
+  assert.match(metricStep?.commandCandidate ?? "", /--onlyMetricPending/);
+  assert.match(metricStep?.commandCandidate ?? "", /--noNotificationCapture/);
+  assert.equal(metricStep?.humanApprovalRequired, true);
+
+  const enrichStep = result.postRunPlan?.steps.find(
+    (step) => step.stepName === "enrich_pending_rescore",
+  );
+  assert.equal(enrichStep?.status, "pending_previous_step");
+  assert.equal(enrichStep?.commandCandidate, null);
+});
+
+test("post-run plan makes enrich ready after metric pending is clear", () => {
+  const result = buildBoundedOperationPlan(
+    withRequestedQueue({
+      metricPendingCount: 0,
+      enrichPendingCount: 5,
+      geckoOriginTokenCount: 5,
+    }),
+    {
+      ...BASE_OPTIONS,
+      postRunPlan: true,
+    },
+  );
+
+  assert.equal(result.nextRecommendedStep, "enrich_pending_rescore");
+  assert.equal(result.postRunPlan?.recommendedFirstStep, "enrich_pending_rescore");
+
+  const enrichStep = result.postRunPlan?.steps.find(
+    (step) => step.stepName === "enrich_pending_rescore",
+  );
+  assert.equal(enrichStep?.status, "ready");
+  assert.match(enrichStep?.commandCandidate ?? "", /token:enrich-rescore:geckoterminal/);
+  assert.match(enrichStep?.commandCandidate ?? "", /--limit 50/);
+  assert.match(enrichStep?.commandCandidate ?? "", /--write/);
+  assert.doesNotMatch(enrichStep?.commandCandidate ?? "", /--notify/);
+});
+
+test("post-run plan makes report review ready when only stale review remains", () => {
+  const result = buildBoundedOperationPlan(
+    withRequestedQueue({
+      staleReviewCount: 4,
+      geckoOriginTokenCount: 4,
+    }),
+    {
+      ...BASE_OPTIONS,
+      postRunPlan: true,
+    },
+  );
+
+  assert.equal(result.postRunPlan?.recommendedFirstStep, "report_review");
+
+  const reportStep = result.postRunPlan?.steps.find(
+    (step) => step.stepName === "report_review",
+  );
+  assert.equal(reportStep?.status, "ready");
+  assert.match(reportStep?.commandCandidate ?? "", /review:queue:geckoterminal/);
+  assert.equal(reportStep?.humanApprovalRequired, false);
+});
+
+test("post-run plan stops workflow on failed notification", () => {
+  const result = buildBoundedOperationPlan(
+    input({
+      notificationState: {
+        failedCount: 1,
+        retryCandidateCount: 0,
+        allowedAutoSendCandidateCount: 0,
+      },
+    }),
+    {
+      ...BASE_OPTIONS,
+      postRunPlan: true,
+    },
+  );
+
+  assert.equal(result.nextRecommendedStep, "stop_due_to_failed_notifications");
+  assert.equal(result.postRunPlan?.recommendedFirstStep, "stop_due_to_failed_notifications");
+  assert.equal(
+    result.postRunPlan?.steps.every((step) => step.status === "blocked"),
+    true,
+  );
+});
+
+test("post-run plan reports queue clear and next write rehearsal candidate", () => {
+  const result = buildBoundedOperationPlan(input(), {
+    ...BASE_OPTIONS,
+    postRunPlan: true,
+  });
+
+  assert.equal(result.nextRecommendedStep, "detect_watch_dry_run");
+  assert.equal(result.postRunPlan?.recommendedFirstStep, "no_action_queue_clear");
+  assert.equal(result.postRunPlan?.workflowComplete, true);
+
+  const clearStep = result.postRunPlan?.steps[0];
+  assert.equal(clearStep?.stepName, "no_action_queue_clear");
+  assert.equal(clearStep?.status, "ready");
+  assert.match(clearStep?.commandCandidate ?? "", /detect:geckoterminal:new-pools/);
+  assert.match(clearStep?.commandCandidate ?? "", /--write/);
+  assert.equal(clearStep?.humanApprovalRequired, true);
 });

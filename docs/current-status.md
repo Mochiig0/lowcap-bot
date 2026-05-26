@@ -4,6 +4,48 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Post-run workflow planner Yellow, 2026-05-26 15:20 JST:
+
+- `pnpm -s ops:plan:bounded` now supports `--postRunPlan`.
+  Default planner behavior and `nextRecommendedStep` are unchanged when the
+  option is omitted.
+- `--postRunPlan` adds a read-only ordered workflow plan for the bounded 6H
+  post-run lane: `metric_pending_snapshot`, `enrich_pending_rescore`,
+  `report_review`, `notification_plan_review`, and
+  `optional_auto_send_plan_review`.
+- Each workflow step reports `status`, `reason`, `commandCandidate`,
+  `humanApprovalRequired`, expected side effects, expected non-effects,
+  `blockedBy`, and `stopConditionCodes`. Commands are strings only; the planner
+  does not execute them.
+- Added optional planner limits `--metricLimit` and `--enrichLimit`, both
+  defaulting to `50` for the post-run workflow plan. The existing `--limit`
+  continues to drive the legacy single next-step candidate and still defaults
+  to `20`.
+- Runtime check:
+  `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` stayed
+  `readOnly=true`, `dryRun=true`, with `nextRecommendedStep=metric_pending_snapshot`.
+  The post-run recommended first step is `metric_pending_snapshot`, and its
+  command candidate is the limit 50 Metric pending snapshot:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Current runtime state used by the planner: Token / Metric / Notification /
+  HolderSnapshot `1945 / 556 / 22 / 1`; Metric buckets `0=1529`, `1=329`,
+  `2+=87`; Notification statuses `captured=17`, `sent=5`, `failed=0`;
+  retry candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Queue state at runtime: requested 6h has `metricPendingCount=232`,
+  `enrichPendingCount=252`, `staleReviewCount=0`, `notifyCandidateCount=0`;
+  default 24h and rolling 168h both still have `metricPendingCount=339`,
+  `enrichPendingCount=359`, `staleReviewCount=107`,
+  `notifyCandidateCount=0`.
+- Verification note: `pnpm smoke` was run during this Yellow implementation and
+  produced smoke/rehearsal DB rows in the active environment, moving Token
+  count `1930 -> 1945` and Notification count `18 -> 22`. It did not change
+  Metric or HolderSnapshot counts, and follow-up retry / auto-send planners
+  still reported retry candidate count `0` and allowed auto-send candidate
+  count `0`.
+- Scheduler, systemd, always-on auto live send, Notification send, retry
+  execution, Metric write, Token update, external fetch, Telegram send, and DB
+  write were not executed by `ops:plan:bounded` itself.
+
 Metric pending limit 20 review after 6H write rehearsal, 2026-05-26 15:03 JST:
 
 - This Green pass ran read-only / docs-only review after the successful

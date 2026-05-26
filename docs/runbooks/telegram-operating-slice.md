@@ -29,6 +29,13 @@ is read-only and does not send Telegram or update Notification rows. If it
 reports an allowed auto-send candidate or retry candidate, stop and run the
 dedicated Green review before any live send or retry execution.
 
+`pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` now adds the
+post-run notification planning step after Metric, enrich, and report review.
+The notification steps only emit `notification:auto-send:plan` candidates.
+They do not send Telegram, do not update Notification rows, and do not unlock
+auto live send. Any live send or auto-send execution still requires a separate
+human-approved Red.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

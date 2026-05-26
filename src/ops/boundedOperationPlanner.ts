@@ -9,6 +9,8 @@ const DEFAULT_STALE_AFTER_HOURS = 6;
 const DETECT_INTERVAL_SECONDS = 60;
 const METRIC_MIN_GAP_MINUTES = 60;
 const METRIC_INTER_ITEM_DELAY_MS = 15_000;
+const DEFAULT_POST_RUN_METRIC_LIMIT = 50;
+const DEFAULT_POST_RUN_ENRICH_LIMIT = 50;
 
 type JsonObject = Record<string, unknown>;
 
@@ -17,6 +19,9 @@ export type BoundedOperationPlannerOptions = {
   sinceHours: number;
   limit: number;
   pumpOnly: boolean;
+  postRunPlan?: boolean;
+  metricLimit?: number;
+  enrichLimit?: number;
 };
 
 export type DbState = {
@@ -106,6 +111,41 @@ export type BoundedOperationPlan = {
   expectedNonEffects: string[];
   blockedBy: string[];
   stopConditionCodes: string[];
+  postRunPlan?: PostRunWorkflowPlan;
+};
+
+export type PostRunWorkflowStepStatus =
+  | "ready"
+  | "blocked"
+  | "not_needed"
+  | "pending_previous_step";
+
+export type PostRunWorkflowStepName =
+  | "metric_pending_snapshot"
+  | "enrich_pending_rescore"
+  | "report_review"
+  | "notification_plan_review"
+  | "optional_auto_send_plan_review"
+  | "no_action_queue_clear";
+
+export type PostRunWorkflowStep = {
+  stepName: PostRunWorkflowStepName;
+  status: PostRunWorkflowStepStatus;
+  reason: string;
+  commandCandidate: string | null;
+  humanApprovalRequired: boolean;
+  expectedSideEffects: string[];
+  expectedNonEffects: string[];
+  blockedBy: string[];
+  stopConditionCodes: string[];
+};
+
+export type PostRunWorkflowPlan = {
+  enabled: true;
+  operationWindowHours: number;
+  steps: PostRunWorkflowStep[];
+  recommendedFirstStep: PostRunWorkflowStepName | NextRecommendedStep;
+  workflowComplete: boolean;
 };
 
 type FirstSeenSourceSnapshot = {
@@ -169,6 +209,13 @@ function buildMetricPendingCommand(options: BoundedOperationPlannerOptions): str
   ].join(" ");
 }
 
+function buildPostRunMetricPendingCommand(options: BoundedOperationPlannerOptions): string {
+  return buildMetricPendingCommand({
+    ...options,
+    limit: options.metricLimit ?? DEFAULT_POST_RUN_METRIC_LIMIT,
+  });
+}
+
 function buildEnrichPendingCommand(options: BoundedOperationPlannerOptions): string {
   const sinceMinutes = Math.max(1, Math.ceil(options.sinceHours * 60));
 
@@ -178,6 +225,45 @@ function buildEnrichPendingCommand(options: BoundedOperationPlannerOptions): str
     `--limit ${options.limit}`,
     `--sinceMinutes ${sinceMinutes}`,
     "--write",
+  ].join(" ");
+}
+
+function buildPostRunEnrichPendingCommand(options: BoundedOperationPlannerOptions): string {
+  return buildEnrichPendingCommand({
+    ...options,
+    limit: options.enrichLimit ?? DEFAULT_POST_RUN_ENRICH_LIMIT,
+  });
+}
+
+function buildReportReviewCommand(options: BoundedOperationPlannerOptions): string {
+  return [
+    "pnpm -s review:queue:geckoterminal --",
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    "--limit 20",
+  ].join(" ");
+}
+
+function buildNotificationPlanCommand(): string {
+  return "pnpm -s notification:auto-send:plan";
+}
+
+function buildOptionalAutoSendPlanCommand(): string {
+  return "NOTIFICATION_AUTO_SEND_ENABLED=true pnpm -s notification:auto-send:plan";
+}
+
+function buildDetectWriteRehearsalCommand(options: BoundedOperationPlannerOptions): string {
+  const maxIterations = Math.max(
+    1,
+    Math.ceil((options.hours * 60 * 60) / DETECT_INTERVAL_SECONDS),
+  );
+
+  return [
+    "pnpm -s detect:geckoterminal:new-pools -- --watch --write",
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    "--limit 1",
+    `--maxIterations ${maxIterations}`,
+    `--intervalSeconds ${DETECT_INTERVAL_SECONDS}`,
+    "--checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json",
   ].join(" ");
 }
 
@@ -256,6 +342,232 @@ function noWriteNonEffects(): string[] {
     "rawJson full dump 0",
     "offensive raw text dump 0",
   ];
+}
+
+function metricStepEffects(limit: number): {
+  expectedSideEffects: string[];
+  expectedNonEffects: string[];
+} {
+  return {
+    expectedSideEffects: [
+      "external GeckoTerminal fetch on approved Red execution",
+      `production DB Metric write max ${limit} on approved Red execution`,
+    ],
+    expectedNonEffects: [
+      "Token write 0",
+      "Notification create/update 0",
+      "HolderSnapshot write 0",
+      "Telegram send 0",
+      "scheduler/systemd 0",
+      "rawJson full dump 0",
+      "offensive raw text dump 0",
+    ],
+  };
+}
+
+function enrichStepEffects(limit: number): {
+  expectedSideEffects: string[];
+  expectedNonEffects: string[];
+} {
+  return {
+    expectedSideEffects: [
+      "external GeckoTerminal token snapshot fetch on approved Red execution",
+      `production DB Token update max ${limit} on approved Red execution`,
+    ],
+    expectedNonEffects: [
+      "Metric write 0",
+      "Notification create/update 0",
+      "HolderSnapshot write 0",
+      "Telegram send 0 because --notify is omitted",
+      "scheduler/systemd 0",
+      "rawJson full dump 0",
+      "offensive raw text dump 0",
+    ],
+  };
+}
+
+function buildBlockedWorkflowStep(
+  stepName: PostRunWorkflowStepName,
+  input: {
+    reason: string;
+    blockedBy: string[];
+    stopConditionCodes: string[];
+  },
+): PostRunWorkflowStep {
+  return {
+    stepName,
+    status: "blocked",
+    reason: input.reason,
+    commandCandidate: null,
+    humanApprovalRequired: false,
+    expectedSideEffects: [],
+    expectedNonEffects: noWriteNonEffects(),
+    blockedBy: input.blockedBy,
+    stopConditionCodes: input.stopConditionCodes,
+  };
+}
+
+function buildPostRunWorkflowPlan(
+  input: BoundedOperationPlannerInput,
+  options: BoundedOperationPlannerOptions,
+  stop: ReturnType<typeof getStopBlockers>,
+): PostRunWorkflowPlan {
+  const queue = input.queueState.requestedWindow;
+  const metricLimit = options.metricLimit ?? DEFAULT_POST_RUN_METRIC_LIMIT;
+  const enrichLimit = options.enrichLimit ?? DEFAULT_POST_RUN_ENRICH_LIMIT;
+
+  if (stop.blockedBy.length > 0) {
+    const steps: PostRunWorkflowStep[] = [
+      "metric_pending_snapshot",
+      "enrich_pending_rescore",
+      "report_review",
+      "notification_plan_review",
+      "optional_auto_send_plan_review",
+    ].map((stepName) =>
+      buildBlockedWorkflowStep(stepName as PostRunWorkflowStepName, {
+        reason: "workflow stopped until notification and queue blockers are reviewed",
+        blockedBy: stop.blockedBy,
+        stopConditionCodes: stop.stopConditionCodes,
+      }),
+    );
+
+    return {
+      enabled: true,
+      operationWindowHours: options.hours,
+      steps,
+      recommendedFirstStep: stop.nextRecommendedStep ?? "stop_due_to_ambiguous_state",
+      workflowComplete: false,
+    };
+  }
+
+  const metricEffects = metricStepEffects(metricLimit);
+  const enrichEffects = enrichStepEffects(enrichLimit);
+  const metricPending = queue.metricPendingCount > 0;
+  const enrichPending = queue.enrichPendingCount > 0;
+  const staleReview = queue.staleReviewCount > 0;
+  const notifyCandidate = queue.notifyCandidateCount > 0;
+
+  if (!metricPending && !enrichPending && !staleReview && !notifyCandidate) {
+    return {
+      enabled: true,
+      operationWindowHours: options.hours,
+      steps: [
+        {
+          stepName: "no_action_queue_clear",
+          status: "ready",
+          reason: "metricPendingCount, enrichPendingCount, staleReviewCount, and notifyCandidateCount are all 0",
+          commandCandidate: buildDetectWriteRehearsalCommand(options),
+          humanApprovalRequired: true,
+          expectedSideEffects: [
+            "external GeckoTerminal fetch on approved write rehearsal",
+            "production DB Token create/reuse on approved write rehearsal",
+            "checkpoint file write outside repo when command is approved",
+          ],
+          expectedNonEffects: [
+            "Metric write 0",
+            "Notification create/update 0",
+            "HolderSnapshot write 0",
+            "Telegram send 0",
+            "scheduler/systemd 0",
+            "rawJson full dump 0",
+            "offensive raw text dump 0",
+          ],
+          blockedBy: [],
+          stopConditionCodes: [],
+        },
+      ],
+      recommendedFirstStep: "no_action_queue_clear",
+      workflowComplete: true,
+    };
+  }
+
+  const steps: PostRunWorkflowStep[] = [];
+
+  steps.push({
+    stepName: "metric_pending_snapshot",
+    status: metricPending ? "ready" : "not_needed",
+    reason: metricPending ? "metricPendingCount > 0" : "metricPendingCount = 0",
+    commandCandidate: metricPending ? buildPostRunMetricPendingCommand(options) : null,
+    humanApprovalRequired: metricPending,
+    expectedSideEffects: metricPending ? metricEffects.expectedSideEffects : [],
+    expectedNonEffects: metricPending ? metricEffects.expectedNonEffects : noWriteNonEffects(),
+    blockedBy: [],
+    stopConditionCodes: [],
+  });
+
+  steps.push({
+    stepName: "enrich_pending_rescore",
+    status: metricPending ? "pending_previous_step" : enrichPending ? "ready" : "not_needed",
+    reason: metricPending
+      ? "metricPendingCount > 0; complete Metric pending snapshot first"
+      : enrichPending
+        ? "metricPendingCount = 0 and enrichPendingCount > 0"
+        : "enrichPendingCount = 0",
+    commandCandidate: !metricPending && enrichPending ? buildPostRunEnrichPendingCommand(options) : null,
+    humanApprovalRequired: !metricPending && enrichPending,
+    expectedSideEffects: !metricPending && enrichPending ? enrichEffects.expectedSideEffects : [],
+    expectedNonEffects: !metricPending && enrichPending ? enrichEffects.expectedNonEffects : noWriteNonEffects(),
+    blockedBy: metricPending ? ["metric_pending_snapshot_not_complete"] : [],
+    stopConditionCodes: [],
+  });
+
+  const earlierWritePending = metricPending || enrichPending;
+  steps.push({
+    stepName: "report_review",
+    status: earlierWritePending ? "pending_previous_step" : staleReview ? "ready" : "not_needed",
+    reason: earlierWritePending
+      ? "complete Metric/enrich pending steps before report review"
+      : staleReview
+        ? "staleReviewCount > 0"
+        : "staleReviewCount = 0",
+    commandCandidate: !earlierWritePending && staleReview ? buildReportReviewCommand(options) : null,
+    humanApprovalRequired: false,
+    expectedSideEffects: [],
+    expectedNonEffects: noWriteNonEffects(),
+    blockedBy: earlierWritePending ? ["prior_workflow_steps_not_complete"] : [],
+    stopConditionCodes: [],
+  });
+
+  const beforeNotificationPending = metricPending || enrichPending || staleReview;
+  steps.push({
+    stepName: "notification_plan_review",
+    status: beforeNotificationPending ? "pending_previous_step" : notifyCandidate ? "ready" : "not_needed",
+    reason: beforeNotificationPending
+      ? "complete Metric/enrich/report steps before notification planner review"
+      : notifyCandidate
+        ? "notifyCandidateCount > 0; planner review only"
+        : "notifyCandidateCount = 0",
+    commandCandidate: !beforeNotificationPending && notifyCandidate ? buildNotificationPlanCommand() : null,
+    humanApprovalRequired: false,
+    expectedSideEffects: [],
+    expectedNonEffects: noWriteNonEffects(),
+    blockedBy: beforeNotificationPending ? ["prior_workflow_steps_not_complete"] : [],
+    stopConditionCodes: [],
+  });
+
+  steps.push({
+    stepName: "optional_auto_send_plan_review",
+    status: notifyCandidate ? "blocked" : "not_needed",
+    reason: notifyCandidate
+      ? "auto-send execution remains locked; run enabled planner only and require separate approval for any send"
+      : "notifyCandidateCount = 0",
+    commandCandidate: notifyCandidate ? buildOptionalAutoSendPlanCommand() : null,
+    humanApprovalRequired: false,
+    expectedSideEffects: [],
+    expectedNonEffects: noWriteNonEffects(),
+    blockedBy: notifyCandidate ? ["auto_send_execution_requires_separate_approval"] : [],
+    stopConditionCodes: [],
+  });
+
+  const firstReady = steps.find((step) => step.status === "ready");
+
+  return {
+    enabled: true,
+    operationWindowHours: options.hours,
+    steps,
+    recommendedFirstStep: firstReady?.stepName ?? "no_action_queue_clear",
+    workflowComplete: false,
+  };
 }
 
 export function buildBoundedOperationPlan(
@@ -338,7 +650,7 @@ export function buildBoundedOperationPlan(
     ];
   }
 
-  return {
+  const plan: BoundedOperationPlan = {
     readOnly: true,
     dryRun: true,
     mode: "bounded_operation_planner",
@@ -358,6 +670,12 @@ export function buildBoundedOperationPlan(
     blockedBy: stop.blockedBy,
     stopConditionCodes: stop.stopConditionCodes,
   };
+
+  if (options.postRunPlan) {
+    plan.postRunPlan = buildPostRunWorkflowPlan(input, options, stop);
+  }
+
+  return plan;
 }
 
 function readOptionalDate(value: unknown): Date | null {

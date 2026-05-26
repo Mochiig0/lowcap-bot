@@ -11,6 +11,7 @@ import {
 
 const DEFAULT_HOURS = 6;
 const DEFAULT_LIMIT = 20;
+const DEFAULT_POST_RUN_LIMIT = 50;
 
 type CliArgs = BoundedOperationPlannerOptions & {
   json: boolean;
@@ -26,11 +27,14 @@ class CliUsageError extends Error {
 function usage(): string {
   return [
     "Usage:",
-    "pnpm ops:plan:bounded -- [--hours <N>] [--sinceHours <N>] [--limit <N>] [--pumpOnly] [--json]",
+    "pnpm ops:plan:bounded -- [--hours <N>] [--sinceHours <N>] [--limit <N>] [--pumpOnly] [--postRunPlan] [--metricLimit <N>] [--enrichLimit <N>] [--json]",
     "",
     "Read-only 6H bounded operation planner. It reads DB, queue, auto-send, and retry state,",
     "then prints the next recommended operator step plus command candidates without writes,",
     "external fetches, Telegram sends, Notification updates, scheduler, or systemd changes.",
+    "",
+    "--postRunPlan adds a read-only ordered post-run workflow plan. It only emits",
+    "command candidates as strings and does not execute them.",
   ].join("\n");
 }
 
@@ -62,6 +66,9 @@ export function parseOpsPlanBoundedArgs(argv: string[]): CliArgs {
     limit: DEFAULT_LIMIT,
     pumpOnly: false,
     json: false,
+    postRunPlan: false,
+    metricLimit: DEFAULT_POST_RUN_LIMIT,
+    enrichLimit: DEFAULT_POST_RUN_LIMIT,
   };
   let sinceHoursExplicit = false;
 
@@ -87,6 +94,11 @@ export function parseOpsPlanBoundedArgs(argv: string[]): CliArgs {
       continue;
     }
 
+    if (key === "--postRunPlan") {
+      out.postRunPlan = true;
+      continue;
+    }
+
     const value = normalized[index + 1];
     if (value === undefined || value.startsWith("--")) {
       throw new CliUsageError(`Missing value for ${key}`);
@@ -102,6 +114,12 @@ export function parseOpsPlanBoundedArgs(argv: string[]): CliArgs {
         break;
       case "--limit":
         out.limit = parsePositiveInteger(value, key);
+        break;
+      case "--metricLimit":
+        out.metricLimit = parsePositiveInteger(value, key);
+        break;
+      case "--enrichLimit":
+        out.enrichLimit = parsePositiveInteger(value, key);
         break;
       default:
         throw new CliUsageError(`Unknown arg: ${key}`);

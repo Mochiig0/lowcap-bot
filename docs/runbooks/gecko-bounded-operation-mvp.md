@@ -27,6 +27,45 @@ manual bounded operation step. The planner is read-only / dry-run:
 - performs no DB write, external fetch, Telegram send, Notification update,
   retry execution, rawJson full dump, or offensive raw text dump
 
+For post-run sequencing, add `--postRunPlan`:
+
+```bash
+pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan
+```
+
+This preserves the existing one-step `nextRecommendedStep` and adds an ordered
+read-only workflow:
+
+1. `metric_pending_snapshot`
+2. `enrich_pending_rescore`
+3. `report_review`
+4. `notification_plan_review`
+5. `optional_auto_send_plan_review`
+
+Each step includes a status (`ready`, `blocked`, `not_needed`, or
+`pending_previous_step`), reason, command candidate, human-approval flag,
+expected side effects, expected non-effects, blockers, and stop condition
+codes. The planner emits strings only and never executes the candidates.
+
+Post-run workflow limits default to `50` for Metric and enrich steps. Override
+them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
+is needed. The existing `--limit` option remains the single-step candidate
+limit and keeps its previous default of `20`.
+
+Current runtime check after the 6H write rehearsal and first Metric follow-up:
+the workflow recommends `metric_pending_snapshot` first and emits:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required before running that command. Scheduler, systemd,
+always-on auto live send, retry execution, and Notification send remain locked.
+`ops:plan:bounded` itself remains read-only; during implementation verification,
+`pnpm smoke` produced smoke/rehearsal DB rows in the active environment
+(Token `1930 -> 1945`, Notification `18 -> 22`) and should not be used as a
+production no-write validation command.
+
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:
 

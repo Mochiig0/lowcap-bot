@@ -11,6 +11,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The bounded operation planner has been extended for 6H post-run workflow
+planning. `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan`
+keeps the existing one-step `nextRecommendedStep` output and adds an ordered
+read-only workflow plan:
+
+1. `metric_pending_snapshot`
+2. `enrich_pending_rescore`
+3. `report_review`
+4. `notification_plan_review`
+5. `optional_auto_send_plan_review`
+
+The workflow emits command candidates as strings only. It does not run a
+runner, scheduler, systemd unit, watch loop, Metric write, enrich write,
+Notification send, retry execution, external fetch, Telegram send, or DB write.
+The current runtime workflow recommends Metric pending first, with the limit 50
+candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is still required before running that Red. The next engineering
+slice should keep this as a planner-only workflow aid; do not implement a
+runner, scheduler, systemd unit, or always-on auto-send yet.
+
 Green review after the post-6H Metric pending limit 20 Red is complete.
 Target ids `6087..6068` are count `20`, all now `metricsCount=1` with Metric
 ids `1637..1656`; selected-row Notification and HolderSnapshot totals remain
