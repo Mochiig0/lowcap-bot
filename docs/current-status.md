@@ -4,6 +4,40 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+6H bounded detect write rehearsal Red, 2026-05-26 08:03-14:08 JST:
+
+- Human-approved exact command executed once:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-6h-write-rehearsal-20260526.json`.
+- Result: `status=ok`, `stopReason=completed`, `completedIterations=360`,
+  `cycleCount=360`, `failedCount=0`, `rateLimitRetryCount=0`,
+  `importedCount=359`, `existingCount=1`, `dryRun=false`,
+  `writeEnabled=true`, and `checkpointEnabled=true`.
+- Runtime summary: command summary `startedAt=2026-05-25T23:05:09.224Z`,
+  `finishedAt=2026-05-26T05:08:52.415Z`,
+  `elapsedMs=21823191` (about 6h 3m 43s).
+- Counts moved only in Token:
+  Token / Metric / Notification / HolderSnapshot
+  `1571 / 536 / 18 / 1 -> 1930 / 536 / 18 / 1`.
+- Notification statuses stayed `captured=13`, `sent=5`, `failed=0`;
+  retry candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Checkpoint file was written outside the repo at
+  `/tmp/lowcap-bot-gecko-6h-write-rehearsal-20260526.json` and was `176`
+  bytes after completion.
+- Queue after: default 24h has `geckoOriginTokenCount=359`,
+  `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=5`, and `notifyCandidateCount=0`; rolling 168h has
+  `geckoOriginTokenCount=364`, `metricPendingCount=359`,
+  `enrichPendingCount=359`, `staleReviewCount=5`, and
+  `notifyCandidateCount=0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly` now recommends
+  `metric_pending_snapshot` with this candidate string:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Human approval is required before that Red.
+- Non-effects held: Metric write `0`, Notification create/update `0`,
+  HolderSnapshot write `0`, Telegram send `0`, auto-send execution `0`,
+  retry execution `0`, scheduler/systemd `0`, repo-local data diff `0`, raw
+  provider rawJson full dump in docs `0`, and offensive raw text dump `0`.
+
 6H bounded operation planner Yellow, 2026-05-26 08:00 JST:
 
 - Added `pnpm -s ops:plan:bounded` as a read-only / dry-run planner for the

@@ -26,6 +26,16 @@ It only reports the next recommended step and command candidates as strings. It
 does not run detect watch, metric snapshot writes, enrich/rescore writes,
 Notification send, retry execution, external fetch, scheduler, or systemd.
 
+Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
+`detect:geckoterminal:new-pools --watch --write` command completed
+`360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,
+`importedCount=359`, and `existingCount=1`. It moved Token count
+`1571 -> 1930` and left Metric / Notification / HolderSnapshot counts at
+`536 / 18 / 1`. Telegram send, Notification create/update, Metric write,
+HolderSnapshot write, scheduler/systemd, repo-local checkpoint writes, and
+docs rawJson full dumps remained `0`. The next loop step is not another detect
+write; run a Green preflight for the planner-proposed Metric pending snapshot.
+
 For records copied from this minimum loop, keep only safe summaries: statuses,
 counts, mint / Metric ids, sources, `observedAt`, `metricsCount`, latest Metric
 and `recentMetrics` summaries, and rawJson-free safe summary booleans. Do not

@@ -38,6 +38,74 @@ This is not a write rehearsal. Any command containing `--write`, any
 Notification send, and any scheduler/systemd action still requires separate
 human approval.
 
+## 6H Write Rehearsal Result
+
+Date: 2026-05-26
+
+Human-approved Red execution ran exactly one bounded detect write rehearsal:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-6h-write-rehearsal-20260526.json
+```
+
+Result:
+
+- `status=ok`
+- `stopReason=completed`
+- `cycleCount=360`
+- `completedIterations=360`
+- `failedCount=0`
+- `rateLimitRetryCount=0`
+- `importedCount=359`
+- `existingCount=1`
+- `dryRun=false`
+- `writeEnabled=true`
+- `checkpointEnabled=true`
+- command summary `startedAt=2026-05-25T23:05:09.224Z`
+- command summary `finishedAt=2026-05-26T05:08:52.415Z`
+- `elapsedMs=21823191` (about 6h 3m 43s)
+
+State movement:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1571 / 536 / 18 / 1 -> 1930 / 536 / 18 / 1`
+- Token write: `+359` new rows, `1` existing row reused
+- Metric write: `0`
+- Notification create/update: `0`
+- HolderSnapshot write: `0`
+- Telegram send: `0`
+- retry execution: `0`
+- auto-send execution: `0`
+- scheduler/systemd: `0`
+
+Checkpoint:
+
+- path:
+  `/tmp/lowcap-bot-gecko-6h-write-rehearsal-20260526.json`
+- exists after completion: yes
+- size after completion: `176` bytes
+- repo-local data diff from checkpoint: `0`
+
+Post-run planner / queue context:
+
+- Notification statuses stayed `captured=13`, `sent=5`, `failed=0`
+- retry candidate count stayed `0`
+- enabled auto-send allowed candidate count stayed `0`
+- default 24h Gecko queue:
+  `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=5`, `notifyCandidateCount=0`
+- requested 6h planner window:
+  `metricPendingCount=354`, `enrichPendingCount=354`,
+  `staleReviewCount=0`, `notifyCandidateCount=0`
+- rolling 168h Gecko queue:
+  `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=5`, `notifyCandidateCount=0`
+
+Next step should be a Green preflight for the planner-proposed Metric pending
+snapshot before any Metric write Red is approved. Do not enable scheduler,
+systemd, always-on auto live send, Notification send, or retry execution from
+this result.
+
 ## Current Proven Scope
 
 - `detect:geckoterminal:new-pools` pump-only watch write has passed three times with

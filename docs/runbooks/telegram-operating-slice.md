@@ -29,6 +29,12 @@ is read-only and does not send Telegram or update Notification rows. If it
 reports an allowed auto-send candidate or retry candidate, stop and run the
 dedicated Green review before any live send or retry execution.
 
+The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
+Telegram and did not create or update Notification rows. Notification statuses
+stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;
+enabled auto-send allowed candidate count stayed `0`. The next planner
+recommendation is Metric pending snapshot preflight, not Telegram execution.
+
 ## Current DB State
 
 Read-only state:

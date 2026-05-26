@@ -11,6 +11,47 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+The human-approved 6H bounded detect write rehearsal has completed. Exact
+command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 360 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-6h-write-rehearsal-20260526.json
+```
+
+Result: `status=ok`, `stopReason=completed`, `completedIterations=360`,
+`cycleCount=360`, `failedCount=0`, `rateLimitRetryCount=0`,
+`importedCount=359`, `existingCount=1`, `dryRun=false`,
+`writeEnabled=true`, and `checkpointEnabled=true`. Counts moved only in Token:
+`1571 / 536 / 18 / 1 -> 1930 / 536 / 18 / 1`. Notification statuses stayed
+`captured=13`, `sent=5`, `failed=0`; retry candidate count and enabled
+auto-send allowed candidate count stayed `0`. Metric write, Notification
+create/update, HolderSnapshot write, Telegram send, scheduler/systemd,
+repo-local data diff, docs rawJson full dump, and offensive raw text dump
+remained `0`.
+
+The 6H bounded planner now recommends the next lane as **metric pending
+snapshot**, because the write rehearsal created new mint-only pump Tokens.
+Current queue context: default 24h has `metricPendingCount=359`,
+`enrichPendingCount=359`, `staleReviewCount=5`, and `notifyCandidateCount=0`;
+requested 6h has `metricPendingCount=354`, `enrichPendingCount=354`,
+`staleReviewCount=0`, and `notifyCandidateCount=0`; rolling 168h has
+`metricPendingCount=359`, `enrichPendingCount=359`, `staleReviewCount=5`, and
+`notifyCandidateCount=0`.
+
+Recommended next step: **Green preflight for the planner-proposed metric
+pending snapshot**, not immediate write execution. Validate selected candidates,
+window choice, and side-effect boundary before approving this candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetches and Metric writes up to 20. Expected non-effects are Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 The 6H bounded operation planner Yellow is complete. `pnpm -s
 ops:plan:bounded -- --hours 6 --pumpOnly` is read-only / dry-run and now reads
 DB counts, Gecko review queue state, enabled auto-send planner state, and retry
