@@ -124,6 +124,25 @@ Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, rawJson full dump, and offensive raw text dump. Do not add
 `--notify`.
 
+That limit 50 Red later ran once with the exact candidate above and completed
+without 429: `selected=50`, `enriched=50`, `rescored=50`, `skipped=0`,
+`error=0`, `contextWritten=50`, `metaplexAttempted=50`,
+`metaplexAvailable=3`, `notifyWouldSend=0`, `notifySent=0`,
+`interItemDelayMs=15000`, `interItemDelayCount=49`, provider error `0`, and
+retry `0`. ids `6062..6013` moved `mint_only -> partial`.
+
+The boundary held. Counts stayed `1945 / 606 / 22 / 1`, while metadata statuses
+moved `mint_only=1712`, `partial=220`, `enriched=13` to `mint_only=1662`,
+`partial=270`, `enriched=13`. Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, repo-local runtime
+data diff, rawJson full dump, and offensive raw text dump stayed `0`.
+
+Queue after still has older backlog outside the requested 6h window: default
+and rolling 168h both show `metricPendingCount=289`,
+`enrichPendingCount=284`, `staleReviewCount=289`, and
+`notifyCandidateCount=0`. The 6h post-run planner window is clear and reports
+`no_action_queue_clear`.
+
 Paced enrich restart re-window, 2026-05-26: the planned paced Red was not run
 because the final read-only check showed `--sinceMinutes 360` had aged out the
 target rows. The requested 6h planner window had no Metric or enrich pending

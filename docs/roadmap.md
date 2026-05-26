@@ -36,6 +36,30 @@ non-effects are Metric write, Notification create/update, HolderSnapshot
 write, Telegram send, scheduler/systemd, rawJson full dump, and offensive raw
 text dump. Do not attach `--notify`.
 
+That Red later ran once and succeeded. Exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Result: `selected=50`, `enriched=50`, `rescored=50`, `contextWritten=50`,
+`error=0`, `metaplexAttempted=50`, `metaplexAvailable=3`,
+`notifyWouldSend=0`, `notifySent=0`, `interItemDelayMs=15000`,
+`interItemDelayCount=49`, provider error `0`, 429 `0`, and retry `0`.
+Ids `6062..6013` moved `mint_only -> partial`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`1945 / 606 / 22 / 1`; metadata statuses moved `mint_only=1712`,
+`partial=220`, `enriched=13` to `mint_only=1662`, `partial=270`,
+`enriched=13`. Metric write, Notification create/update, HolderSnapshot write,
+Telegram send, scheduler/systemd, rawJson full dump, and offensive raw text
+dump stayed `0`.
+
+Next recommended Green: review the completed paced limit 50 result and decide
+whether to continue enrich with another paced batch or return to Metric
+pending backlog. The 6h planner window is clear, while default / 168h windows
+still show older `metricPendingCount=289` and `enrichPendingCount=284`.
+
 The re-windowed paced enrich/rescore Red completed successfully. Exact command:
 
 ```bash

@@ -117,6 +117,13 @@ selected Notification `null`). The next Red candidate remains `--notify`-free:
 Expected Telegram send and Notification create/update remain `0`; any live
 send still requires a separate notification preflight and human-approved Red.
 
+That Red later ran without `--notify` and without `--live`. It enriched and
+rescored all 50 selected rows, with `notifyWouldSend=0` and `notifySent=0`.
+Notification count stayed `22`, statuses stayed `captured=17`, `sent=5`,
+`failed=0`, retry candidate stayed `0`, enabled auto-send allowed candidate
+stayed `0`, and selected auto-send Notification stayed `null`. Telegram send
+and Notification create/update remained `0`.
+
 ## Current DB State
 
 Read-only state:

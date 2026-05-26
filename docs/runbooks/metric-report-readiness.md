@@ -90,6 +90,13 @@ It must omit `--notify`; expected non-effects include Metric write,
 Notification create/update, HolderSnapshot write, Telegram send, rawJson full
 dump, and offensive raw text dump.
 
+That Token-context Red later succeeded and still did not append Metrics.
+Selected ids `6062..6013` all moved to `partial`. The selected set now has
+45 rows with `metricsCount=1` and 5 rows with `metricsCount=0`; no Metric
+rows were created by the enrich command. Report/window Metric outputs should
+therefore remain unchanged until a separate Metric snapshot lane runs. The
+post-check used Prisma safe summary rather than printing raw token text.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:
