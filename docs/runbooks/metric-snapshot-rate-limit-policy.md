@@ -60,6 +60,51 @@ these item-level provider errors.
   mode does not capture Notification rows;
 - Telegram send is not part of this command.
 
+## Post-6H Detect Metric Pending Preflight
+
+Date: 2026-05-26 14:15 JST
+
+After the 6H bounded detect write rehearsal created `359` new mint-only pump
+Tokens, this Green preflight checked Metric pending selection without running
+`metric:snapshot --write`, external fetch, DB write, Notification update,
+Telegram send, scheduler/systemd, rawJson full dump, or offensive raw text
+dump.
+
+Current DB state is Token / Metric / Notification / HolderSnapshot
+`1930 / 536 / 18 / 1`, with Metric buckets `0=1534`, `1=309`, `2+=87`.
+Notification statuses are `captured=13`, `sent=5`, `failed=0`; retry
+candidate count and enabled auto-send allowed candidate count are both `0`.
+
+The new 6H cohort is ids `5729..6087`, detected between
+`2026-05-25T23:05:09.477Z` and `2026-05-26T05:08:52.400Z`; all rows are
+`source=geckoterminal.new_pools`, `metadataStatus=mint_only`, score `C / 0`,
+and `hardRejected=false`.
+
+The planner-proposed preview stayed fetch-free:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+Result: `selectedCount=20`, ids `6087..6068`, all `metricsCount=0`,
+`latestMetricObservedAt=null`, `notificationCount=0`,
+`holderSnapshotCount=0`, and `metadataStatus=mint_only`. A comparison preview
+with `--limit 50` selected ids `6087..6038` with the same safe pending shape.
+
+Decision: use the planner-proposed limit 20 for the first Metric write against
+this fresh 6H cohort. Limit 50 remains a second-choice efficiency step after
+one bounded success.
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetches and Metric writes up to 20. Expected non-effects are Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 ## Pending-first Selector Yellow
 
 Date: 2026-05-25

@@ -51,6 +51,29 @@ window. All were `mint_only`, `metricsCount=0`, `notificationCount=0`,
 DB write, Telegram send, Notification update, rawJson full dump, or offensive
 raw text dump was performed.
 
+After the 2026-05-26 6H bounded detect write rehearsal, the Metric pending
+lane was rechecked read-only. The new 6H cohort is ids `5729..6087` with count
+`359`; all are GeckoTerminal `new_pools`, `mint_only`, score `C / 0`,
+`hardRejected=false`, and still `metricsCount=0`. Current DB state is
+Token / Metric / Notification / HolderSnapshot `1930 / 536 / 18 / 1`, Metric
+buckets `0=1534`, `1=309`, `2+=87`, and Notification statuses `captured=13`,
+`sent=5`, `failed=0`. Retry and enabled auto-send allowed candidates remain
+`0`.
+
+The planner-proposed fetch-free preview:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+selected ids `6087..6068`. All selected rows are `metricsCount=0`,
+`latestMetricObservedAt=null`, `notificationCount=0`, `holderSnapshotCount=0`,
+and `metadataStatus=mint_only`. A comparison preview with `--limit 50`
+selected ids `6087..6038`, also fetch-free. The next recommended Red is the
+conservative limit 20 Metric snapshot batch with `--write`, pending human
+approval; it should write Metric rows only and should not create/update
+Notification rows or send Telegram.
+
 Follow-up preflight at 2026-05-25 22:21 JST used the same selector shape with
 `--sinceMinutes 10080`, `--limit 5`, `--minGapMinutes 60`, and
 `--interItemDelayMs 15000`. It returned `selectedCount=0` because the rolling

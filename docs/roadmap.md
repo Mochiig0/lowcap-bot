@@ -11,6 +11,36 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Green preflight for the post-6H metric pending lane is complete. It confirmed
+the 6H write cohort as ids `5729..6087` with count `359`, all
+`geckoterminal.new_pools`, `mint_only`, score `C / 0`, `hardRejected=false`.
+Current DB state is Token / Metric / Notification / HolderSnapshot
+`1930 / 536 / 18 / 1`, Metric buckets `0=1534`, `1=309`, `2+=87`, and
+Notification statuses `captured=13`, `sent=5`, `failed=0`. Retry candidate
+count and enabled auto-send allowed candidate count are both `0`.
+
+The planner and queue agree that the next lane is **metric pending snapshot**.
+Default 24h and rolling 168h queues both show `metricPendingCount=359`,
+`enrichPendingCount=359`, and `notifyCandidateCount=0`. Fetch-free
+`--onlyMetricPending` preview with `--sinceMinutes 360 --limit 20` selected ids
+`6087..6068`; `--limit 50` selected ids `6087..6038`. All previewed rows are
+6H watch tokens with `metricsCount=0`, `latestMetricObservedAt=null`,
+`notificationCount=0`, `holderSnapshotCount=0`, and `metadataStatus=mint_only`.
+
+Recommended next step: **Red bounded metric pending snapshot, limit 20**. Limit
+50 also previews cleanly, but limit 20 is the conservative first Metric write
+against the fresh 6H detect cohort:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetches and Metric writes up to 20. Expected non-effects are Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 The human-approved 6H bounded detect write rehearsal has completed. Exact
 command:
 

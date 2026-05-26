@@ -36,6 +36,24 @@ HolderSnapshot write, scheduler/systemd, repo-local checkpoint writes, and
 docs rawJson full dumps remained `0`. The next loop step is not another detect
 write; run a Green preflight for the planner-proposed Metric pending snapshot.
 
+That Green preflight is now complete. The 6H write cohort is ids `5729..6087`
+with count `359`, all GeckoTerminal `new_pools` pump mint-only rows. Current
+Metric buckets are `0=1534`, `1=309`, `2+=87`; Notification statuses are
+`captured=13`, `sent=5`, `failed=0`; retry and enabled auto-send allowed
+candidates are both `0`. Fetch-free `--onlyMetricPending` preview with
+`--sinceMinutes 360 --limit 20` selected ids `6087..6068`, all
+`metricsCount=0`, `notificationCount=0`, `holderSnapshotCount=0`, and
+`latestMetricObservedAt=null`. The next human-approved Red candidate is:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected writes are limited to Metric rows up to 20. Token write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump should stay
+at `0`.
+
 For records copied from this minimum loop, keep only safe summaries: statuses,
 counts, mint / Metric ids, sources, `observedAt`, `metricsCount`, latest Metric
 and `recentMetrics` summaries, and rawJson-free safe summary booleans. Do not

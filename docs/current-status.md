@@ -4,6 +4,42 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Metric pending preflight after 6H write rehearsal, 2026-05-26 14:15 JST:
+
+- This Green pass ran read-only / docs-only checks after the successful 6H
+  bounded detect write rehearsal. It did not run `metric:snapshot --write`,
+  external fetch, DB write, Telegram send, Notification update, scheduler,
+  systemd, rawJson full dump, or offensive raw text dump.
+- Current DB state: Token / Metric / Notification / HolderSnapshot
+  `1930 / 536 / 18 / 1`; Metric buckets `0=1534`, `1=309`, `2+=87`;
+  Notification statuses `captured=13`, `sent=5`, `failed=0`; retry candidate
+  count `0`; enabled auto-send allowed candidate count `0`.
+- The 6H write cohort is ids `5729..6087` with count `359`; all are
+  `source=geckoterminal.new_pools`, `metadataStatus=mint_only`, score `C / 0`,
+  `hardRejected=false`, and detected between
+  `2026-05-25T23:05:09.477Z` and `2026-05-26T05:08:52.400Z`.
+- Queue context remains clear of notify risk: default 24h has
+  `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=11`, `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=11`, `notifyCandidateCount=0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly` still recommends
+  `metric_pending_snapshot` with no blockers or stop conditions.
+- Fetch-free `--onlyMetricPending` preview with `--sinceMinutes 360` and
+  `--limit 20` selected ids `6087..6068`; the same preview with `--limit 50`
+  selected ids `6087..6038`. Selected rows are 6H watch tokens with
+  `metricsCount=0`, `latestMetricObservedAt=null`, `notificationCount=0`,
+  `holderSnapshotCount=0`, `metadataStatus=mint_only`, and no provider fetch or
+  DB write.
+- Recommendation: next Red should use the planner-proposed conservative
+  limit 20 before considering limit 50 on this fresh 6H cohort:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Human approval is required. Expected side effects are external GeckoTerminal
+  fetch and Metric write up to 20. Expected non-effects are Token write `0`,
+  Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+  scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+  offensive raw text dump `0`.
+
 6H bounded detect write rehearsal Red, 2026-05-26 08:03-14:08 JST:
 
 - Human-approved exact command executed once:

@@ -106,6 +106,62 @@ snapshot before any Metric write Red is approved. Do not enable scheduler,
 systemd, always-on auto live send, Notification send, or retry execution from
 this result.
 
+## Metric Pending Preflight After 6H Write
+
+Date: 2026-05-26 14:15 JST
+
+This read-only preflight checked the 6H write rehearsal follow-up lane without
+running Metric write, external fetch, DB write, Notification update, Telegram
+send, scheduler, systemd, rawJson full dump, or offensive raw text dump.
+
+Current state:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `1930 / 536 / 18 / 1`
+- Metric buckets: `0=1534`, `1=309`, `2+=87`
+- Notification statuses: `captured=13`, `sent=5`, `failed=0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+The 6H write cohort is ids `5729..6087` with count `359`. The cohort is
+uniformly `source=geckoterminal.new_pools`, `metadataStatus=mint_only`, score
+`C / 0`, and `hardRejected=false`.
+
+Queue / planner:
+
+- default 24h queue: `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=11`, `notifyCandidateCount=0`
+- rolling 168h queue: `metricPendingCount=359`, `enrichPendingCount=359`,
+  `staleReviewCount=11`, `notifyCandidateCount=0`
+- `ops:plan:bounded -- --hours 6 --pumpOnly` recommends
+  `metric_pending_snapshot`, with `blockedBy=[]` and
+  `stopConditionCodes=[]`
+
+Fetch-free selection preview:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+Result: `selectedCount=20`, ids `6087..6068`, all `metricsCount=0`,
+`latestMetricObservedAt=null`, `notificationCount=0`,
+`holderSnapshotCount=0`, and `metadataStatus=mint_only`.
+
+The same preview with `--limit 50` selected ids `6087..6038`. Limit 50 is
+valid as a later efficiency step, but the recommended next Red is the
+planner-proposed limit 20 because this is the first Metric write against the
+fresh 6H detect cohort:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetches and Metric writes up to 20. Expected non-effects are Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 ## Current Proven Scope
 
 - `detect:geckoterminal:new-pools` pump-only watch write has passed three times with
