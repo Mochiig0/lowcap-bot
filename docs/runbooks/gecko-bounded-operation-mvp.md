@@ -73,6 +73,38 @@ now include `--interItemDelayMs 15000` so the post-run workflow does not repeat
 the unpaced limit 50 enrich command that hit HTTP 429 after five Token
 updates.
 
+Paced enrich restart re-window, 2026-05-26: the planned paced Red was not run
+because the final read-only check showed `--sinceMinutes 360` had aged out the
+target rows. The requested 6h planner window had no Metric or enrich pending
+rows, while default and rolling 168h queues still had `metricPendingCount=289`
+and `enrichPendingCount=354`.
+
+The intended restart slice remains ids `6082..6063`, starting at the prior
+HTTP 429 row. They are all `geckoterminal.new_pools`,
+`metadataStatus=mint_only`, `metricsCount=1`, `notificationCount=0`,
+`holderSnapshotCount=0`, score `C / 0`, and `hardRejected=false`.
+At the check time they were about `463..482` minutes old, so a 360-minute
+rolling window no longer selected them. Prisma read-only simulation showed
+`--sinceMinutes 720` is the smallest tested window that restores the desired
+first 20 selection; broader `1440`, `2880`, and `10080` windows also start at
+ids `6082..6063` but are less narrow.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token updates up to 20. Expected non-effects are Metric write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, rawJson full dump, and offensive raw text dump. Do not add
+`--notify`.
+
+Operational caveat: `--hours 6` / `--sinceMinutes 360` is a rolling view, not a
+stable cohort anchor. If a Red is delayed after Green preflight, re-check
+selection or re-window before execution.
+
 Paced enrich restart preflight, 2026-05-26: production
 `token:enrich-rescore` preview was not run because the CLI fetches externally
 even without `--write`. A Prisma read-only simulation for

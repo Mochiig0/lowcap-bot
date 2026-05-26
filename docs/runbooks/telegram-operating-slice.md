@@ -93,6 +93,14 @@ with `metadataStatus=mint_only`, `metricsCount=1`, `notificationCount=0`, and
 retry candidate `0`, enabled auto-send allowed candidate `0`, and
 `selectedNotificationId=null`. Do not add `--notify` to the paced enrich Red.
 
+Follow-up re-window check confirmed the same Telegram boundary after the 360m
+selection aged out. The paced enrich Red was not executed. Expanded
+`--sinceMinutes 720` selects ids `6082..6063` again; all remain
+`mint_only`, `metricsCount=1`, `notificationCount=0`, and
+`holderSnapshotCount=0`. The updated Red candidate remains `--notify`-free:
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write`.
+Expected Telegram send and Notification create/update remain `0`.
+
 ## Current DB State
 
 Read-only state:

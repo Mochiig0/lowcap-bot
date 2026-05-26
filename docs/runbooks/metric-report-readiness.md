@@ -59,6 +59,16 @@ Metric coverage (`metricsCount=1`) and no Notification / HolderSnapshot rows.
 No report/window changes are expected from the next enrich Red because it is a
 Token-context update lane, not a Metric append lane.
 
+Follow-up re-window check: that paced enrich Red was not executed with
+`--sinceMinutes 360` because the intended ids `6082..6063` aged out of the 6h
+rolling window. The rows remain Metric-covered (`metricsCount=1`), mint-only,
+and Notification / HolderSnapshot-free. A Prisma read-only window comparison
+showed `--sinceMinutes 720` is the smallest tested window that restores the
+desired first 20 selection. The updated enrich Red candidate is:
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write`.
+This remains a Token-context lane; report/window Metric rows are not expected
+to change.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:

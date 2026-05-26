@@ -122,6 +122,23 @@ would select ids `6082..6033`, but the safer first paced restart is limit 20:
 pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
 ```
 
+Before that Red was executed, a final read-only check found the 360-minute
+rolling window had aged out. The Red was not run. ids `6082..6063` are still
+the correct restart slice and remain `mint_only`, `metricsCount=1`,
+`notificationCount=0`, `holderSnapshotCount=0`, score `C / 0`, and
+`hardRejected=false`, but they were about `463..482` minutes old at the
+re-window check. Prisma simulation showed `--sinceMinutes 720` is the smallest
+tested expanded window that selects those same first 20 rows. Use this
+re-windowed candidate instead:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Do not add `--notify`. Expected writes remain Token updates only; Metric
+write, Notification create/update, HolderSnapshot write, Telegram send, and
+rawJson full dump should stay at `0`.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

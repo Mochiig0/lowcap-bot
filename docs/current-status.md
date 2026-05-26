@@ -35,6 +35,50 @@ Yellow enrich/rescore pacing implementation, 2026-05-26:
   and Token update up to 20; expected non-effects are Metric write,
   Notification create/update, HolderSnapshot write, and Telegram send.
 
+Paced enrich/rescore re-window preflight, 2026-05-26:
+
+- The previously approved paced Red was not executed. A final read-only
+  selection check found that `--sinceMinutes 360` had aged out the intended
+  rows, so ids `6082..6063` were no longer selected. No production
+  enrich/rescore write, Metric write, detect watch/write, Notification send,
+  retry execution, auto-send execution, external fetch, scheduler/systemd,
+  `pnpm smoke`, schema/migration, app code change, rawJson full dump, or
+  offensive raw text dump was run in this Green pass.
+- Current state: Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1`; metadata statuses `mint_only=1732`,
+  `partial=200`, `enriched=13`; Notification statuses `captured=17`,
+  `sent=5`, `failed=0`; retry candidate `0`; enabled auto-send allowed
+  candidate `0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` is unblocked, but
+  the requested 6h rolling window is empty: `metricPendingCount=0` and
+  `enrichPendingCount=0`. Default and rolling 168h views still show
+  `metricPendingCount=289` and `enrichPendingCount=354`.
+- ids `6082..6063` remain the intended restart slice. They are all
+  `geckoterminal.new_pools`, `metadataStatus=mint_only`, `metricsCount=1`,
+  `notificationCount=0`, `holderSnapshotCount=0`, score `C / 0`,
+  `hardRejected=false`, with no enrichment timestamps. Their detectedAt range
+  is `2026-05-26T05:03:48.454Z` through `2026-05-26T04:44:33.750Z`, about
+  `463..482` minutes old at the check time.
+- Prisma read-only selection simulation showed:
+  - `--sinceMinutes 360`: `selectedCount=0`
+  - `--sinceMinutes 720`: `selectedCount=253`, first 20 ids `6082..6063`
+  - `--sinceMinutes 1440`: `selectedCount=354`, first 20 ids `6082..6063`
+  - `--sinceMinutes 2880`: `selectedCount=354`, first 20 ids `6082..6063`
+  - `--sinceMinutes 10080`: `selectedCount=354`, first 20 ids `6082..6063`
+- Decision: use the smallest tested expanded window, `--sinceMinutes 720`,
+  for the next human-approved paced enrich restart. This keeps selection
+  anchored at the previous 429 row while avoiding broader 24h+ windows.
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token update up to 20. Expected non-effects are Metric write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, rawJson full dump `0`, and offensive raw text dump `0`.
+Do not attach `--notify`.
+
 Paced enrich/rescore Red preflight, 2026-05-26:
 
 - This Green pass stayed read-only / docs-only. It did not run

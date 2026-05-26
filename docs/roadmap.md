@@ -11,6 +11,38 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Green re-window preflight found that the previous paced enrich Red candidate
+with `--sinceMinutes 360` had aged out before execution. The intended restart
+slice ids `6082..6063` remains unchanged and still has
+`metadataStatus=mint_only`, `metricsCount=1`, `notificationCount=0`,
+`holderSnapshotCount=0`, score `C / 0`, and `hardRejected=false`, but those
+rows are now about `463..482` minutes old.
+
+Read-only Prisma selection simulation:
+
+- `--sinceMinutes 360`: `selectedCount=0`
+- `--sinceMinutes 720`: `selectedCount=253`, first 20 ids `6082..6063`
+- `--sinceMinutes 1440`: `selectedCount=354`, first 20 ids `6082..6063`
+- `--sinceMinutes 2880`: `selectedCount=354`, first 20 ids `6082..6063`
+- `--sinceMinutes 10080`: `selectedCount=354`, first 20 ids `6082..6063`
+
+Recommended next step: **Red paced post-6H enrich/rescore, re-windowed to
+720 minutes, limit 20**. Exact command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 720 --interItemDelayMs 15000 --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetch, best-effort Metaplex fetch, and Token update up to 20. Expected
+non-effects are Metric write, Notification create/update, HolderSnapshot
+write, Telegram send, scheduler / systemd, rawJson full dump, and offensive
+raw text dump. Do not attach `--notify`.
+
+Operational note: post-run workflow commands that use a 6h rolling window can
+age out if there is a long delay between preflight and Red execution. Re-check
+or widen `sinceMinutes` before executing a delayed post-run command.
+
 Green preflight after the pacing implementation is complete. Help output
 includes `--interItemDelayMs <MS>`, and read-only Prisma simulation confirms
 the next paced enrich/rescore slice is unambiguous. For
