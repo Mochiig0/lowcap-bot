@@ -4,6 +4,37 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow enrich/rescore pacing implementation, 2026-05-26:
+
+- `token:enrich-rescore:geckoterminal` now supports opt-in
+  `--interItemDelayMs <ms>` for batch pacing. The value must be a
+  non-negative integer. Default remains `0`, so existing behavior is unchanged
+  when the option is omitted.
+- Batch mode delays between selected items and never delays after the final
+  item. Summary output now includes `interItemDelayMs` and
+  `interItemDelayCount`. Exact `--mint` mode still works; the option is
+  accepted but has no practical pacing effect for a single item.
+- Existing HTTP 429 behavior is preserved: the batch stops on the first 429,
+  retry is not attempted, successful rows remain written, and
+  `skippedAfterRateLimit` continues to report the unprocessed tail.
+- Notification / Telegram boundaries are unchanged. Without `--notify`,
+  `notifyWouldSend=0`, `notifySent=0`, Notification create/update `0`, and
+  Telegram send `0` remain expected.
+- `ops:plan:bounded --postRunPlan` enrich command candidates now include
+  `--interItemDelayMs 15000` so post-run workflow planning matches the new
+  safer enrich cadence.
+- Verification was code/test/help/read-only only: `pnpm exec tsc --noEmit`,
+  targeted `tokenEnrichRescoreGeckoterminal` and planner tests, CLI help, and
+  read-only planners. No production `token:enrich-rescore --write`, Metric
+  write, detect watch, external fetch, Telegram send, Notification update,
+  scheduler/systemd, or `pnpm smoke` was run.
+- Next Red candidate, with human approval and after any desired read-only
+  preflight, is a smaller paced enrich batch:
+  `pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write`.
+  Expected side effects are external GeckoTerminal / best-effort Metaplex fetch
+  and Token update up to 20; expected non-effects are Metric write,
+  Notification create/update, HolderSnapshot write, and Telegram send.
+
 Post-6H Metric pending snapshot limit 50 Red, 2026-05-26 16:10-16:23 JST:
 
 - Human-approved exact command executed:
@@ -77,11 +108,10 @@ Post-6H enrich/rescore 429 boundary Green review, 2026-05-26 17:22 JST:
   `staleReviewCount=196`, and `notifyCandidateCount=0`. The requested 6h
   planner window has `metricPendingCount=93`, `enrichPendingCount=158`,
   `staleReviewCount=0`, and `notifyCandidateCount=0`.
-- Source/help inspection confirmed `token:enrich-rescore:geckoterminal`
-  currently supports `--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`,
-  `--write`, and `--notify`; it has no `--interItemDelayMs` or equivalent
-  pacing option. The batch loop processes selected tokens sequentially and
-  stops on HTTP 429 with `rateLimited=true`,
+- Source/help inspection confirmed `token:enrich-rescore:geckoterminal` did
+  not yet have `--interItemDelayMs` or equivalent pacing during this Green.
+  The batch loop processes selected tokens sequentially and stops on HTTP 429
+  with `rateLimited=true`,
   `abortedDueToRateLimit=true`, and `skippedAfterRateLimit`.
 - Decision: do not issue another Red command from this Green. The 429 happened
   at the sixth selected item after five fast successes, so the problem is a
@@ -1133,7 +1163,7 @@ pnpm token:rescore -- --mint <MINT>
 ```
 
 ```bash
-pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--write] [--notify]
+pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--interItemDelayMs <MS>] [--pumpOnly] [--write] [--notify]
 ```
 
 ```bash
@@ -3522,6 +3552,7 @@ There is no always-on bot, scheduler, queue worker, or background automatic inge
 - `token:enrich-rescore:geckoterminal` selects recent GeckoTerminal-origin tokens by `firstSeenSourceSnapshot.detectedAt` when present, otherwise by `Token.createdAt`
 - `token:enrich-rescore:geckoterminal` recent batch mode defaults to tokens still missing `name` or `symbol`, while `--mint` still forces single-token execution even when both fields are already present
 - `token:enrich-rescore:geckoterminal --pumpOnly` is batch-only narrowing for mint strings ending with `pump`, intended for a fast follow lane while leaving detect broad and leaving `--mint` single-token execution unchanged
+- `token:enrich-rescore:geckoterminal --interItemDelayMs <ms>` is optional batch pacing; it defaults to `0`, delays only between selected batch items, and reports `interItemDelayMs` / `interItemDelayCount` without changing selection, write, notify, or 429 stop semantics
 - `token:enrich-rescore:geckoterminal` fills name and symbol from GeckoTerminal when available, keeps description unchanged, rescoring from the post-enrich text snapshot, reports notify preview fields in dry-run, previews useful website/X/Telegram-style context capture from the same GeckoTerminal token snapshot without adding an extra API call, and now also performs a best-effort secondary `metaplex.metadata_uri` lookup after the Gecko primary snapshot succeeds
 - `token:enrich-rescore:geckoterminal --write` still saves Gecko snapshot context into `Token.entrySnapshot.contextCapture.geckoterminalTokenSnapshot`, and when useful Metaplex description / website / X / Telegram context exists it also saves `Token.entrySnapshot.contextCapture.metaplexMetadataUri`; Metaplex miss or fetch error does not fail the whole fast-follow item, and score, notify thresholds, and metric behavior remain unchanged
 - `token:enrich-rescore:geckoterminal --write` now also stores a small observational `Token.reviewFlagsJson` snapshot with fields such as `hasWebsite`, `hasX`, `hasTelegram`, `metaplexHit`, `descriptionPresent`, and `linkCount`; these flags are collect/store-first review data and are not yet used directly for score weighting, rank, or notify rules

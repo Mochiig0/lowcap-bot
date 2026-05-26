@@ -66,6 +66,13 @@ always-on auto live send, retry execution, and Notification send remain locked.
 (Token `1930 -> 1945`, Notification `18 -> 22`) and should not be used as a
 production no-write validation command.
 
+Latest planner update, 2026-05-26: `token:enrich-rescore:geckoterminal` now
+supports opt-in batch pacing with `--interItemDelayMs <ms>`. Default behavior
+is unchanged (`0` delay). `ops:plan:bounded --postRunPlan` enrich candidates
+now include `--interItemDelayMs 15000` so the post-run workflow does not repeat
+the unpaced limit 50 enrich command that hit HTTP 429 after five Token
+updates.
+
 Green / Yellow verification rule: do not use `pnpm smoke` as proof of
 read-only behavior against the active DB. It is an operational smoke path and
 can write Token / Notification rows. For no-write planner or runbook work, use
@@ -136,26 +143,33 @@ Next step should be a Green review of the 429/rate-limit boundary before any
 second enrich Red. Avoid repeating the same limit 50 enrich command without a
 fresh preflight or smaller bounded plan.
 
-That Green review confirmed the boundary. The current CLI has no
-`--interItemDelayMs` or equivalent pacing option; supported arguments are
-`--mint`, `--limit`, `--sinceMinutes`, `--pumpOnly`, `--write`, and
-`--notify`. The implementation processes selected tokens sequentially and
-already stops on HTTP 429, preserving `rateLimited`,
+That Green review confirmed the boundary. At that point the CLI had no
+`--interItemDelayMs` or equivalent pacing option. The implementation processes
+selected tokens sequentially and already stops on HTTP 429, preserving
+`rateLimited`,
 `abortedDueToRateLimit`, and `skippedAfterRateLimit` summary fields.
 
-Do not resume the post-6H enrich lane with another Red until pacing is added or
-a smaller bounded command is separately preflighted after cooldown. Preferred
-next engineering step is Yellow implementation of an opt-in batch pacing flag,
+The preferred Yellow implementation has now added an opt-in batch pacing flag,
 mirroring the Metric snapshot lane:
 
 ```bash
 --interItemDelayMs <ms>
 ```
 
-Default behavior should remain unchanged. The option should delay between
-selected enrich items, preserve 429 stop behavior, avoid `--notify` by
-default, add tests, and update this runbook. The Yellow implementation must
-not run production `token:enrich-rescore --write` or external fetches.
+It delays between selected enrich items, preserves 429 stop behavior, avoids
+`--notify` by default, and reports `interItemDelayMs` /
+`interItemDelayCount`. The Yellow implementation did not run production
+`token:enrich-rescore --write` or external fetches. Next paced Red candidate,
+with separate human approval:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal / best-effort Metaplex fetch
+and Token updates up to 20. Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, scheduler/systemd, rawJson full dump, and
+offensive raw text dump should remain `0`.
 
 When queue state is clear, the planner prefers a 6H-style detect dry-run
 candidate:

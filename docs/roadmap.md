@@ -11,14 +11,41 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Yellow implementation of the enrich/rescore pacing boundary is complete.
+`token:enrich-rescore:geckoterminal` now accepts
+`--interItemDelayMs <ms>` as an opt-in batch pacing flag. The default remains
+`0`, so existing behavior is unchanged when the option is omitted. The command
+validates the value as a non-negative integer, delays only between selected
+batch items, reports `interItemDelayMs` and `interItemDelayCount`, and keeps
+the existing HTTP 429 stop behavior with `skippedAfterRateLimit`.
+
+`ops:plan:bounded --postRunPlan` now includes `--interItemDelayMs 15000` in
+enrich command candidates. Production write/fetch/send was not executed during
+implementation; verification used typecheck, targeted tests, CLI help, and
+read-only planners only.
+
+Next recommended operating step: **Green preflight or human-approved Red for a
+small paced post-6H enrich/rescore batch**. Candidate Red:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
+Expected side effects are external GeckoTerminal fetch, best-effort Metaplex
+fetch, and Token updates up to 20. Expected non-effects are Metric write,
+Notification create/update, HolderSnapshot write, Telegram send, scheduler /
+systemd, rawJson full dump, and offensive raw text dump. Do not attach
+`--notify` unless a separate notification preflight approves it.
+
 Green review of the partial enrich/rescore Red is complete. Read-only checks
 confirmed ids `6087..6083` are now `partial`, while ids `6082..6038` remain
 `mint_only`; all selected rows still have `metricsCount=1`,
 `notificationCount=0`, `holderSnapshotCount=0`, score `C / 0`, and
 `hardRejected=false`. No retry or second command has been run.
 
-`token:enrich-rescore:geckoterminal --help` and source inspection show no
-current `--interItemDelayMs` or equivalent pacing option. The batch loop is
+At the time of that Green review, `token:enrich-rescore:geckoterminal --help`
+and source inspection showed no current `--interItemDelayMs` or equivalent
+pacing option. The batch loop is
 sequential and stops on HTTP 429 with `rateLimited=true`,
 `abortedDueToRateLimit=true`, and `skippedAfterRateLimit` set. Because the
 previous limit 50 Red succeeded for five fast items and then hit 429 on the

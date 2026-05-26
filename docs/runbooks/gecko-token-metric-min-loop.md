@@ -95,6 +95,21 @@ manual minimum loop, the next enrich/rescore improvement should be an opt-in
 batches. Until that exists, any small restart Red should require a fresh
 cooldown/preflight and must remain `--notify`-free.
 
+That Yellow implementation is now complete. `token:enrich-rescore:geckoterminal`
+accepts `--interItemDelayMs <ms>` in batch mode, defaults to `0`, delays only
+between selected items, reports `interItemDelayMs` and `interItemDelayCount`,
+and preserves the existing HTTP 429 stop / `skippedAfterRateLimit` behavior.
+Production enrich writes and external fetches were not run during
+implementation. The next paced Red candidate is:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write
+```
+
+It still must omit `--notify`; expected non-effects remain Metric write,
+Notification create/update, HolderSnapshot write, Telegram send,
+scheduler/systemd, and rawJson full dump.
+
 Latest bounded detect write rehearsal, 2026-05-26: a human-approved 6H
 `detect:geckoterminal:new-pools --watch --write` command completed
 `360` iterations with `failedCount=0`, `rateLimitRetryCount=0`,

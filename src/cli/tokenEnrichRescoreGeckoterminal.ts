@@ -49,6 +49,7 @@ type Args = {
   limit: number;
   sinceMinutes: number;
   pumpOnly: boolean;
+  interItemDelayMs: number;
 };
 
 type FirstSeenSourceSnapshot = {
@@ -248,6 +249,8 @@ type Output = {
     rateLimitedCount: number;
     abortedDueToRateLimit: boolean;
     skippedAfterRateLimit: number;
+    interItemDelayMs: number;
+    interItemDelayCount: number;
   };
   items: ProcessedItem[];
 };
@@ -320,7 +323,7 @@ class MetaplexFetchError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--write] [--notify]",
+    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--interItemDelayMs <MS>] [--pumpOnly] [--write] [--notify]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${GECKOTERMINAL_TOKEN_API_URL}/{mint}?include=top_pools`,
@@ -328,6 +331,7 @@ function getUsageText(): string {
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     "- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter",
+    "- --interItemDelayMs adds an opt-in delay between selected batch items; it defaults to 0 and does not add a delay after the final item",
     "- stays dry-run by default and writes Token enrich/rescore updates only when --write is set",
     "- --notify is allowed only with --write and only sends when the token newly enters S-rank and non-hard-rejected state after rescore",
     "- fetches name and symbol from GeckoTerminal token snapshots and keeps description unchanged",
@@ -349,6 +353,23 @@ function parsePositiveIntegerArg(value: string, key: string): number {
   return parsed;
 }
 
+function parseNonNegativeIntegerArg(value: string, key: string): number {
+  if (value.trim().length === 0) {
+    throw new CliUsageError(`Invalid integer for ${key}: ${value}`);
+  }
+
+  if (!/^\d+$/.test(value.trim())) {
+    throw new CliUsageError(`Invalid integer for ${key}: ${value}`);
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new CliUsageError(`Invalid integer for ${key}: ${value}`);
+  }
+
+  return parsed;
+}
+
 function parseOptionalStringArg(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
@@ -362,6 +383,7 @@ function parseArgs(argv: string[]): Args {
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     pumpOnly: false,
+    interItemDelayMs: 0,
   };
 
   for (let i = 0; i < normalizedArgv.length; i += 1) {
@@ -400,6 +422,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--sinceMinutes":
         out.sinceMinutes = parsePositiveIntegerArg(value, key);
+        break;
+      case "--interItemDelayMs":
+        out.interItemDelayMs = parseNonNegativeIntegerArg(value, key);
         break;
       default:
         throw new CliUsageError(`Unknown arg: ${key}`);
@@ -1719,6 +1744,14 @@ function isRateLimitErrorMessage(message: string | undefined): boolean {
   return message.includes("429 Too Many Requests");
 }
 
+async function delayBetweenBatchItems(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  if (process.env.LOWCAP_SKIP_INTER_ITEM_DELAY === "1") return;
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function buildTokenOutput(token: SelectedToken): ProcessedItem["token"] {
   return {
     id: token.id,
@@ -2432,6 +2465,7 @@ type BatchExecutionResult = {
   rateLimitedCount: number;
   abortedDueToRateLimit: boolean;
   skippedAfterRateLimit: number;
+  interItemDelayCount: number;
 };
 
 async function executeBatch(args: Args): Promise<BatchExecutionResult> {
@@ -2441,6 +2475,7 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
   let rateLimitedCount = 0;
   let abortedDueToRateLimit = false;
   let skippedAfterRateLimit = 0;
+  let interItemDelayCount = 0;
 
   for (let index = 0; index < selection.selectedTokens.length; index += 1) {
     const token = selection.selectedTokens[index];
@@ -2458,6 +2493,15 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
       skippedAfterRateLimit = selection.selectedTokens.length - index - 1;
       break;
     }
+
+    if (
+      selection.mode === "recent_batch" &&
+      args.interItemDelayMs > 0 &&
+      index < selection.selectedTokens.length - 1
+    ) {
+      interItemDelayCount += 1;
+      await delayBetweenBatchItems(args.interItemDelayMs);
+    }
   }
 
   return {
@@ -2472,6 +2516,7 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
     rateLimitedCount,
     abortedDueToRateLimit,
     skippedAfterRateLimit,
+    interItemDelayCount,
   };
 }
 
@@ -2499,6 +2544,8 @@ function logBatchSummary(output: Output): void {
       `rateLimitedCount=${output.summary.rateLimitedCount}`,
       `abortedDueToRateLimit=${output.summary.abortedDueToRateLimit}`,
       `skippedAfterRateLimit=${output.summary.skippedAfterRateLimit}`,
+      `interItemDelayMs=${output.summary.interItemDelayMs}`,
+      `interItemDelayCount=${output.summary.interItemDelayCount}`,
     ].join(" "),
   );
 }
@@ -2555,6 +2602,8 @@ async function main(): Promise<void> {
       rateLimitedCount: execution.rateLimitedCount,
       abortedDueToRateLimit: execution.abortedDueToRateLimit,
       skippedAfterRateLimit: execution.skippedAfterRateLimit,
+      interItemDelayMs: args.interItemDelayMs,
+      interItemDelayCount: execution.interItemDelayCount,
     },
     items: execution.items,
   };

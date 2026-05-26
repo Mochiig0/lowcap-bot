@@ -120,6 +120,7 @@ test("enrich pending recommends enrich rescore command without notify", () => {
   assert.equal(result.nextRecommendedStep, "enrich_pending_rescore");
   assert.equal(result.humanApprovalRequired, true);
   assert.match(result.redCommandCandidate ?? "", /token:enrich-rescore:geckoterminal/);
+  assert.match(result.redCommandCandidate ?? "", /--interItemDelayMs 15000/);
   assert.match(result.redCommandCandidate ?? "", /--write/);
   assert.doesNotMatch(result.redCommandCandidate ?? "", /--notify/);
 });
@@ -245,6 +246,7 @@ test("post-run plan makes enrich ready after metric pending is clear", () => {
   assert.equal(enrichStep?.status, "ready");
   assert.match(enrichStep?.commandCandidate ?? "", /token:enrich-rescore:geckoterminal/);
   assert.match(enrichStep?.commandCandidate ?? "", /--limit 50/);
+  assert.match(enrichStep?.commandCandidate ?? "", /--interItemDelayMs 15000/);
   assert.match(enrichStep?.commandCandidate ?? "", /--write/);
   assert.doesNotMatch(enrichStep?.commandCandidate ?? "", /--notify/);
 });

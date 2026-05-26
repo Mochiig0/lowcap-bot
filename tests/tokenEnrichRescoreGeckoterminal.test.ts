@@ -71,6 +71,8 @@ type TokenEnrichRescoreGeckoterminalOutput = {
     rateLimitedCount: number;
     abortedDueToRateLimit: boolean;
     skippedAfterRateLimit: number;
+    interItemDelayMs: number;
+    interItemDelayCount: number;
   };
   items: Array<{
     token: {
@@ -160,6 +162,7 @@ async function runTokenEnrichRescoreGeckoterminal(
     geckoSnapshotErrorOnce?: string;
     metaplexFixtureFile?: string;
     helperShadow?: boolean;
+    skipInterItemDelay?: boolean;
   },
 ): Promise<CommandResult> {
   const stdoutPath = join(
@@ -198,6 +201,7 @@ async function runTokenEnrichRescoreGeckoterminal(
             ? { METAPLEX_METADATA_URI_FILE: options.metaplexFixtureFile }
             : {}),
           LOWCAP_GECKO_TOKEN_WRITE_HELPER_SHADOW: options?.helperShadow ? "1" : "",
+          LOWCAP_SKIP_INTER_ITEM_DELAY: options?.skipInterItemDelay ? "1" : "",
         },
       },
     );
@@ -324,6 +328,10 @@ function assertSummaryMatchesItems(
   } else {
     assert.equal(parsed.summary.skippedAfterRateLimit, 0);
   }
+  assert.ok(Number.isInteger(parsed.summary.interItemDelayMs));
+  assert.ok(parsed.summary.interItemDelayMs >= 0);
+  assert.ok(Number.isInteger(parsed.summary.interItemDelayCount));
+  assert.ok(parsed.summary.interItemDelayCount >= 0);
 }
 
 async function seedToken(
@@ -510,11 +518,12 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       );
 
       const result = await runTokenEnrichRescoreGeckoterminal(
-        ["--mint", mint],
+        ["--mint", mint, "--interItemDelayMs", "15000"],
         {
           databaseUrl,
           geckoSnapshotFile,
           metaplexFixtureFile,
+          skipInterItemDelay: true,
         },
       );
       assert.equal(result.ok, true);
@@ -547,6 +556,8 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.rateLimitedCount, 0);
       assert.equal(parsed.summary.abortedDueToRateLimit, false);
       assert.equal(parsed.summary.skippedAfterRateLimit, 0);
+      assert.equal(parsed.summary.interItemDelayMs, 15000);
+      assert.equal(parsed.summary.interItemDelayCount, 0);
       assert.equal(parsed.items.length, 1);
       assert.equal(parsed.items[0]?.token.mint, mint);
       assert.equal(parsed.items[0]?.token.metadataStatus, "mint_only");
@@ -1583,11 +1594,12 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       );
 
       const result = await runTokenEnrichRescoreGeckoterminal(
-        ["--limit", "2", "--sinceMinutes", "10"],
+        ["--limit", "2", "--sinceMinutes", "10", "--interItemDelayMs", "15000"],
         {
           databaseUrl,
           geckoSnapshotFile,
           metaplexFixtureFile,
+          skipInterItemDelay: true,
         },
       );
       assert.equal(result.ok, true);
@@ -1608,6 +1620,10 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.rateLimitedCount, 0);
       assert.equal(parsed.summary.abortedDueToRateLimit, false);
       assert.equal(parsed.summary.skippedAfterRateLimit, 0);
+      assert.equal(parsed.summary.interItemDelayMs, 15000);
+      assert.equal(parsed.summary.interItemDelayCount, 1);
+      assert.match(result.stderr, /interItemDelayMs=15000/);
+      assert.match(result.stderr, /interItemDelayCount=1/);
       assert.equal(parsed.items.length, 2);
       assert.deepEqual(
         parsed.items.map((item) => item.token.mint),
@@ -1772,11 +1788,12 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       });
 
       const result = await runTokenEnrichRescoreGeckoterminal(
-        ["--limit", "3", "--sinceMinutes", "10"],
+        ["--limit", "3", "--sinceMinutes", "10", "--interItemDelayMs", "15000"],
         {
           databaseUrl,
           geckoSnapshotErrorOnce: rateLimitError,
           helperShadow: true,
+          skipInterItemDelay: true,
         },
       );
       assert.equal(result.ok, true);
@@ -1792,6 +1809,8 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.rateLimitedCount, 1);
       assert.equal(parsed.summary.abortedDueToRateLimit, true);
       assert.equal(parsed.summary.skippedAfterRateLimit, 2);
+      assert.equal(parsed.summary.interItemDelayMs, 15000);
+      assert.equal(parsed.summary.interItemDelayCount, 0);
       assert.equal(parsed.items.length, 1);
       assert.equal(parsed.items[0]?.token.mint, newestMint);
       assert.equal(parsed.items[0]?.status, "error");
@@ -1799,6 +1818,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.match(result.stderr, /rateLimited=true/);
       assert.match(result.stderr, /abortedDueToRateLimit=true/);
       assert.match(result.stderr, /skippedAfterRateLimit=2/);
+      assert.match(result.stderr, /interItemDelayCount=0/);
     });
   });
 
@@ -1993,11 +2013,12 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       );
 
       const result = await runTokenEnrichRescoreGeckoterminal(
-        ["--limit", "1", "--sinceMinutes", "10"],
+        ["--limit", "1", "--sinceMinutes", "10", "--interItemDelayMs", "15000"],
         {
           databaseUrl,
           geckoSnapshotFile,
           metaplexFixtureFile,
+          skipInterItemDelay: true,
         },
       );
       assert.equal(result.ok, true);
@@ -2006,6 +2027,8 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assertSummaryMatchesItems(parsed);
       assert.equal(parsed.mode, "recent_batch");
       assert.equal(parsed.selection.mint, null);
+      assert.equal(parsed.summary.interItemDelayMs, 15000);
+      assert.equal(parsed.summary.interItemDelayCount, 0);
       assert.equal(parsed.selection.selectedCount, 1);
       assert.equal(parsed.selection.selectedIncompleteCount, 1);
       assert.equal(parsed.selection.skippedCompleteCount, 1);
@@ -2289,8 +2312,26 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--notify requires --write/);
     assert.match(
       result.stderr,
-      /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
+      /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
     );
+  });
+
+  await t.test("exits non-zero for invalid interItemDelayMs values", async () => {
+    for (const value of ["-1", "not-a-number", ""]) {
+      const result = await runTokenEnrichRescoreGeckoterminal([
+        "--interItemDelayMs",
+        value,
+      ]);
+
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 1);
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Invalid integer for --interItemDelayMs:/);
+      assert.match(
+        result.stderr,
+        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
+      );
+    }
   });
 
   await t.test("exits non-zero when the requested token does not exist", async () => {
@@ -2310,7 +2351,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.match(result.stderr, /Token not found for mint: missing-token-mint/);
       assert.match(
         result.stderr,
-        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
+        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
       );
     });
   });

@@ -9,6 +9,7 @@ const DEFAULT_STALE_AFTER_HOURS = 6;
 const DETECT_INTERVAL_SECONDS = 60;
 const METRIC_MIN_GAP_MINUTES = 60;
 const METRIC_INTER_ITEM_DELAY_MS = 15_000;
+const ENRICH_INTER_ITEM_DELAY_MS = 15_000;
 const DEFAULT_POST_RUN_METRIC_LIMIT = 50;
 const DEFAULT_POST_RUN_ENRICH_LIMIT = 50;
 
@@ -224,6 +225,7 @@ function buildEnrichPendingCommand(options: BoundedOperationPlannerOptions): str
     ...optionalPumpOnlyArg(options.pumpOnly),
     `--limit ${options.limit}`,
     `--sinceMinutes ${sinceMinutes}`,
+    `--interItemDelayMs ${ENRICH_INTER_ITEM_DELAY_MS}`,
     "--write",
   ].join(" ");
 }

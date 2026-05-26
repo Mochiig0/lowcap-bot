@@ -79,6 +79,14 @@ enrich/rescore pacing implementation so Token context fetches can proceed
 without immediately re-triggering 429. Any future enrich Red must still omit
 `--notify` unless a separate notification preflight explicitly approves it.
 
+That Yellow implementation is complete. `token:enrich-rescore:geckoterminal`
+now has opt-in `--interItemDelayMs <ms>` batch pacing with unchanged default
+behavior and unchanged Notification / Telegram boundaries. The next paced
+enrich Red candidate remains `--notify`-free:
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write`.
+Expected Telegram send and Notification create/update remain `0`; any live
+send still requires a separate notification preflight and human-approved Red.
+
 ## Current DB State
 
 Read-only state:

@@ -43,6 +43,15 @@ inter-item delay option today. Next work should add opt-in pacing to the
 enrich/rescore CLI before another large enrich Red, while keeping report CLIs
 read-only and rawJson-free.
 
+That pacing implementation is now complete. `token:enrich-rescore:geckoterminal`
+supports `--interItemDelayMs <ms>` for opt-in batch pacing, keeps default
+behavior unchanged, preserves HTTP 429 stop behavior, and reports
+`interItemDelayMs` / `interItemDelayCount`. No production enrich write,
+external fetch, Metric write, Notification update, or Telegram send was run
+during implementation. A future paced enrich Red can use:
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 20 --sinceMinutes 360 --interItemDelayMs 15000 --write`
+with separate human approval and no `--notify`.
+
 ## Current DB State
 
 After improved Metric accumulation through limit 75:
