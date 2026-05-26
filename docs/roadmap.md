@@ -11,6 +11,38 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-26
 
+Green review after the post-6H Metric pending limit 20 Red is complete.
+Target ids `6087..6068` are count `20`, all now `metricsCount=1` with Metric
+ids `1637..1656`; selected-row Notification and HolderSnapshot totals remain
+`0`. Safe market-data booleans for those 20 Metric rows are all present:
+price `20`, FDV `20`, reserve `20`, and top-pool `20`.
+
+Current state is Token / Metric / Notification / HolderSnapshot
+`1930 / 556 / 18 / 1`; Metric buckets `0=1514`, `1=329`, `2+=87`;
+Notification statuses `captured=13`, `sent=5`, `failed=0`; retry candidate
+count and enabled auto-send allowed candidate count are both `0`.
+
+Queue still points to the Metric lane. Default 24h and rolling 168h views both
+show `metricPendingCount=339`, `enrichPendingCount=359`,
+`staleReviewCount=57`, and `notifyCandidateCount=0`. A fetch-free
+`--onlyMetricPending` preview with `--limit 50 --sinceMinutes 360` selected
+ids `6067..6018`, all Metric-zero rows with `notificationCount=0`,
+`holderSnapshotCount=0`, `metadataStatus=mint_only`, and no latest Metric.
+
+Recommended next step: **Red bounded metric pending snapshot, limit 50**. The
+limit 20 fresh-cohort proof succeeded without 429/provider error or side-effect
+spillover, and the next preview has at least 50 clear candidates:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Human approval is required. Expected side effects are external GeckoTerminal
+fetches and Metric writes up to 50. Expected non-effects are Token write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+offensive raw text dump `0`.
+
 The human-approved post-6H Metric pending snapshot Red has completed. Exact
 command:
 

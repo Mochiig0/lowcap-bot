@@ -118,6 +118,28 @@ candidates stayed `0`. No Token write, Notification create/update,
 HolderSnapshot write, Telegram send, scheduler/systemd, repo-local data diff,
 rawJson full dump, or offensive raw text dump occurred.
 
+Follow-up Green review confirmed the limit 20 result and cleared the next
+larger batch. Ids `6087..6068` are count `20`, all `metricsCount=1`; Metric
+ids `1637..1656` are count `20`; selected-row Notification and HolderSnapshot
+totals are `0`. Safe market-data boolean distribution across those 20 Metric
+rows is price `20`, FDV `20`, reserve `20`, and top-pool `20`.
+
+The next preview remained fetch-free and write-free:
+
+```bash
+node --import tsx src/cli/metricSnapshotGeckoterminal.ts --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture
+```
+
+Result: `selectedCount=50`, ids `6067..6018`, all `metricsCount=0`,
+`notificationCount=0`, `holderSnapshotCount=0`, `metadataStatus=mint_only`,
+and `latestMetricObservedAt=null`. Because the fresh-cohort limit 20 run
+completed with no provider errors, 429s, retries, or side-effect spillover,
+the next human-approved Red can use limit 50:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
 ## Pending-first Selector Yellow
 
 Date: 2026-05-25

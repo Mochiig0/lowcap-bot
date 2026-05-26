@@ -68,6 +68,19 @@ layer. Token write, Notification create/update, HolderSnapshot write,
 Telegram send, scheduler/systemd, repo-local data diff, rawJson full dump, and
 offensive raw text dump stayed at `0`.
 
+The follow-up Green review confirmed the full 20-row result by read-only
+summary: ids `6087..6068` are all `metricsCount=1`; Metric ids `1637..1656`
+exist; selected-row Notification and HolderSnapshot totals are both `0`; safe
+market-data boolean distribution is price `20`, FDV `20`, reserve `20`, and
+top-pool `20`. A fetch-free preview of the next bounded step with
+`--limit 50 --sinceMinutes 360 --onlyMetricPending` selected ids `6067..6018`,
+all still Metric-zero. The next human-approved Red can therefore use limit 50
+with the same `--noNotificationCapture` boundary:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
 For records copied from this minimum loop, keep only safe summaries: statuses,
 counts, mint / Metric ids, sources, `observedAt`, `metricsCount`, latest Metric
 and `recentMetrics` summaries, and rawJson-free safe summary booleans. Do not

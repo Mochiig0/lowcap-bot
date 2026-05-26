@@ -166,6 +166,38 @@ HolderSnapshot write `0`, Telegram send `0`, auto-send execution `0`, retry
 execution `0`, scheduler/systemd `0`, repo-local data diff `0`, rawJson full
 dump `0`, and offensive raw text dump `0`.
 
+Follow-up Green review, 2026-05-26 15:03 JST:
+
+- ids `6087..6068` are count `20`; all have `metricsCount=1`.
+- Metric ids `1637..1656` are count `20`.
+- selected-row Notification total: `0`; HolderSnapshot total: `0`.
+- safe market-data boolean distribution: price `20`, FDV `20`, reserve `20`,
+  top-pool `20`.
+- representative `metrics:report` checks for ids `6087`, `6079`, and `6068`
+  were rawJson-free and all had price / FDV / reserve / top-pool present.
+- representative window checks: id `6087` has `entryAnchorQuality=near_30m`;
+  id `6079` has `entryAnchorQuality=acceptable_60m`; both have
+  `metricCount=1`, `fdvMetricCount=1`, and `outcomeLabel=no_data`.
+- default 24h and rolling 168h queues both show `metricPendingCount=339`,
+  `enrichPendingCount=359`, `staleReviewCount=57`, and
+  `notifyCandidateCount=0`.
+- Fetch-free `--onlyMetricPending` preview with
+  `--limit 50 --sinceMinutes 360` selected ids `6067..6018`, all
+  `metricsCount=0`, `notificationCount=0`, `holderSnapshotCount=0`,
+  `metadataStatus=mint_only`, and `latestMetricObservedAt=null`.
+
+Next human-approved Red can use limit 50:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects are external GeckoTerminal fetch and Metric write up to
+50. Expected non-effects are Token write `0`, Notification create/update `0`,
+HolderSnapshot write `0`, Telegram send `0`, scheduler/systemd `0`,
+repo-local data diff `0`, rawJson full dump `0`, and offensive raw text dump
+`0`.
+
 ## Metric Pending Preflight After 6H Write
 
 Date: 2026-05-26 14:15 JST

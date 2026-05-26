@@ -4,6 +4,48 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Metric pending limit 20 review after 6H write rehearsal, 2026-05-26 15:03 JST:
+
+- This Green pass ran read-only / docs-only review after the successful
+  post-6H Metric pending Red. It did not run `metric:snapshot --write`,
+  external fetch, DB write, Telegram send, Notification update,
+  scheduler/systemd, rawJson full dump, or offensive raw text dump.
+- Current DB state: Token / Metric / Notification / HolderSnapshot
+  `1930 / 556 / 18 / 1`; Metric buckets `0=1514`, `1=329`, `2+=87`;
+  Notification statuses `captured=13`, `sent=5`, `failed=0`; retry
+  candidate count `0`; enabled auto-send allowed candidate count `0`.
+- Target ids `6087..6068` are count `20`; all 20 have `metricsCount=1`.
+  Metric ids `1637..1656` are count `20`. Selected-row Notification count
+  total is `0` and HolderSnapshot count total is `0`.
+- Safe market-data boolean distribution for Metric ids `1637..1656`:
+  `priceUsdPresent=20`, `fdvUsdPresent=20`, `reserveUsdPresent=20`,
+  `topPoolPresent=20`.
+- Representative rawJson-free reports stayed readable: ids `6087`, `6079`,
+  and `6068` map to Metric ids `1637`, `1645`, and `1656`; all three have
+  price / FDV / reserve / top-pool present.
+- Representative windows stayed read-only and rawJson-free: id `6087` has
+  `metricCount=1`, `fdvMetricCount=1`, `entryAnchorQuality=near_30m`,
+  `outcomeLabel=no_data`, and FDV samples from the 30m window onward; id
+  `6079` has `metricCount=1`, `fdvMetricCount=1`,
+  `entryAnchorQuality=acceptable_60m`, 30m `no_data`, and 60m+ thin FDV
+  samples.
+- Queue now still has Metric backlog: default 24h and rolling 168h both show
+  `metricPendingCount=339`, `enrichPendingCount=359`,
+  `staleReviewCount=57`, and `notifyCandidateCount=0`.
+- Fetch-free `--onlyMetricPending` preview with `--limit 50` and
+  `--sinceMinutes 360` returned `selectedCount=50`, ids `6067..6018`; all
+  preview rows are `metricsCount=0`, `notificationCount=0`,
+  `holderSnapshotCount=0`, `metadataStatus=mint_only`, and
+  `latestMetricObservedAt=null`.
+- Recommendation: next Red can move to limit 50 for this post-6H Metric pending
+  lane:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 360 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Human approval is required. Expected side effects are external GeckoTerminal
+  fetch and Metric write up to 50. Expected non-effects are Token write `0`,
+  Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+  scheduler/systemd `0`, repo-local data diff `0`, rawJson full dump `0`, and
+  offensive raw text dump `0`.
+
 Metric pending snapshot after 6H write rehearsal Red, 2026-05-26 14:36-14:42 JST:
 
 - Human-approved exact command executed once:

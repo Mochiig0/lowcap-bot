@@ -84,6 +84,19 @@ shape: id `6087` has `metricCount=1`, `fdvMetricCount=1`,
 30m `no_data`, and 60m+ thin FDV samples. Notification capture remained `0`
 and no Telegram send occurred.
 
+The follow-up Green review confirmed the result across the full 20-row target
+set without rawJson output. Ids `6087..6068` are all `metricsCount=1`; Metric
+ids `1637..1656` are present; selected-row Notification and HolderSnapshot
+totals are `0`. Safe market-data boolean distribution for those Metric rows is
+price `20`, FDV `20`, reserve `20`, and top-pool `20`.
+
+The next fetch-free `--onlyMetricPending` preview with `--limit 50` selected
+ids `6067..6018`, all Metric-zero and still `mint_only`. This is enough to
+recommend the next human-approved Red as a limit 50 Metric pending snapshot.
+Expected report shape remains single-sample / thin until follow-up Metric
+history accumulates; the immediate goal is backlog reduction, not outcome
+classification completeness.
+
 Follow-up preflight at 2026-05-25 22:21 JST used the same selector shape with
 `--sinceMinutes 10080`, `--limit 5`, `--minGapMinutes 60`, and
 `--interItemDelayMs 15000`. It returned `selectedCount=0` because the rolling
