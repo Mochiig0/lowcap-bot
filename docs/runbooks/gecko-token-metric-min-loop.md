@@ -90,6 +90,24 @@ This remains a human-approved Red only. The current Green pass did not execute
 detect, Metric snapshot, enrich/rescore, notification send, retry execution,
 scheduler/systemd, or `pnpm smoke`.
 
+That fixed-runner Red later ran once and completed. The minimum loop advanced
+as a bounded pipeline rather than manual split commands:
+
+- detect write completed and created/reused Tokens with net Token `+360`.
+- Metric pending snapshot ran two cycles and wrote Metric `+100`
+  (representative Metric ids `1766..1865`).
+- enrich/rescore ran two cycles and updated Token context/rescore for `100`
+  rows; representative updated Token ids include `6759..6858`.
+- report review and notification planner review stayed read-only.
+
+DB moved from Token / Metric / Notification / HolderSnapshot
+`2304 / 656 / 22 / 1` to `2664 / 756 / 22 / 1`. Metric buckets moved from
+`0=1788`, `1=429`, `2+=87` to `0=2048`, `1=529`, `2+=87`; metadata moved to
+`mint_only=2181`, `partial=470`, `enriched=13`. Notification create/update,
+HolderSnapshot write, Telegram send, retry execution, auto live send,
+scheduler/systemd, rawJson full dump, offensive raw text dump, and `pnpm
+smoke` remained `0`.
+
 No minimum-loop state advanced during that failed attempt: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

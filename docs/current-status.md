@@ -4,6 +4,51 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Red fixed multi-cycle bounded runner execute, 2026-05-27/28:
+
+- Ran the human-approved exact command once:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+  Start/end were `2026-05-27T20:24:16+09:00` to
+  `2026-05-28T03:20:37+09:00` (~6h56m). No retry, second command, manual
+  detect/Metric/enrich補填, notification send, retry execution, auto live
+  send, scheduler/systemd, or `pnpm smoke` was run.
+- Runner completed with `executeRequested=true`, `readOnly=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`,
+  `postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+  `metricCyclesExecuted=2`, `enrichCyclesExecuted=2`,
+  `metricCyclesStoppedReason=null`, `enrichCyclesStoppedReason=null`,
+  `blockedBy=[]`, and `stopConditionCodes=[]`.
+- Phase outcome: preflight ok; `detect_write` executed and completed the
+  bounded watch (`360` cycles observed in runner output), creating/reusing
+  Tokens with net Token `+360`; `metric_pending_snapshot` ran two cycles and
+  wrote Metric `+100`; `enrich_rescore` ran two cycles and updated Token
+  context/rescore for `100` rows; `report_review` and
+  `notification_plan_review` stayed read-only.
+- DB before/after Token / Metric / Notification / HolderSnapshot:
+  `2304 / 656 / 22 / 1` -> `2664 / 756 / 22 / 1`. Metadata statuses moved
+  from `mint_only=1921`, `partial=370`, `enriched=13` to
+  `mint_only=2181`, `partial=470`, `enriched=13`. Metric buckets moved from
+  `0=1788`, `1=429`, `2+=87` to `0=2048`, `1=529`, `2+=87`. Notification
+  statuses stayed `captured=17`, `sent=5`, `failed=0`; retry candidate `0`;
+  enabled auto-send allowed candidate `0`.
+- Checkpoint `/tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json` exists
+  outside the repo, size `176` bytes, source `geckoterminal.new_pools`, cursor
+  poolCreatedAt `2026-05-27T17:28:09.000Z`, poolAddress safely summarized as
+  `5ojrpS...r5WB`. No repo-local runtime data diff, rawJson full dump, or
+  offensive raw text dump was used.
+- Post-run queue/planner: default 24h `geckoOriginTokenCount=719`,
+  `metricPendingCount=569`, `enrichPendingCount=569`,
+  `staleReviewCount=365`, `notifyCandidateCount=0`; rolling 168h
+  `geckoOriginTokenCount=1083`, `metricPendingCount=858`,
+  `enrichPendingCount=803`, `staleReviewCount=654`,
+  `notifyCandidateCount=0`; requested 6h planner window
+  `geckoOriginTokenCount=304`, `metricPendingCount=204`,
+  `enrichPendingCount=204`, `notifyCandidateCount=0`. `ops:plan:bounded`
+  recommends `metric_pending_snapshot`; `ops:run:bounded` plan-only after is
+  unblocked. Next candidate is Green review of this multi-cycle run and a
+  post-run queue decision, likely bounded Metric pending continuation before
+  more enrich.
+
 Green bounded runner cycles execute preflight, 2026-05-27:
 
 - Fixed-executor Red preflight completed after the `node --import tsx`

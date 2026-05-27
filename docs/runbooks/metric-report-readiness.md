@@ -85,6 +85,16 @@ report phase ran as read-only queue review. Post-run queues show default 24h
 `staleReviewCount=501`, `notifyCandidateCount=0`. No rawJson full dump or
 offensive raw text dump was used in docs/final summaries.
 
+The fixed multi-cycle runner execute later confirmed the same report boundary
+at a larger bounded size. Metric pending snapshot ran two cycles and wrote
+Metric ids `1766..1865` (`Metric +100`) before enrich/rescore; report review
+ran only queue/planner reads. Post-run queues show default 24h
+`metricPendingCount=569`, `enrichPendingCount=569`,
+`staleReviewCount=365`, `notifyCandidateCount=0`, and rolling 168h
+`metricPendingCount=858`, `enrichPendingCount=803`,
+`staleReviewCount=654`, `notifyCandidateCount=0`. No rawJson full dump or
+offensive raw text dump was used.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

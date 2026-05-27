@@ -139,6 +139,33 @@ must still not create/update Notifications, send Telegram, write
 HolderSnapshots, run retry execution, run auto live send, use scheduler/systemd,
 dump rawJson, dump offensive raw text, or run `pnpm smoke`.
 
+The fixed-executor Red then ran that exact command once and completed the
+multi-cycle bounded pipeline. Runtime was `2026-05-27T20:24:16+09:00` to
+`2026-05-28T03:20:37+09:00` (~6h56m). Summary: `executeRequested=true`,
+`readOnly=false`, `computedSinceMinutes=420`, `maxIterations=360`,
+`postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+`metricCyclesExecuted=2`, `enrichCyclesExecuted=2`,
+`metricCyclesStoppedReason=null`, `enrichCyclesStoppedReason=null`,
+`blockedBy=[]`, and `stopConditionCodes=[]`.
+
+Observed phase result:
+
+- `detect_write`: completed bounded watch and produced net Token `+360`.
+- `metric_pending_snapshot`: two cycles completed, Metric `+100`.
+- `enrich_rescore`: two cycles completed, Token context/rescore updates `100`.
+- `report_review`: read-only.
+- `notification_plan_review`: read-only.
+
+DB moved from Token / Metric / Notification / HolderSnapshot
+`2304 / 656 / 22 / 1` to `2664 / 756 / 22 / 1`. Notification statuses stayed
+`captured=17`, `sent=5`, `failed=0`; retry candidate `0`; enabled auto-send
+allowed candidate `0`; Telegram send `0`; HolderSnapshot write `0`. The
+checkpoint now exists outside the repo at
+`/tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json` (`176` bytes), with
+source `geckoterminal.new_pools` and cursor poolCreatedAt
+`2026-05-27T17:28:09.000Z`. No rawJson full dump or offensive raw text dump
+was used.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,
