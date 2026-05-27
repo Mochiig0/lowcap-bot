@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import {
   buildBoundedOperationRunnerPlan,
   computeSinceMinutes,
+  formatBoundedOperationProgressEvent,
   runBoundedOperationRunner,
+  type BoundedOperationRunnerProgressEvent,
   type BoundedOperationRunnerOptions,
   type BoundedOperationRunnerPhase,
   type PhaseCommand,
@@ -79,6 +81,19 @@ function input(overrides: Partial<BoundedOperationPlannerInput> = {}): BoundedOp
 
 function allCommandText(report: ReturnType<typeof buildBoundedOperationRunnerPlan>): string {
   return report.phases.flatMap((phase) => phase.commandCandidates ?? []).join("\n");
+}
+
+function captureProgressEvents(): {
+  events: BoundedOperationRunnerProgressEvent[];
+  logger: (event: BoundedOperationRunnerProgressEvent) => void;
+} {
+  const events: BoundedOperationRunnerProgressEvent[] = [];
+  return {
+    events,
+    logger: (event) => {
+      events.push(event);
+    },
+  };
 }
 
 test("plan-only mode marks phases planned and does not require execution", async () => {
@@ -371,6 +386,178 @@ test("execute mode calls metric and enrich cycles the requested number of times"
   ]);
   assert.equal(report.metricCyclesExecuted, 3);
   assert.equal(report.enrichCyclesExecuted, 2);
+});
+
+test("execute mode emits phase cycle and final progress events", async () => {
+  const { events, logger } = captureProgressEvents();
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 2,
+      postRunEnrichCycles: 2,
+    },
+    async (phase) => {
+      if (phase.phase === "detect_write") {
+        return { ok: true, summary: { importedCount: 3, existingCount: 1 } };
+      }
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 1, written: 1, skipped: 0, error: 0 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return { ok: true, summary: { selected: 1, enriched: 1, rescored: 1, error: 0 } };
+      }
+      return { ok: true, summary: { selected: 0 } };
+    },
+    logger,
+  );
+
+  assert.ok(events.some((event) =>
+    event.event === "phase" && event.phase === "detect_write" && event.status === "started",
+  ));
+  assert.ok(events.some((event) =>
+    event.event === "phase" && event.phase === "detect_write" && event.status === "completed",
+  ));
+  assert.ok(events.some((event) =>
+    event.event === "cycle"
+    && event.phase === "metric_pending_snapshot"
+    && event.cycleIndex === 1
+    && event.cycleTotal === 2
+    && event.status === "completed",
+  ));
+  assert.ok(events.some((event) =>
+    event.event === "cycle"
+    && event.phase === "enrich_rescore"
+    && event.cycleIndex === 2
+    && event.cycleTotal === 2
+    && event.status === "completed",
+  ));
+
+  const finalEvent = events.find((event) => event.event === "final_summary");
+  assert.equal(finalEvent?.status, "completed");
+  assert.equal(finalEvent?.summary?.totalTokenCreateReuse, 4);
+  assert.equal(finalEvent?.summary?.totalMetricWrite, 2);
+  assert.equal(finalEvent?.summary?.totalTokenUpdate, 2);
+  assert.equal(report.progressSummary?.overallStatus, "completed");
+  assert.equal(report.progressSummary?.metricCyclesExecuted, 2);
+  assert.equal(report.progressSummary?.enrichCyclesExecuted, 2);
+});
+
+test("plan-only mode does not emit progress events", async () => {
+  const { events, logger } = captureProgressEvents();
+  await runBoundedOperationRunner(
+    input(),
+    BASE_OPTIONS,
+    async () => ({ ok: true }),
+    logger,
+  );
+
+  assert.deepEqual(events, []);
+});
+
+test("final progress summary is emitted on detect failure", async () => {
+  const { events, logger } = captureProgressEvents();
+  const report = await runBoundedOperationRunner(
+    input(),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase) => ({
+      ok: phase.phase !== "detect_write",
+      stopConditionCodes: phase.phase === "detect_write" ? ["mock_detect_failed"] : [],
+    }),
+    logger,
+  );
+
+  const finalEvent = events.find((event) => event.event === "final_summary");
+  assert.equal(finalEvent?.status, "failed");
+  assert.ok(finalEvent?.stopConditionCodes?.includes("mock_detect_failed"));
+  assert.equal(report.progressSummary?.overallStatus, "failed");
+});
+
+test("final progress summary is emitted on metric failure", async () => {
+  const { events, logger } = captureProgressEvents();
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 2,
+      postRunEnrichCycles: 1,
+    },
+    async (phase) => {
+      if (phase.phase === "metric_pending_snapshot") {
+        return {
+          ok: false,
+          summary: { selected: 1, written: 0, error: 1 },
+          stopConditionCodes: ["mock_metric_failed"],
+        };
+      }
+      return { ok: true, summary: { selected: 1, written: 1, enriched: 1, rescored: 1 } };
+    },
+    logger,
+  );
+
+  const finalEvent = events.find((event) => event.event === "final_summary");
+  assert.equal(finalEvent?.status, "failed");
+  assert.equal(report.progressSummary?.overallStatus, "failed");
+  assert.equal(report.metricCyclesExecuted, 0);
+});
+
+test("final progress summary is emitted on enrich failure", async () => {
+  const { events, logger } = captureProgressEvents();
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 1,
+      postRunEnrichCycles: 2,
+    },
+    async (phase) => {
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: false,
+          summary: { selected: 1, enriched: 0, rescored: 0, error: 1 },
+          stopConditionCodes: ["mock_enrich_failed"],
+        };
+      }
+      return { ok: true, summary: { selected: 1, written: 1, enriched: 1, rescored: 1 } };
+    },
+    logger,
+  );
+
+  const finalEvent = events.find((event) => event.event === "final_summary");
+  assert.equal(finalEvent?.status, "failed");
+  assert.equal(report.progressSummary?.overallStatus, "failed");
+  assert.equal(report.enrichCyclesExecuted, 0);
+});
+
+test("progress logs avoid raw payload fields", async () => {
+  const { events, logger } = captureProgressEvents();
+  await runBoundedOperationRunner(
+    input(),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async () => ({
+      ok: true,
+      summary: {
+        selected: 1,
+        written: 1,
+        enriched: 1,
+        rescored: 1,
+        rawJson: "RAW_JSON_SHOULD_NOT_BE_LOGGED",
+        stdoutTail: "STDOUT_TAIL_SHOULD_NOT_BE_LOGGED",
+        offensiveText: "OFFENSIVE_TEXT_SHOULD_NOT_BE_LOGGED",
+      },
+    }),
+    logger,
+  );
+
+  const rendered = events.map(formatBoundedOperationProgressEvent).join("\n");
+  assert.doesNotMatch(rendered, /RAW_JSON_SHOULD_NOT_BE_LOGGED/);
+  assert.doesNotMatch(rendered, /STDOUT_TAIL_SHOULD_NOT_BE_LOGGED/);
+  assert.doesNotMatch(rendered, /OFFENSIVE_TEXT_SHOULD_NOT_BE_LOGGED/);
+  assert.doesNotMatch(rendered, /rawJson/);
+  assert.doesNotMatch(rendered, /stdoutTail/);
 });
 
 test("detect failure stops metric and enrich", async () => {

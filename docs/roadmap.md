@@ -11,6 +11,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-28
 
+`ops:run:bounded` now has execute-time progress logging and a compact final
+summary. Execute mode emits `[ops:run]` lines to stderr for phase start/end,
+Metric/enrich cycle start/end, and final summary. The machine-readable JSON
+report remains on stdout. The summary is emitted on success and on failures
+such as detect child process failure, Metric cycle failure, enrich cycle
+failure, or provider/rate-limit stops.
+
+The log payload is intentionally narrow: it includes whitelisted counters such
+as selected/written/enriched/rescored/error, cycle indices, elapsed duration,
+stopped reasons, checkpoint path, blockers, and stop codes. It does not log
+rawJson, `stdoutTail`, `stderrTail`, large payloads, mint/name/symbol dumps, or
+offensive raw text. Notification send, retry execution, auto live send,
+scheduler/systemd, and `pnpm smoke` remain outside the runner.
+
+Verification was non-production only: `pnpm exec tsc --noEmit`,
+`tests/opsRunBounded.test.ts`, `tests/opsPlanBounded.test.ts`,
+`tests/indexHelpHub.test.ts`, help, plan-only runner output, notification
+planners, retry planner, and read-only queue. Production `--execute`, detect
+watch/write, Metric write, Token enrich/rescore write, notification send, and
+external fetch were not run in this slice.
+
+Recommended next step: **Green preflight for bounded runner execute with
+progress logging**, then a separate Red execute only if DB/queue/planner safety
+state remains clear.
+
 Fixed-executor multi-cycle `ops:run:bounded --execute` completed once and has
 now been reviewed read-only. It should be treated as a successful bounded
 pipeline run. It used cycles `2 / 2`:

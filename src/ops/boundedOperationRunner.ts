@@ -84,6 +84,45 @@ export type PhaseExecutor = (
   commands: PhaseCommand[],
 ) => Promise<PhaseExecutionResult>;
 
+export type BoundedOperationRunnerProgressEvent = {
+  event: "phase" | "cycle" | "final_summary";
+  phase?: BoundedOperationRunnerPhaseName;
+  status: string;
+  at: string;
+  durationMs?: number;
+  cycleIndex?: number;
+  cycleTotal?: number;
+  summary?: Record<string, unknown>;
+  blockedBy?: string[];
+  stopConditionCodes?: string[];
+};
+
+export type BoundedOperationRunnerLogger = (
+  event: BoundedOperationRunnerProgressEvent,
+) => void;
+
+export type BoundedOperationRunnerProgressSummary = {
+  overallStatus: "planned" | "completed" | "failed" | "blocked";
+  executeRequested: boolean;
+  durationMs: number;
+  phasesCompleted: string[];
+  phasesFailed: string[];
+  phasesSkipped: string[];
+  detectSummary: Record<string, unknown>;
+  metricCyclesExecuted: number;
+  enrichCyclesExecuted: number;
+  metricCyclesStoppedReason: string | null;
+  enrichCyclesStoppedReason: string | null;
+  totalTokenCreateReuse: number | null;
+  totalMetricWrite: number | null;
+  totalTokenUpdate: number | null;
+  notificationCreateUpdateExpected: 0;
+  telegramSendExpected: 0;
+  checkpointFile: string | null;
+  blockedBy: string[];
+  stopConditionCodes: string[];
+};
+
 export type BoundedOperationRunnerReport = {
   mode: "bounded_operation_runner";
   readOnly: boolean;
@@ -117,6 +156,7 @@ export type BoundedOperationRunnerReport = {
   stopConditionCodes: string[];
   expectedSideEffects: string[];
   expectedNonEffects: string[];
+  progressSummary?: BoundedOperationRunnerProgressSummary;
 };
 
 export const DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS = {
@@ -640,6 +680,10 @@ function asBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 function parseJsonObject(output: string): Record<string, unknown> | null {
   const trimmed = output.trim();
   if (trimmed.length === 0) {
@@ -653,7 +697,7 @@ function parseJsonObject(output: string): Record<string, unknown> | null {
   }
 }
 
-function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
+function parsedCommandSummary(value: unknown): Record<string, unknown> {
   const record = asRecord(value) ?? {};
   const summary = asRecord(record.summary) ?? record;
   const commandResults = Array.isArray(record.commandResults) ? record.commandResults : [];
@@ -661,7 +705,68 @@ function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
     .map((item) => asRecord(item))
     .map((item) => asRecord(item?.parsedSummary))
     .find((item): item is Record<string, unknown> => item !== null);
-  const source = parsedSummary ?? summary;
+  return parsedSummary ?? summary;
+}
+
+function extractProgressSummaryFields(value: unknown): Record<string, unknown> {
+  const source = parsedCommandSummary(value);
+  const fields: Record<string, unknown> = {};
+
+  for (const key of [
+    "cycleCount",
+    "completedIterations",
+    "failedCount",
+    "rateLimitRetryCount",
+    "importedCount",
+    "existingCount",
+    "selected",
+    "written",
+    "enriched",
+    "rescored",
+    "skipped",
+    "error",
+    "contextWritten",
+    "metaplexAttempted",
+    "metaplexAvailable",
+    "notifyWouldSend",
+    "notifySent",
+    "interItemDelayMs",
+    "interItemDelayCount",
+    "skippedAfterRateLimit",
+    "cyclesPlanned",
+    "cyclesExecuted",
+  ]) {
+    const numericValue = asNumber(source[key]);
+    if (numericValue !== undefined) {
+      fields[key] = numericValue;
+    }
+  }
+
+  for (const key of [
+    "dryRun",
+    "writeEnabled",
+    "checkpointEnabled",
+    "providerErrorPresent",
+    "http429Present",
+    "rateLimited",
+    "abortedDueToRateLimit",
+  ]) {
+    const booleanValue = asBoolean(source[key]);
+    if (booleanValue !== undefined) {
+      fields[key] = booleanValue;
+    }
+  }
+
+  const stoppedReason = asString(source.stoppedReason);
+  if (stoppedReason !== undefined) {
+    fields.stoppedReason = stoppedReason;
+  }
+
+  return fields;
+}
+
+function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
+  const source = parsedCommandSummary(value);
   const fields: Record<string, unknown> = {};
 
   for (const key of [
@@ -699,6 +804,75 @@ function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
   }
 
   return fields;
+}
+
+function emitProgress(
+  logger: BoundedOperationRunnerLogger | undefined,
+  event: Omit<BoundedOperationRunnerProgressEvent, "at">,
+): void {
+  if (logger === undefined) {
+    return;
+  }
+
+  logger({
+    ...event,
+    at: new Date().toISOString(),
+  });
+}
+
+function formatProgressValue(value: unknown): string | null {
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (typeof value === "string") {
+    return value.length === 0 ? null : value;
+  }
+
+  return null;
+}
+
+export function formatBoundedOperationProgressEvent(
+  event: BoundedOperationRunnerProgressEvent,
+): string {
+  const parts = ["[ops:run]", `event=${event.event}`, `status=${event.status}`, `at=${event.at}`];
+
+  if (event.phase !== undefined) {
+    parts.push(`phase=${event.phase}`);
+  }
+
+  if (event.cycleIndex !== undefined && event.cycleTotal !== undefined) {
+    parts.push(`cycle=${event.cycleIndex}/${event.cycleTotal}`);
+  }
+
+  if (event.durationMs !== undefined) {
+    parts.push(`durationMs=${event.durationMs}`);
+  }
+
+  for (const [key, value] of Object.entries(event.summary ?? {})) {
+    const formatted = formatProgressValue(value);
+    if (formatted !== null) {
+      parts.push(`${key}=${formatted}`);
+    }
+  }
+
+  if (event.blockedBy !== undefined && event.blockedBy.length > 0) {
+    parts.push(`blockedBy=${event.blockedBy.join(",")}`);
+  }
+
+  if (event.stopConditionCodes !== undefined && event.stopConditionCodes.length > 0) {
+    parts.push(`stopConditionCodes=${event.stopConditionCodes.join(",")}`);
+  }
+
+  return parts.join(" ");
+}
+
+export function createConsoleBoundedOperationProgressLogger(
+  stream: Pick<NodeJS.WriteStream, "write"> = process.stderr,
+): BoundedOperationRunnerLogger {
+  return (event) => {
+    stream.write(`${formatBoundedOperationProgressEvent(event)}\n`);
+  };
 }
 
 function cycleHasProviderError(fields: Record<string, unknown>): boolean {
@@ -788,7 +962,7 @@ export async function defaultPhaseExecutor(
       });
     });
 
-    const parsedSummary = extractCycleSummaryFields(parseJsonObject(result.stdout));
+    const parsedSummary = extractProgressSummaryFields(parseJsonObject(result.stdout));
     commandResults.push({
       label: command.label,
       exitCode: result.exitCode,
@@ -833,12 +1007,32 @@ async function executeCyclePhase(
   phaseItem: BoundedOperationRunnerPhase,
   commands: PhaseCommand[],
   executor: PhaseExecutor,
+  logger?: BoundedOperationRunnerLogger,
 ): Promise<boolean> {
+  const phaseStartedAt = Date.now();
+  emitProgress(logger, {
+    event: "phase",
+    phase: phaseItem.phase,
+    status: "started",
+    summary: {
+      cyclesPlanned: commands.length,
+    },
+  });
+
   const cycleSummaries: Record<string, unknown>[] = [];
   let stoppedReason: string | null = null;
   let executedCount = 0;
 
   for (const [index, command] of commands.entries()) {
+    const cycleStartedAt = Date.now();
+    emitProgress(logger, {
+      event: "cycle",
+      phase: phaseItem.phase,
+      status: "started",
+      cycleIndex: index + 1,
+      cycleTotal: commands.length,
+    });
+
     const result = await executor(phaseItem, [command]);
     const fields = extractCycleSummaryFields(result.summary ?? {});
     const cycleSummary = {
@@ -852,6 +1046,18 @@ async function executeCyclePhase(
     if (result.ok) {
       executedCount += 1;
     }
+
+    emitProgress(logger, {
+      event: "cycle",
+      phase: phaseItem.phase,
+      status: result.ok ? "completed" : "failed",
+      durationMs: Date.now() - cycleStartedAt,
+      cycleIndex: index + 1,
+      cycleTotal: commands.length,
+      summary: fields,
+      blockedBy: result.blockedBy ?? [],
+      stopConditionCodes: result.stopConditionCodes ?? [],
+    });
 
     if (!result.ok) {
       stoppedReason = `${command.label}_failed`;
@@ -873,6 +1079,15 @@ async function executeCyclePhase(
         report.enrichCyclesExecuted = executedCount;
         report.enrichCyclesStoppedReason = stoppedReason;
       }
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "failed",
+        durationMs: Date.now() - phaseStartedAt,
+        summary: extractProgressSummaryFields(phaseItem.summary),
+        blockedBy: phaseItem.blockedBy,
+        stopConditionCodes: phaseItem.stopConditionCodes,
+      });
       return false;
     }
 
@@ -895,6 +1110,15 @@ async function executeCyclePhase(
         report.enrichCyclesExecuted = executedCount;
         report.enrichCyclesStoppedReason = stoppedReason;
       }
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "failed",
+        durationMs: Date.now() - phaseStartedAt,
+        summary: extractProgressSummaryFields(phaseItem.summary),
+        blockedBy: phaseItem.blockedBy,
+        stopConditionCodes: phaseItem.stopConditionCodes,
+      });
       return false;
     }
 
@@ -921,18 +1145,149 @@ async function executeCyclePhase(
     report.enrichCyclesStoppedReason = stoppedReason;
   }
 
+  emitProgress(logger, {
+    event: "phase",
+    phase: phaseItem.phase,
+    status: "completed",
+    durationMs: Date.now() - phaseStartedAt,
+    summary: extractProgressSummaryFields(phaseItem.summary),
+  });
+
   return true;
+}
+
+function sumCycleField(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+  key: string,
+): number | null {
+  const cycleSummaries = Array.isArray(phaseItem?.summary.cycleSummaries)
+    ? phaseItem.summary.cycleSummaries
+    : [];
+  let total = 0;
+  let found = false;
+
+  for (const cycleSummary of cycleSummaries) {
+    const record = asRecord(cycleSummary);
+    const value = asNumber(record?.[key]);
+    if (value !== undefined) {
+      total += value;
+      found = true;
+    }
+  }
+
+  return found ? total : null;
+}
+
+function buildProgressSummary(
+  report: BoundedOperationRunnerReport,
+  durationMs: number,
+): BoundedOperationRunnerProgressSummary {
+  const phasesCompleted = report.phases
+    .filter((phaseItem) => phaseItem.status === "executed" || phaseItem.status === "ok")
+    .map((phaseItem) => phaseItem.phase);
+  const phasesFailed = report.phases
+    .filter((phaseItem) => phaseItem.status === "failed" || phaseItem.status === "blocked")
+    .map((phaseItem) => phaseItem.phase);
+  const phasesSkipped = report.phases
+    .filter((phaseItem) => phaseItem.status === "skipped")
+    .map((phaseItem) => phaseItem.phase);
+  const detectPhase = report.phases.find((phaseItem) => phaseItem.phase === "detect_write");
+  const metricPhase = report.phases.find((phaseItem) => phaseItem.phase === "metric_pending_snapshot");
+  const enrichPhase = report.phases.find((phaseItem) => phaseItem.phase === "enrich_rescore");
+  const importedCount = asNumber(extractProgressSummaryFields(detectPhase?.summary).importedCount);
+  const existingCount = asNumber(extractProgressSummaryFields(detectPhase?.summary).existingCount);
+  const totalMetricWrite = sumCycleField(metricPhase, "written");
+  const totalEnriched = sumCycleField(enrichPhase, "enriched");
+  const totalRescored = sumCycleField(enrichPhase, "rescored");
+  const hasBlockedPhase = report.phases.some((phaseItem) => phaseItem.status === "blocked");
+  const overallStatus = hasBlockedPhase
+    ? "blocked"
+    : report.blockedBy.length > 0 || report.stopConditionCodes.length > 0 || phasesFailed.length > 0
+      ? "failed"
+      : report.executeRequested
+        ? "completed"
+        : "planned";
+
+  return {
+    overallStatus,
+    executeRequested: report.executeRequested,
+    durationMs,
+    phasesCompleted,
+    phasesFailed,
+    phasesSkipped,
+    detectSummary: extractProgressSummaryFields(detectPhase?.summary),
+    metricCyclesExecuted: report.metricCyclesExecuted,
+    enrichCyclesExecuted: report.enrichCyclesExecuted,
+    metricCyclesStoppedReason: report.metricCyclesStoppedReason,
+    enrichCyclesStoppedReason: report.enrichCyclesStoppedReason,
+    totalTokenCreateReuse:
+      importedCount !== undefined || existingCount !== undefined
+        ? (importedCount ?? 0) + (existingCount ?? 0)
+        : null,
+    totalMetricWrite,
+    totalTokenUpdate:
+      totalEnriched !== null || totalRescored !== null
+        ? Math.max(totalEnriched ?? 0, totalRescored ?? 0)
+        : null,
+    notificationCreateUpdateExpected: 0,
+    telegramSendExpected: 0,
+    checkpointFile: report.checkpointFile,
+    blockedBy: report.blockedBy,
+    stopConditionCodes: report.stopConditionCodes,
+  };
 }
 
 export async function runBoundedOperationRunner(
   input: BoundedOperationPlannerInput,
   options: BoundedOperationRunnerOptions,
   executor: PhaseExecutor = defaultPhaseExecutor,
+  logger?: BoundedOperationRunnerLogger,
 ): Promise<BoundedOperationRunnerReport> {
+  const runStartedAt = Date.now();
   const report = buildBoundedOperationRunnerPlan(input, options);
 
   if (!options.executeRequested || report.blockedBy.length > 0) {
+    if (options.executeRequested) {
+      const durationMs = Date.now() - runStartedAt;
+      report.progressSummary = buildProgressSummary(report, durationMs);
+      emitProgress(logger, {
+        event: "final_summary",
+        status: report.progressSummary.overallStatus,
+        durationMs,
+        summary: {
+          executeRequested: report.progressSummary.executeRequested,
+          metricCyclesExecuted: report.progressSummary.metricCyclesExecuted,
+          enrichCyclesExecuted: report.progressSummary.enrichCyclesExecuted,
+          totalTokenCreateReuse: report.progressSummary.totalTokenCreateReuse,
+          totalMetricWrite: report.progressSummary.totalMetricWrite,
+          totalTokenUpdate: report.progressSummary.totalTokenUpdate,
+          notificationCreateUpdateExpected: 0,
+          telegramSendExpected: 0,
+        },
+        blockedBy: report.blockedBy,
+        stopConditionCodes: report.stopConditionCodes,
+      });
+    }
     return report;
+  }
+
+  const preflightPhase = report.phases.find((phaseItem) => phaseItem.phase === "preflight");
+  if (preflightPhase !== undefined) {
+    const preflightStartedAt = Date.now();
+    emitProgress(logger, {
+      event: "phase",
+      phase: "preflight",
+      status: "started",
+    });
+    emitProgress(logger, {
+      event: "phase",
+      phase: "preflight",
+      status: preflightPhase.status === "ok" ? "completed" : preflightPhase.status,
+      durationMs: Date.now() - preflightStartedAt,
+      summary: extractProgressSummaryFields(preflightPhase.summary),
+      blockedBy: preflightPhase.blockedBy,
+      stopConditionCodes: preflightPhase.stopConditionCodes,
+    });
   }
 
   for (const phaseItem of report.phases) {
@@ -943,11 +1298,17 @@ export async function runBoundedOperationRunner(
     const commands = commandsForPhase(phaseItem.phase, options);
     if (commands.length === 0) {
       phaseItem.status = "skipped";
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "skipped",
+        summary: extractProgressSummaryFields(phaseItem.summary),
+      });
       continue;
     }
 
     if (phaseItem.phase === "metric_pending_snapshot" || phaseItem.phase === "enrich_rescore") {
-      const ok = await executeCyclePhase(report, phaseItem, commands, executor);
+      const ok = await executeCyclePhase(report, phaseItem, commands, executor, logger);
       if (!ok) {
         skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
         break;
@@ -955,6 +1316,12 @@ export async function runBoundedOperationRunner(
       continue;
     }
 
+    const phaseStartedAt = Date.now();
+    emitProgress(logger, {
+      event: "phase",
+      phase: phaseItem.phase,
+      status: "started",
+    });
     const result = await executor(phaseItem, commands);
     phaseItem.status = result.ok ? "executed" : "failed";
     phaseItem.summary = result.summary ?? {};
@@ -964,10 +1331,51 @@ export async function runBoundedOperationRunner(
     if (!result.ok) {
       report.blockedBy.push(`${phaseItem.phase}_failed`);
       report.stopConditionCodes.push(...phaseItem.stopConditionCodes);
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "failed",
+        durationMs: Date.now() - phaseStartedAt,
+        summary: extractProgressSummaryFields(phaseItem.summary),
+        blockedBy: phaseItem.blockedBy,
+        stopConditionCodes: phaseItem.stopConditionCodes,
+      });
       skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
       break;
     }
+
+    emitProgress(logger, {
+      event: "phase",
+      phase: phaseItem.phase,
+      status: "completed",
+      durationMs: Date.now() - phaseStartedAt,
+      summary: extractProgressSummaryFields(phaseItem.summary),
+      blockedBy: phaseItem.blockedBy,
+      stopConditionCodes: phaseItem.stopConditionCodes,
+    });
   }
+
+  const durationMs = Date.now() - runStartedAt;
+  report.progressSummary = buildProgressSummary(report, durationMs);
+  emitProgress(logger, {
+    event: "final_summary",
+    status: report.progressSummary.overallStatus,
+    durationMs,
+    summary: {
+      executeRequested: report.progressSummary.executeRequested,
+      metricCyclesExecuted: report.progressSummary.metricCyclesExecuted,
+      enrichCyclesExecuted: report.progressSummary.enrichCyclesExecuted,
+      metricCyclesStoppedReason: report.progressSummary.metricCyclesStoppedReason ?? "none",
+      enrichCyclesStoppedReason: report.progressSummary.enrichCyclesStoppedReason ?? "none",
+      totalTokenCreateReuse: report.progressSummary.totalTokenCreateReuse,
+      totalMetricWrite: report.progressSummary.totalMetricWrite,
+      totalTokenUpdate: report.progressSummary.totalTokenUpdate,
+      notificationCreateUpdateExpected: 0,
+      telegramSendExpected: 0,
+    },
+    blockedBy: report.blockedBy,
+    stopConditionCodes: report.stopConditionCodes,
+  });
 
   return report;
 }

@@ -109,6 +109,21 @@ has allowed candidate `0`, retry planner has candidate `0`, and
 `notifyCandidateCount=0` in both default and 168h Gecko queues. The next
 recommended task is runner observability, not notification execution.
 
+Runner observability has now been improved without opening the Telegram
+boundary. `ops:run:bounded --execute` emits progress lines for phase start/end,
+Metric/enrich cycle start/end, and final summary, but the notification phase
+remains planner-only. The progress summary explicitly reports notification
+create/update expected `0` and Telegram send expected `0`; it does not generate
+notification send, retry execution, auto live send, `--live`, scheduler,
+systemd, or `pnpm smoke` commands.
+
+Progress logs are rawJson-free and do not expose `stdoutTail`, `stderrTail`,
+offensive raw text, or large token payloads. The change was verified with
+non-production tests and read-only planners only. No production
+`ops:run:bounded --execute`, notification send, retry execution, auto live
+send, Telegram send, DB write, or external fetch was run for this logging
+change.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

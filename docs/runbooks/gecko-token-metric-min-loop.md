@@ -115,6 +115,23 @@ reflects Token `+360` intake with only two post-run cycles covering at most
 make runner progress visible during long watches before increasing operational
 frequency.
 
+Runner progress visibility has now been improved. Execute mode emits compact
+`[ops:run]` lines to stderr for phase start/end, Metric/enrich cycle
+start/end, and a final summary while leaving JSON output on stdout. The final
+summary is emitted for both successful runs and failures, including child
+process failure, Metric cycle failure, enrich cycle failure, and
+provider/rate-limit stops. It reports duration, completed/failed/skipped
+phases, cycle counts, stopped reasons, safe write/update counters, checkpoint
+path, blockers, and stop codes.
+
+The minimum-loop safety boundary is unchanged. Progress logs are whitelisted:
+no rawJson, `stdoutTail`, `stderrTail`, offensive raw text, large mint/name
+payload dumps, notification send, Telegram send, retry execution, auto live
+send, scheduler/systemd, or `pnpm smoke`. The logging change was verified with
+TypeScript, runner tests, planner/help tests, CLI help, plan-only runner
+output, notification planners, retry planner, and read-only queue. Production
+`ops:run:bounded --execute` was not run for this implementation.
+
 No minimum-loop state advanced during that failed attempt: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

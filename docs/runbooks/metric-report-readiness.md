@@ -103,6 +103,22 @@ default 24h now shows `metricPendingCount=560`, `enrichPendingCount=560`,
 quiet; the next improvement should be runner progress logging, not a report or
 notification Red.
 
+The runner progress logging improvement is now implemented. It does not change
+report semantics: report review is still read-only, rawJson-free queue/planner
+inspection after write phases. Execute mode now emits compact phase/cycle
+progress and final summary lines to stderr while leaving the structured JSON
+report on stdout. Metric cycle logs include selected/written/skipped/error and
+delay counters when available; enrich cycle logs include
+selected/enriched/rescored/error and notification-send counters when
+available. Final summary includes safe totals and stopped reasons.
+
+The logging path intentionally excludes rawJson, `stdoutTail`, `stderrTail`,
+offensive raw text, and large token payloads. Verification used TypeScript,
+runner tests, planner/help tests, CLI help, plan-only runner output,
+notification planners, retry planner, and read-only queue only; no production
+execute, Metric write, Token enrich/rescore write, notification send, external
+fetch, or `pnpm smoke` was run.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

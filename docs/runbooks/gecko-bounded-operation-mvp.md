@@ -173,6 +173,25 @@ current default window) is expected because Token intake exceeded the bounded
 post-run cycle coverage. The next implementation task should improve runner
 progress logging and final summary before another large operational Red.
 
+That observability gap has now been addressed in code. Execute mode emits
+compact `[ops:run]` progress lines to stderr while keeping the JSON report on
+stdout. Logs cover phase start/end for `preflight`, `detect_write`,
+`metric_pending_snapshot`, `enrich_rescore`, `report_review`, and
+`notification_plan_review`; Metric/enrich cycle start/end with `cycle=N/M`;
+and a final summary on success or failure. The summary includes elapsed
+duration, phases completed/failed/skipped, Metric/enrich cycles executed,
+stopped reasons, safe detect/Metric/enrich counters, checkpoint path,
+`blockedBy`, and `stopConditionCodes`.
+
+The progress output is whitelisted and rawJson-free. It does not print
+`stdoutTail`, `stderrTail`, rawJson, offensive raw text, or large
+mint/name/symbol payloads. Notification create/update, Telegram send, retry
+execution, auto live send, scheduler/systemd, and `pnpm smoke` remain outside
+the runner. Verification stayed non-production with TypeScript, runner tests,
+planner/help tests, CLI help, plan-only runner output, notification planners,
+retry planner, and read-only queue; production `--execute` was not run during
+this logging change.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

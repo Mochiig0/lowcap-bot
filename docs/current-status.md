@@ -4,6 +4,36 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow bounded runner progress logging, 2026-05-28:
+
+- Implemented compact progress logging for `ops:run:bounded --execute`.
+  Execute mode now emits rawJson-free `[ops:run]` progress lines to stderr for
+  phase start/end, Metric/enrich cycle start/end, and a final summary. The JSON
+  report remains on stdout, so `--json` / machine-readable output is not mixed
+  with progress text.
+- The final summary is produced on both success and failure. It reports overall
+  status, duration, completed/failed/skipped phases, detect summary fields when
+  available, Metric/enrich cycles executed and stopped reasons, estimated Token
+  create/reuse, Metric write, Token update totals, checkpoint path, blockers,
+  and stop codes. Child process failures now leave an explicit phase/final
+  summary instead of only a nested command result.
+- Logging is deliberately compact and whitelisted. It does not include
+  `stdoutTail`, `stderrTail`, rawJson, offensive raw text, mints, names, symbols,
+  or large payloads. Notification create/update and Telegram send remain
+  expected `0`; scheduler/systemd, retry execution, auto live send, and
+  `pnpm smoke` remain outside the runner.
+- Verification stayed non-production: `pnpm exec tsc --noEmit`,
+  `node --import tsx --test tests/opsRunBounded.test.ts`,
+  `tests/opsPlanBounded.test.ts`, `tests/indexHelpHub.test.ts`, CLI help,
+  plan-only `ops:run:bounded`, notification auto-send planners,
+  `notification:retry:plan`, and read-only review queue. Production
+  `ops:run:bounded --execute`, detect watch/write, Metric snapshot write,
+  Token enrich/rescore write, notification send, scheduler/systemd, and
+  `pnpm smoke` were not run.
+- Next candidate is Green preflight for another bounded runner execute with the
+  improved progress output, followed by a separate human-approved Red only if
+  queue/planner safety remains clear.
+
 Green fixed multi-cycle bounded runner review, 2026-05-28:
 
 - Reviewed the successful fixed multi-cycle `ops:run:bounded --execute` result

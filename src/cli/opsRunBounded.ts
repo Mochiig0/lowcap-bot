@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { db } from "./db.js";
 import { readBoundedOperationPlannerInput } from "../ops/boundedOperationPlanner.js";
 import {
+  createConsoleBoundedOperationProgressLogger,
   DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS,
   runBoundedOperationRunner,
   type BoundedOperationRunnerOptions,
@@ -172,10 +173,15 @@ export async function runOpsRunBoundedCli(argv = process.argv.slice(2)): Promise
     metricLimit: args.metricLimit,
     enrichLimit: args.enrichLimit,
   });
-  const report = await runBoundedOperationRunner(input, {
-    ...args,
-    repoRoot: process.cwd(),
-  });
+  const report = await runBoundedOperationRunner(
+    input,
+    {
+      ...args,
+      repoRoot: process.cwd(),
+    },
+    undefined,
+    args.executeRequested ? createConsoleBoundedOperationProgressLogger() : undefined,
+  );
   console.log(JSON.stringify(report, null, 2));
 }
 
