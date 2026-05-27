@@ -45,6 +45,14 @@ Metric rows before enrich/rescore and then update up to 100 Tokens. The report
 phase remains read-only queue review after the write phases; it must stay
 rawJson-free and must not create/update Notifications or send Telegram.
 
+The follow-up multi-cycle Red attempted the approved runner command once, but
+report review was not reached. `detect_write` failed immediately before
+app-level fetch/write because the child `tsx` process hit `listen EPERM` on
+its IPC pipe under `/tmp/tsx-1000`. Metric cycles executed `0`, enrich cycles
+executed `0`, and report/notification phases were skipped. DB counts,
+Metric buckets, Notification statuses, queue counts, and checkpoint state were
+unchanged; no rawJson full dump or offensive raw text dump was used.
+
 The 2026-05-27 execute preflight kept report/review bounded and read-only.
 The candidate runner command will execute Metric pending snapshot before
 enrich/rescore, then run review queue and notification planner checks as

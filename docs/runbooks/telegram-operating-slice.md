@@ -75,6 +75,14 @@ only (`notification:auto-send:plan`, enabled auto-send planner,
 candidate is `0`, and selected auto-send Notification is `null`. The Red
 candidate must not be modified to include notification send or `--live`.
 
+That Red was attempted once and failed before any notification boundary could
+be reached: `detect_write` failed immediately with a child `tsx` IPC
+`listen EPERM` error, and Metric cycles, enrich cycles, report review, and
+notification planner review were skipped. Notification count stayed `22`,
+statuses stayed `captured=17`, `sent=5`, `failed=0`, enabled auto-send
+allowed candidate stayed `0`, retry candidate stayed `0`, and Telegram send
+stayed `0`. No retry or second command was run.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

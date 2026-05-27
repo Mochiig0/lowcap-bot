@@ -62,6 +62,22 @@ pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot
 This command is a Red candidate only. It was not executed during preflight.
 The checkpoint path is repo-outside and absent; planner state is unblocked.
 
+The follow-up Red attempted that exact multi-cycle command once. It stopped
+before detect app logic because the child `tsx` process failed to create its
+IPC pipe (`listen EPERM` under `/tmp/tsx-1000`). No retry and no second
+command were run. Runner counters stayed `metricCyclesExecuted=0` and
+`enrichCyclesExecuted=0`; `detect_write` failed, and Metric, enrich, report,
+and notification planner phases were skipped.
+
+No minimum-loop state advanced during that failed attempt: Token / Metric /
+Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
+`mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed
+`0=1788`, `1=429`, `2+=87`, and Notification statuses stayed
+`captured=17`, `sent=5`, `failed=0`. The checkpoint file was not created,
+and no external fetch, Token write, Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, rawJson full dump, or offensive raw text
+dump occurred.
+
 Production execution still requires a separate human-approved `--execute`
 turn with a `/tmp` checkpoint path. The runner does not implement Telegram
 send, Notification send, retry execution, auto live send, scheduler, systemd,

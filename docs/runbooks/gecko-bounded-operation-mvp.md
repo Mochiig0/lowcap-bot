@@ -118,22 +118,43 @@ returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,
 
 First multi-cycle execute preflight on 2026-05-27 also stayed read-only. The
 chosen initial cycle count is `2 / 2`, not `3 / 3`, to keep the first
-multi-cycle Red bounded while still covering up to 100 Metric writes and 100
-Token enrich/rescore updates. Plan-only output for the exact candidate
-returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=2`,
-`postRunEnrichCycles=2`, two Metric command candidates, two enrich command
-candidates, `blockedBy=[]`, and `stopConditionCodes=[]`.
-
-Next human-approved Red candidate:
+multi-cycle Red bounded:
 
 ```bash
 pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
 ```
 
-The checkpoint path is `/tmp/lowcap-bot-6h-pipeline-cycles-20260527.json`;
-it is outside the repo and does not currently exist. Expected non-effects
-remain Notification create/update `0`, Telegram send `0`, HolderSnapshot
-write `0`, retry execution `0`, auto live send execution `0`,
+The subsequent Red attempted that exact command once and did not retry. It
+failed immediately in the `detect_write` phase before app-level fetch/write:
+the child `tsx` process could not create its IPC pipe and exited with
+`listen EPERM` under `/tmp/tsx-1000`. Runner state was
+`metricCyclesExecuted=0`, `enrichCyclesExecuted=0`,
+`blockedBy=["detect_write_failed"]`, and
+`stopConditionCodes=["detect_write_failed"]`. Metric cycles, enrich cycles,
+report review, and notification planner review were skipped.
+
+Because the failure happened before the detect app ran, DB counts stayed
+Token / Metric / Notification / HolderSnapshot `2304 / 656 / 22 / 1`; the
+checkpoint `/tmp/lowcap-bot-6h-pipeline-cycles-20260527.json` was not
+created; and external fetch, Token write, Metric write, Notification
+create/update, HolderSnapshot write, Telegram send, retry execution, auto live
+send, scheduler/systemd, rawJson full dump, offensive raw text dump, and
+`pnpm smoke` stayed `0`. Review the tsx IPC / sandbox execution boundary
+before another `ops:run:bounded --execute` Red.
+The preflight plan for that attempted command had returned `readOnly=true`,
+`executeRequested=false`, `postRunMetricCycles=2`,
+`postRunEnrichCycles=2`, two Metric command candidates, two enrich command
+candidates, `blockedBy=[]`, and `stopConditionCodes=[]`. The attempted command
+was:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+The checkpoint path was `/tmp/lowcap-bot-6h-pipeline-cycles-20260527.json`;
+it is outside the repo and was not created by the failed attempt. Expected
+non-effects held: Notification create/update `0`, Telegram send `0`,
+HolderSnapshot write `0`, retry execution `0`, auto live send execution `0`,
 scheduler/systemd `0`, repo-local runtime data diff `0`, rawJson full dump
 `0`, offensive raw text dump `0`, and `pnpm smoke` `0`.
 

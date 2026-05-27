@@ -11,18 +11,37 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
-Green preflight completed for the first multi-cycle runner execute. The
-recommended human-approved Red is:
+The first multi-cycle `ops:run:bounded --execute` Red was attempted once with
+the approved command:
 
 ```bash
 pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
 ```
 
-Plan-only output is unblocked (`blockedBy=[]`, `stopConditionCodes=[]`) and
-shows detect planned once, two Metric cycles, two enrich cycles, report review,
-and notification planner review. The checkpoint path is outside the repo and
-does not exist yet. This Green pass did not execute, fetch, write, send
-Telegram, update Notifications, or run `pnpm smoke`.
+It stopped immediately in `detect_write` before application fetch/write due to
+`listen EPERM` on the tsx IPC pipe under `/tmp/tsx-1000`. No retry and no
+second command were run. Runner summary: `executeRequested=true`,
+`readOnly=false`, `computedSinceMinutes=420`, `maxIterations=360`,
+`postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+`metricCyclesExecuted=0`, `enrichCyclesExecuted=0`,
+`blockedBy=["detect_write_failed"]`, and
+`stopConditionCodes=["detect_write_failed"]`.
+
+DB counts stayed Token / Metric / Notification / HolderSnapshot
+`2304 / 656 / 22 / 1`; metadata statuses stayed `mint_only=1921`,
+`partial=370`, `enriched=13`; Metric buckets stayed `0=1788`, `1=429`,
+`2+=87`; Notification statuses stayed `captured=17`, `sent=5`, `failed=0`.
+The checkpoint `/tmp/lowcap-bot-6h-pipeline-cycles-20260527.json` was not
+created. External fetch, Token write, Metric write, Notification
+create/update, HolderSnapshot write, Telegram send, retry execution, auto live
+send, scheduler/systemd, rawJson full dump, offensive raw text dump, and
+`pnpm smoke` all remained `0`.
+
+Recommended next step: **Green/Yellow review of the runner execute environment
+boundary**. Decide whether a future Red should use an approved execution mode
+that avoids the tsx IPC sandbox failure, or whether the runner should be
+adapted before another execute attempt. Do not retry the exact command without
+that review.
 
 `ops:run:bounded` now supports bounded post-run cycle counts. New options:
 `--postRunMetricCycles <N>` and `--postRunEnrichCycles <N>`, defaulting to

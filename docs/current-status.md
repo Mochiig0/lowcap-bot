@@ -6,6 +6,37 @@ This repository is an MVP for mint-driven token accumulation, single-source DexS
 
 Green bounded runner cycles execute preflight, 2026-05-27:
 
+- Follow-up Red execution was attempted once with the exact approved command
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+  It did not reach application logic: the `detect_write` child command failed
+  immediately with `listen EPERM` on the tsx IPC pipe under `/tmp/tsx-1000`.
+  No retry and no second command were run.
+- Runner result for that attempt: `executeRequested=true`, `readOnly=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`,
+  `postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+  `metricCyclesExecuted=0`, `enrichCyclesExecuted=0`,
+  `blockedBy=["detect_write_failed"]`, and
+  `stopConditionCodes=["detect_write_failed"]`. `preflight` was ok,
+  `detect_write` failed before fetch/write, and Metric cycles, enrich cycles,
+  report review, and notification planner review were skipped.
+- DB state stayed unchanged at Token / Metric / Notification / HolderSnapshot
+  `2304 / 656 / 22 / 1`; metadata statuses `mint_only=1921`,
+  `partial=370`, `enriched=13`; Metric buckets `0=1788`, `1=429`,
+  `2+=87`; Notification statuses `captured=17`, `sent=5`, `failed=0`.
+  The checkpoint `/tmp/lowcap-bot-6h-pipeline-cycles-20260527.json` was not
+  created. External fetch, Token write, Metric write, Notification
+  create/update, HolderSnapshot write, Telegram send, retry execution, auto
+  live send, scheduler/systemd, rawJson full dump, offensive raw text dump,
+  and `pnpm smoke` all remained `0`.
+- Post-failure read-only checks remain unblocked: default 24h queue
+  `metricPendingCount=309`, `enrichPendingCount=309`,
+  `staleReviewCount=287`, `notifyCandidateCount=0`; rolling 168h
+  `metricPendingCount=598`, `enrichPendingCount=543`,
+  `staleReviewCount=576`, `notifyCandidateCount=0`; failed Notification
+  count `0`; retry candidate `0`; enabled auto-send allowed candidate `0`.
+  Next work should be Green/Yellow to review the tsx IPC / sandbox execution
+  boundary before another human-approved runner execute attempt.
+
 - This pass stayed read-only / docs-only. It did not run
   `ops:run:bounded --execute`, detect watch/write, Metric snapshot write,
   token enrich/rescore write, notification send, retry execution, auto live
