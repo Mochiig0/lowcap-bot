@@ -60,6 +60,14 @@ Report review remains read-only and rawJson-free. Production execute, Metric
 write, Token enrich/rescore write, notification send, and `pnpm smoke` were
 not run during this fix.
 
+Fixed-runner execute preflight is complete. The next approved Red will run
+two Metric cycles before two enrich cycles. Report review remains a read-only
+phase after those write phases, and notification planner review remains
+read-only. The Metric candidates still include `--onlyMetricPending`,
+`--noNotificationCapture`, and `--interItemDelayMs 15000`; enrich candidates
+still omit `--notify`. This Green pass did not execute, fetch, write, send,
+or dump rawJson.
+
 The 2026-05-27 execute preflight kept report/review bounded and read-only.
 The candidate runner command will execute Metric pending snapshot before
 enrich/rescore, then run review queue and notification planner checks as

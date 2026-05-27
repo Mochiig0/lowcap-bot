@@ -11,6 +11,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
+Fixed-executor Green preflight is complete for the next multi-cycle
+`ops:run:bounded --execute`. Current state is unblocked: failed Notification
+`0`, retry candidate `0`, enabled auto-send allowed candidate `0`,
+`blockedBy=[]`, and `stopConditionCodes=[]`. Plan-only output with cycles
+`2 / 2` confirms detect planned once, two Metric cycles, two enrich cycles,
+report review, and notification planner review. The Metric candidates include
+`--onlyMetricPending`, `--noNotificationCapture`, and
+`--interItemDelayMs 15000`; enrich candidates include `--interItemDelayMs
+15000` and omit `--notify`.
+
+Recommended human-approved Red:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+The checkpoint path is under `/tmp`, outside the repo, and absent. Expected
+side effects are bounded external GeckoTerminal fetch, Token create/reuse,
+checkpoint write, Metric write up to 100, Token enrich/rescore updates up to
+100, best-effort Metaplex fetch, and read-only report/notification planner
+checks. Expected non-effects are Notification create/update `0`, Telegram send
+`0`, HolderSnapshot write `0`, retry execution `0`, auto live send execution
+`0`, scheduler/systemd `0`, repo-local runtime data diff `0`, rawJson full
+dump `0`, offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 Yellow fix completed for the failed multi-cycle `ops:run:bounded --execute`
 environment boundary. The runner previously executed write phases by spawning
 `pnpm -s <script>`, which invoked package scripts using direct `tsx`; the child

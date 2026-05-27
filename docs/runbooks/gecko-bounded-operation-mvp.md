@@ -120,6 +120,25 @@ and preserves the same phase order, checkpoint guard, post-run cycle behavior,
 and conservative failure stops. Production `--execute` was not rerun during
 the fix.
 
+Fixed-executor execute preflight on 2026-05-27 stayed read-only. The chosen
+checkpoint path is
+`/tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json`; it is outside the
+repo and absent. Plan-only output is unblocked with `postRunMetricCycles=2`,
+`postRunEnrichCycles=2`, `computedSinceMinutes=420`, and `maxIterations=360`.
+It plans one detect write, two Metric cycles, two enrich cycles, report
+review, and notification planner review. The next Red may use this exact
+command after human approval:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This Red can fetch externally, create/reuse Tokens, write the `/tmp`
+checkpoint, write up to 100 Metrics, and update up to 100 Token contexts. It
+must still not create/update Notifications, send Telegram, write
+HolderSnapshots, run retry execution, run auto live send, use scheduler/systemd,
+dump rawJson, dump offensive raw text, or run `pnpm smoke`.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

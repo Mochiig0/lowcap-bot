@@ -90,6 +90,14 @@ add Telegram send, Notification send/update, retry execution, auto live send,
 scheduler, or systemd behavior, and production execute was not rerun during
 the fix.
 
+Fixed-runner execute preflight keeps the Telegram boundary closed. Plan-only
+output for the next candidate is unblocked, notification planner remains
+read-only, enabled auto-send allowed candidate is `0`, retry candidate is
+`0`, selected auto-send Notification is `null`, and the Red candidate still
+does not include `--notify` or `--live`. Expected Telegram send,
+Notification create/update, retry execution, and auto live send execution all
+remain `0`.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

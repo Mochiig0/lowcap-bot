@@ -76,6 +76,20 @@ the direct CLI file path, while plan output still shows the same `pnpm -s ...`
 operator commands. The minimum-loop semantics are unchanged and production
 `--execute` was not rerun during the fix.
 
+Fixed-runner preflight selected the next bounded minimum-loop Red with cycles
+`2 / 2` and checkpoint
+`/tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json`. The checkpoint is
+repo-outside and absent, and plan-only output is unblocked. The exact Red
+candidate is:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This remains a human-approved Red only. The current Green pass did not execute
+detect, Metric snapshot, enrich/rescore, notification send, retry execution,
+scheduler/systemd, or `pnpm smoke`.
+
 No minimum-loop state advanced during that failed attempt: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

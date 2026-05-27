@@ -6,6 +6,48 @@ This repository is an MVP for mint-driven token accumulation, single-source DexS
 
 Green bounded runner cycles execute preflight, 2026-05-27:
 
+- Fixed-executor Red preflight completed after the `node --import tsx`
+  phase-launch fix. This pass stayed read-only / docs-only and did not run
+  `ops:run:bounded --execute`, detect watch/write, Metric snapshot write,
+  token enrich/rescore write, notification send, retry execution, auto live
+  send, scheduler/systemd, `pnpm smoke`, schema/migration, app code change,
+  rawJson full dump, or offensive raw text dump.
+- Current DB state remains Token / Metric / Notification / HolderSnapshot
+  `2304 / 656 / 22 / 1`; metadata statuses `mint_only=1921`,
+  `partial=370`, `enriched=13`; Metric buckets `0=1788`, `1=429`,
+  `2+=87`; Notification statuses `captured=17`, `sent=5`, `failed=0`.
+  Safety planners remain clear: failed Notification `0`, retry candidate `0`,
+  enabled auto-send allowed candidate `0`, selected auto-send Notification
+  `null`.
+- Queue context: default 24h `geckoOriginTokenCount=359`,
+  `metricPendingCount=309`, `enrichPendingCount=309`,
+  `staleReviewCount=295`, `notifyCandidateCount=0`; rolling 168h
+  `geckoOriginTokenCount=723`, `metricPendingCount=598`,
+  `enrichPendingCount=543`, `staleReviewCount=584`,
+  `notifyCandidateCount=0`.
+- Plan-only fixed runner check with checkpoint
+  `/tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json` returned
+  `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`,
+  `postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+  `blockedBy=[]`, and `stopConditionCodes=[]`. It planned one detect write,
+  two Metric cycles with `--onlyMetricPending --noNotificationCapture
+  --interItemDelayMs 15000`, two enrich cycles with `--interItemDelayMs 15000`
+  and no `--notify`, report review, and notification planner review. No
+  Telegram send command is generated.
+- The proposed checkpoint is repo-outside under `/tmp`; parent exists and the
+  file does not exist, so no overwrite question is pending. Next
+  human-approved Red exact command:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+  Expected side effects are external GeckoTerminal fetch, bounded detect watch
+  up to 6h, production DB Token create/reuse, checkpoint write, Metric write
+  up to 100, Token enrich/rescore updates up to 100, best-effort Metaplex
+  fetch, and read-only report/notification planner checks. Expected
+  non-effects are Notification create/update `0`, Telegram send `0`,
+  HolderSnapshot write `0`, retry execution `0`, auto live send execution
+  `0`, scheduler/systemd `0`, repo-local runtime data diff `0`, rawJson full
+  dump `0`, offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 - Yellow fix completed for the multi-cycle runner execution boundary. Root
   cause was the runner's default phase executor launching write phases through
   `pnpm -s <script>`, which delegated to package scripts using direct `tsx`;
