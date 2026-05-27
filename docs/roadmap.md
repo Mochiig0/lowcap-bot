@@ -11,6 +11,21 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
+Yellow fix completed for the failed multi-cycle `ops:run:bounded --execute`
+environment boundary. The runner previously executed write phases by spawning
+`pnpm -s <script>`, which invoked package scripts using direct `tsx`; the child
+`tsx` IPC pipe failed with `listen EPERM` under `/tmp/tsx-1000` before any
+app-level fetch/write. The runner now keeps the same operator-facing
+`pnpm -s ...` command candidates, but executes detect / Metric / enrich write
+phases through `node --import tsx <cli file>`.
+
+Production execute was not rerun during the fix. Verification stayed
+non-production: `pnpm exec tsc --noEmit`, runner tests, planner/help tests,
+CLI help, plan-only runner output, notification planners, retry planner, and
+read-only review queue. Next recommended step is **Green preflight for the
+fixed bounded runner execute**, then a separate human-approved Red if safety
+state remains clear.
+
 The first multi-cycle `ops:run:bounded --execute` Red was attempted once with
 the approved command:
 

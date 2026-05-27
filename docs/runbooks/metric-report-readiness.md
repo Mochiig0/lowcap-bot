@@ -53,6 +53,13 @@ executed `0`, and report/notification phases were skipped. DB counts,
 Metric buckets, Notification statuses, queue counts, and checkpoint state were
 unchanged; no rawJson full dump or offensive raw text dump was used.
 
+The bounded runner now avoids that child `tsx` IPC path for write phases.
+Execute mode invokes detect / Metric / enrich CLI files with
+`node --import tsx` while leaving the plan-only command candidates unchanged.
+Report review remains read-only and rawJson-free. Production execute, Metric
+write, Token enrich/rescore write, notification send, and `pnpm smoke` were
+not run during this fix.
+
 The 2026-05-27 execute preflight kept report/review bounded and read-only.
 The candidate runner command will execute Metric pending snapshot before
 enrich/rescore, then run review queue and notification planner checks as

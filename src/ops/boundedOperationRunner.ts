@@ -160,12 +160,19 @@ function joinCommand(file: string, args: string[], env?: Record<string, string>)
   return `${prefix}${[file, ...args].join(" ")}`;
 }
 
+function buildNodeTsxCliExecution(options: BoundedOperationRunnerOptions, cliPath: string, args: string[]): {
+  file: string;
+  args: string[];
+} {
+  return {
+    file: process.execPath,
+    args: ["--import", "tsx", path.join(options.repoRoot, cliPath), ...args],
+  };
+}
+
 function buildDetectCommand(options: BoundedOperationRunnerOptions): PhaseCommand {
   const checkpoint = options.checkpointFile ?? "<CHECKPOINT_FILE>";
-  const args = [
-    "-s",
-    "detect:geckoterminal:new-pools",
-    "--",
+  const cliArgs = [
     "--watch",
     "--write",
     ...optionalPumpOnlyArg(options.pumpOnly),
@@ -178,20 +185,28 @@ function buildDetectCommand(options: BoundedOperationRunnerOptions): PhaseComman
     "--checkpointFile",
     checkpoint,
   ];
+  const displayArgs = [
+    "-s",
+    "detect:geckoterminal:new-pools",
+    "--",
+    ...cliArgs,
+  ];
+  const execution = buildNodeTsxCliExecution(
+    options,
+    "src/cli/detectGeckoterminalNewPools.ts",
+    cliArgs,
+  );
 
   return {
     label: "detect_write",
-    commandCandidate: joinCommand("pnpm", args),
-    file: "pnpm",
-    args,
+    commandCandidate: joinCommand("pnpm", displayArgs),
+    file: execution.file,
+    args: execution.args,
   };
 }
 
 function buildMetricCommand(options: BoundedOperationRunnerOptions, cycleIndex?: number): PhaseCommand {
-  const args = [
-    "-s",
-    "metric:snapshot:geckoterminal",
-    "--",
+  const cliArgs = [
     ...optionalPumpOnlyArg(options.pumpOnly),
     "--limit",
     String(options.metricLimit),
@@ -205,20 +220,28 @@ function buildMetricCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
     "--noNotificationCapture",
     "--write",
   ];
+  const displayArgs = [
+    "-s",
+    "metric:snapshot:geckoterminal",
+    "--",
+    ...cliArgs,
+  ];
+  const execution = buildNodeTsxCliExecution(
+    options,
+    "src/cli/metricSnapshotGeckoterminal.ts",
+    cliArgs,
+  );
 
   return {
     label: cycleIndex === undefined ? "metric_pending_snapshot" : `metric_pending_snapshot_cycle_${cycleIndex}`,
-    commandCandidate: joinCommand("pnpm", args),
-    file: "pnpm",
-    args,
+    commandCandidate: joinCommand("pnpm", displayArgs),
+    file: execution.file,
+    args: execution.args,
   };
 }
 
 function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?: number): PhaseCommand {
-  const args = [
-    "-s",
-    "token:enrich-rescore:geckoterminal",
-    "--",
+  const cliArgs = [
     ...optionalPumpOnlyArg(options.pumpOnly),
     "--limit",
     String(options.enrichLimit),
@@ -228,12 +251,23 @@ function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
     String(options.interItemDelayMs),
     "--write",
   ];
+  const displayArgs = [
+    "-s",
+    "token:enrich-rescore:geckoterminal",
+    "--",
+    ...cliArgs,
+  ];
+  const execution = buildNodeTsxCliExecution(
+    options,
+    "src/cli/tokenEnrichRescoreGeckoterminal.ts",
+    cliArgs,
+  );
 
   return {
     label: cycleIndex === undefined ? "enrich_rescore" : `enrich_rescore_cycle_${cycleIndex}`,
-    commandCandidate: joinCommand("pnpm", args),
-    file: "pnpm",
-    args,
+    commandCandidate: joinCommand("pnpm", displayArgs),
+    file: execution.file,
+    args: execution.args,
   };
 }
 

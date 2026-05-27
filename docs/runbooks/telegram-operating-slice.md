@@ -83,6 +83,13 @@ statuses stayed `captured=17`, `sent=5`, `failed=0`, enabled auto-send
 allowed candidate stayed `0`, retry candidate stayed `0`, and Telegram send
 stayed `0`. No retry or second command was run.
 
+The runner fix changes only write-phase process launch mechanics. It avoids
+direct child `tsx` package-script execution by using `node --import tsx` with
+the concrete CLI file path for detect / Metric / enrich phases. It does not
+add Telegram send, Notification send/update, retry execution, auto live send,
+scheduler, or systemd behavior, and production execute was not rerun during
+the fix.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

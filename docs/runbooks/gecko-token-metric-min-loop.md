@@ -69,6 +69,13 @@ command were run. Runner counters stayed `metricCyclesExecuted=0` and
 `enrichCyclesExecuted=0`; `detect_write` failed, and Metric, enrich, report,
 and notification planner phases were skipped.
 
+The execution boundary has since been fixed in the runner: detect / Metric /
+enrich write phases no longer execute through `pnpm -s <script>` package
+scripts. Execute mode now uses the current Node binary with `--import tsx` and
+the direct CLI file path, while plan output still shows the same `pnpm -s ...`
+operator commands. The minimum-loop semantics are unchanged and production
+`--execute` was not rerun during the fix.
+
 No minimum-loop state advanced during that failed attempt: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

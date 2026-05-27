@@ -110,6 +110,16 @@ Plan-only verification on 2026-05-27 returned `readOnly=true`, `dryRun=true`,
 `executeRequested=false`, `computedSinceMinutes=420`, `maxIterations=360`,
 all phases `planned`, and no blockers. Production `--execute` was not run.
 
+After the first multi-cycle execute attempt failed on child `tsx` IPC
+`listen EPERM`, the runner phase executor was adjusted. Write phases still
+display the familiar operator commands (`pnpm -s detect...`,
+`pnpm -s metric...`, `pnpm -s token...`) in plan output, but execute mode now
+launches the concrete CLI files with the current Node binary and
+`--import tsx`. This avoids spawning package scripts that invoke direct `tsx`
+and preserves the same phase order, checkpoint guard, post-run cycle behavior,
+and conservative failure stops. Production `--execute` was not rerun during
+the fix.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

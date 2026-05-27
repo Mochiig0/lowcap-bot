@@ -150,6 +150,47 @@ test("command candidates include bounded pipeline safety flags", () => {
   assert.doesNotMatch(text, /--live/);
 });
 
+test("execute mode uses node import tsx for write phase execution commands", async () => {
+  const commandsByPhase: Record<string, PhaseCommand[]> = {};
+  await runBoundedOperationRunner(
+    input(),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase, commands) => {
+      commandsByPhase[phase.phase] = commands;
+      return { ok: true, summary: { selected: 1, written: 1, enriched: 1, rescored: 1 } };
+    },
+  );
+
+  const detectCommand = commandsByPhase.detect_write?.[0];
+  const metricCommand = commandsByPhase.metric_pending_snapshot?.[0];
+  const enrichCommand = commandsByPhase.enrich_rescore?.[0];
+
+  assert.equal(detectCommand?.file, process.execPath);
+  assert.equal(metricCommand?.file, process.execPath);
+  assert.equal(enrichCommand?.file, process.execPath);
+
+  assert.deepEqual(detectCommand?.args.slice(0, 2), ["--import", "tsx"]);
+  assert.deepEqual(metricCommand?.args.slice(0, 2), ["--import", "tsx"]);
+  assert.deepEqual(enrichCommand?.args.slice(0, 2), ["--import", "tsx"]);
+
+  assert.match(String(detectCommand?.args[2]), /src\/cli\/detectGeckoterminalNewPools\.ts$/);
+  assert.match(String(metricCommand?.args[2]), /src\/cli\/metricSnapshotGeckoterminal\.ts$/);
+  assert.match(String(enrichCommand?.args[2]), /src\/cli\/tokenEnrichRescoreGeckoterminal\.ts$/);
+
+  assert.notEqual(detectCommand?.file, "pnpm");
+  assert.notEqual(metricCommand?.file, "pnpm");
+  assert.notEqual(enrichCommand?.file, "pnpm");
+});
+
+test("plan-only keeps operator-facing pnpm command candidates", () => {
+  const report = buildBoundedOperationRunnerPlan(input(), BASE_OPTIONS);
+  const text = allCommandText(report);
+
+  assert.match(text, /pnpm -s detect:geckoterminal:new-pools/);
+  assert.match(text, /pnpm -s metric:snapshot:geckoterminal/);
+  assert.match(text, /pnpm -s token:enrich-rescore:geckoterminal/);
+});
+
 test("plan-only output shows requested post-run cycles without executing them", async () => {
   const calls: string[] = [];
   const report = await runBoundedOperationRunner(
