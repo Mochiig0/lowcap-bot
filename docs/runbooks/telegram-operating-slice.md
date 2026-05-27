@@ -124,6 +124,15 @@ non-production tests and read-only planners only. No production
 send, Telegram send, DB write, or external fetch was run for this logging
 change.
 
+Progress-logged execute preflight kept the Telegram boundary closed. The next
+Red candidate remains a manual bounded runner execute, but its notification
+phase is still planner-only (`notification:auto-send:plan`, enabled
+auto-send planner, and `notification:retry:plan`). Current planners show
+allowed auto-send candidate `0`, selected Notification `null`, retry candidate
+`0`, and Notification statuses `captured=17`, `sent=5`, `failed=0`. The Red
+candidate does not include `--notify`, notification send, retry execution,
+auto live send, `--live`, scheduler, or systemd.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

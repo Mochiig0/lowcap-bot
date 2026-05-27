@@ -11,6 +11,32 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-28
 
+Green preflight is complete for the first progress-logged bounded runner Red.
+Current safety state is clear: Token / Metric / Notification / HolderSnapshot
+is `2664 / 756 / 22 / 1`, Notification statuses are `captured=17`,
+`sent=5`, `failed=0`, retry candidate is `0`, and enabled auto-send allowed
+candidate is `0`. Plan-only `ops:run:bounded` with cycles `2 / 2` is
+unblocked, keeps Metric commands on `--onlyMetricPending
+--noNotificationCapture --interItemDelayMs 15000`, keeps enrich commands on
+`--interItemDelayMs 15000` with no `--notify`, and generates no Telegram send
+command. Checkpoint `/tmp/lowcap-bot-6h-pipeline-logging-20260528.json` is
+outside the repo and absent.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-logging-20260528.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Expected side effects are bounded external fetch, detect watch up to 6h,
+Token create/reuse, checkpoint write, Metric write up to 100, Token
+enrich/rescore updates up to 100, best-effort Metaplex fetch, and read-only
+report/notification planner checks. Expected non-effects remain Notification
+create/update `0`, Telegram send `0`, HolderSnapshot write `0`, retry
+execution `0`, auto live send execution `0`, scheduler/systemd `0`, repo-local
+runtime diff `0`, rawJson full dump `0`, offensive raw text dump `0`, and
+`pnpm smoke` `0`.
+
 `ops:run:bounded` now has execute-time progress logging and a compact final
 summary. Execute mode emits `[ops:run]` lines to stderr for phase start/end,
 Metric/enrich cycle start/end, and final summary. The machine-readable JSON

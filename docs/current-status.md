@@ -4,6 +4,47 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green logged bounded runner execute preflight, 2026-05-28:
+
+- Completed read-only / docs-only preflight for running the progress-logged
+  `ops:run:bounded --execute`. No execute, detect watch/write, Metric snapshot
+  write, Token enrich/rescore write, notification send, retry execution, auto
+  live send, scheduler/systemd, `pnpm smoke`, schema/migration, app code
+  change, rawJson full dump, or offensive raw text dump was run.
+- Current DB state: Token / Metric / Notification / HolderSnapshot
+  `2664 / 756 / 22 / 1`; metadata statuses `mint_only=2181`,
+  `partial=470`, `enriched=13`; Metric buckets `0=2048`, `1=529`, `2+=87`;
+  Notification statuses `captured=17`, `sent=5`, `failed=0`. Safety remains
+  clear: failed Notification `0`, retry candidate `0`, enabled auto-send
+  allowed candidate `0`, selected auto-send Notification `null`.
+- Queue context: default 24h `geckoOriginTokenCount=667`,
+  `metricPendingCount=517`, `enrichPendingCount=517`,
+  `staleReviewCount=517`, `notifyCandidateCount=0`; rolling 168h
+  `geckoOriginTokenCount=1083`, `metricPendingCount=858`,
+  `enrichPendingCount=803`, `staleReviewCount=858`,
+  `notifyCandidateCount=0`.
+- Plan-only runner check for checkpoint
+  `/tmp/lowcap-bot-6h-pipeline-logging-20260528.json` returned
+  `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`,
+  `postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+  `blockedBy=[]`, and `stopConditionCodes=[]`. It planned one detect write,
+  two Metric cycles with `--onlyMetricPending --noNotificationCapture
+  --interItemDelayMs 15000`, two enrich cycles with `--interItemDelayMs
+  15000` and no `--notify`, report review, and notification planner review.
+  Plan-only has no `progressSummary`, as expected.
+- The checkpoint path is outside the repo, parent `/tmp` exists, and the file
+  does not exist. Red command fixed for separate human approval:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-logging-20260528.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+  Expected side effects are external GeckoTerminal fetch, bounded detect watch
+  up to 6h, production DB Token create/reuse, checkpoint write, Metric write
+  up to 100, Token enrich/rescore updates up to 100, best-effort Metaplex
+  fetch, read-only report review, and read-only notification planner review.
+  Expected non-effects are Notification create/update `0`, Telegram send `0`,
+  HolderSnapshot write `0`, retry execution `0`, auto live send execution `0`,
+  scheduler/systemd `0`, repo-local runtime diff `0`, rawJson full dump `0`,
+  offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 Yellow bounded runner progress logging, 2026-05-28:
 
 - Implemented compact progress logging for `ops:run:bounded --execute`.

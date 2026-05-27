@@ -192,6 +192,31 @@ planner/help tests, CLI help, plan-only runner output, notification planners,
 retry planner, and read-only queue; production `--execute` was not run during
 this logging change.
 
+Progress-logged execute preflight on 2026-05-28 stayed read-only. Current DB
+state is Token / Metric / Notification / HolderSnapshot `2664 / 756 / 22 / 1`;
+Notification statuses `captured=17`, `sent=5`, `failed=0`; retry candidate
+`0`; enabled auto-send allowed candidate `0`. Default queue has
+`metricPendingCount=517`, `enrichPendingCount=517`,
+`notifyCandidateCount=0`; rolling 168h has `metricPendingCount=858`,
+`enrichPendingCount=803`, `notifyCandidateCount=0`.
+
+Plan-only output for checkpoint
+`/tmp/lowcap-bot-6h-pipeline-logging-20260528.json` is unblocked with
+`computedSinceMinutes=420`, `maxIterations=360`, and cycles `2 / 2`. It plans
+one detect write, two Metric cycles, two enrich cycles, report review, and
+notification planner review. The checkpoint path is outside the repo and does
+not exist. The next human-approved Red may use:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-logging-20260528.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This command can fetch externally, create/reuse Tokens, write the `/tmp`
+checkpoint, write up to 100 Metrics, and update up to 100 Token contexts. It
+must still not create/update Notifications, send Telegram, write
+HolderSnapshots, run retry execution, run auto live send, use scheduler/systemd,
+dump rawJson, dump offensive raw text, or run `pnpm smoke`.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

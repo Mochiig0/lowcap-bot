@@ -132,6 +132,22 @@ TypeScript, runner tests, planner/help tests, CLI help, plan-only runner
 output, notification planners, retry planner, and read-only queue. Production
 `ops:run:bounded --execute` was not run for this implementation.
 
+The follow-up progress-logged execute preflight selected the next minimum-loop
+Red with the same bounded coverage (`postRunMetricCycles=2`,
+`postRunEnrichCycles=2`) and checkpoint
+`/tmp/lowcap-bot-6h-pipeline-logging-20260528.json`. Plan-only output is
+unblocked, the checkpoint is repo-outside and absent, and safety planners show
+failed Notification `0`, retry candidate `0`, enabled auto-send allowed
+candidate `0`. The exact Red candidate is:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-logging-20260528.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This remains a separate human-approved Red only. The current Green preflight
+did not execute detect, Metric snapshot, enrich/rescore, notification send,
+retry execution, scheduler/systemd, or `pnpm smoke`.
+
 No minimum-loop state advanced during that failed attempt: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

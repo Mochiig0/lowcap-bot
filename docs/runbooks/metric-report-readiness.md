@@ -119,6 +119,17 @@ notification planners, retry planner, and read-only queue only; no production
 execute, Metric write, Token enrich/rescore write, notification send, external
 fetch, or `pnpm smoke` was run.
 
+The progress-logged execute preflight is also report-safe. Plan-only output
+for checkpoint `/tmp/lowcap-bot-6h-pipeline-logging-20260528.json` is
+unblocked with two Metric cycles and two enrich cycles. Metric command
+candidates keep `--onlyMetricPending --noNotificationCapture
+--interItemDelayMs 15000`; enrich candidates keep `--interItemDelayMs 15000`
+and omit `--notify`. Report review remains read-only queue inspection after
+the write phases. The next Red can write up to 100 Metrics and update up to
+100 Tokens, but expected Notification create/update, Telegram send,
+HolderSnapshot write, retry execution, auto live send, scheduler/systemd,
+rawJson full dump, offensive raw text dump, and `pnpm smoke` remain `0`.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:
