@@ -11,33 +11,36 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
-Green preflight for the default-safe bounded pipeline runner execute path is
-complete. Current DB state is Token / Metric / Notification / HolderSnapshot
-`1945 / 606 / 22 / 1`, metadata statuses `mint_only=1612`,
-`partial=320`, `enriched=13`, Metric buckets `0=1479`, `1=379`, `2+=87`, and
-Notification statuses `captured=17`, `sent=5`, `failed=0`. Retry candidate
-count and enabled auto-send allowed candidate count are both `0`.
-
-`pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json`
-returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
-`computedSinceMinutes=420`, `maxIterations=360`, all phases planned,
-`blockedBy=[]`, and `stopConditionCodes=[]`. The checkpoint path is repo
-outside, parent `/tmp` exists, and the file does not exist yet.
-
-Recommended next step: **Red bounded pipeline runner execute**. Exact command:
+The first human-approved `ops:run:bounded --execute` completed. Exact command:
 
 ```bash
 pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json --metricLimit 50 --enrichLimit 50 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
 ```
 
-Human approval is required. Expected side effects are external GeckoTerminal
-fetch, bounded detect watch up to 6h, production DB Token create/reuse,
-checkpoint write, Metric snapshot up to 50, token enrich/rescore up to 50,
-best-effort Metaplex fetch, and read-only report/notification planner checks.
-Expected non-effects are Notification create/update, Telegram send,
-HolderSnapshot write, retry execution, auto live send execution,
-scheduler/systemd, repo-local data diff, rawJson full dump, offensive raw text
-dump, and `pnpm smoke`.
+Runner summary: `executeRequested=true`, `readOnly=false`,
+`computedSinceMinutes=420`, `maxIterations=360`, `blockedBy=[]`, and
+`stopConditionCodes=[]`. All phases executed: preflight, detect write, Metric
+pending snapshot, enrich/rescore, report review, and notification planner
+review.
+
+DB moved Token / Metric / Notification / HolderSnapshot
+`1945 / 606 / 22 / 1` to `2304 / 656 / 22 / 1`. The run created/reused the
+bounded Token lane with Token `+359`, wrote Metric `+50`, and enriched/rescored
+50 Tokens to `partial`. Notification create/update, Telegram send,
+HolderSnapshot write, retry execution, auto live send, scheduler/systemd,
+rawJson full dump, offensive raw text dump, and `pnpm smoke` remained `0`.
+
+Queue after: default 24h `metricPendingCount=309`,
+`enrichPendingCount=309`, `staleReviewCount=212`,
+`notifyCandidateCount=0`; rolling 168h `metricPendingCount=598`,
+`enrichPendingCount=543`, `staleReviewCount=501`,
+`notifyCandidateCount=0`. Notification safety remains clear:
+`captured=17`, `sent=5`, `failed=0`, retry candidate `0`, enabled auto-send
+allowed candidate `0`.
+
+Recommended next step: **Green review of bounded pipeline execute result**.
+Use that review to decide whether the next Red should continue Metric pending
+snapshot for the new/default-window backlog or adjust runner post-run coverage.
 
 ## Recent Operating Log
 

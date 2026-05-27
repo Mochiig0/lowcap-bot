@@ -41,6 +41,15 @@ write is at most 50 from the Metric phase; expected Notification create/update,
 Telegram send, HolderSnapshot write, retry execution, auto live send,
 scheduler/systemd, rawJson full dump, and offensive raw text dump are all `0`.
 
+The 2026-05-27 execute run confirmed that boundary. Metric pending snapshot
+wrote Metric ids `1716..1765` (`Metric +50`) before enrich/rescore, and the
+report phase ran as read-only queue review. Post-run queues show default 24h
+`metricPendingCount=309`, `enrichPendingCount=309`,
+`staleReviewCount=212`, `notifyCandidateCount=0`, and rolling 168h
+`metricPendingCount=598`, `enrichPendingCount=543`,
+`staleReviewCount=501`, `notifyCandidateCount=0`. No rawJson full dump or
+offensive raw text dump was used in docs/final summaries.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

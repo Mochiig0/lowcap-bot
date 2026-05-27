@@ -60,6 +60,19 @@ pending snapshot, enrich/rescore, report review, then notification planner
 review. It still does not include Telegram send, Notification send, retry
 execution, auto live send, scheduler, systemd, or `pnpm smoke`.
 
+The 2026-05-27 Red used that exact command and completed the loop once.
+Detect wrote Token ids `6140..6498` (`Token +359`), Metric pending snapshot
+wrote Metric ids `1716..1765` (`Metric +50`), and enrich/rescore updated 50
+Tokens to `partial`. Notification count stayed `22`, HolderSnapshot stayed
+`1`, Telegram send stayed `0`, and the checkpoint file was written at
+`/tmp/lowcap-bot-6h-pipeline-20260527.json` (`176` bytes).
+
+After the run, default 24h queue still has `metricPendingCount=309` and
+`enrichPendingCount=309`; rolling 168h has `metricPendingCount=598` and
+`enrichPendingCount=543`. Continue with Green review before another bounded
+Red, because post-run backlog remains and the runner's first execute result
+should be reviewed before increasing coverage.
+
 To see the full post-run sequence after a bounded 6H detect write, include
 `--postRunPlan`:
 

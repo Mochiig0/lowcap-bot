@@ -53,6 +53,14 @@ candidate count remains `0`; Notification statuses remain `captured=17`,
 Expected Telegram send, Notification create/update, retry execution, and auto
 live send execution remain `0`.
 
+The 2026-05-27 `ops:run:bounded --execute` Red also preserved that boundary.
+It executed detect write, Metric pending snapshot, enrich/rescore, report
+review, and notification planner review, but notification planner remained
+read-only. Notification count stayed `22`, statuses stayed `captured=17`,
+`sent=5`, `failed=0`, retry candidate stayed `0`, enabled auto-send allowed
+candidate stayed `0`, selected auto-send Notification stayed `null`, and
+Telegram send stayed `0`.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

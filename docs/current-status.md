@@ -40,6 +40,57 @@ Yellow bounded pipeline runner implementation, 2026-05-27:
   detect watch/write, Metric write, Token enrich/rescore write, notification
   send, retry execution, scheduler/systemd, and `pnpm smoke` were not run.
 
+Red bounded pipeline runner execute, 2026-05-27:
+
+- Human-approved exact command executed once:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-20260527.json --metricLimit 50 --enrichLimit 50 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+  No retry, no second command, no notification send, no retry execution, no
+  auto live send, no scheduler/systemd, and no `pnpm smoke`.
+- Runner summary: `executeRequested=true`, `readOnly=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`, `blockedBy=[]`,
+  `stopConditionCodes=[]`. All phases reached `executed`: `preflight`,
+  `detect_write`, `metric_pending_snapshot`, `enrich_rescore`,
+  `report_review`, and `notification_plan_review`.
+- Observed runtime activity: Token imports span
+  `2026-05-26T21:19:47Z..2026-05-27T06:24:41Z`; latest enrich/rescore
+  timestamp is `2026-05-27T06:50:21Z`. The command occupied the bounded
+  session until completion; the post-check was recorded at
+  `2026-05-27T15:53:36+09:00`.
+- DB moved from Token / Metric / Notification / HolderSnapshot
+  `1945 / 606 / 22 / 1` to `2304 / 656 / 22 / 1`: Token `+359`,
+  Metric `+50`, Notification `+0`, HolderSnapshot `+0`.
+- Metadata statuses moved `mint_only=1612`, `partial=320`, `enriched=13` to
+  `mint_only=1921`, `partial=370`, `enriched=13`. Metric buckets moved
+  `0=1479`, `1=379`, `2+=87` to `0=1788`, `1=429`, `2+=87`.
+- Detect write created Token ids `6140..6498` from GeckoTerminal new pools.
+  The checkpoint file `/tmp/lowcap-bot-6h-pipeline-20260527.json` exists and
+  is `176` bytes. It is outside the repo.
+- Metric pending snapshot wrote Metric ids `1716..1765` for token ids
+  `6498..6449`. The phase used `--onlyMetricPending`,
+  `--noNotificationCapture`, and `--interItemDelayMs 15000`; Notification
+  capture did not occur.
+- Enrich/rescore updated token ids `6498..6449` to `partial`. All 50 selected
+  rows have name / symbol / normalized text present, `enrichedAt` and
+  `rescoredAt` set, `notificationCount=0`, and `holderSnapshotCount=0`.
+  Metaplex hits were `3`; score distribution was `C/0=45`, `B/2=3`,
+  `C/1=2`; `hardRejected=0`.
+- Report review stayed read-only. Queue after: default 24h
+  `metricPendingCount=309`, `enrichPendingCount=309`,
+  `staleReviewCount=212`, `notifyCandidateCount=0`; rolling 168h
+  `metricPendingCount=598`, `enrichPendingCount=543`,
+  `staleReviewCount=501`, `notifyCandidateCount=0`.
+- Notification planner review stayed read-only. Notification statuses remain
+  `captured=17`, `sent=5`, `failed=0`; retry candidate `0`; enabled
+  auto-send allowed candidate `0`; selected auto-send Notification `null`.
+- Expected non-effects held: Notification create/update `0`, Telegram send
+  `0`, HolderSnapshot write `0`, retry execution `0`, auto live send
+  execution `0`, scheduler/systemd `0`, repo-local runtime data diff `0`,
+  rawJson full dump `0`, offensive raw text dump `0`.
+- Next candidate: Green review of the bounded pipeline execute result, then
+  decide whether to continue Metric pending snapshot for the new + older
+  backlog (`metricPendingCount=309` in the default window) or refine runner
+  post-run batch coverage.
+
 Green bounded pipeline execute preflight, 2026-05-27:
 
 - This pass stayed read-only / docs-only. It did not run

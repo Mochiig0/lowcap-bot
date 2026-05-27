@@ -118,6 +118,35 @@ retry execution `0`, auto live send execution `0`, scheduler/systemd `0`,
 repo-local data diff `0`, rawJson full dump `0`, offensive raw text dump `0`,
 and `pnpm smoke` `0`.
 
+Execute result on 2026-05-27: the exact command above ran once and completed.
+Runner top-level summary was `executeRequested=true`, `readOnly=false`,
+`computedSinceMinutes=420`, `maxIterations=360`, `blockedBy=[]`, and
+`stopConditionCodes=[]`; all phases reached `executed`.
+
+Operational effects:
+
+- Token count `1945 -> 2304` (`+359`), with new Token ids `6140..6498`.
+- Metric count `606 -> 656` (`+50`), with Metric ids `1716..1765`.
+- Metadata statuses moved `mint_only=1612`, `partial=320`, `enriched=13` to
+  `mint_only=1921`, `partial=370`, `enriched=13`.
+- Metric buckets moved `0=1479`, `1=379`, `2+=87` to `0=1788`, `1=429`,
+  `2+=87`.
+- The enrich/rescore phase updated 50 Tokens to `partial`; Metaplex hits were
+  `3`, score distribution was `C/0=45`, `B/2=3`, `C/1=2`, and
+  `hardRejected=0`.
+- Checkpoint `/tmp/lowcap-bot-6h-pipeline-20260527.json` exists, is outside
+  the repo, and is `176` bytes.
+- Notification create/update, Telegram send, HolderSnapshot write, retry
+  execution, auto live send, scheduler/systemd, repo-local runtime data diff,
+  rawJson full dump, offensive raw text dump, and `pnpm smoke` all remained
+  `0`.
+
+Post-run queue state: default 24h `metricPendingCount=309`,
+`enrichPendingCount=309`, `staleReviewCount=212`, `notifyCandidateCount=0`;
+rolling 168h `metricPendingCount=598`, `enrichPendingCount=543`,
+`staleReviewCount=501`, `notifyCandidateCount=0`. The next step should be a
+Green review before another Red.
+
 Current runtime check after the 6H write rehearsal and first Metric follow-up:
 the workflow recommends `metric_pending_snapshot` first and emits:
 
