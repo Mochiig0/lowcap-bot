@@ -68,6 +68,13 @@ retry execution, auto live send, Telegram live send, scheduler, or systemd.
 Defaults stay `1 / 1`, and production execute was not run during the cycle
 implementation.
 
+The first multi-cycle execute preflight chose cycles `2 / 2` and confirmed
+the same boundary in plan-only output. The notification phase remains planner
+only (`notification:auto-send:plan`, enabled auto-send planner,
+`notification:retry:plan`); enabled auto-send allowed candidate is `0`, retry
+candidate is `0`, and selected auto-send Notification is `null`. The Red
+candidate must not be modified to include notification send or `--live`.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

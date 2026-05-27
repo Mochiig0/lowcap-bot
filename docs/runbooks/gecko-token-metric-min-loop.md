@@ -52,6 +52,16 @@ The defaults remain `--postRunMetricCycles 1` and `--postRunEnrichCycles 1`.
 Cycle counts are bounded, explicit, and plan-only unless a separate
 human-approved `--execute` run is used.
 
+The first execute preflight for this mode selected conservative cycles `2 / 2`
+with limits `50 / 50`:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This command is a Red candidate only. It was not executed during preflight.
+The checkpoint path is repo-outside and absent; planner state is unblocked.
+
 Production execution still requires a separate human-approved `--execute`
 turn with a `/tmp` checkpoint path. The runner does not implement Telegram
 send, Notification send, retry execution, auto live send, scheduler, systemd,

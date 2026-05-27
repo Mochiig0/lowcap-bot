@@ -39,6 +39,12 @@ The runner now also supports explicit post-run cycles:
 shows repeated Metric/enrich command candidates and max future write/update
 coverage; it still performs no external fetch and writes no DB rows.
 
+The first multi-cycle execute preflight chose `--postRunMetricCycles 2` and
+`--postRunEnrichCycles 2`. In a future approved Red this can write up to 100
+Metric rows before enrich/rescore and then update up to 100 Tokens. The report
+phase remains read-only queue review after the write phases; it must stay
+rawJson-free and must not create/update Notifications or send Telegram.
+
 The 2026-05-27 execute preflight kept report/review bounded and read-only.
 The candidate runner command will execute Metric pending snapshot before
 enrich/rescore, then run review queue and notification planner checks as

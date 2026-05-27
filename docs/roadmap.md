@@ -11,6 +11,19 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
+Green preflight completed for the first multi-cycle runner execute. The
+recommended human-approved Red is:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Plan-only output is unblocked (`blockedBy=[]`, `stopConditionCodes=[]`) and
+shows detect planned once, two Metric cycles, two enrich cycles, report review,
+and notification planner review. The checkpoint path is outside the repo and
+does not exist yet. This Green pass did not execute, fetch, write, send
+Telegram, update Notifications, or run `pnpm smoke`.
+
 `ops:run:bounded` now supports bounded post-run cycle counts. New options:
 `--postRunMetricCycles <N>` and `--postRunEnrichCycles <N>`, defaulting to
 `1 / 1` to preserve the original one-pass behavior. Plan-only output repeats
@@ -55,10 +68,8 @@ Queue after: default 24h `metricPendingCount=309`,
 `captured=17`, `sent=5`, `failed=0`, retry candidate `0`, enabled auto-send
 allowed candidate `0`.
 
-Recommended next step: **Green preflight for bounded runner post-run cycles**.
-Use plan-only output and current queue state to decide whether the next Red
-should execute the multi-cycle bounded runner or continue individual backlog
-lanes.
+Recommended next step: **Red execute of bounded runner post-run cycles 2/2**,
+using the exact command above after human approval.
 
 ## Recent Operating Log
 

@@ -116,6 +116,27 @@ returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,
 `postRunEnrichCycles=3`, repeated Metric/enrich command candidates,
 `blockedBy=[]`, and `stopConditionCodes=[]`. No fetch/write/send was run.
 
+First multi-cycle execute preflight on 2026-05-27 also stayed read-only. The
+chosen initial cycle count is `2 / 2`, not `3 / 3`, to keep the first
+multi-cycle Red bounded while still covering up to 100 Metric writes and 100
+Token enrich/rescore updates. Plan-only output for the exact candidate
+returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=2`,
+`postRunEnrichCycles=2`, two Metric command candidates, two enrich command
+candidates, `blockedBy=[]`, and `stopConditionCodes=[]`.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+The checkpoint path is `/tmp/lowcap-bot-6h-pipeline-cycles-20260527.json`;
+it is outside the repo and does not currently exist. Expected non-effects
+remain Notification create/update `0`, Telegram send `0`, HolderSnapshot
+write `0`, retry execution `0`, auto live send execution `0`,
+scheduler/systemd `0`, repo-local runtime data diff `0`, rawJson full dump
+`0`, offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 Execute preflight on 2026-05-27 stayed read-only / docs-only and fixed the
 next human-approved Red command. Current safety state is failed Notification
 `0`, retry candidate `0`, enabled auto-send allowed candidate `0`,
