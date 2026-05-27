@@ -104,6 +104,11 @@ stayed `0`, retry candidate stayed `0`, selected auto-send Notification stayed
 no notification create/update, retry execution, auto live send, scheduler, or
 systemd was executed.
 
+The 2026-05-28 Green review reconfirmed that state. Auto-send planner still
+has allowed candidate `0`, retry planner has candidate `0`, and
+`notifyCandidateCount=0` in both default and 168h Gecko queues. The next
+recommended task is runner observability, not notification execution.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

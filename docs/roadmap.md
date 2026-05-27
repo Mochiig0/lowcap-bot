@@ -9,10 +9,11 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-05-27
+Date: 2026-05-28
 
-Fixed-executor multi-cycle `ops:run:bounded --execute` completed once with
-cycles `2 / 2`:
+Fixed-executor multi-cycle `ops:run:bounded --execute` completed once and has
+now been reviewed read-only. It should be treated as a successful bounded
+pipeline run. It used cycles `2 / 2`:
 
 ```bash
 pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
@@ -29,13 +30,22 @@ Telegram send stayed `0`. Checkpoint
 repo (`176` bytes) with a safe cursor summary ending at
 `2026-05-27T17:28:09.000Z`.
 
-Recommended next step: **Green review of the fixed multi-cycle bounded runner
-execution and post-run queue decision**. The queue is not clear: default 24h
-has `metricPendingCount=569`, `enrichPendingCount=569`,
+The reviewed queue is not clear, but this is not a pipeline failure. Token
+ingest was `+360`, while post-run cycles were bounded to Metric `+100` and
+Token context updates `+100`, so remaining pending is expected. Current
+default 24h has `metricPendingCount=560`, `enrichPendingCount=560`,
 `notifyCandidateCount=0`; rolling 168h has `metricPendingCount=858`,
-`enrichPendingCount=803`, `notifyCandidateCount=0`. A likely following Red is
-bounded Metric pending continuation; do not jump to notification send or
-scheduler/systemd.
+`enrichPendingCount=803`, `notifyCandidateCount=0`.
+
+Recommended next step: **Yellow: improve bounded runner progress logging and
+final summary**. The successful run exposed an operating gap: it can run for
+nearly seven hours with little visible progress, making sleep/interruption
+difficult to distinguish from normal detect watch. Add phase start/end logs,
+heartbeat/progress during detect watch, Metric/enrich cycle start/end logs,
+elapsed time, checkpoint path, compact per-cycle summaries, and tests. Second
+priority is a post-run coverage policy that recommends Metric/enrich cycles
+from imported count and configured limits. Do not jump to notification send,
+scheduler, systemd, or `pnpm smoke`.
 
 Yellow fix completed for the failed multi-cycle `ops:run:bounded --execute`
 environment boundary. The runner previously executed write phases by spawning

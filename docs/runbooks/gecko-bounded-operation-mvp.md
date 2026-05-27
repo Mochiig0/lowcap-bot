@@ -166,6 +166,13 @@ source `geckoterminal.new_pools` and cursor poolCreatedAt
 `2026-05-27T17:28:09.000Z`. No rawJson full dump or offensive raw text dump
 was used.
 
+Green review on 2026-05-28 confirmed the run is a success, but also confirmed
+an operations gap: the runner can stay quiet for most of a long detect watch.
+Remaining queue (`metricPendingCount=560`, `enrichPendingCount=560` in the
+current default window) is expected because Token intake exceeded the bounded
+post-run cycle coverage. The next implementation task should improve runner
+progress logging and final summary before another large operational Red.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

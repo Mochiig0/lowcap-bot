@@ -108,6 +108,13 @@ HolderSnapshot write, Telegram send, retry execution, auto live send,
 scheduler/systemd, rawJson full dump, offensive raw text dump, and `pnpm
 smoke` remained `0`.
 
+The follow-up Green review treats the loop as successful. Remaining
+`metricPendingCount` / `enrichPendingCount` is not a failure of the loop; it
+reflects Token `+360` intake with only two post-run cycles covering at most
+100 Metric writes and 100 Token context updates. The next improvement should
+make runner progress visible during long watches before increasing operational
+frequency.
+
 No minimum-loop state advanced during that failed attempt: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

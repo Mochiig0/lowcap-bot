@@ -95,6 +95,14 @@ ran only queue/planner reads. Post-run queues show default 24h
 `staleReviewCount=654`, `notifyCandidateCount=0`. No rawJson full dump or
 offensive raw text dump was used.
 
+The 2026-05-28 Green review updated the live queue view after time advanced:
+default 24h now shows `metricPendingCount=560`, `enrichPendingCount=560`,
+`staleReviewCount=541`, `notifyCandidateCount=0`; rolling 168h shows
+`metricPendingCount=858`, `enrichPendingCount=803`, `staleReviewCount=839`,
+`notifyCandidateCount=0`. This confirms report/notification candidates remain
+quiet; the next improvement should be runner progress logging, not a report or
+notification Red.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

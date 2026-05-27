@@ -4,6 +4,45 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green fixed multi-cycle bounded runner review, 2026-05-28:
+
+- Reviewed the successful fixed multi-cycle `ops:run:bounded --execute` result
+  read-only / docs-only. No new Red, `ops:run:bounded --execute`, detect
+  watch/write, Metric write, Token enrich/rescore write, notification send,
+  retry execution, auto live send, scheduler/systemd, `pnpm smoke`, schema /
+  migration, app code change, rawJson full dump, or offensive raw text dump
+  was run.
+- The run should be treated as successful. It reached `preflight`,
+  `detect_write`, two Metric pending cycles, two enrich/rescore cycles,
+  `report_review`, and `notification_plan_review` with no blockers or stop
+  codes. Confirmed DB state remains Token / Metric / Notification /
+  HolderSnapshot `2664 / 756 / 22 / 1`; metadata `mint_only=2181`,
+  `partial=470`, `enriched=13`; Metric buckets `0=2048`, `1=529`, `2+=87`;
+  Notification statuses `captured=17`, `sent=5`, `failed=0`.
+- Representative safe summaries confirm new Tokens in ids `6499..6858`,
+  new Metrics in ids `1766..1865`, and enriched/rescored Tokens in ids
+  `6759..6858`. Samples stayed abbreviated and rawJson-free. The checkpoint
+  `/tmp/lowcap-bot-6h-pipeline-cycles-fixed-20260527.json` exists outside the
+  repo, size `176` bytes, with source `geckoterminal.new_pools` and safe
+  cursor poolCreatedAt `2026-05-27T17:28:09.000Z`.
+- Queue meaning: remaining pending is not a pipeline failure. The run ingested
+  Token `+360`, while post-run cycles were bounded to Metric `+100` and Token
+  context updates `+100`, so backlog necessarily remains. Current default 24h
+  queue is `geckoOriginTokenCount=710`, `metricPendingCount=560`,
+  `enrichPendingCount=560`, `staleReviewCount=541`,
+  `notifyCandidateCount=0`; rolling 168h is `geckoOriginTokenCount=1083`,
+  `metricPendingCount=858`, `enrichPendingCount=803`,
+  `staleReviewCount=839`, `notifyCandidateCount=0`. `ops:plan:bounded`
+  remains unblocked and recommends `metric_pending_snapshot`; auto-send
+  allowed `0`; retry candidate `0`.
+- Recommendation: do not issue another Red in this Green pass. The next best
+  task is **Yellow: improve bounded runner progress logging and final
+  summary**. Add phase start/end logs, heartbeat/progress during long detect
+  watch, metric/enrich cycle start/end logs, elapsed time, checkpoint path,
+  compact selected/written/enriched/rescored summaries, and tests. Second
+  candidate is a post-run coverage policy that recommends cycles from
+  imported count and limits.
+
 Red fixed multi-cycle bounded runner execute, 2026-05-27/28:
 
 - Ran the human-approved exact command once:
