@@ -33,6 +33,12 @@ still does not append Metrics or enrich Tokens unless a separate
 human-approved `--execute` run is used; production execute was not run during
 implementation.
 
+The runner now also supports explicit post-run cycles:
+`--postRunMetricCycles <N>` and `--postRunEnrichCycles <N>`. Defaults are
+`1 / 1`, preserving the original report/readiness boundary. Plan-only mode
+shows repeated Metric/enrich command candidates and max future write/update
+coverage; it still performs no external fetch and writes no DB rows.
+
 The 2026-05-27 execute preflight kept report/review bounded and read-only.
 The candidate runner command will execute Metric pending snapshot before
 enrich/rescore, then run review queue and notification planner checks as

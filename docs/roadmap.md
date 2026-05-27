@@ -11,6 +11,23 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-27
 
+`ops:run:bounded` now supports bounded post-run cycle counts. New options:
+`--postRunMetricCycles <N>` and `--postRunEnrichCycles <N>`, defaulting to
+`1 / 1` to preserve the original one-pass behavior. Plan-only output repeats
+the Metric/enrich command candidates for each requested cycle and reports the
+cycle counts. `0` skips the corresponding post-run phase.
+
+Future execute candidate shape, subject to a separate Green preflight and
+human approval:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 3 --postRunEnrichCycles 3 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This would keep the same bounded detect write phase, then run up to three
+Metric pending cycles and up to three enrich cycles. Production execute was
+not run during this Yellow implementation.
+
 The first human-approved `ops:run:bounded --execute` completed. Exact command:
 
 ```bash
@@ -38,9 +55,10 @@ Queue after: default 24h `metricPendingCount=309`,
 `captured=17`, `sent=5`, `failed=0`, retry candidate `0`, enabled auto-send
 allowed candidate `0`.
 
-Recommended next step: **Green review of bounded pipeline execute result**.
-Use that review to decide whether the next Red should continue Metric pending
-snapshot for the new/default-window backlog or adjust runner post-run coverage.
+Recommended next step: **Green preflight for bounded runner post-run cycles**.
+Use plan-only output and current queue state to decide whether the next Red
+should execute the multi-cycle bounded runner or continue individual backlog
+lanes.
 
 ## Recent Operating Log
 
@@ -69,6 +87,14 @@ computedSinceMinutes = hours * 60 + postRunBufferMinutes
 With defaults, a 6h run uses `420` minutes for post-run Metric/enrich phases,
 so the pipeline is less exposed to rolling-window drift than manual split
 execution.
+
+Post-run Metric/enrich coverage can now be widened without creating an
+unbounded worker: `--postRunMetricCycles` and `--postRunEnrichCycles` control
+how many bounded cycles are planned or executed. Defaults remain `1 / 1`;
+cycle counts must be non-negative integers. The runner still stops
+conservatively on write-phase failure and never generates notification send,
+retry execution, auto live send, scheduler/systemd, or Telegram live send
+commands.
 
 Plan-only runtime check:
 

@@ -61,6 +61,13 @@ read-only. Notification count stayed `22`, statuses stayed `captured=17`,
 candidate stayed `0`, selected auto-send Notification stayed `null`, and
 Telegram send stayed `0`.
 
+The later bounded-runner cycle update keeps the same Telegram boundary.
+`--postRunMetricCycles` and `--postRunEnrichCycles` only repeat bounded
+Metric/enrich post-run command candidates; they do not add notification send,
+retry execution, auto live send, Telegram live send, scheduler, or systemd.
+Defaults stay `1 / 1`, and production execute was not run during the cycle
+implementation.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;

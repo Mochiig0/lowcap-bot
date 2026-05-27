@@ -41,6 +41,17 @@ notification planner review. The post-run Metric/enrich commands use
 actual operations and avoids relying on a stale 6h rolling window after manual
 handoff delays.
 
+When a 6H detect run creates more backlog than a single post-run batch can
+cover, the same runner can now plan bounded follow-up cycles:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline.json --postRunMetricCycles 3 --postRunEnrichCycles 3
+```
+
+The defaults remain `--postRunMetricCycles 1` and `--postRunEnrichCycles 1`.
+Cycle counts are bounded, explicit, and plan-only unless a separate
+human-approved `--execute` run is used.
+
 Production execution still requires a separate human-approved `--execute`
 turn with a `/tmp` checkpoint path. The runner does not implement Telegram
 send, Notification send, retry execution, auto live send, scheduler, systemd,

@@ -14,6 +14,8 @@ const DEFAULT_ENRICH_LIMIT = 50;
 const DEFAULT_INTERVAL_SECONDS = 60;
 const DEFAULT_POST_RUN_BUFFER_MINUTES = 60;
 const DEFAULT_INTER_ITEM_DELAY_MS = 15_000;
+const DEFAULT_POST_RUN_METRIC_CYCLES = 1;
+const DEFAULT_POST_RUN_ENRICH_CYCLES = 1;
 const METRIC_MIN_GAP_MINUTES = 60;
 
 export type BoundedOperationRunnerOptions = {
@@ -26,6 +28,8 @@ export type BoundedOperationRunnerOptions = {
   maxIterations?: number;
   postRunBufferMinutes: number;
   interItemDelayMs: number;
+  postRunMetricCycles: number;
+  postRunEnrichCycles: number;
   executeRequested: boolean;
   repoRoot: string;
 };
@@ -103,6 +107,12 @@ export type BoundedOperationRunnerReport = {
   };
   phases: BoundedOperationRunnerPhase[];
   finalQueueState: QueueState;
+  postRunMetricCycles: number;
+  postRunEnrichCycles: number;
+  metricCyclesExecuted: number;
+  enrichCyclesExecuted: number;
+  metricCyclesStoppedReason: string | null;
+  enrichCyclesStoppedReason: string | null;
   blockedBy: string[];
   stopConditionCodes: string[];
   expectedSideEffects: string[];
@@ -116,6 +126,8 @@ export const DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS = {
   intervalSeconds: DEFAULT_INTERVAL_SECONDS,
   postRunBufferMinutes: DEFAULT_POST_RUN_BUFFER_MINUTES,
   interItemDelayMs: DEFAULT_INTER_ITEM_DELAY_MS,
+  postRunMetricCycles: DEFAULT_POST_RUN_METRIC_CYCLES,
+  postRunEnrichCycles: DEFAULT_POST_RUN_ENRICH_CYCLES,
 } as const;
 
 function optionalPumpOnlyArg(pumpOnly: boolean): string[] {
@@ -175,7 +187,7 @@ function buildDetectCommand(options: BoundedOperationRunnerOptions): PhaseComman
   };
 }
 
-function buildMetricCommand(options: BoundedOperationRunnerOptions): PhaseCommand {
+function buildMetricCommand(options: BoundedOperationRunnerOptions, cycleIndex?: number): PhaseCommand {
   const args = [
     "-s",
     "metric:snapshot:geckoterminal",
@@ -195,14 +207,14 @@ function buildMetricCommand(options: BoundedOperationRunnerOptions): PhaseComman
   ];
 
   return {
-    label: "metric_pending_snapshot",
+    label: cycleIndex === undefined ? "metric_pending_snapshot" : `metric_pending_snapshot_cycle_${cycleIndex}`,
     commandCandidate: joinCommand("pnpm", args),
     file: "pnpm",
     args,
   };
 }
 
-function buildEnrichCommand(options: BoundedOperationRunnerOptions): PhaseCommand {
+function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?: number): PhaseCommand {
   const args = [
     "-s",
     "token:enrich-rescore:geckoterminal",
@@ -218,11 +230,23 @@ function buildEnrichCommand(options: BoundedOperationRunnerOptions): PhaseComman
   ];
 
   return {
-    label: "enrich_rescore",
+    label: cycleIndex === undefined ? "enrich_rescore" : `enrich_rescore_cycle_${cycleIndex}`,
     commandCandidate: joinCommand("pnpm", args),
     file: "pnpm",
     args,
   };
+}
+
+function buildMetricCycleCommands(options: BoundedOperationRunnerOptions): PhaseCommand[] {
+  return Array.from({ length: options.postRunMetricCycles }, (_, index) =>
+    buildMetricCommand(options, index + 1),
+  );
+}
+
+function buildEnrichCycleCommands(options: BoundedOperationRunnerOptions): PhaseCommand[] {
+  return Array.from({ length: options.postRunEnrichCycles }, (_, index) =>
+    buildEnrichCommand(options, index + 1),
+  );
 }
 
 function buildReviewQueueCommand(options: BoundedOperationRunnerOptions, sinceHours?: number): PhaseCommand {
@@ -375,8 +399,8 @@ export function buildBoundedOperationRunnerPlan(
   const plannedStatus: BoundedOperationRunnerPhaseStatus = blocked ? "blocked" : "planned";
 
   const detectCommand = buildDetectCommand(options);
-  const metricCommand = buildMetricCommand(options);
-  const enrichCommand = buildEnrichCommand(options);
+  const metricCommands = buildMetricCycleCommands(options);
+  const enrichCommands = buildEnrichCycleCommands(options);
   const reportCommands = [
     buildReviewQueueCommand(options),
     buildReviewQueueCommand(options, 168),
@@ -419,11 +443,17 @@ export function buildBoundedOperationRunnerPlan(
       blockedBy: stop.blockedBy,
       stopConditionCodes: stop.stopConditionCodes,
     }),
-    phase("metric_pending_snapshot", plannedStatus, [metricCommand], {
+    phase("metric_pending_snapshot", options.postRunMetricCycles === 0 && !blocked ? "skipped" : plannedStatus, metricCommands, {
       writePhase: true,
+      summary: {
+        cyclesPlanned: options.postRunMetricCycles,
+        cyclesExecuted: 0,
+        stoppedReason: options.postRunMetricCycles === 0 ? "cycles_zero" : null,
+        cycleCommandCandidates: metricCommands.map((command) => command.commandCandidate),
+      },
       expectedSideEffects: [
         "external GeckoTerminal fetch on --execute",
-        `production DB Metric write max ${options.metricLimit} on --execute`,
+        `production DB Metric write max ${options.metricLimit * options.postRunMetricCycles} on --execute`,
       ],
       expectedNonEffects: [
         "Token write 0",
@@ -437,12 +467,18 @@ export function buildBoundedOperationRunnerPlan(
       blockedBy: stop.blockedBy,
       stopConditionCodes: stop.stopConditionCodes,
     }),
-    phase("enrich_rescore", plannedStatus, [enrichCommand], {
+    phase("enrich_rescore", options.postRunEnrichCycles === 0 && !blocked ? "skipped" : plannedStatus, enrichCommands, {
       writePhase: true,
+      summary: {
+        cyclesPlanned: options.postRunEnrichCycles,
+        cyclesExecuted: 0,
+        stoppedReason: options.postRunEnrichCycles === 0 ? "cycles_zero" : null,
+        cycleCommandCandidates: enrichCommands.map((command) => command.commandCandidate),
+      },
       expectedSideEffects: [
         "external GeckoTerminal token snapshot fetch on --execute",
         "best-effort Metaplex fetch on --execute",
-        `production DB Token update max ${options.enrichLimit} on --execute`,
+        `production DB Token update max ${options.enrichLimit * options.postRunEnrichCycles} on --execute`,
       ],
       expectedNonEffects: [
         "Metric write 0",
@@ -503,6 +539,12 @@ export function buildBoundedOperationRunnerPlan(
     },
     phases,
     finalQueueState: input.queueState,
+    postRunMetricCycles: options.postRunMetricCycles,
+    postRunEnrichCycles: options.postRunEnrichCycles,
+    metricCyclesExecuted: 0,
+    enrichCyclesExecuted: 0,
+    metricCyclesStoppedReason: options.postRunMetricCycles === 0 ? "cycles_zero" : null,
+    enrichCyclesStoppedReason: options.postRunEnrichCycles === 0 ? "cycles_zero" : null,
     blockedBy: stop.blockedBy,
     stopConditionCodes: stop.stopConditionCodes,
     expectedSideEffects: options.executeRequested
@@ -538,9 +580,9 @@ function commandsForPhase(
     case "detect_write":
       return [buildDetectCommand(options)];
     case "metric_pending_snapshot":
-      return [buildMetricCommand(options)];
+      return buildMetricCycleCommands(options);
     case "enrich_rescore":
-      return [buildEnrichCommand(options)];
+      return buildEnrichCycleCommands(options);
     case "report_review":
       return [buildReviewQueueCommand(options), buildReviewQueueCommand(options, 168)];
     case "notification_plan_review":
@@ -548,6 +590,122 @@ function commandsForPhase(
     case "preflight":
       return [];
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function parseJsonObject(output: string): Record<string, unknown> | null {
+  const trimmed = output.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  try {
+    return asRecord(JSON.parse(trimmed));
+  } catch {
+    return null;
+  }
+}
+
+function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
+  const record = asRecord(value) ?? {};
+  const summary = asRecord(record.summary) ?? record;
+  const commandResults = Array.isArray(record.commandResults) ? record.commandResults : [];
+  const parsedSummary = commandResults
+    .map((item) => asRecord(item))
+    .map((item) => asRecord(item?.parsedSummary))
+    .find((item): item is Record<string, unknown> => item !== null);
+  const source = parsedSummary ?? summary;
+  const fields: Record<string, unknown> = {};
+
+  for (const key of [
+    "selected",
+    "written",
+    "enriched",
+    "rescored",
+    "skipped",
+    "error",
+    "contextWritten",
+    "metaplexAttempted",
+    "metaplexAvailable",
+    "notifyWouldSend",
+    "notifySent",
+    "interItemDelayMs",
+    "interItemDelayCount",
+    "skippedAfterRateLimit",
+  ]) {
+    const numericValue = asNumber(source[key]);
+    if (numericValue !== undefined) {
+      fields[key] = numericValue;
+    }
+  }
+
+  for (const key of [
+    "providerErrorPresent",
+    "http429Present",
+    "rateLimited",
+    "abortedDueToRateLimit",
+  ]) {
+    const booleanValue = asBoolean(source[key]);
+    if (booleanValue !== undefined) {
+      fields[key] = booleanValue;
+    }
+  }
+
+  return fields;
+}
+
+function cycleHasProviderError(fields: Record<string, unknown>): boolean {
+  return fields.providerErrorPresent === true
+    || fields.http429Present === true
+    || fields.rateLimited === true
+    || fields.abortedDueToRateLimit === true
+    || (asNumber(fields.error) ?? 0) > 0;
+}
+
+function cycleNoWorkReason(
+  phaseName: BoundedOperationRunnerPhaseName,
+  fields: Record<string, unknown>,
+): string | null {
+  if (asNumber(fields.selected) === 0) {
+    return "selected_zero";
+  }
+
+  if (phaseName === "metric_pending_snapshot" && asNumber(fields.written) === 0) {
+    return "written_zero";
+  }
+
+  if (
+    phaseName === "enrich_rescore"
+    && asNumber(fields.enriched) === 0
+    && asNumber(fields.rescored) === 0
+  ) {
+    return "enriched_rescored_zero";
+  }
+
+  return null;
+}
+
+function mergePhaseSummary(
+  existing: Record<string, unknown>,
+  updates: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...existing,
+    ...updates,
+  };
 }
 
 export async function defaultPhaseExecutor(
@@ -596,11 +754,13 @@ export async function defaultPhaseExecutor(
       });
     });
 
+    const parsedSummary = extractCycleSummaryFields(parseJsonObject(result.stdout));
     commandResults.push({
       label: command.label,
       exitCode: result.exitCode,
       stdoutTail: result.stdout.slice(-4_000),
       stderrTail: result.stderr.slice(-4_000),
+      parsedSummary,
     });
 
     if (result.exitCode !== 0) {
@@ -622,6 +782,114 @@ export async function defaultPhaseExecutor(
   };
 }
 
+function skipLaterPhases(
+  report: BoundedOperationRunnerReport,
+  phaseItem: BoundedOperationRunnerPhase,
+  reason: string,
+): void {
+  for (const laterPhase of report.phases.slice(report.phases.indexOf(phaseItem) + 1)) {
+    laterPhase.status = "skipped";
+    laterPhase.blockedBy = [reason];
+    laterPhase.stopConditionCodes = ["prior_phase_failed"];
+  }
+}
+
+async function executeCyclePhase(
+  report: BoundedOperationRunnerReport,
+  phaseItem: BoundedOperationRunnerPhase,
+  commands: PhaseCommand[],
+  executor: PhaseExecutor,
+): Promise<boolean> {
+  const cycleSummaries: Record<string, unknown>[] = [];
+  let stoppedReason: string | null = null;
+  let executedCount = 0;
+
+  for (const [index, command] of commands.entries()) {
+    const result = await executor(phaseItem, [command]);
+    const fields = extractCycleSummaryFields(result.summary ?? {});
+    const cycleSummary = {
+      cycleIndex: index + 1,
+      status: result.ok ? "executed" : "failed",
+      ...fields,
+      summary: result.summary ?? {},
+    };
+    cycleSummaries.push(cycleSummary);
+
+    if (result.ok) {
+      executedCount += 1;
+    }
+
+    if (!result.ok) {
+      stoppedReason = `${command.label}_failed`;
+      phaseItem.status = "failed";
+      phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
+        cyclesPlanned: commands.length,
+        cyclesExecuted: executedCount,
+        stoppedReason,
+        cycleSummaries,
+      });
+      phaseItem.blockedBy = result.blockedBy ?? [];
+      phaseItem.stopConditionCodes = result.stopConditionCodes ?? [stoppedReason];
+      report.blockedBy.push(`${phaseItem.phase}_failed`);
+      report.stopConditionCodes.push(...phaseItem.stopConditionCodes);
+      if (phaseItem.phase === "metric_pending_snapshot") {
+        report.metricCyclesExecuted = executedCount;
+        report.metricCyclesStoppedReason = stoppedReason;
+      } else if (phaseItem.phase === "enrich_rescore") {
+        report.enrichCyclesExecuted = executedCount;
+        report.enrichCyclesStoppedReason = stoppedReason;
+      }
+      return false;
+    }
+
+    if (cycleHasProviderError(fields)) {
+      stoppedReason = "provider_or_rate_limit_error";
+      phaseItem.status = "failed";
+      phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
+        cyclesPlanned: commands.length,
+        cyclesExecuted: executedCount,
+        stoppedReason,
+        cycleSummaries,
+      });
+      phaseItem.stopConditionCodes = [stoppedReason];
+      report.blockedBy.push(`${phaseItem.phase}_failed`);
+      report.stopConditionCodes.push(stoppedReason);
+      if (phaseItem.phase === "metric_pending_snapshot") {
+        report.metricCyclesExecuted = executedCount;
+        report.metricCyclesStoppedReason = stoppedReason;
+      } else if (phaseItem.phase === "enrich_rescore") {
+        report.enrichCyclesExecuted = executedCount;
+        report.enrichCyclesStoppedReason = stoppedReason;
+      }
+      return false;
+    }
+
+    const noWorkReason = cycleNoWorkReason(phaseItem.phase, fields);
+    if (noWorkReason !== null) {
+      stoppedReason = noWorkReason;
+      break;
+    }
+  }
+
+  phaseItem.status = "executed";
+  phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
+    cyclesPlanned: commands.length,
+    cyclesExecuted: executedCount,
+    stoppedReason,
+    cycleSummaries,
+  });
+
+  if (phaseItem.phase === "metric_pending_snapshot") {
+    report.metricCyclesExecuted = executedCount;
+    report.metricCyclesStoppedReason = stoppedReason;
+  } else if (phaseItem.phase === "enrich_rescore") {
+    report.enrichCyclesExecuted = executedCount;
+    report.enrichCyclesStoppedReason = stoppedReason;
+  }
+
+  return true;
+}
+
 export async function runBoundedOperationRunner(
   input: BoundedOperationPlannerInput,
   options: BoundedOperationRunnerOptions,
@@ -639,6 +907,20 @@ export async function runBoundedOperationRunner(
     }
 
     const commands = commandsForPhase(phaseItem.phase, options);
+    if (commands.length === 0) {
+      phaseItem.status = "skipped";
+      continue;
+    }
+
+    if (phaseItem.phase === "metric_pending_snapshot" || phaseItem.phase === "enrich_rescore") {
+      const ok = await executeCyclePhase(report, phaseItem, commands, executor);
+      if (!ok) {
+        skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
+        break;
+      }
+      continue;
+    }
+
     const result = await executor(phaseItem, commands);
     phaseItem.status = result.ok ? "executed" : "failed";
     phaseItem.summary = result.summary ?? {};
@@ -648,12 +930,7 @@ export async function runBoundedOperationRunner(
     if (!result.ok) {
       report.blockedBy.push(`${phaseItem.phase}_failed`);
       report.stopConditionCodes.push(...phaseItem.stopConditionCodes);
-
-      for (const laterPhase of report.phases.slice(report.phases.indexOf(phaseItem) + 1)) {
-        laterPhase.status = "skipped";
-        laterPhase.blockedBy = [`${phaseItem.phase}_failed`];
-        laterPhase.stopConditionCodes = ["prior_phase_failed"];
-      }
+      skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
       break;
     }
   }

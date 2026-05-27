@@ -24,10 +24,11 @@ class CliUsageError extends Error {
 function usage(): string {
   return [
     "Usage:",
-    "pnpm ops:run:bounded -- [--hours <N>] [--pumpOnly] [--checkpointFile <PATH>] [--metricLimit <N>] [--enrichLimit <N>] [--intervalSeconds <N>] [--maxIterations <N>] [--postRunBufferMinutes <N>] [--interItemDelayMs <N>] [--execute] [--json]",
+    "pnpm ops:run:bounded -- [--hours <N>] [--pumpOnly] [--checkpointFile <PATH>] [--metricLimit <N>] [--enrichLimit <N>] [--postRunMetricCycles <N>] [--postRunEnrichCycles <N>] [--intervalSeconds <N>] [--maxIterations <N>] [--postRunBufferMinutes <N>] [--interItemDelayMs <N>] [--execute] [--json]",
     "",
     "Default-safe bounded 6H pipeline runner. Without --execute it only plans:",
     "detect write -> metric pending snapshot -> enrich/rescore -> report review -> notification planner review.",
+    "Post-run metric/enrich cycles default to 1 each; set a cycle count to 0 to skip that phase.",
     "",
     "--execute is required before any production fetch/write can run. Notification send, retry execution,",
     "auto live send, scheduler, systemd, rawJson full dump, and pnpm smoke are not part of this runner.",
@@ -79,6 +80,10 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
     postRunBufferMinutes:
       DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunBufferMinutes,
     interItemDelayMs: DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.interItemDelayMs,
+    postRunMetricCycles:
+      DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunMetricCycles,
+    postRunEnrichCycles:
+      DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunEnrichCycles,
     executeRequested: false,
     json: false,
   };
@@ -127,6 +132,12 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
         break;
       case "--enrichLimit":
         out.enrichLimit = parsePositiveInteger(value, key);
+        break;
+      case "--postRunMetricCycles":
+        out.postRunMetricCycles = parseNonNegativeInteger(value, key);
+        break;
+      case "--postRunEnrichCycles":
+        out.postRunEnrichCycles = parseNonNegativeInteger(value, key);
         break;
       case "--intervalSeconds":
         out.intervalSeconds = parsePositiveInteger(value, key);

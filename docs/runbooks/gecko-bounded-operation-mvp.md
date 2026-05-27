@@ -79,6 +79,20 @@ The runner phases are:
 5. `report_review`
 6. `notification_plan_review`
 
+Post-run Metric/enrich phases can be bounded into multiple cycles:
+
+- `--postRunMetricCycles <N>` controls how many Metric pending snapshot
+  cycles are planned or executed.
+- `--postRunEnrichCycles <N>` controls how many enrich/rescore cycles are
+  planned or executed.
+- Defaults are `1 / 1`, preserving the original one-pass behavior.
+- `0` skips the corresponding phase.
+
+Plan-only output repeats the Metric/enrich command candidates for each cycle
+and reports cycle counters. Execute mode remains conservative: detect runs
+once, Metric cycles run up to the requested count, enrich cycles run after
+Metric cycles, and write-phase failure stops later write phases.
+
 `computedSinceMinutes` is `hours * 60 + postRunBufferMinutes`. Defaults are
 `hours=6` and `postRunBufferMinutes=60`, so the Metric/enrich post-run
 commands use `--sinceMinutes 420`. This buffer is intended to reduce the
@@ -95,6 +109,12 @@ send, scheduler, and systemd are not implemented by this runner.
 Plan-only verification on 2026-05-27 returned `readOnly=true`, `dryRun=true`,
 `executeRequested=false`, `computedSinceMinutes=420`, `maxIterations=360`,
 all phases `planned`, and no blockers. Production `--execute` was not run.
+
+Cycle implementation verification on 2026-05-27 stayed non-production.
+`pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
+returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,
+`postRunEnrichCycles=3`, repeated Metric/enrich command candidates,
+`blockedBy=[]`, and `stopConditionCodes=[]`. No fetch/write/send was run.
 
 Execute preflight on 2026-05-27 stayed read-only / docs-only and fixed the
 next human-approved Red command. Current safety state is failed Notification

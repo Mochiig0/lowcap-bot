@@ -9,6 +9,7 @@ import {
   type BoundedOperationRunnerPhase,
   type PhaseCommand,
 } from "../src/ops/boundedOperationRunner.ts";
+import { parseOpsRunBoundedArgs } from "../src/cli/opsRunBounded.ts";
 import type {
   BoundedOperationPlannerInput,
   QueueSummary,
@@ -23,6 +24,8 @@ const BASE_OPTIONS: BoundedOperationRunnerOptions = {
   intervalSeconds: 60,
   postRunBufferMinutes: 60,
   interItemDelayMs: 15_000,
+  postRunMetricCycles: 1,
+  postRunEnrichCycles: 1,
   executeRequested: false,
   repoRoot: "/home/mochi/projects/lowcap-bot",
 };
@@ -100,6 +103,35 @@ test("computed sinceMinutes includes post-run buffer", () => {
   assert.equal(computeSinceMinutes({ hours: 1.5, postRunBufferMinutes: 30 }), 120);
 });
 
+test("default post-run cycles are one metric cycle and one enrich cycle", () => {
+  const parsed = parseOpsRunBoundedArgs([]);
+  assert.equal(parsed.postRunMetricCycles, 1);
+  assert.equal(parsed.postRunEnrichCycles, 1);
+});
+
+test("post-run cycle options parse non-negative integers", () => {
+  const parsed = parseOpsRunBoundedArgs([
+    "--postRunMetricCycles",
+    "3",
+    "--postRunEnrichCycles",
+    "2",
+  ]);
+
+  assert.equal(parsed.postRunMetricCycles, 3);
+  assert.equal(parsed.postRunEnrichCycles, 2);
+});
+
+test("invalid post-run cycle options are rejected", () => {
+  assert.throws(
+    () => parseOpsRunBoundedArgs(["--postRunMetricCycles", "-1"]),
+    /Invalid non-negative integer/,
+  );
+  assert.throws(
+    () => parseOpsRunBoundedArgs(["--postRunEnrichCycles", "not-a-number"]),
+    /Invalid non-negative integer/,
+  );
+});
+
 test("command candidates include bounded pipeline safety flags", () => {
   const report = buildBoundedOperationRunnerPlan(input(), BASE_OPTIONS);
   const text = allCommandText(report);
@@ -116,6 +148,78 @@ test("command candidates include bounded pipeline safety flags", () => {
   assert.doesNotMatch(text, /--notify/);
   assert.doesNotMatch(text, /notification:send/);
   assert.doesNotMatch(text, /--live/);
+});
+
+test("plan-only output shows requested post-run cycles without executing them", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      postRunMetricCycles: 3,
+      postRunEnrichCycles: 2,
+    },
+    async (phase) => {
+      calls.push(phase.phase);
+      return { ok: true };
+    },
+  );
+  const metricPhase = report.phases.find((phase) => phase.phase === "metric_pending_snapshot");
+  const enrichPhase = report.phases.find((phase) => phase.phase === "enrich_rescore");
+
+  assert.deepEqual(calls, []);
+  assert.equal(report.postRunMetricCycles, 3);
+  assert.equal(report.postRunEnrichCycles, 2);
+  assert.equal(metricPhase?.summary.cyclesPlanned, 3);
+  assert.equal(enrichPhase?.summary.cyclesPlanned, 2);
+  assert.equal(metricPhase?.commandCandidates?.length, 3);
+  assert.equal(enrichPhase?.commandCandidates?.length, 2);
+});
+
+test("zero post-run cycles skip the corresponding phases", () => {
+  const report = buildBoundedOperationRunnerPlan(input(), {
+    ...BASE_OPTIONS,
+    postRunMetricCycles: 0,
+    postRunEnrichCycles: 0,
+  });
+  const metricPhase = report.phases.find((phase) => phase.phase === "metric_pending_snapshot");
+  const enrichPhase = report.phases.find((phase) => phase.phase === "enrich_rescore");
+
+  assert.equal(metricPhase?.status, "skipped");
+  assert.equal(enrichPhase?.status, "skipped");
+  assert.equal(metricPhase?.summary.stoppedReason, "cycles_zero");
+  assert.equal(enrichPhase?.summary.stoppedReason, "cycles_zero");
+});
+
+test("provider or rate-limit cycle summary stops remaining write cycles", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 3,
+      postRunEnrichCycles: 1,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return {
+          ok: true,
+          summary: { selected: 1, written: 0, error: 1, http429Present: true },
+        };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+  ]);
+  assert.equal(report.metricCyclesStoppedReason, "provider_or_rate_limit_error");
+  assert.ok(report.stopConditionCodes.includes("provider_or_rate_limit_error"));
+  assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
 });
 
 test("failed notification blocks execution", () => {
@@ -198,6 +302,36 @@ test("execute mode calls phases in order with mocks", async () => {
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "executed");
 });
 
+test("execute mode calls metric and enrich cycles the requested number of times", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 3,
+      postRunEnrichCycles: 2,
+    },
+    async (phase: BoundedOperationRunnerPhase, commands: PhaseCommand[]) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      return { ok: true, summary: { selected: 1, written: 1, enriched: 1, rescored: 1 } };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_2",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_3",
+    "enrich_rescore:enrich_rescore_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_2",
+    "report_review:review_queue_default",
+    "notification_plan_review:notification_auto_send_plan",
+  ]);
+  assert.equal(report.metricCyclesExecuted, 3);
+  assert.equal(report.enrichCyclesExecuted, 2);
+});
+
 test("detect failure stops metric and enrich", async () => {
   const calls: string[] = [];
   const report = await runBoundedOperationRunner(
@@ -236,6 +370,94 @@ test("metric failure stops enrich", async () => {
   assert.deepEqual(calls, ["detect_write", "metric_pending_snapshot"]);
   assert.equal(report.phases.find((phase) => phase.phase === "metric_pending_snapshot")?.status, "failed");
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+});
+
+test("metric cycle failure stops remaining metric cycles and enrich phase", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 3,
+      postRunEnrichCycles: 2,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      return {
+        ok: phase.phase !== "metric_pending_snapshot",
+        stopConditionCodes:
+          phase.phase === "metric_pending_snapshot" ? ["mock_metric_failed"] : [],
+      };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+  ]);
+  assert.equal(report.metricCyclesExecuted, 0);
+  assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+});
+
+test("enrich cycle failure stops remaining enrich cycles", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 1,
+      postRunEnrichCycles: 3,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      return {
+        ok: phase.phase !== "enrich_rescore",
+        summary: { selected: 1, written: 1 },
+        stopConditionCodes:
+          phase.phase === "enrich_rescore" ? ["mock_enrich_failed"] : [],
+      };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_1",
+  ]);
+  assert.equal(report.enrichCyclesExecuted, 0);
+  assert.equal(report.phases.find((phase) => phase.phase === "report_review")?.status, "skipped");
+});
+
+test("selected or written zero stops remaining cycles without generating notification sends", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 3,
+      postRunEnrichCycles: 1,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 0, written: 0, skipped: 0, error: 0 } };
+      }
+      return { ok: true, summary: { selected: 1, enriched: 1, rescored: 1 } };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_1",
+    "report_review:review_queue_default",
+    "notification_plan_review:notification_auto_send_plan",
+  ]);
+  assert.equal(report.metricCyclesStoppedReason, "selected_zero");
+  assert.equal(allCommandText(report).includes("notification:send"), false);
 });
 
 test("scheduler systemd retry and Telegram execution stay locked", () => {

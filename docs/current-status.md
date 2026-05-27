@@ -4,6 +4,31 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow bounded runner post-run cycles implementation, 2026-05-27:
+
+- Added `--postRunMetricCycles <N>` and `--postRunEnrichCycles <N>` to
+  `pnpm -s ops:run:bounded`. Defaults are `1 / 1`, so existing one-pass
+  behavior is preserved. `0` skips the corresponding post-run phase.
+- Plan-only output now shows the requested cycle count, repeated Metric/enrich
+  command candidates, and top-level cycle counters. A plan-only check with
+  `--postRunMetricCycles 3 --postRunEnrichCycles 3` returned
+  `readOnly=true`, `executeRequested=false`, `computedSinceMinutes=420`,
+  `blockedBy=[]`, `stopConditionCodes=[]`, Metric max write `150` on future
+  execute, and Token update max `150` on future execute.
+- Execute behavior is bounded and conservative: detect runs once, Metric
+  cycles run up to the requested count, then enrich cycles run up to the
+  requested count. A failed Metric cycle stops remaining Metric cycles and
+  skips enrich; a failed enrich cycle stops remaining enrich cycles. A
+  zero-selected or zero-written cycle stops the remaining cycles for that
+  phase.
+- Verification stayed non-production: `pnpm exec tsc --noEmit`,
+  `node --import tsx --test tests/opsRunBounded.test.ts`,
+  `tests/opsPlanBounded.test.ts`, `tests/indexHelpHub.test.ts`, CLI help,
+  `mvp:status`, the read-only runner plan, notification auto-send planners,
+  and `notification:retry:plan`. Production `ops:run:bounded --execute`,
+  detect watch/write, Metric write, Token enrich/rescore write, notification
+  send, retry execution, scheduler/systemd, and `pnpm smoke` were not run.
+
 Yellow bounded pipeline runner implementation, 2026-05-27:
 
 - Added `pnpm -s ops:run:bounded`, a default-safe 6H bounded pipeline runner.
