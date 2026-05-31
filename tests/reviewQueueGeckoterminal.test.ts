@@ -134,15 +134,25 @@ type ReviewQueueGeckoterminalOutput = {
         };
         watchlistRankDistribution: Record<string, number>;
         watchlistScoreTotalDistribution: Record<string, number>;
+        watchlistMetadataStatusDistribution: Record<string, number>;
         watchlistMetricCoverage: Record<string, number>;
+        watchlistHardRejectedDistribution: Record<string, number>;
         watchlistReviewFlagsPresence: Record<string, number>;
+        watchlistScoreBreakdownAvailabilityDistribution: Record<string, number>;
+        watchlistReadyCount: number;
+        watchlistNotReadyCount: number;
+        watchlistReadinessReasonDistribution: Record<string, number>;
         representativeSamples: Array<{
           id: number;
           mintAbbrev: string;
           scoreRank: string;
           scoreTotal: number;
+          metadataStatus: string;
           hardRejected: boolean;
           metricsCount: number;
+          readiness: "ready" | "not_ready";
+          readinessReasons: string[];
+          scoreBreakdownAvailable: boolean;
           reviewFlags: ReviewQueueItem["reviewFlags"];
         }>;
       };
@@ -161,6 +171,7 @@ type ReviewQueueGeckoterminalOutput = {
         componentTotalSums: Record<string, number>;
         hitSourceDistribution: Record<string, number>;
         hitTagDistribution: Record<string, number>;
+        availabilityReasonDistribution: Record<string, number>;
       };
     };
   };
@@ -423,6 +434,9 @@ async function seedHighPriorityRecentOnlyToken(databaseUrl: string): Promise<str
 async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
   eligibleMint: string;
   rankBlockedMint: string;
+  readyBMint: string;
+  mintOnlyBMint: string;
+  legacyBMint: string;
   hardRejectedMint: string;
   hardRejectedBMint: string;
 }> {
@@ -467,6 +481,25 @@ async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
           metaplexHit: true,
           descriptionPresent: true,
           linkCount: 3,
+        },
+        scoreBreakdown: {
+          totals: {
+            core: 8,
+            learned: 1,
+            trend: 0,
+            combo: 0,
+          },
+          hits: [
+            {
+              source: "core",
+              key: "safe-test-hidden",
+              score: 8,
+              tag: "meme",
+            },
+          ],
+          trendFresh: false,
+          trendCapped: false,
+          trendOnly: false,
         },
       },
       select: {
@@ -551,6 +584,118 @@ async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
       },
     });
 
+    const readyBAt = makeDetectedAt(5);
+    const readyB = await db.token.create({
+      data: {
+        mint: "GeckoQueueReadyB11111111111111111111111111111pump",
+        name: "Ready B Token",
+        symbol: "READYB",
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        scoreRank: "B",
+        scoreTotal: 2,
+        hardRejected: false,
+        createdAt: readyBAt,
+        importedAt: readyBAt,
+        enrichedAt: readyBAt,
+        rescoredAt: readyBAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: readyBAt.toISOString(),
+          },
+        },
+        scoreBreakdown: {
+          totals: {
+            core: 2,
+            learned: 0,
+            trend: 0,
+            combo: 0,
+          },
+          hits: [
+            {
+              source: "core",
+              key: "safe-test-hidden",
+              score: 2,
+              tag: "animal",
+            },
+          ],
+          trendFresh: false,
+          trendCapped: false,
+          trendOnly: false,
+        },
+      },
+      select: {
+        id: true,
+        mint: true,
+      },
+    });
+    await db.metric.create({
+      data: {
+        tokenId: readyB.id,
+        source: "visibility-test-metric",
+        observedAt: readyBAt,
+      },
+    });
+
+    const mintOnlyBAt = makeDetectedAt(6);
+    const mintOnlyB = await db.token.create({
+      data: {
+        mint: "GeckoQueueMintOnlyB111111111111111111111111pump",
+        source: GECKO_SOURCE,
+        metadataStatus: "mint_only",
+        scoreRank: "B",
+        scoreTotal: 2,
+        hardRejected: false,
+        createdAt: mintOnlyBAt,
+        importedAt: mintOnlyBAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: mintOnlyBAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    const legacyBAt = makeDetectedAt(7);
+    const legacyB = await db.token.create({
+      data: {
+        mint: "GeckoQueueLegacyB111111111111111111111111111pump",
+        name: "Legacy B Token",
+        symbol: "LEGACYB",
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        scoreRank: "B",
+        scoreTotal: 2,
+        hardRejected: false,
+        createdAt: legacyBAt,
+        importedAt: legacyBAt,
+        enrichedAt: legacyBAt,
+        rescoredAt: legacyBAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: legacyBAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        id: true,
+        mint: true,
+      },
+    });
+    await db.metric.create({
+      data: {
+        tokenId: legacyB.id,
+        source: "visibility-test-metric",
+        observedAt: legacyBAt,
+      },
+    });
+
     const hardRejectedAt = makeDetectedAt(3);
     const hardRejected = await db.token.create({
       data: {
@@ -610,6 +755,9 @@ async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
     return {
       eligibleMint: eligible.mint,
       rankBlockedMint: rankBlocked.mint,
+      readyBMint: readyB.mint,
+      mintOnlyBMint: mintOnlyB.mint,
+      legacyBMint: legacyB.mint,
       hardRejectedMint: hardRejected.mint,
       hardRejectedBMint: hardRejectedB.mint,
     };
@@ -670,6 +818,7 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.notifyCandidateCount, 1);
       assert.equal(parsed.summary.staleReviewCount, 1);
       assert.equal(parsed.summary.highPriorityRecentCount, 1);
+      assert.equal(parsed.summary.visibility, undefined);
 
       assert.equal(parsed.queues.notifyCandidate.length, 1);
       assert.equal(parsed.queues.notifyCandidate[0]?.mint, seeded.notifyMint);
@@ -779,15 +928,15 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.visibility?.notifyCandidateEligibleCount, 1);
       assert.deepEqual(parsed.summary.visibility?.scoreRankDistribution, {
         S: 2,
-        B: 2,
+        B: 5,
       });
       assert.deepEqual(parsed.summary.visibility?.scoreTotalDistribution, {
         "10": 1,
-        "2": 2,
+        "2": 5,
         "9": 1,
       });
       assert.deepEqual(parsed.summary.visibility?.notifyCandidateBlockerDistribution, {
-        rank_not_s: 2,
+        rank_not_s: 5,
         hard_rejected: 2,
       });
       assert.equal(parsed.summary.visibility?.hardRejectedCount, 2);
@@ -800,7 +949,7 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
         1,
       );
       assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.linkPresent, 2);
-      assert.equal(parsed.summary.visibility?.watchlist.watchlistCandidateCount, 1);
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistCandidateCount, 4);
       assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistCriteria, {
         scoreRanks: ["A", "B"],
         hardRejected: false,
@@ -808,19 +957,51 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
         readOnly: true,
       });
       assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistRankDistribution, {
-        B: 1,
+        B: 4,
       });
       assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistScoreTotalDistribution, {
-        "2": 1,
+        "2": 4,
+      });
+      assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistMetadataStatusDistribution, {
+        partial: 3,
+        mint_only: 1,
       });
       assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistMetricCoverage, {
-        "0": 1,
+        "0": 2,
+        "1": 2,
+      });
+      assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistHardRejectedDistribution, {
+        false: 4,
+      });
+      assert.deepEqual(
+        parsed.summary.visibility?.watchlist.watchlistScoreBreakdownAvailabilityDistribution,
+        {
+          available: 2,
+          unavailable: 2,
+        },
+      );
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistReadyCount, 1);
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistNotReadyCount, 3);
+      assert.deepEqual(
+        parsed.summary.visibility?.watchlist.watchlistReadinessReasonDistribution,
+        {
+          ready_for_review: 1,
+          missing_metric: 2,
+          missing_context: 1,
+          score_breakdown_unavailable: 2,
+          hard_rejected: 0,
+          unknown: 1,
+        },
+      );
+      assert.deepEqual(parsed.summary.visibility?.metadataStatusDistribution, {
+        partial: 6,
+        mint_only: 1,
       });
       assert.equal(
         parsed.summary.visibility?.watchlist.watchlistReviewFlagsPresence.hasWebsite,
         1,
       );
-      assert.equal(parsed.summary.visibility?.watchlist.representativeSamples.length, 1);
+      assert.equal(parsed.summary.visibility?.watchlist.representativeSamples.length, 4);
       assert.equal(
         parsed.summary.visibility?.watchlist.representativeSamples[0]?.scoreRank,
         "B",
@@ -829,32 +1010,64 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
         parsed.summary.visibility?.watchlist.representativeSamples[0]?.hardRejected,
         false,
       );
+      assert.equal(
+        parsed.summary.visibility?.watchlist.representativeSamples[0]?.readiness,
+        "not_ready",
+      );
+      assert.deepEqual(
+        parsed.summary.visibility?.watchlist.representativeSamples[0]?.readinessReasons,
+        ["missing_metric", "unknown"],
+      );
+      assert.equal(
+        parsed.summary.visibility?.watchlist.representativeSamples[1]?.readiness,
+        "ready",
+      );
+      assert.deepEqual(
+        parsed.summary.visibility?.watchlist.representativeSamples[1]?.readinessReasons,
+        ["ready_for_review"],
+      );
+      assert.equal(
+        parsed.summary.visibility?.watchlist.representativeSamples[1]?.scoreBreakdownAvailable,
+        true,
+      );
       assert.equal(parsed.summary.visibility?.rankGap.requiredNotifyRank, "S");
       assert.match(
         parsed.summary.visibility?.rankGap.notifyThresholdDescription ?? "",
         /S requires non-trend-only score >= 8/,
       );
       assert.deepEqual(parsed.summary.visibility?.rankGap.rankGapDistribution, {
-        B_to_S: 2,
+        B_to_S: 5,
       });
       assert.equal(parsed.summary.visibility?.rankGap.maxObservedRank, "S");
       assert.equal(parsed.summary.visibility?.rankGap.maxObservedScoreTotal, 10);
       assert.equal(parsed.summary.visibility?.rankGap.closestToNotifyCount, 1);
       assert.equal(parsed.summary.visibility?.scoreBreakdown.scoreBreakdownAvailable, true);
-      assert.equal(parsed.summary.visibility?.scoreBreakdown.availableCount, 1);
-      assert.equal(parsed.summary.visibility?.scoreBreakdown.unavailableCount, 3);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.availableCount, 3);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.unavailableCount, 4);
       assert.deepEqual(parsed.summary.visibility?.scoreBreakdown.componentTotalSums, {
-        core: 0,
-        learned: 2,
+        core: 10,
+        learned: 3,
         trend: 0,
         combo: 0,
       });
       assert.deepEqual(parsed.summary.visibility?.scoreBreakdown.hitSourceDistribution, {
+        core: 2,
         learned_keyword: 1,
       });
       assert.deepEqual(parsed.summary.visibility?.scoreBreakdown.hitTagDistribution, {
+        animal: 1,
+        meme: 1,
         social: 1,
       });
+      assert.deepEqual(
+        parsed.summary.visibility?.scoreBreakdown.availabilityReasonDistribution,
+        {
+          available: 3,
+          unavailable_mint_only: 1,
+          unavailable_not_rescored: 0,
+          unavailable_legacy_or_unknown: 3,
+        },
+      );
 
       const eligible = parsed.queues.notifyCandidate.find(
         (item) => item.mint === seeded.eligibleMint,
@@ -893,6 +1106,13 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
         },
       });
 
+      const mintOnlyB = parsed.preview.find((item) => item.mint === seeded.mintOnlyBMint);
+      assert.equal(mintOnlyB?.notifyCandidateEligible, false);
+      assert.deepEqual(mintOnlyB?.notifyCandidateBlockers, ["rank_not_s"]);
+      assert.equal(mintOnlyB?.metadataStatus, "mint_only");
+      assert.equal(mintOnlyB?.metricsCount, 0);
+      assert.equal(mintOnlyB?.scoreBreakdownSummary?.available, false);
+
       const hardRejected = parsed.preview.find((item) => item.mint === seeded.hardRejectedMint);
       assert.equal(hardRejected?.notifyCandidateEligible, false);
       assert.deepEqual(hardRejected?.notifyCandidateBlockers, ["hard_rejected"]);
@@ -918,6 +1138,7 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(serialized.includes("reviewFlagsJson"), false);
       assert.equal(serialized.includes("normalizedText"), false);
       assert.equal(serialized.includes("not-emitted"), false);
+      assert.equal(serialized.includes("safe-test-hidden"), false);
     });
   });
 
@@ -1043,7 +1264,29 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.visibility?.scoreBreakdown.scoreBreakdownAvailable, false);
       assert.equal(parsed.summary.visibility?.scoreBreakdown.availableCount, 0);
       assert.equal(parsed.summary.visibility?.scoreBreakdown.unavailableCount, 0);
+      assert.deepEqual(
+        parsed.summary.visibility?.scoreBreakdown.availabilityReasonDistribution,
+        {
+          available: 0,
+          unavailable_mint_only: 0,
+          unavailable_not_rescored: 0,
+          unavailable_legacy_or_unknown: 0,
+        },
+      );
       assert.equal(parsed.summary.visibility?.watchlist.watchlistCandidateCount, 0);
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistReadyCount, 0);
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistNotReadyCount, 0);
+      assert.deepEqual(
+        parsed.summary.visibility?.watchlist.watchlistReadinessReasonDistribution,
+        {
+          ready_for_review: 0,
+          missing_metric: 0,
+          missing_context: 0,
+          score_breakdown_unavailable: 0,
+          hard_rejected: 0,
+          unknown: 0,
+        },
+      );
       assert.deepEqual(parsed.summary.visibility?.rankGap.rankGapDistribution, {});
       assert.equal(parsed.summary.visibility?.rankGap.maxObservedRank, null);
       assert.equal(parsed.summary.visibility?.rankGap.maxObservedScoreTotal, null);

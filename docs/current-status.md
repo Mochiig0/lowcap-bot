@@ -4,6 +4,42 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow watchlist readiness visibility, 2026-05-31:
+
+- `review:queue:geckoterminal --includeBlockers` now adds watchlist readiness
+  and scoreBreakdown availability reasons. This remains read-only visibility:
+  notifyCandidate stays `scoreRank === "S" && hardRejected=false`, Telegram
+  remains S-only, and no Notification create/update behavior was changed.
+- Watchlist readiness uses safe fields only: B/A rank, `hardRejected=false`,
+  `metadataStatus` partial/enriched, `metricsCount>=1`, no existing
+  Notification/HolderSnapshot, and available scoreBreakdown. Reasons are
+  `ready_for_review`, `missing_metric`, `missing_context`,
+  `score_breakdown_unavailable`, `hard_rejected`, or `unknown`.
+- ScoreBreakdown availability reasons are aggregate-only:
+  `available`, `unavailable_mint_only`, `unavailable_not_rescored`, and
+  `unavailable_legacy_or_unknown`. The report still omits rawJson,
+  entrySnapshot, reviewFlagsJson, normalizedText, raw keywords, names/symbols
+  in samples, and offensive raw text.
+- Read-only runtime on the default 24h queue reports
+  `watchlistCandidateCount=7`, `watchlistReadyCount=7`,
+  `watchlistNotReadyCount=0`, all B/2, all partial, all `metricsCount=1`,
+  and scoreBreakdown availability `available=7`. Rolling 168h reports
+  `watchlistCandidateCount=14`, `watchlistReadyCount=13`,
+  `watchlistNotReadyCount=1`, with the single readiness reason
+  `missing_metric=1`.
+- ScoreBreakdown availability reasons are now explicit: default 24h
+  `available=149`, `unavailable_mint_only=210`,
+  `unavailable_not_rescored=0`, `unavailable_legacy_or_unknown=0`; rolling
+  168h `available=424`, `unavailable_mint_only=1013`, and no unknown
+  unavailable bucket. This confirms the missing breakdown side is backlog,
+  not report parser loss.
+- Verification used TypeScript, targeted review queue and help tests,
+  read-only queue reports, notification planners, retry planner, and bounded
+  planner. No production write/fetch/send, Metric write, Token write,
+  Notification create/update, HolderSnapshot write, Telegram send,
+  schema/migration change, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run.
+
 Green watchlist / scoreBreakdown review, 2026-05-31:
 
 - Current HEAD is `a21f8f4 feat: add watchlist visibility to blocker reports`

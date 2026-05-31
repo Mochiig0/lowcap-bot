@@ -11,6 +11,23 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
+The Yellow watchlist / scoreBreakdown report refinement is implemented.
+`review:queue:geckoterminal --includeBlockers` now shows watchlist readiness
+and scoreBreakdown availability reasons without changing notifyCandidate,
+Telegram, Notification, DB schema, or default output. The default 24h
+watchlist has `7` B/2 rows and all are `ready_for_review`; rolling 168h has
+`14` B/2 rows, `13` ready and `1` not ready due to `missing_metric`.
+ScoreBreakdown unavailable rows are now explained as `unavailable_mint_only`
+in both default and 168h windows; unknown unavailable reasons are `0`.
+
+Recommended next slice: **Green review of watchlist readiness output**. Do not
+change scoring dictionaries, hardReject, notifyCandidate, or Telegram policy
+yet. Use the new readiness / availability reason fields to decide whether the
+B watchlist is useful enough for human review or whether more data collection
+is needed first. Keep B watchlist report-only, keep Telegram S-only, keep
+auto-send planner unchanged, and avoid capture-only B Notifications until a
+separate Green review explicitly recommends that lane.
+
 The Green review of the B-watchlist / scoreBreakdown aggregate is complete.
 Current watchlist rows are useful as a review surface but not strong enough to
 drive scoring or notification policy changes. Default 24h has `7` watchlist

@@ -80,6 +80,20 @@ type ReviewFlagsPresenceDistribution = {
   linkPresent: number;
 };
 
+type WatchlistReadinessReason =
+  | "ready_for_review"
+  | "missing_metric"
+  | "missing_context"
+  | "score_breakdown_unavailable"
+  | "hard_rejected"
+  | "unknown";
+
+type ScoreBreakdownAvailabilityReason =
+  | "available"
+  | "unavailable_mint_only"
+  | "unavailable_not_rescored"
+  | "unavailable_legacy_or_unknown";
+
 type ScoreComponentTotals = {
   core: number;
   learned: number;
@@ -113,15 +127,25 @@ type WatchlistSummary = {
   };
   watchlistRankDistribution: Record<string, number>;
   watchlistScoreTotalDistribution: Record<string, number>;
+  watchlistMetadataStatusDistribution: Record<string, number>;
   watchlistMetricCoverage: Record<string, number>;
+  watchlistHardRejectedDistribution: Record<string, number>;
   watchlistReviewFlagsPresence: ReviewFlagsPresenceDistribution;
+  watchlistScoreBreakdownAvailabilityDistribution: Record<string, number>;
+  watchlistReadyCount: number;
+  watchlistNotReadyCount: number;
+  watchlistReadinessReasonDistribution: Record<WatchlistReadinessReason, number>;
   representativeSamples: Array<{
     id: number;
     mintAbbrev: string;
     scoreRank: string;
     scoreTotal: number;
+    metadataStatus: string;
     hardRejected: boolean;
     metricsCount: number;
+    readiness: "ready" | "not_ready";
+    readinessReasons: WatchlistReadinessReason[];
+    scoreBreakdownAvailable: boolean;
     reviewFlags: ReviewFlagsView | null;
   }>;
 };
@@ -133,6 +157,7 @@ type ScoreBreakdownVisibilitySummary = {
   componentTotalSums: ScoreComponentTotals;
   hitSourceDistribution: Record<string, number>;
   hitTagDistribution: Record<string, number>;
+  availabilityReasonDistribution: Record<ScoreBreakdownAvailabilityReason, number>;
 };
 
 type SelectedToken = {
@@ -913,6 +938,71 @@ function buildReviewFlagsPresenceDistribution(items: ReviewQueueItem[]): ReviewF
   return distribution;
 }
 
+function createWatchlistReadinessReasonDistribution(): Record<WatchlistReadinessReason, number> {
+  return {
+    ready_for_review: 0,
+    missing_metric: 0,
+    missing_context: 0,
+    score_breakdown_unavailable: 0,
+    hard_rejected: 0,
+    unknown: 0,
+  };
+}
+
+function createScoreBreakdownAvailabilityReasonDistribution(): Record<
+  ScoreBreakdownAvailabilityReason,
+  number
+> {
+  return {
+    available: 0,
+    unavailable_mint_only: 0,
+    unavailable_not_rescored: 0,
+    unavailable_legacy_or_unknown: 0,
+  };
+}
+
+function hasReviewContext(item: ReviewQueueItem): boolean {
+  return item.metadataStatus === "partial" || item.metadataStatus === "enriched";
+}
+
+function buildWatchlistReadinessReasons(item: ReviewQueueItem): WatchlistReadinessReason[] {
+  const reasons: WatchlistReadinessReason[] = [];
+
+  if (item.hardRejected) {
+    reasons.push("hard_rejected");
+  }
+  if (!hasReviewContext(item)) {
+    reasons.push("missing_context");
+  }
+  if (item.metricsCount < 1) {
+    reasons.push("missing_metric");
+  }
+  if (item.scoreBreakdownSummary?.available !== true) {
+    reasons.push("score_breakdown_unavailable");
+  }
+  if ((item.notificationCount ?? 0) > 0 || (item.holderSnapshotCount ?? 0) > 0) {
+    reasons.push("unknown");
+  }
+
+  return reasons.length === 0 ? ["ready_for_review"] : reasons;
+}
+
+function getScoreBreakdownAvailabilityReason(
+  item: ReviewQueueItem,
+): ScoreBreakdownAvailabilityReason {
+  if (item.scoreBreakdownSummary?.available === true) {
+    return "available";
+  }
+  if (item.metadataStatus === "mint_only") {
+    return "unavailable_mint_only";
+  }
+  if (item.rescoredAt === null) {
+    return "unavailable_not_rescored";
+  }
+
+  return "unavailable_legacy_or_unknown";
+}
+
 function abbreviateMint(mint: string): string {
   if (mint.length <= 16) {
     return mint;
@@ -935,12 +1025,31 @@ function buildWatchlistSummary(items: ReviewQueueItem[], limit: number): Watchli
     });
   const watchlistRankDistribution: Record<string, number> = {};
   const watchlistScoreTotalDistribution: Record<string, number> = {};
+  const watchlistMetadataStatusDistribution: Record<string, number> = {};
   const watchlistMetricCoverage: Record<string, number> = {};
+  const watchlistHardRejectedDistribution: Record<string, number> = {};
+  const watchlistScoreBreakdownAvailabilityDistribution: Record<string, number> = {};
+  const watchlistReadinessReasonDistribution = createWatchlistReadinessReasonDistribution();
+  let watchlistReadyCount = 0;
 
   for (const item of watchlistItems) {
     incrementCount(watchlistRankDistribution, item.scoreRank);
     incrementNumberKeyCount(watchlistScoreTotalDistribution, item.scoreTotal);
+    incrementCount(watchlistMetadataStatusDistribution, item.metadataStatus);
     incrementNumberKeyCount(watchlistMetricCoverage, item.metricsCount);
+    incrementCount(watchlistHardRejectedDistribution, String(item.hardRejected));
+    incrementCount(
+      watchlistScoreBreakdownAvailabilityDistribution,
+      item.scoreBreakdownSummary?.available === true ? "available" : "unavailable",
+    );
+
+    const readinessReasons = buildWatchlistReadinessReasons(item);
+    if (readinessReasons.length === 1 && readinessReasons[0] === "ready_for_review") {
+      watchlistReadyCount += 1;
+    }
+    for (const reason of readinessReasons) {
+      watchlistReadinessReasonDistribution[reason] += 1;
+    }
   }
 
   return {
@@ -953,17 +1062,33 @@ function buildWatchlistSummary(items: ReviewQueueItem[], limit: number): Watchli
     },
     watchlistRankDistribution,
     watchlistScoreTotalDistribution,
+    watchlistMetadataStatusDistribution,
     watchlistMetricCoverage,
+    watchlistHardRejectedDistribution,
     watchlistReviewFlagsPresence: buildReviewFlagsPresenceDistribution(watchlistItems),
-    representativeSamples: watchlistItems.slice(0, Math.min(5, limit)).map((item) => ({
-      id: item.id,
-      mintAbbrev: abbreviateMint(item.mint),
-      scoreRank: item.scoreRank,
-      scoreTotal: item.scoreTotal,
-      hardRejected: item.hardRejected,
-      metricsCount: item.metricsCount,
-      reviewFlags: item.reviewFlags,
-    })),
+    watchlistScoreBreakdownAvailabilityDistribution,
+    watchlistReadyCount,
+    watchlistNotReadyCount: watchlistItems.length - watchlistReadyCount,
+    watchlistReadinessReasonDistribution,
+    representativeSamples: watchlistItems.slice(0, Math.min(5, limit)).map((item) => {
+      const readinessReasons = buildWatchlistReadinessReasons(item);
+      return {
+        id: item.id,
+        mintAbbrev: abbreviateMint(item.mint),
+        scoreRank: item.scoreRank,
+        scoreTotal: item.scoreTotal,
+        metadataStatus: item.metadataStatus,
+        hardRejected: item.hardRejected,
+        metricsCount: item.metricsCount,
+        readiness:
+          readinessReasons.length === 1 && readinessReasons[0] === "ready_for_review"
+            ? "ready"
+            : "not_ready",
+        readinessReasons,
+        scoreBreakdownAvailable: item.scoreBreakdownSummary?.available === true,
+        reviewFlags: item.reviewFlags,
+      };
+    }),
   };
 }
 
@@ -1013,9 +1138,12 @@ function buildScoreBreakdownVisibilitySummary(
   const componentTotalSums = createZeroComponentTotals();
   const hitSourceDistribution: Record<string, number> = {};
   const hitTagDistribution: Record<string, number> = {};
+  const availabilityReasonDistribution = createScoreBreakdownAvailabilityReasonDistribution();
   let availableCount = 0;
 
   for (const item of items) {
+    availabilityReasonDistribution[getScoreBreakdownAvailabilityReason(item)] += 1;
+
     const summary = item.scoreBreakdownSummary;
     if (!summary?.available) {
       continue;
@@ -1034,6 +1162,7 @@ function buildScoreBreakdownVisibilitySummary(
     componentTotalSums,
     hitSourceDistribution,
     hitTagDistribution,
+    availabilityReasonDistribution,
   };
 }
 

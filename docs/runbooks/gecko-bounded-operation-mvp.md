@@ -111,6 +111,17 @@ track the `mint_only` backlog. Before changing scoring or notification policy,
 add clearer readiness splits for `metadataStatus`, Metric coverage, and
 scoreBreakdown availability.
 
+Those readiness splits are now part of `--includeBlockers`. The report adds
+`watchlistReadyCount`, `watchlistNotReadyCount`, readiness reason
+distribution, metadata / Metric / scoreBreakdown availability distributions,
+and safe representative sample readiness. It also explains scoreBreakdown
+availability as `available`, `unavailable_mint_only`,
+`unavailable_not_rescored`, or `unavailable_legacy_or_unknown`. Default 24h
+now shows `7 / 7` watchlist rows ready for review; rolling 168h shows
+`13 / 14` ready with one `missing_metric` row. This is still a read-only report
+lane and does not change bounded runner phases, notification planners,
+Telegram send policy, or DB write behavior.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

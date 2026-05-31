@@ -86,6 +86,15 @@ presence. Do not create capture-only B Notifications yet; first improve the
 read-only watchlist readiness and scoreBreakdown availability explanations.
 Telegram send and auto-send eligibility remain S-only.
 
+That readiness improvement is now in place and still does not open the
+Telegram boundary. `review:queue:geckoterminal --includeBlockers` reports
+`watchlistReadyCount`, `watchlistNotReadyCount`, readiness reasons, and
+scoreBreakdown availability reasons for human review only. Default 24h shows
+`7` ready B-watchlist rows; rolling 168h shows `13` ready and `1` not ready
+because of missing Metric coverage. `notifyCandidate` remains S-only,
+Telegram remains S-only, auto-send planner remains unchanged, and no
+Notification create/update or Telegram send path was added.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

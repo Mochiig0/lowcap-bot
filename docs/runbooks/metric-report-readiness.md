@@ -6,6 +6,28 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Watchlist readiness update, 2026-05-31: `review:queue:geckoterminal
+--includeBlockers` now reports whether B/A watchlist rows are ready for human
+review and why scoreBreakdown is unavailable. Readiness is a report-only
+signal, not a notification rule. It uses safe fields: rank, hard reject state,
+metadataStatus, Metric coverage, Notification/HolderSnapshot counts, and
+scoreBreakdown availability.
+
+The default 24h runtime report has `watchlistCandidateCount=7`,
+`watchlistReadyCount=7`, `watchlistNotReadyCount=0`, all B/2, all partial,
+all `metricsCount=1`, and scoreBreakdown availability `available=7`.
+Rolling 168h has `watchlistCandidateCount=14`, `watchlistReadyCount=13`,
+`watchlistNotReadyCount=1`, with `missing_metric=1`. ScoreBreakdown
+availability reasons show default `available=149`,
+`unavailable_mint_only=210`, and rolling 168h `available=424`,
+`unavailable_mint_only=1013`, with `unavailable_legacy_or_unknown=0` in both
+windows. The gap is still backlog/enrichment maturity, not raw report loss.
+
+The output remains raw-text-free: no rawJson, entrySnapshot, reviewFlagsJson,
+normalizedText, raw keywords, names/symbols in samples, offensive raw text, or
+Notification/Telegram side effects. `notifyCandidate` remains S-only and
+Telegram remains S-only.
+
 Report / notifyCandidate review, 2026-05-31: after the enrich/rescore
 continuation, representative recently enriched rows `7117`, `7110`, and
 `7069` were checked with rawJson-free `metrics:report` and
