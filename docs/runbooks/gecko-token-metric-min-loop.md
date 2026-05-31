@@ -180,6 +180,22 @@ default 24h `metricPendingCount=159` and rolling 168h
 `metricPendingCount=1017`, so another step requires a fresh Green preflight
 and current HEAD.
 
+That fresh Green preflight on HEAD `c4a8c48` showed the exact Metric
+continuation command with `--sinceMinutes 420` now selects `0` rows. The
+remaining Metric pending rows are still visible in broader queue windows, but
+they have aged outside the 420 minute post-run selection window. The next
+minimum-loop step should therefore switch to Token context for the Metric-
+covered slice: Prisma read-only simulation selects token ids `7117..7068`,
+all `metadataStatus=mint_only`, all `metricsCount=1`, and all Notification /
+HolderSnapshot-free. The next Red candidate is:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --interItemDelayMs 15000 --write
+```
+
+This command remains a separate human-approved Red only and must omit
+`--notify`.
+
 Earlier failed-attempt state did not advance: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

@@ -18,6 +18,18 @@ create/update, Telegram send, HolderSnapshot write, Token write, retry
 execution, auto live send, scheduler/systemd, rawJson full dump, offensive raw
 text dump, and `pnpm smoke` remained `0`.
 
+Follow-up Green preflight on HEAD `c4a8c48` confirmed no further report proof
+is needed before moving to Token context. The exact Metric continuation command
+with `--sinceMinutes 420` selected `0` rows, while Prisma read-only
+enrich/rescore simulation selected ids `7117..7068`; all `50` selected rows
+already have one Metric row and no Notification / HolderSnapshot rows. The
+next report-safe Red candidate is the Token-context command
+`pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --interItemDelayMs 15000 --write`
+with no `--notify`; expected Metric write, Notification create/update,
+HolderSnapshot write, Telegram send, retry execution, auto live send,
+scheduler/systemd, rawJson full dump, offensive raw text dump, and
+`pnpm smoke` remain `0`.
+
 Latest report check, 2026-05-26: after the post-6H Metric pending snapshot
 limit 50 Red, selected ids `6067..6018` all have `metricsCount=1` and Metric
 ids `1666..1715`. Representative rawJson-free `metrics:report` checks for ids
