@@ -11,27 +11,27 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
-The recommended Yellow report / scoring visibility slice is now implemented.
-`review:queue:geckoterminal --includeBlockers` remains read-only and surfaces
-why the current queue does not produce notify candidates. It mirrors the
-existing notify rule (`scoreRank === "S" && hardRejected=false`) and reports
-`rank_not_s` / `hard_rejected` blockers, plus score totals, rank gap, safe
-reviewFlags/social/Metaplex/description presence, metadata status, Metric
-count, Notification count, and HolderSnapshot count.
+The Green review of `review:queue:geckoterminal --includeBlockers` is
+complete. Current data still has no notify candidates and that is expected:
+default 24h queue visibility shows `notifyCandidateEligibleCount=0`, scoreRank
+`C=352`, `B=7`, scoreTotal `0=338`, `1=14`, `2=7`, hardRejected `7`, and
+blockers `rank_not_s=359`, `hard_rejected=7`. Rolling 168h is similar:
+`C=1423`, `B=14`, no A/S, and eligible count `0`.
 
-Read-only runtime on the current default 24h Gecko queue shows
-`notifyCandidateEligibleCount=0`, `rank_not_s=359`, and `hard_rejected=7`;
-rank distribution is `C=352`, `B=7`, with no `A` or `S`. This confirms the
-candidate silence is still expected under current scoring rather than a
-notification planner failure. Production write/fetch/send, Notification
-create/update, Telegram send, schema/migration changes, rawJson full dump, and
-`pnpm smoke` were not run for this slice.
+Source review confirms the current thresholds: `B>=2`, `A>=5`, and
+non-trend-only `S>=8`; notifyCandidate is still
+`scoreRank === "S" && hardRejected=false`. The current B rows are only
+`scoreTotal=2`, so the gap to S is large. Most rows are C/0 because the
+normalized text does not hit enough scoring signals. ReviewFlags, social,
+Metaplex, Metric, Notification, and HolderSnapshot state are useful visibility
+signals but are not direct blockers in the current notify predicate.
 
-Recommended next slice: **Green report review with blocker visibility**. Use
-the new `--includeBlockers` output to decide whether to tune scoring/risk
-rules, inspect why social/Metaplex/description signals are sparse, or run a
-fresh bounded backlog preflight. Do not move to Telegram send or auto-send
-execution while eligible count remains `0`.
+Recommended next slice: **Yellow report visibility improvement**. Add a
+B-rank watchlist / capture-only review lane and safe score-breakdown source or
+tag summaries so operators can see which scoring components are missing before
+changing dictionaries. Keep Telegram send S-only, keep hardReject unchanged,
+and avoid notify condition changes until the watchlist/report output shows
+clear evidence.
 
 The Skill-guarded enrich/rescore continuation after Metric coverage ran once
 with expected HEAD `79424cd` and the exact command:

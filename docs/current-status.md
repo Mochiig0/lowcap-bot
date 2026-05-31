@@ -4,6 +4,46 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green blocker visibility review, 2026-05-31:
+
+- Current HEAD is `a15039d feat: show notify candidate blockers in reports`
+  with a clean working tree. This pass was read-only / docs-only; no
+  production write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, rawJson full dump, offensive
+  raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`. Default 24h
+  `review:queue:geckoterminal -- --pumpOnly --limit 20 --includeBlockers`
+  reports `geckoOriginTokenCount=359`, `metricPendingCount=159`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`,
+  `notifyCandidateEligibleCount=0`, `highPriorityRecentCount=0`, and
+  `staleReviewCount=210`.
+- Default visibility distribution: scoreRank `C=352`, `B=7`; scoreTotal
+  `0=338`, `1=14`, `2=7`; metadata `partial=149`, `mint_only=210`; queue
+  Metric counts `0=159`, `1=200`; hardRejected `7`; blockers
+  `rank_not_s=359`, `hard_rejected=7`; reviewFlags presence only
+  `hasWebsite=1`, `metaplexHit=1`, `descriptionPresent=1`, `linkPresent=1`
+  with X and Telegram at `0`.
+- Rolling 168h visibility is broader but has the same shape:
+  `geckoOriginTokenCount=1437`, `notifyCandidateEligibleCount=0`, scoreRank
+  `C=1423`, `B=14`, scoreTotal `0=1398`, `1=25`, `2=14`, hardRejected `7`,
+  blockers `rank_not_s=1437`, `hard_rejected=7`, Metric counts `0=1017`,
+  `1=420`, and sparse reviewFlags presence.
+- Source inspection confirms rank thresholds are `B>=2`, `A>=5`, and
+  non-trend-only `S>=8`; notifyCandidate remains
+  `scoreRank === "S" && hardRejected=false`. Current B rows are just at
+  `scoreTotal=2`, so they are far below S. Most rows are C/0 because the
+  current normalized text does not hit enough dictionary / learned / trend /
+  combo scoring signals. Social, Metaplex, Metric, Notification, and
+  HolderSnapshot presence are visibility signals, not direct notify blockers.
+- Interpretation: `notifyCandidateCount=0` is still expected. Do not loosen
+  Telegram notify to B-rank immediately and do not loosen hardReject from this
+  evidence. Next best step is Yellow report visibility: add a B-rank
+  watchlist / capture-only review lane and expose safe score-breakdown source
+  or tag summaries, preferably in `review:queue:geckoterminal --includeBlockers`
+  or `tokens:compare-report`.
+
 Yellow notifyCandidate blocker visibility, 2026-05-31:
 
 - `review:queue:geckoterminal` now supports read-only

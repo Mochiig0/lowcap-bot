@@ -88,6 +88,14 @@ metadata, Metric, Notification, HolderSnapshot, and safe reviewFlags
 visibility. It does not execute Metric/enrich phases, create/update
 Notifications, send Telegram, fetch externally, or dump rawJson.
 
+The first blocker-visibility review found the current queue is not close to a
+sendable candidate: default 24h has only C/B rows (`C=352`, `B=7`) and rolling
+168h has `C=1423`, `B=14`, with no A/S rows. The current rank thresholds are
+`B>=2`, `A>=5`, and non-trend-only `S>=8`, so a B/2 row should be treated as a
+watchlist/review signal, not a Telegram notification candidate. Continue to
+keep bounded operation report/notification phases read-only unless a later
+human-approved Red explicitly targets a send path.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

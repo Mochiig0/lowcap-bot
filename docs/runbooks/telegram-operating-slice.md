@@ -66,6 +66,13 @@ send, scheduler, and systemd locked until a separate Green review shows an
 eligible candidate and a separate human-approved Red explicitly targets send
 execution.
 
+The subsequent blocker review keeps that boundary unchanged. Default and 168h
+queues have no A/S rows and no eligible notify candidates; B rows are only
+`scoreTotal=2`, below the current S threshold. If a lower-confidence path is
+added next, make it a read-only or capture-only B watchlist/report lane first.
+Do not send Telegram for B-rank rows and do not change auto-send eligibility
+until a separate design review explicitly changes the notification policy.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

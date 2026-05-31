@@ -45,6 +45,17 @@ slice ran no production write/fetch/send, no Notification create/update, no
 Telegram send, no schema/migration change, no rawJson full dump, and no
 `pnpm smoke`.
 
+The follow-up Green review used the same option for default 24h and rolling
+168h queues. The broader 168h view has `C=1423`, `B=14`, no A/S, and
+`notifyCandidateEligibleCount=0`. Source inspection confirmed the current
+rank thresholds are `B>=2`, `A>=5`, and non-trend-only `S>=8`; the current B
+rows sit at `scoreTotal=2`, so they are not near S. The next report
+improvement should therefore expose safe score-breakdown source/tag summaries
+and a B-rank watchlist rather than changing scoring dictionaries or notify
+conditions immediately. HardReject should also remain unchanged until a safe
+review shows overly broad matches; this pass did not print raw hardReject
+terms or raw token text.
+
 Latest report check, 2026-05-31: after the second Skill-guarded post-run
 Metric pending continuation, selected ids `7067..7018` all have
 `metricsCount=1` and new Metric ids `2016..2065`. Representative rawJson-free
