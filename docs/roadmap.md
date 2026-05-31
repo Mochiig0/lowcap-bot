@@ -11,6 +11,29 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
+Current Green preflight confirms the next post-run Metric pending continuation
+can be reissued as a separate human-approved Red. HEAD is
+`d997915 docs: record post run metric pending continuation`, working tree is
+clean, Token / Metric / Notification / HolderSnapshot is
+`3023 / 906 / 22 / 1`, Notification statuses are `captured=17`, `sent=5`,
+`failed=0`, and retry / enabled auto-send allowed candidates are `0`.
+Default queue still has `metricPendingCount=209`, rolling 168h has
+`metricPendingCount=1067`, and notify candidates remain `0`. Read-only
+selection preview selected `50` rows with `metricsCount=0`,
+`notificationCount=0`, and `holderSnapshotCount=0`, with no write or fetch.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects are external GeckoTerminal fetch and Metric write up to
+`50`. Expected non-effects remain Token write `0`, Notification create/update
+`0`, HolderSnapshot write `0`, Telegram send `0`, retry execution `0`, auto
+live send execution `0`, scheduler/systemd `0`, rawJson full dump `0`,
+offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 The Skill-shortened post-run Metric pending Red ran successfully once:
 
 ```bash

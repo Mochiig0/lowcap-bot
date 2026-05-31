@@ -4,6 +4,27 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green preflight for next post-run Metric pending continuation, 2026-05-31:
+
+- Current HEAD is `d997915 docs: record post run metric pending continuation`
+  with a clean working tree. This preflight was read-only / docs-only; no Red
+  command, Metric write, external fetch, Notification/Telegram action, or
+  rawJson full dump was run.
+- DB counts are Token / Metric / Notification / HolderSnapshot
+  `3023 / 906 / 22 / 1`; metadata is `mint_only=2440`, `partial=570`,
+  `enriched=13`; Metric buckets are `0=2257`, `1=679`, `2+=87`; Notification
+  statuses are `captured=17`, `sent=5`, `failed=0`.
+- Queue remains eligible for another bounded Metric pending continuation:
+  default 24h `metricPendingCount=209`, `enrichPendingCount=259`,
+  `notifyCandidateCount=0`; rolling 168h `metricPendingCount=1067`,
+  `enrichPendingCount=1062`, `notifyCandidateCount=0`.
+- Auto-send allowed candidate `0`, retry candidate `0`, failed Notification
+  `0`. Read-only selection preview without `--write` selected `50` rows, all
+  with `metricsCount=0`, `notificationCount=0`, and `holderSnapshotCount=0`.
+- Next Red candidate, requiring separate human approval and current HEAD in
+  the prompt:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 Red post-run Metric pending continuation with Skill, 2026-05-31:
 
 - Applied the repo-local `lowcap-red-execution-safety` Skill and ran the
