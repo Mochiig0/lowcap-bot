@@ -11,28 +11,27 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
-Current Green report / notifyCandidate review confirms that no immediate Red
-should be issued. The post-enrich data plane is stable: Token / Metric /
-Notification / HolderSnapshot is `3023 / 956 / 22 / 1`, metadata is
-`mint_only=2391`, `partial=619`, `enriched=13`, Metric buckets are `0=2207`,
-`1=729`, `2+=87`, Notification statuses are `captured=17`, `sent=5`,
-`failed=0`, auto-send allowed candidate is `0`, and retry candidate is `0`.
+The recommended Yellow report / scoring visibility slice is now implemented.
+`review:queue:geckoterminal --includeBlockers` remains read-only and surfaces
+why the current queue does not produce notify candidates. It mirrors the
+existing notify rule (`scoreRank === "S" && hardRejected=false`) and reports
+`rank_not_s` / `hard_rejected` blockers, plus score totals, rank gap, safe
+reviewFlags/social/Metaplex/description presence, metadata status, Metric
+count, Notification count, and HolderSnapshot count.
 
-The recently enriched Metric-covered cohort `7117..7069` has no notification
-candidate under current rules. It is `C=44`, `B=5`, `S=0`, `A=0`, with
-hardRejected `3`; all selected rows still have one Metric and no Notification
-or HolderSnapshot rows. Current `notifyCandidate` logic requires
-`scoreRank === "S"` and `hardRejected=false`, so `notifyCandidateCount=0` is
-expected rather than a notification planner failure. Global current DB counts
-also show non-hard-rejected `S=0` and `A=0`.
+Read-only runtime on the current default 24h Gecko queue shows
+`notifyCandidateEligibleCount=0`, `rank_not_s=359`, and `hard_rejected=7`;
+rank distribution is `C=352`, `B=7`, with no `A` or `S`. This confirms the
+candidate silence is still expected under current scoring rather than a
+notification planner failure. Production write/fetch/send, Notification
+create/update, Telegram send, schema/migration changes, rawJson full dump, and
+`pnpm smoke` were not run for this slice.
 
-Recommended next slice: **Yellow report / scoring visibility improvement**.
-Do not run another immediate backlog Red. Add or refine a read-only report that
-surfaces why a cohort is B/C instead of S/A, including score totals, rank
-threshold gap, hard reject reasons, reviewFlags/social/Metaplex presence, and
-current notifyCandidate blockers. After that, decide whether to adjust scoring
-policy, run another Green preflight for a wider backlog window, or continue
-manual Red processing.
+Recommended next slice: **Green report review with blocker visibility**. Use
+the new `--includeBlockers` output to decide whether to tune scoring/risk
+rules, inspect why social/Metaplex/description signals are sparse, or run a
+fresh bounded backlog preflight. Do not move to Telegram send or auto-send
+execution while eligible count remains `0`.
 
 The Skill-guarded enrich/rescore continuation after Metric coverage ran once
 with expected HEAD `79424cd` and the exact command:

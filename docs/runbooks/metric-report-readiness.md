@@ -26,6 +26,25 @@ diagnostic signals, but the immediate blocker is that scores remain B/C. The
 next useful step is a Yellow report/scoring visibility improvement rather than
 another Metric or enrich Red.
 
+That visibility improvement is now available through the read-only
+`review:queue:geckoterminal --includeBlockers` option. It does not change the
+current notify rule; it explains it. The report mirrors
+`scoreRank === "S" && hardRejected=false` and emits per-row
+`notifyCandidateEligible`, `notifyCandidateBlockers`, and `rankGapToNotify`,
+plus score totals, hard reject reason, safe reviewFlags summary, Metric count,
+Notification count, and HolderSnapshot count. Summary output includes
+scoreRank, scoreTotal, metadataStatus, metricsCount, hardRejected,
+notifyCandidate eligibility/blocker, and reviewFlags presence distributions.
+
+Current read-only runtime with `--pumpOnly --limit 20 --includeBlockers`
+showed the default 24h Gecko queue has `notifyCandidateEligibleCount=0`,
+`rank_not_s=359`, and `hard_rejected=7`; ranks are `C=352`, `B=7`. The sparse
+reviewFlags/social/Metaplex/description presence is now visible, but those
+signals are not invented as blockers unless the queue rule uses them. This
+slice ran no production write/fetch/send, no Notification create/update, no
+Telegram send, no schema/migration change, no rawJson full dump, and no
+`pnpm smoke`.
+
 Latest report check, 2026-05-31: after the second Skill-guarded post-run
 Metric pending continuation, selected ids `7067..7018` all have
 `metricsCount=1` and new Metric ids `2016..2065`. Representative rawJson-free

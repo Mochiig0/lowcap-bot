@@ -4,6 +4,34 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow notifyCandidate blocker visibility, 2026-05-31:
+
+- `review:queue:geckoterminal` now supports read-only
+  `--includeBlockers`. It adds notifyCandidate visibility without changing the
+  existing default queue behavior or the current notifyCandidate rule.
+- The visibility fields include `scoreRank`, `scoreTotal`, `hardRejected`,
+  safe `reviewFlags`, `notificationCount`, `holderSnapshotCount`,
+  `notifyCandidateEligible`, `notifyCandidateBlockers`, and
+  `rankGapToNotify`. The summary includes score/rank/metadata/Metric
+  distributions, hardRejected count, eligible count, blocker distribution, and
+  reviewFlags presence distribution.
+- The blocker logic mirrors the existing queue predicate:
+  `scoreRank === "S" && hardRejected === false`. It reports `rank_not_s` and
+  `hard_rejected`; Metric, context, Notification, HolderSnapshot, social, and
+  Metaplex states are surfaced as visibility signals, not invented blockers.
+- Read-only runtime check on the current DB showed default 24h Gecko queue
+  visibility `scoreRankDistribution C=352, B=7`, scoreTotal `0=338, 1=14,
+  2=7`, metadata `partial=149, mint_only=210`, Metric buckets inside the
+  queue `0=159, 1=200`, hardRejected `7`, eligible `0`, blocker distribution
+  `rank_not_s=359`, `hard_rejected=7`, and reviewFlags presence only
+  `hasWebsite=1`, `metaplexHit=1`, `descriptionPresent=1`, `linkPresent=1`.
+- Verification used `pnpm exec tsc --noEmit`, targeted tests, read-only
+  `review:queue:geckoterminal --includeBlockers`, notification planners,
+  retry planner, and bounded planner. No production write/fetch/send,
+  Notification create/update, Telegram send, Token write, Metric write,
+  HolderSnapshot write, schema/migration change, rawJson full dump, offensive
+  raw text dump, or `pnpm smoke` was run.
+
 Green report / notifyCandidate review after enrich continuation, 2026-05-31:
 
 - Current HEAD is `8ca1a7c docs: record enrich rescore continuation after

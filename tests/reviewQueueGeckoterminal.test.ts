@@ -32,12 +32,34 @@ type PendingAgeBucket = "lte5m" | "lte15m" | "lte60m" | "gt60m";
 type ReviewQueueItem = {
   mint: string;
   metadataStatus: string;
+  scoreTotal: number;
   scoreRank: string;
+  hardRejected: boolean;
+  hardRejectReason: string | null;
   pendingAgeMinutes: number;
   pendingAgeBucket: PendingAgeBucket;
   metricsCount: number;
+  notificationCount?: number;
+  holderSnapshotCount?: number;
   latestMetricSource: string | null;
   reviewFlagsCount: number;
+  reviewFlags?: {
+    hasWebsite: boolean;
+    hasX: boolean;
+    hasTelegram: boolean;
+    metaplexHit: boolean;
+    descriptionPresent: boolean;
+    linkCount: number;
+  } | null;
+  notifyCandidateEligible?: boolean;
+  notifyCandidateBlockers?: string[];
+  rankGapToNotify?: {
+    currentRank: string;
+    requiredRank: "S";
+    currentScore: number;
+    summary: string;
+  } | null;
+  notifyCandidateRule?: string;
   queuesMatched: string[];
   reviewReasons: string[];
 };
@@ -59,6 +81,7 @@ type ReviewQueueGeckoterminalOutput = {
     sinceHours: number;
     limit: number;
     pumpOnly: boolean;
+    includeBlockers?: boolean;
     staleAfterHours: number;
     sinceCutoff: string;
     geckoOriginTokenCount: number;
@@ -85,6 +108,16 @@ type ReviewQueueGeckoterminalOutput = {
     notifyCandidateCount: number;
     staleReviewCount: number;
     highPriorityRecentCount: number;
+    visibility?: {
+      scoreRankDistribution: Record<string, number>;
+      scoreTotalDistribution: Record<string, number>;
+      metadataStatusDistribution: Record<string, number>;
+      metricsCountDistribution: Record<string, number>;
+      hardRejectedCount: number;
+      notifyCandidateEligibleCount: number;
+      notifyCandidateBlockerDistribution: Record<string, number>;
+      reviewFlagsPresenceDistribution: Record<string, number>;
+    };
   };
   queues: {
     notifyCandidate: ReviewQueueItem[];
@@ -342,6 +375,155 @@ async function seedHighPriorityRecentOnlyToken(databaseUrl: string): Promise<str
   }
 }
 
+async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
+  eligibleMint: string;
+  rankBlockedMint: string;
+  hardRejectedMint: string;
+}> {
+  const db = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    const baseTime = Date.now() - 2 * 60 * 60 * 1_000;
+    const makeDetectedAt = (offsetMinutes: number) =>
+      new Date(baseTime - offsetMinutes * 60 * 1_000);
+
+    const eligibleAt = makeDetectedAt(1);
+    const eligible = await db.token.create({
+      data: {
+        mint: "GeckoQueueEligible1111111111111111111111111111pump",
+        name: "Eligible Token",
+        symbol: "ELIGIBLE",
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        scoreRank: "S",
+        scoreTotal: 9,
+        hardRejected: false,
+        createdAt: eligibleAt,
+        importedAt: eligibleAt,
+        enrichedAt: eligibleAt,
+        rescoredAt: eligibleAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: eligibleAt.toISOString(),
+          },
+        },
+        reviewFlagsJson: {
+          hasWebsite: true,
+          hasX: true,
+          hasTelegram: true,
+          metaplexHit: true,
+          descriptionPresent: true,
+          linkCount: 3,
+        },
+      },
+      select: {
+        id: true,
+        mint: true,
+      },
+    });
+    await db.metric.create({
+      data: {
+        tokenId: eligible.id,
+        source: "visibility-test-metric",
+        observedAt: eligibleAt,
+      },
+    });
+
+    const rankBlockedAt = makeDetectedAt(2);
+    const rankBlocked = await db.token.create({
+      data: {
+        mint: "GeckoQueueRankBlocked111111111111111111111111pump",
+        name: "Rank Blocked Token",
+        symbol: "RANKBLOCK",
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        scoreRank: "B",
+        scoreTotal: 2,
+        hardRejected: false,
+        createdAt: rankBlockedAt,
+        importedAt: rankBlockedAt,
+        enrichedAt: rankBlockedAt,
+        rescoredAt: rankBlockedAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: rankBlockedAt.toISOString(),
+          },
+        },
+        reviewFlagsJson: {
+          hasWebsite: true,
+          hasX: false,
+          hasTelegram: false,
+          metaplexHit: false,
+          descriptionPresent: false,
+          linkCount: 1,
+        },
+      },
+      select: {
+        id: true,
+        mint: true,
+      },
+    });
+    await db.notification.create({
+      data: {
+        notificationKey: "visibility-rank-blocked",
+        eventType: "test_event",
+        mint: rankBlocked.mint,
+        tokenId: rankBlocked.id,
+        trigger: "test",
+        status: "captured",
+        mode: "capture_only",
+        messagePreview: "safe preview",
+        rawJsonFree: true,
+        secretFree: true,
+      },
+    });
+
+    const hardRejectedAt = makeDetectedAt(3);
+    const hardRejected = await db.token.create({
+      data: {
+        mint: "GeckoQueueHardRejected1111111111111111111111pump",
+        name: "Hard Rejected Token",
+        symbol: "HARDREJ",
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        scoreRank: "S",
+        scoreTotal: 10,
+        hardRejected: true,
+        hardRejectReason: "test hard reject",
+        createdAt: hardRejectedAt,
+        importedAt: hardRejectedAt,
+        enrichedAt: hardRejectedAt,
+        rescoredAt: hardRejectedAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: hardRejectedAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
+    return {
+      eligibleMint: eligible.mint,
+      rankBlockedMint: rankBlocked.mint,
+      hardRejectedMint: hardRejected.mint,
+    };
+  } finally {
+    await db.$disconnect();
+  }
+}
+
 test("reviewQueueGeckoterminal boundary", async (t) => {
   await t.test("returns a gecko review queue with stable top-level counts", async () => {
     await withTempDir(async (dir) => {
@@ -473,8 +655,91 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /Unknown arg: --mint/);
     assert.match(
       result.stdout,
-      /pnpm review:queue:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\]/,
+      /pnpm review:queue:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\] \[--includeBlockers\]/,
     );
+  });
+
+  await t.test("includeBlockers adds notify visibility without raw payload fields", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "blockers.db")}`;
+
+      await runDbPush(databaseUrl);
+      const seeded = await seedBlockerVisibilityTokens(databaseUrl);
+
+      const result = await runReviewQueueGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "10",
+          "--pumpOnly",
+          "--includeBlockers",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as ReviewQueueGeckoterminalOutput;
+      assert.equal(parsed.selection.includeBlockers, true);
+      assert.equal(parsed.summary.notifyCandidateCount, 1);
+      assert.equal(parsed.summary.visibility?.notifyCandidateEligibleCount, 1);
+      assert.deepEqual(parsed.summary.visibility?.scoreRankDistribution, {
+        S: 2,
+        B: 1,
+      });
+      assert.deepEqual(parsed.summary.visibility?.scoreTotalDistribution, {
+        "10": 1,
+        "2": 1,
+        "9": 1,
+      });
+      assert.deepEqual(parsed.summary.visibility?.notifyCandidateBlockerDistribution, {
+        rank_not_s: 1,
+        hard_rejected: 1,
+      });
+      assert.equal(parsed.summary.visibility?.hardRejectedCount, 1);
+      assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.hasWebsite, 2);
+      assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.hasX, 1);
+      assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.hasTelegram, 1);
+      assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.metaplexHit, 1);
+      assert.equal(
+        parsed.summary.visibility?.reviewFlagsPresenceDistribution.descriptionPresent,
+        1,
+      );
+      assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.linkPresent, 2);
+
+      const eligible = parsed.queues.notifyCandidate.find(
+        (item) => item.mint === seeded.eligibleMint,
+      );
+      assert.equal(eligible?.notifyCandidateEligible, true);
+      assert.deepEqual(eligible?.notifyCandidateBlockers, []);
+      assert.equal(eligible?.rankGapToNotify, null);
+      assert.equal(eligible?.notifyCandidateRule, "scoreRank === S && hardRejected === false");
+
+      const rankBlocked = parsed.preview.find((item) => item.mint === seeded.rankBlockedMint);
+      assert.equal(rankBlocked?.notifyCandidateEligible, false);
+      assert.deepEqual(rankBlocked?.notifyCandidateBlockers, ["rank_not_s"]);
+      assert.deepEqual(rankBlocked?.rankGapToNotify, {
+        currentRank: "B",
+        requiredRank: "S",
+        currentScore: 2,
+        summary: "needs S rank; current B/2",
+      });
+      assert.equal(rankBlocked?.notificationCount, 1);
+      assert.equal(rankBlocked?.holderSnapshotCount, 0);
+      assert.equal(rankBlocked?.reviewFlags?.hasWebsite, true);
+      assert.equal(rankBlocked?.reviewFlags?.linkCount, 1);
+
+      const hardRejected = parsed.preview.find((item) => item.mint === seeded.hardRejectedMint);
+      assert.equal(hardRejected?.notifyCandidateEligible, false);
+      assert.deepEqual(hardRejected?.notifyCandidateBlockers, ["hard_rejected"]);
+      assert.equal(hardRejected?.hardRejectReason, "test hard reject");
+      assert.equal(hardRejected?.rankGapToNotify, null);
+
+      const serialized = JSON.stringify(parsed);
+      assert.equal(serialized.includes("rawJson"), false);
+      assert.equal(serialized.includes("entrySnapshot"), false);
+      assert.equal(serialized.includes("reviewFlagsJson"), false);
+    });
   });
 
   await t.test("sorts highPriorityRecent by selection anchor recency rather than score rank", async () => {

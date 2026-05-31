@@ -79,6 +79,15 @@ The runner phases are:
 5. `report_review`
 6. `notification_plan_review`
 
+For manual report review outside the runner, use
+`pnpm -s review:queue:geckoterminal -- --pumpOnly --limit <N>
+--includeBlockers` when the operating question is why
+`notifyCandidateCount=0`. The option is read-only and exposes the current
+notify predicate's blockers (`rank_not_s`, `hard_rejected`) plus score,
+metadata, Metric, Notification, HolderSnapshot, and safe reviewFlags
+visibility. It does not execute Metric/enrich phases, create/update
+Notifications, send Telegram, fetch externally, or dump rawJson.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

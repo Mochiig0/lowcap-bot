@@ -56,6 +56,16 @@ Notification statuses stay `captured=17`, `sent=5`, `failed=0`. Do not move to
 Telegram send, notification send/update, retry execution, or auto live send
 from this state; the next useful task is report/scoring visibility.
 
+The follow-up visibility slice added read-only
+`review:queue:geckoterminal --includeBlockers`. It exposes why rows are not
+notify candidates without sending or updating Notifications. Current runtime
+still shows `notifyCandidateEligibleCount=0`, with blockers explained by
+`rank_not_s` and `hard_rejected` under the existing queue predicate. This
+keeps Telegram send, notification send/update, retry execution, auto live
+send, scheduler, and systemd locked until a separate Green review shows an
+eligible candidate and a separate human-approved Red explicitly targets send
+execution.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

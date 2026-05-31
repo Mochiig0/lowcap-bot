@@ -12,6 +12,7 @@ type Args = {
   sinceHours: number;
   limit: number;
   pumpOnly: boolean;
+  includeBlockers: boolean;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -48,6 +49,35 @@ type ReviewFlagsView = {
   linkCount: number;
 };
 
+type NotifyCandidateBlocker = "rank_not_s" | "hard_rejected";
+
+type RankGapToNotify = {
+  currentRank: string;
+  requiredRank: "S";
+  currentScore: number;
+  summary: string;
+};
+
+type NotifyCandidateVisibility = {
+  notifyCandidateEligible: boolean;
+  notifyCandidateBlockers: NotifyCandidateBlocker[];
+  rankGapToNotify: RankGapToNotify | null;
+  hardRejectReason: string | null;
+  notificationCount: number;
+  holderSnapshotCount: number;
+};
+
+type NotifyCandidateBlockerDistribution = Record<NotifyCandidateBlocker, number>;
+
+type ReviewFlagsPresenceDistribution = {
+  hasWebsite: number;
+  hasX: number;
+  hasTelegram: number;
+  metaplexHit: number;
+  descriptionPresent: number;
+  linkPresent: number;
+};
+
 type SelectedToken = {
   id: number;
   mint: string;
@@ -56,8 +86,10 @@ type SelectedToken = {
   name: string | null;
   symbol: string | null;
   metadataStatus: string;
+  scoreTotal: number;
   scoreRank: string;
   hardRejected: boolean;
+  hardRejectReason: string | null;
   createdAt: string;
   importedAt: string;
   enrichedAt: string | null;
@@ -71,6 +103,8 @@ type SelectedToken = {
   latestMetricSource: string | null;
   reviewFlags: ReviewFlagsView | null;
   reviewFlagsCount: number;
+  notificationCount: number;
+  holderSnapshotCount: number;
 };
 
 type ReviewQueueItem = {
@@ -80,8 +114,10 @@ type ReviewQueueItem = {
   currentSource: string | null;
   originSource: string | null;
   metadataStatus: string;
+  scoreTotal: number;
   scoreRank: string;
   hardRejected: boolean;
+  hardRejectReason: string | null;
   createdAt: string;
   importedAt: string;
   enrichedAt: string | null;
@@ -96,6 +132,12 @@ type ReviewQueueItem = {
   latestMetricSource: string | null;
   reviewFlags: ReviewFlagsView | null;
   reviewFlagsCount: number;
+  notificationCount?: number;
+  holderSnapshotCount?: number;
+  notifyCandidateEligible?: boolean;
+  notifyCandidateBlockers?: NotifyCandidateBlocker[];
+  rankGapToNotify?: RankGapToNotify | null;
+  notifyCandidateRule?: "scoreRank === S && hardRejected === false";
   queuesMatched: QueueName[];
   reviewReasons: string[];
 };
@@ -109,6 +151,10 @@ type OldestPendingPreviewItem = {
   queuesMatched: QueueName[];
   reviewFlagsCount: number;
   reviewFlags: ReviewFlagsView | null;
+  notificationCount?: number;
+  holderSnapshotCount?: number;
+  notifyCandidateBlockers?: NotifyCandidateBlocker[];
+  rankGapToNotify?: RankGapToNotify | null;
 };
 
 function printUsageAndExit(message?: string): never {
@@ -119,7 +165,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly]",
+      "pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly] [--includeBlockers]",
     ].join("\n"),
   );
   process.exit(1);
@@ -143,6 +189,7 @@ function parseArgs(argv: string[]): Args {
     sinceHours: DEFAULT_SINCE_HOURS,
     limit: DEFAULT_LIMIT,
     pumpOnly: false,
+    includeBlockers: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -155,6 +202,11 @@ function parseArgs(argv: string[]): Args {
 
     if (key === "--pumpOnly") {
       out.pumpOnly = true;
+      continue;
+    }
+
+    if (key === "--includeBlockers") {
+      out.includeBlockers = true;
       continue;
     }
 
@@ -267,7 +319,9 @@ function buildSelectedToken(token: {
   symbol: string | null;
   metadataStatus: string;
   scoreRank: string;
+  scoreTotal: number;
   hardRejected: boolean;
+  hardRejectReason: string | null;
   createdAt: Date;
   importedAt: Date;
   enrichedAt: Date | null;
@@ -280,6 +334,7 @@ function buildSelectedToken(token: {
   }>;
   _count: {
     metrics: number;
+    holderSnapshots?: number;
   };
 }): SelectedToken {
   const firstSeen = extractFirstSeenSourceSnapshot(token.entrySnapshot);
@@ -299,8 +354,10 @@ function buildSelectedToken(token: {
     name: token.name,
     symbol: token.symbol,
     metadataStatus: token.metadataStatus,
+    scoreTotal: token.scoreTotal,
     scoreRank: token.scoreRank,
     hardRejected: token.hardRejected,
+    hardRejectReason: token.hardRejectReason,
     createdAt: token.createdAt.toISOString(),
     importedAt: token.importedAt.toISOString(),
     enrichedAt: token.enrichedAt?.toISOString() ?? null,
@@ -316,7 +373,37 @@ function buildSelectedToken(token: {
     latestMetricSource: latestMetric?.source ?? null,
     reviewFlags,
     reviewFlagsCount: countReviewFlags(reviewFlags),
+    notificationCount: 0,
+    holderSnapshotCount: token._count.holderSnapshots ?? 0,
   };
+}
+
+async function attachNotificationCounts(tokens: SelectedToken[]): Promise<SelectedToken[]> {
+  if (tokens.length === 0) {
+    return tokens;
+  }
+
+  const counts = await db.notification.groupBy({
+    by: ["tokenId"],
+    where: {
+      tokenId: {
+        in: tokens.map((token) => token.id),
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+  const countByTokenId = new Map(
+    counts
+      .filter((item): item is typeof item & { tokenId: number } => item.tokenId !== null)
+      .map((item) => [item.tokenId, item._count._all]),
+  );
+
+  return tokens.map((token) => ({
+    ...token,
+    notificationCount: countByTokenId.get(token.id) ?? 0,
+  }));
 }
 
 function hasFilledNameSymbol(token: SelectedToken): boolean {
@@ -345,6 +432,43 @@ function isMetricPending(token: SelectedToken): boolean {
 
 function isNotifyCandidate(token: SelectedToken): boolean {
   return token.scoreRank === "S" && !token.hardRejected;
+}
+
+function buildNotifyCandidateBlockers(token: SelectedToken): NotifyCandidateBlocker[] {
+  const blockers: NotifyCandidateBlocker[] = [];
+
+  if (token.scoreRank !== "S") {
+    blockers.push("rank_not_s");
+  }
+  if (token.hardRejected) {
+    blockers.push("hard_rejected");
+  }
+
+  return blockers;
+}
+
+function buildRankGapToNotify(token: SelectedToken): RankGapToNotify | null {
+  if (token.scoreRank === "S") {
+    return null;
+  }
+
+  return {
+    currentRank: token.scoreRank,
+    requiredRank: "S",
+    currentScore: token.scoreTotal,
+    summary: `needs S rank; current ${token.scoreRank}/${token.scoreTotal}`,
+  };
+}
+
+function buildNotifyCandidateVisibility(token: SelectedToken): NotifyCandidateVisibility {
+  return {
+    notifyCandidateEligible: isNotifyCandidate(token),
+    notifyCandidateBlockers: buildNotifyCandidateBlockers(token),
+    rankGapToNotify: buildRankGapToNotify(token),
+    hardRejectReason: token.hardRejectReason,
+    notificationCount: token.notificationCount,
+    holderSnapshotCount: token.holderSnapshotCount,
+  };
 }
 
 function isHighPriorityRecent(token: SelectedToken): boolean {
@@ -478,10 +602,15 @@ function buildQueuesMatched(
   return matched;
 }
 
-function buildReviewQueueItem(token: SelectedToken, staleAfterHours: number): ReviewQueueItem {
+function buildReviewQueueItem(
+  token: SelectedToken,
+  staleAfterHours: number,
+  includeBlockers: boolean,
+): ReviewQueueItem {
   const ageHours = getAgeHours(token.selectionAnchorAt);
   const pendingAgeMinutes = getPendingAgeMinutes(token.selectionAnchorAt);
   const queuesMatched = buildQueuesMatched(token, staleAfterHours, ageHours);
+  const notifyVisibility = includeBlockers ? buildNotifyCandidateVisibility(token) : null;
 
   return {
     mint: token.mint,
@@ -490,8 +619,10 @@ function buildReviewQueueItem(token: SelectedToken, staleAfterHours: number): Re
     currentSource: token.currentSource,
     originSource: token.originSource,
     metadataStatus: token.metadataStatus,
+    scoreTotal: token.scoreTotal,
     scoreRank: token.scoreRank,
     hardRejected: token.hardRejected,
+    hardRejectReason: token.hardRejectReason,
     createdAt: token.createdAt,
     importedAt: token.importedAt,
     enrichedAt: token.enrichedAt,
@@ -506,6 +637,16 @@ function buildReviewQueueItem(token: SelectedToken, staleAfterHours: number): Re
     latestMetricSource: token.latestMetricSource,
     reviewFlags: token.reviewFlags,
     reviewFlagsCount: token.reviewFlagsCount,
+    ...(notifyVisibility
+      ? {
+          notificationCount: notifyVisibility.notificationCount,
+          holderSnapshotCount: notifyVisibility.holderSnapshotCount,
+          notifyCandidateEligible: notifyVisibility.notifyCandidateEligible,
+          notifyCandidateBlockers: notifyVisibility.notifyCandidateBlockers,
+          rankGapToNotify: notifyVisibility.rankGapToNotify,
+          notifyCandidateRule: "scoreRank === S && hardRejected === false" as const,
+        }
+      : {}),
     queuesMatched,
     reviewReasons: buildReviewReasons(token, staleAfterHours, ageHours),
   };
@@ -551,7 +692,89 @@ function limitItems(items: ReviewQueueItem[], limit: number): ReviewQueueItem[] 
   return items.slice(0, limit);
 }
 
-function buildOldestPendingPreviewItem(item: ReviewQueueItem): OldestPendingPreviewItem {
+function incrementCount<T extends string>(counts: Record<T, number>, key: T): void {
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+
+function incrementNumberKeyCount(counts: Record<string, number>, value: number): void {
+  const key = String(value);
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+
+function buildVisibilitySummary(items: ReviewQueueItem[]): {
+  scoreRankDistribution: Record<string, number>;
+  scoreTotalDistribution: Record<string, number>;
+  metadataStatusDistribution: Record<string, number>;
+  metricsCountDistribution: Record<string, number>;
+  hardRejectedCount: number;
+  notifyCandidateEligibleCount: number;
+  notifyCandidateBlockerDistribution: NotifyCandidateBlockerDistribution;
+  reviewFlagsPresenceDistribution: ReviewFlagsPresenceDistribution;
+} {
+  const scoreRankDistribution: Record<string, number> = {};
+  const scoreTotalDistribution: Record<string, number> = {};
+  const metadataStatusDistribution: Record<string, number> = {};
+  const metricsCountDistribution: Record<string, number> = {};
+  const notifyCandidateBlockerDistribution: NotifyCandidateBlockerDistribution = {
+    rank_not_s: 0,
+    hard_rejected: 0,
+  };
+  const reviewFlagsPresenceDistribution: ReviewFlagsPresenceDistribution = {
+    hasWebsite: 0,
+    hasX: 0,
+    hasTelegram: 0,
+    metaplexHit: 0,
+    descriptionPresent: 0,
+    linkPresent: 0,
+  };
+
+  let hardRejectedCount = 0;
+  let notifyCandidateEligibleCount = 0;
+
+  for (const item of items) {
+    incrementCount(scoreRankDistribution, item.scoreRank);
+    incrementNumberKeyCount(scoreTotalDistribution, item.scoreTotal);
+    incrementCount(metadataStatusDistribution, item.metadataStatus);
+    incrementNumberKeyCount(metricsCountDistribution, item.metricsCount);
+
+    if (item.hardRejected) {
+      hardRejectedCount += 1;
+    }
+    if (item.notifyCandidateEligible === true) {
+      notifyCandidateEligibleCount += 1;
+    }
+    for (const blocker of item.notifyCandidateBlockers ?? []) {
+      notifyCandidateBlockerDistribution[blocker] += 1;
+    }
+
+    if (item.reviewFlags?.hasWebsite) reviewFlagsPresenceDistribution.hasWebsite += 1;
+    if (item.reviewFlags?.hasX) reviewFlagsPresenceDistribution.hasX += 1;
+    if (item.reviewFlags?.hasTelegram) reviewFlagsPresenceDistribution.hasTelegram += 1;
+    if (item.reviewFlags?.metaplexHit) reviewFlagsPresenceDistribution.metaplexHit += 1;
+    if (item.reviewFlags?.descriptionPresent) {
+      reviewFlagsPresenceDistribution.descriptionPresent += 1;
+    }
+    if ((item.reviewFlags?.linkCount ?? 0) > 0) {
+      reviewFlagsPresenceDistribution.linkPresent += 1;
+    }
+  }
+
+  return {
+    scoreRankDistribution,
+    scoreTotalDistribution,
+    metadataStatusDistribution,
+    metricsCountDistribution,
+    hardRejectedCount,
+    notifyCandidateEligibleCount,
+    notifyCandidateBlockerDistribution,
+    reviewFlagsPresenceDistribution,
+  };
+}
+
+function buildOldestPendingPreviewItem(
+  item: ReviewQueueItem,
+  includeBlockers: boolean,
+): OldestPendingPreviewItem {
   return {
     mint: item.mint,
     metadataStatus: item.metadataStatus,
@@ -561,6 +784,14 @@ function buildOldestPendingPreviewItem(item: ReviewQueueItem): OldestPendingPrev
     queuesMatched: item.queuesMatched,
     reviewFlagsCount: item.reviewFlagsCount,
     reviewFlags: item.reviewFlags,
+    ...(includeBlockers
+      ? {
+          notificationCount: item.notificationCount,
+          holderSnapshotCount: item.holderSnapshotCount,
+          notifyCandidateBlockers: item.notifyCandidateBlockers,
+          rankGapToNotify: item.rankGapToNotify,
+        }
+      : {}),
   };
 }
 
@@ -591,6 +822,8 @@ async function run(): Promise<void> {
       metadataStatus: true,
       scoreRank: true,
       hardRejected: true,
+      hardRejectReason: true,
+      scoreTotal: true,
       createdAt: true,
       importedAt: true,
       enrichedAt: true,
@@ -608,6 +841,7 @@ async function run(): Promise<void> {
       _count: {
         select: {
           metrics: true,
+          holderSnapshots: true,
         },
       },
     },
@@ -621,7 +855,8 @@ async function run(): Promise<void> {
     ? selectedTokens.filter((token) => isPumpMint(token.mint))
     : selectedTokens;
   const skippedNonPumpCount = selectedTokens.length - filteredTokens.length;
-  const sortedTokens = filteredTokens
+  const countedTokens = await attachNotificationCounts(filteredTokens);
+  const sortedTokens = countedTokens
     .sort((left, right) => {
       const leftTime = Date.parse(left.selectionAnchorAt);
       const rightTime = Date.parse(right.selectionAnchorAt);
@@ -633,7 +868,9 @@ async function run(): Promise<void> {
       return right.id - left.id;
     });
 
-  const reviewItems = sortedTokens.map((token) => buildReviewQueueItem(token, staleAfterHours));
+  const reviewItems = sortedTokens.map((token) =>
+    buildReviewQueueItem(token, staleAfterHours, args.includeBlockers),
+  );
 
   const notifyCandidates = reviewItems
     .filter((item) => item.queuesMatched.includes("notifyCandidate"))
@@ -661,11 +898,11 @@ async function run(): Promise<void> {
     oldestEnrichPending: [...enrichPending]
       .sort(sortByPendingAgeDesc)
       .slice(0, OLDEST_PENDING_PREVIEW_LIMIT)
-      .map(buildOldestPendingPreviewItem),
+      .map((item) => buildOldestPendingPreviewItem(item, args.includeBlockers)),
     oldestMetricPending: [...metricPending]
       .sort(sortByPendingAgeDesc)
       .slice(0, OLDEST_PENDING_PREVIEW_LIMIT)
-      .map(buildOldestPendingPreviewItem),
+      .map((item) => buildOldestPendingPreviewItem(item, args.includeBlockers)),
   };
 
   const preview = reviewItems
@@ -704,6 +941,7 @@ async function run(): Promise<void> {
           sinceHours: args.sinceHours,
           limit: args.limit,
           pumpOnly: args.pumpOnly,
+          includeBlockers: args.includeBlockers,
           staleAfterHours,
           sinceCutoff: sinceCutoff.toISOString(),
           geckoOriginTokenCount: reviewItems.length,
@@ -724,6 +962,7 @@ async function run(): Promise<void> {
           notifyCandidateCount: notifyCandidates.length,
           staleReviewCount: staleReview.length,
           highPriorityRecentCount: highPriorityRecent.length,
+          ...(args.includeBlockers ? { visibility: buildVisibilitySummary(reviewItems) } : {}),
         },
         queues: {
           notifyCandidate: limitItems(notifyCandidates, args.limit),
