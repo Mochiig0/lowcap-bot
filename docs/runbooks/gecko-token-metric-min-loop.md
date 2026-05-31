@@ -158,6 +158,28 @@ HolderSnapshot write, retry execution, auto live send, scheduler/systemd,
 rawJson full dump, and offensive raw text dump stayed `0`. The checkpoint was
 created at `/tmp/lowcap-bot-6h-pipeline-logging-20260528.json`.
 
+Two Skill-guarded post-run Metric pending continuations have since advanced
+the Metric side of the backlog without changing Token, Notification, or
+HolderSnapshot counts. The latest continuation ran on 2026-05-31 with:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It selected `50`, wrote `50`, skipped `0`, errored `0`, used
+`interItemDelayMs=15000` with `49` delays, and did not observe provider error
+or 429. Metric ids `2016..2065` were appended for token ids `7067..7018`,
+moving those rows from `metricsCount=0` to `metricsCount=1`. DB counts moved
+Token / Metric / Notification / HolderSnapshot `3023 / 906 / 22 / 1` ->
+`3023 / 956 / 22 / 1`; Metric buckets moved `0=2257`, `1=679`, `2+=87` ->
+`0=2207`, `1=729`, `2+=87`. Notification capture was disabled; Notification
+create/update, Telegram send, HolderSnapshot write, Token write, retry
+execution, auto live send, scheduler/systemd, rawJson full dump, offensive raw
+text dump, and `pnpm smoke` remained `0`. Queue after the run still has
+default 24h `metricPendingCount=159` and rolling 168h
+`metricPendingCount=1017`, so another step requires a fresh Green preflight
+and current HEAD.
+
 Earlier failed-attempt state did not advance: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed

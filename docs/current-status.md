@@ -4,6 +4,37 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Red post-run Metric pending continuation with Skill, 2026-05-31:
+
+- Applied the repo-local `lowcap-red-execution-safety` Skill and ran the
+  human-approved exact command once:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Start/end were `2026-05-31T20:29:44+09:00` ->
+  `2026-05-31T20:45:17+09:00` (~15m33s). Expected HEAD `d975bb0` matched,
+  and no retry, second Red, option change, manual backfill, notification send,
+  retry execution, auto live send, scheduler/systemd, rawJson full dump,
+  offensive raw text dump, or `pnpm smoke` was run.
+- Result: `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+  `interItemDelayMs=15000`, `interItemDelayCount=49`. Provider error and 429
+  were not observed, and notification capture stayed disabled.
+- DB counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `3023 / 906 / 22 / 1` -> `3023 / 956 / 22 / 1`. Metric
+  buckets moved `0=2257`, `1=679`, `2+=87` -> `0=2207`, `1=729`, `2+=87`.
+  Metadata stayed `mint_only=2440`, `partial=570`, `enriched=13`, and
+  Notification statuses stayed `captured=17`, `sent=5`, `failed=0`.
+- Selected token ids `7067..7018` moved from `metricsCount=0` to
+  `metricsCount=1`. New Metric ids are `2016..2065`, source
+  `geckoterminal.token_snapshot`, observed from
+  `2026-05-31T11:32:26.451Z` to `2026-05-31T11:45:11.342Z`. Representative
+  safe summaries for ids `7067`, `7042`, and `7018` show price / FDV /
+  reserve / topPool presence true; `notificationCount=0` and
+  `holderSnapshotCount=0` for selected rows.
+- Queue/planner after: default 24h `metricPendingCount=159`,
+  `enrichPendingCount=259`, `notifyCandidateCount=0`; rolling 168h
+  `metricPendingCount=1017`, `enrichPendingCount=1062`,
+  `notifyCandidateCount=0`. Auto-send allowed candidate `0`, retry candidate
+  `0`.
+
 Green preflight for next post-run Metric pending continuation, 2026-05-31:
 
 - Current HEAD is `d997915 docs: record post run metric pending continuation`

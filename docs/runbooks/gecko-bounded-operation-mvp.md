@@ -236,6 +236,27 @@ rawJson full dump, offensive raw text dump, and `pnpm smoke` stayed out of
 scope. The checkpoint file exists outside the repo at
 `/tmp/lowcap-bot-6h-pipeline-logging-20260528.json`.
 
+Post-run backlog has also been reduced by two separate human-approved Metric
+pending continuation Reds using the repo-local `lowcap-red-execution-safety`
+Skill. The latest continuation ran on 2026-05-31 with the exact command:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It selected `50`, wrote `50`, skipped `0`, errored `0`, used
+`interItemDelayMs=15000` with `49` delays, and had no observed provider error
+or 429. DB counts moved Token / Metric / Notification / HolderSnapshot
+`3023 / 906 / 22 / 1` -> `3023 / 956 / 22 / 1`; Metric buckets moved
+`0=2257`, `1=679`, `2+=87` -> `0=2207`, `1=729`, `2+=87`. Selected token ids
+`7067..7018` moved from `metricsCount=0` to `metricsCount=1` with Metric ids
+`2016..2065`. Notification capture was disabled, and Notification
+create/update, Telegram send, HolderSnapshot write, Token write, retry
+execution, auto live send, scheduler/systemd, rawJson full dump, offensive raw
+text dump, and `pnpm smoke` remained `0`. Queue after the run still has
+default 24h `metricPendingCount=159` and rolling 168h
+`metricPendingCount=1017`; choose the next step with a fresh Green preflight.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

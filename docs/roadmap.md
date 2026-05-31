@@ -11,28 +11,33 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
-Current Green preflight confirms the next post-run Metric pending continuation
-can be reissued as a separate human-approved Red. HEAD is
-`d997915 docs: record post run metric pending continuation`, working tree is
-clean, Token / Metric / Notification / HolderSnapshot is
-`3023 / 906 / 22 / 1`, Notification statuses are `captured=17`, `sent=5`,
-`failed=0`, and retry / enabled auto-send allowed candidates are `0`.
-Default queue still has `metricPendingCount=209`, rolling 168h has
-`metricPendingCount=1067`, and notify candidates remain `0`. Read-only
-selection preview selected `50` rows with `metricsCount=0`,
-`notificationCount=0`, and `holderSnapshotCount=0`, with no write or fetch.
-
-Next human-approved Red candidate:
+The latest Skill-guarded post-run Metric pending continuation ran once with
+expected HEAD `d975bb0` and the exact command:
 
 ```bash
 pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
 ```
 
-Expected side effects are external GeckoTerminal fetch and Metric write up to
-`50`. Expected non-effects remain Token write `0`, Notification create/update
-`0`, HolderSnapshot write `0`, Telegram send `0`, retry execution `0`, auto
-live send execution `0`, scheduler/systemd `0`, rawJson full dump `0`,
-offensive raw text dump `0`, and `pnpm smoke` `0`.
+It selected `50`, wrote `50`, skipped `0`, errored `0`, used
+`interItemDelayMs=15000` with `49` delays, and observed no provider error or
+429. Metric ids `2016..2065` were written for token ids `7067..7018`, moving
+the selected rows from `metricsCount=0` to `metricsCount=1`. DB counts moved
+Token / Metric / Notification / HolderSnapshot `3023 / 906 / 22 / 1` ->
+`3023 / 956 / 22 / 1`; Metric buckets moved `0=2257`, `1=679`, `2+=87` ->
+`0=2207`, `1=729`, `2+=87`. Notification statuses stayed `captured=17`,
+`sent=5`, `failed=0`; Notification create/update, Telegram send,
+HolderSnapshot write, Token write, retry execution, auto live send,
+scheduler/systemd, rawJson full dump, offensive raw text dump, and
+`pnpm smoke` stayed `0`.
+
+Backlog remains by design. Queue after the run: default 24h
+`metricPendingCount=159`, `enrichPendingCount=259`, `notifyCandidateCount=0`;
+rolling 168h `metricPendingCount=1017`, `enrichPendingCount=1062`,
+`notifyCandidateCount=0`; auto-send allowed candidate `0`; retry candidate
+`0`. The next task should be a Green preflight against the new docs HEAD
+before deciding whether to run one more bounded Metric continuation or switch
+to enrich/rescore review. Any next Red prompt must use the new current HEAD,
+not the pre-run `d975bb0`.
 
 The Skill-shortened post-run Metric pending Red ran successfully once:
 

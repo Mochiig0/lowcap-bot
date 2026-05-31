@@ -6,6 +6,18 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Latest report check, 2026-05-31: after the second Skill-guarded post-run
+Metric pending continuation, selected ids `7067..7018` all have
+`metricsCount=1` and new Metric ids `2016..2065`. Representative rawJson-free
+`metrics:report` checks for ids `7067`, `7042`, and `7018` each returned one
+Metric from `geckoterminal.token_snapshot` with price / FDV / reserve /
+top-pool present. The write command selected `50`, wrote `50`, skipped `0`,
+errored `0`, used `interItemDelayMs=15000` with `49` delays, and observed no
+provider error or 429. Notification capture was disabled; Notification
+create/update, Telegram send, HolderSnapshot write, Token write, retry
+execution, auto live send, scheduler/systemd, rawJson full dump, offensive raw
+text dump, and `pnpm smoke` remained `0`.
+
 Latest report check, 2026-05-26: after the post-6H Metric pending snapshot
 limit 50 Red, selected ids `6067..6018` all have `metricsCount=1` and Metric
 ids `1666..1715`. Representative rawJson-free `metrics:report` checks for ids
