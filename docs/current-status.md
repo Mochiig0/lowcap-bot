@@ -4,6 +4,47 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green report / notifyCandidate review after enrich continuation, 2026-05-31:
+
+- Current HEAD is `8ca1a7c docs: record enrich rescore continuation after
+  metric coverage` with a clean working tree. This pass was read-only /
+  docs-only; no Red command, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, external
+  fetch, or rawJson full dump was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; metadata is `mint_only=2391`, `partial=619`,
+  `enriched=13`; Metric buckets are `0=2207`, `1=729`, `2+=87`;
+  Notification statuses are `captured=17`, `sent=5`, `failed=0`.
+- Queue/planner state: default 24h `metricPendingCount=159`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`,
+  `highPriorityRecentCount=0`; rolling 168h `metricPendingCount=1017`,
+  `enrichPendingCount=1013`, `notifyCandidateCount=0`. Auto-send allowed
+  candidate `0`, enabled auto-send allowed candidate `0`, retry candidate
+  `0`.
+- `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` is now clear in
+  the planner's current 6h operating window: `workflowComplete=true`,
+  `recommendedFirstStep=no_action_queue_clear`, and next single-step fallback
+  is `detect_watch_dry_run`. This differs from the broader review queues
+  because remaining backlog has aged outside the current 6h/420m operating
+  window.
+- Representative recently enriched rows `7117..7069` were reviewed safely:
+  scoreRank distribution `C=44`, `B=5`; scoreTotal `0=39`, `1=5`, `2=5`;
+  hardRejected `3`; reviewFlags count `0=48`, `4=1`; all have
+  `metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+  Representative `metrics:report` and `metrics:window-report` checks for ids
+  `7117`, `7110`, and `7069` were readable and rawJson-free.
+- `notifyCandidateCount=0` is expected under the current rule:
+  `notifyCandidate` requires `scoreRank === "S"` and `hardRejected=false`.
+  The recently enriched cohort has no `S` or `A` rows, and global current DB
+  counts for non-hard-rejected `S` and `A` rows are both `0`. Missing
+  descriptions, social links, and mostly missing Metaplex metadata are useful
+  visibility signals, but they are not separate notification blockers once the
+  rank is below `S`.
+- Recommendation: do not issue another immediate Red. Next best step is a
+  Yellow visibility/scoring review that explains why cohorts remain B/C and
+  surfaces notifyCandidate blockers in reports, before deciding whether to
+  continue backlog Reds with an intentionally adjusted window.
+
 Red enrich/rescore continuation after Metric coverage, 2026-05-31:
 
 - Applied the repo-local `lowcap-red-execution-safety` Skill and ran the

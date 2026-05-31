@@ -278,6 +278,15 @@ create/update, Telegram send, retry execution, auto live send,
 scheduler/systemd, rawJson full dump, offensive raw text dump, and
 `pnpm smoke` remained `0`.
 
+The next Green review checked report and notification value rather than
+continuing backlog writes. The recent enriched cohort `7117..7069` has score
+ranks `C=44`, `B=5`, no `S` or `A`, and hardRejected `3`, so
+`notifyCandidateCount=0` is expected under the current
+`scoreRank === "S" && !hardRejected` rule. Representative Metric and window
+reports are readable and rawJson-free, but report visibility does not yet
+explain rank gaps well enough. The recommended next bounded task is Yellow:
+improve read-only report/scoring visibility before another Metric/enrich Red.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

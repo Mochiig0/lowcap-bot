@@ -6,6 +6,26 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Report / notifyCandidate review, 2026-05-31: after the enrich/rescore
+continuation, representative recently enriched rows `7117`, `7110`, and
+`7069` were checked with rawJson-free `metrics:report` and
+`metrics:window-report`. Each has one `geckoterminal.token_snapshot` Metric
+with price / FDV / reserve / topPool presence true, and each window report is
+readable with `metricCount=1`, `fdvMetricCount=1`, and
+`entryAnchorQuality=late_360m`. The current 49-row enriched cohort
+`7117..7069` is `C=44`, `B=5`, `S=0`, `A=0`; hardRejected `3`; reviewFlags
+count `0=48`, `4=1`; all have `metricsCount=1`, `notificationCount=0`, and
+`holderSnapshotCount=0`.
+
+This explains the current notification silence. `notifyCandidate` is not
+blocked by report readability; it is blocked by rank. The current queue logic
+requires `scoreRank === "S"` and `hardRejected=false`, while this cohort has no
+S-rank rows and no global non-hard-rejected S/A rows are present. Missing
+descriptions, social links, and mostly missing Metaplex metadata are useful
+diagnostic signals, but the immediate blocker is that scores remain B/C. The
+next useful step is a Yellow report/scoring visibility improvement rather than
+another Metric or enrich Red.
+
 Latest report check, 2026-05-31: after the second Skill-guarded post-run
 Metric pending continuation, selected ids `7067..7018` all have
 `metricsCount=1` and new Metric ids `2016..2065`. Representative rawJson-free

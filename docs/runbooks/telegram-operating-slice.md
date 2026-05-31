@@ -45,6 +45,17 @@ notification planner review. Its notification phase contains only
 execution, auto live send, Telegram live send, scheduler, or systemd. The
 enrich phase omits `--notify`.
 
+The 2026-05-31 post-enrich report / notifyCandidate review confirmed that the
+Telegram boundary should remain locked. Recently enriched token ids
+`7117..7069` contain no notify candidates: score ranks are `C=44`, `B=5`,
+`S=0`, `A=0`, and hardRejected count is `3`. Current queue logic treats a
+notify candidate as `scoreRank === "S"` and `hardRejected=false`, so
+`notifyCandidateCount=0` is expected. Auto-send planner, enabled auto-send
+planner, and retry planner all remain closed with candidate count `0`;
+Notification statuses stay `captured=17`, `sent=5`, `failed=0`. Do not move to
+Telegram send, notification send/update, retry execution, or auto live send
+from this state; the next useful task is report/scoring visibility.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,
