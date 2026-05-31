@@ -217,6 +217,25 @@ must still not create/update Notifications, send Telegram, write
 HolderSnapshots, run retry execution, run auto live send, use scheduler/systemd,
 dump rawJson, dump offensive raw text, or run `pnpm smoke`.
 
+The subsequent progress-logged Red ran that exact command once. Progress logs
+confirmed phase visibility through `final_summary`: `preflight`,
+`detect_write`, Metric cycles `1/2` and `2/2`, enrich cycles `1/2` and `2/2`,
+`report_review`, and `notification_plan_review` all emitted start/end lines.
+The final summary reported completed status, `metricCyclesExecuted=2`,
+`enrichCyclesExecuted=2`, and expected Notification/Telegram side effects `0`.
+
+Operationally, count that run as the first successful logged manual 6H bounded
+pipeline execution. Detect completed `360 / 360` iterations with
+`failedCount=0`, `rateLimitRetryCount=0`, `importedCount=359`, and
+`existingCount=1`. Metric cycles wrote `50 + 50` rows, and enrich cycles
+updated/rescored `50 + 50` Tokens with no rate-limit abort. DB counts moved
+Token / Metric / Notification / HolderSnapshot `2664 / 756 / 22 / 1` ->
+`3023 / 856 / 22 / 1`; Notification create/update, Telegram send,
+HolderSnapshot write, retry execution, auto live send, scheduler/systemd,
+rawJson full dump, offensive raw text dump, and `pnpm smoke` stayed out of
+scope. The checkpoint file exists outside the repo at
+`/tmp/lowcap-bot-6h-pipeline-logging-20260528.json`.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

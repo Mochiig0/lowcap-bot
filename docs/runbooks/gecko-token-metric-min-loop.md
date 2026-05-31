@@ -148,7 +148,17 @@ This remains a separate human-approved Red only. The current Green preflight
 did not execute detect, Metric snapshot, enrich/rescore, notification send,
 retry execution, scheduler/systemd, or `pnpm smoke`.
 
-No minimum-loop state advanced during that failed attempt: Token / Metric /
+That Red later ran once and completed the minimum-loop data movement. The
+runner emitted phase/cycle/final summary logs, detect completed `360 / 360`
+iterations with `importedCount=359` and `existingCount=1`, Metric cycles wrote
+`50 + 50` rows, and enrich cycles enriched/rescored `50 + 50` Tokens. Token /
+Metric / Notification / HolderSnapshot moved `2664 / 756 / 22 / 1` ->
+`3023 / 856 / 22 / 1`; Notification create/update, Telegram send,
+HolderSnapshot write, retry execution, auto live send, scheduler/systemd,
+rawJson full dump, and offensive raw text dump stayed `0`. The checkpoint was
+created at `/tmp/lowcap-bot-6h-pipeline-logging-20260528.json`.
+
+Earlier failed-attempt state did not advance: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed
 `0=1788`, `1=429`, `2+=87`, and Notification statuses stayed

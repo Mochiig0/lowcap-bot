@@ -9,7 +9,31 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-05-28
+Date: 2026-05-31
+
+The first progress-logged `ops:run:bounded --execute` Red ran once with the
+approved command and no retry. It verified the new progress stream: phase logs
+appeared for preflight, detect, Metric cycles `1/2` and `2/2`, enrich cycles
+`1/2` and `2/2`, report review, notification planner review, and
+`final_summary`. The final summary reported `status=completed`,
+`durationMs=24918055`, `metricCyclesExecuted=2`, `enrichCyclesExecuted=2`, no
+cycle stopped reasons, Token create/reuse `360`, Notification create/update
+expected `0`, and Telegram send expected `0`.
+
+The run also moved the data plane: detect completed `360 / 360` iterations
+with `importedCount=359`, `existingCount=1`, Metric cycles wrote `50 + 50`
+rows, and enrich cycles updated/rescored `50 + 50` Tokens. DB counts moved
+Token / Metric / Notification / HolderSnapshot `2664 / 756 / 22 / 1` ->
+`3023 / 856 / 22 / 1`; Notification statuses stayed `captured=17`, `sent=5`,
+`failed=0`; Telegram send, Notification create/update, HolderSnapshot write,
+retry execution, auto live send, scheduler/systemd, rawJson full dump, and
+offensive raw text dump stayed `0`. The checkpoint was written at
+`/tmp/lowcap-bot-6h-pipeline-logging-20260528.json`.
+
+The immediate next operating task should be another human-approved Red for the
+post-run backlog only, starting with the planner-recommended
+`metric_pending_snapshot` slice. Keep it manual and bounded; scheduler/systemd,
+always-on auto-send, retry execution, and Telegram live send remain locked.
 
 Green preflight is complete for the first progress-logged bounded runner Red.
 Current safety state is clear: Token / Metric / Notification / HolderSnapshot

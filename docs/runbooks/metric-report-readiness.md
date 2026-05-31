@@ -130,6 +130,18 @@ the write phases. The next Red can write up to 100 Metrics and update up to
 HolderSnapshot write, retry execution, auto live send, scheduler/systemd,
 rawJson full dump, offensive raw text dump, and `pnpm smoke` remain `0`.
 
+The progress-logged execute Red reached report review and notification planner
+review after writing reportable Metric rows. Metric count moved `756 -> 856`;
+DB time-window checks confirmed Metric cycle writes of `50 + 50`. Report
+queues after the run showed default 24h `metricPendingCount=259`,
+`enrichPendingCount=259`, `staleReviewCount=56`, `notifyCandidateCount=0`;
+rolling 168h showed `metricPendingCount=1117`, `enrichPendingCount=1062`,
+`staleReviewCount=914`, `notifyCandidateCount=0`. Post-run planner now
+recommends the next bounded `metric_pending_snapshot` slice. Notification
+create/update, Telegram send, HolderSnapshot write, retry execution, auto live
+send, scheduler/systemd, rawJson full dump, and offensive raw text dump remain
+out of scope.
+
 That enrich Red later ran once and produced a partial result. It selected ids
 `6087..6038`, updated ids `6087..6083` from `mint_only` to `partial`, then hit
 HTTP 429 at id `6082` and aborted the remaining 44 rows. Summary:

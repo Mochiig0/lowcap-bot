@@ -133,6 +133,16 @@ allowed auto-send candidate `0`, selected Notification `null`, retry candidate
 candidate does not include `--notify`, notification send, retry execution,
 auto live send, `--live`, scheduler, or systemd.
 
+The progress-logged Red preserved the Telegram boundary as well. The runner
+reported completed status and emitted final summary with
+`notificationCreateUpdateExpected=0` and `telegramSendExpected=0`; post-checks
+showed Notification count still `22`, statuses `captured=17`, `sent=5`,
+`failed=0`, enabled auto-send allowed candidate `0`, retry candidate `0`, and
+selected auto-send Notification `null`. The data plane still moved Token /
+Metric counts `2664 / 756 -> 3023 / 856`, but Notification create/update
+remained `0`. No notification send, retry execution, auto live send, Telegram
+send, scheduler, or systemd was run.
+
 The 2026-05-26 6H bounded GeckoTerminal detect write rehearsal did not send
 Telegram and did not create or update Notification rows. Notification statuses
 stayed `captured=13`, `sent=5`, `failed=0`; retry candidate count stayed `0`;
