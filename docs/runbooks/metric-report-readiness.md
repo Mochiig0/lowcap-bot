@@ -56,6 +56,21 @@ conditions immediately. HardReject should also remain unchanged until a safe
 review shows overly broad matches; this pass did not print raw hardReject
 terms or raw token text.
 
+The next Yellow visibility pass extended that same option with a read-only
+B/A watchlist, rank-gap summary, and safe scoreBreakdown aggregate. Default
+24h watchlist count is `7`, all `B / 2`, all with `metricsCount=1`; rolling
+168h watchlist count is `14`, all `B / 2`, with Metric coverage `1=13` and
+`0=1`. Watchlist rows are not notification candidates and do not create or
+update Notifications.
+
+ScoreBreakdown is now summarized by safe components and source/tag categories
+only. Default 24h has scoreBreakdown available for `149` rows and unavailable
+for `210`; component totals are `core=27`, `learned=1`, `trend=0`, `combo=0`.
+Rolling 168h has `availableCount=424`, `unavailableCount=1013`, component
+totals `core=48`, `learned=5`, `trend=0`, `combo=0`. No raw keywords,
+normalized text, rawJson, entrySnapshot, or reviewFlagsJson are emitted by the
+new summary.
+
 Latest report check, 2026-05-31: after the second Skill-guarded post-run
 Metric pending continuation, selected ids `7067..7018` all have
 `metricsCount=1` and new Metric ids `2016..2065`. Representative rawJson-free

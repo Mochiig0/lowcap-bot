@@ -30,6 +30,7 @@ type CommandResult = CommandSuccess | CommandFailure;
 type PendingAgeBucket = "lte5m" | "lte15m" | "lte60m" | "gt60m";
 
 type ReviewQueueItem = {
+  id?: number;
   mint: string;
   metadataStatus: string;
   scoreTotal: number;
@@ -60,6 +61,12 @@ type ReviewQueueItem = {
     summary: string;
   } | null;
   notifyCandidateRule?: string;
+  scoreBreakdownSummary?: {
+    available: boolean;
+    componentTotals: Record<string, number>;
+    hitSourceCounts: Record<string, number>;
+    hitTagCounts: Record<string, number>;
+  };
   queuesMatched: string[];
   reviewReasons: string[];
 };
@@ -117,6 +124,44 @@ type ReviewQueueGeckoterminalOutput = {
       notifyCandidateEligibleCount: number;
       notifyCandidateBlockerDistribution: Record<string, number>;
       reviewFlagsPresenceDistribution: Record<string, number>;
+      watchlist: {
+        watchlistCandidateCount: number;
+        watchlistCriteria: {
+          scoreRanks: string[];
+          hardRejected: false;
+          notificationCandidate: false;
+          readOnly: true;
+        };
+        watchlistRankDistribution: Record<string, number>;
+        watchlistScoreTotalDistribution: Record<string, number>;
+        watchlistMetricCoverage: Record<string, number>;
+        watchlistReviewFlagsPresence: Record<string, number>;
+        representativeSamples: Array<{
+          id: number;
+          mintAbbrev: string;
+          scoreRank: string;
+          scoreTotal: number;
+          hardRejected: boolean;
+          metricsCount: number;
+          reviewFlags: ReviewQueueItem["reviewFlags"];
+        }>;
+      };
+      rankGap: {
+        requiredNotifyRank: "S";
+        notifyThresholdDescription: string;
+        rankGapDistribution: Record<string, number>;
+        maxObservedRank: string | null;
+        maxObservedScoreTotal: number | null;
+        closestToNotifyCount: number;
+      };
+      scoreBreakdown: {
+        scoreBreakdownAvailable: boolean;
+        availableCount: number;
+        unavailableCount: number;
+        componentTotalSums: Record<string, number>;
+        hitSourceDistribution: Record<string, number>;
+        hitTagDistribution: Record<string, number>;
+      };
     };
   };
   queues: {
@@ -379,6 +424,7 @@ async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
   eligibleMint: string;
   rankBlockedMint: string;
   hardRejectedMint: string;
+  hardRejectedBMint: string;
 }> {
   const db = new PrismaClient({
     datasources: {
@@ -465,6 +511,25 @@ async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
           descriptionPresent: false,
           linkCount: 1,
         },
+        scoreBreakdown: {
+          totals: {
+            core: 0,
+            learned: 2,
+            trend: 0,
+            combo: 0,
+          },
+          hits: [
+            {
+              source: "learned_keyword",
+              key: "not-emitted",
+              score: 2,
+              tag: "social",
+            },
+          ],
+          trendFresh: false,
+          trendCapped: false,
+          trendOnly: false,
+        },
       },
       select: {
         id: true,
@@ -514,10 +579,39 @@ async function seedBlockerVisibilityTokens(databaseUrl: string): Promise<{
       },
     });
 
+    const hardRejectedBAt = makeDetectedAt(4);
+    const hardRejectedB = await db.token.create({
+      data: {
+        mint: "GeckoQueueHardRejectedB111111111111111111111pump",
+        name: "Hard Rejected B Token",
+        symbol: "HARDREJB",
+        source: GECKO_SOURCE,
+        metadataStatus: "partial",
+        scoreRank: "B",
+        scoreTotal: 2,
+        hardRejected: true,
+        hardRejectReason: "test hard reject b",
+        createdAt: hardRejectedBAt,
+        importedAt: hardRejectedBAt,
+        enrichedAt: hardRejectedBAt,
+        rescoredAt: hardRejectedBAt,
+        entrySnapshot: {
+          firstSeenSourceSnapshot: {
+            source: GECKO_SOURCE,
+            detectedAt: hardRejectedBAt.toISOString(),
+          },
+        },
+      },
+      select: {
+        mint: true,
+      },
+    });
+
     return {
       eligibleMint: eligible.mint,
       rankBlockedMint: rankBlocked.mint,
       hardRejectedMint: hardRejected.mint,
+      hardRejectedBMint: hardRejectedB.mint,
     };
   } finally {
     await db.$disconnect();
@@ -685,18 +779,18 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.visibility?.notifyCandidateEligibleCount, 1);
       assert.deepEqual(parsed.summary.visibility?.scoreRankDistribution, {
         S: 2,
-        B: 1,
+        B: 2,
       });
       assert.deepEqual(parsed.summary.visibility?.scoreTotalDistribution, {
         "10": 1,
-        "2": 1,
+        "2": 2,
         "9": 1,
       });
       assert.deepEqual(parsed.summary.visibility?.notifyCandidateBlockerDistribution, {
-        rank_not_s: 1,
-        hard_rejected: 1,
+        rank_not_s: 2,
+        hard_rejected: 2,
       });
-      assert.equal(parsed.summary.visibility?.hardRejectedCount, 1);
+      assert.equal(parsed.summary.visibility?.hardRejectedCount, 2);
       assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.hasWebsite, 2);
       assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.hasX, 1);
       assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.hasTelegram, 1);
@@ -706,6 +800,61 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
         1,
       );
       assert.equal(parsed.summary.visibility?.reviewFlagsPresenceDistribution.linkPresent, 2);
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistCandidateCount, 1);
+      assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistCriteria, {
+        scoreRanks: ["A", "B"],
+        hardRejected: false,
+        notificationCandidate: false,
+        readOnly: true,
+      });
+      assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistRankDistribution, {
+        B: 1,
+      });
+      assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistScoreTotalDistribution, {
+        "2": 1,
+      });
+      assert.deepEqual(parsed.summary.visibility?.watchlist.watchlistMetricCoverage, {
+        "0": 1,
+      });
+      assert.equal(
+        parsed.summary.visibility?.watchlist.watchlistReviewFlagsPresence.hasWebsite,
+        1,
+      );
+      assert.equal(parsed.summary.visibility?.watchlist.representativeSamples.length, 1);
+      assert.equal(
+        parsed.summary.visibility?.watchlist.representativeSamples[0]?.scoreRank,
+        "B",
+      );
+      assert.equal(
+        parsed.summary.visibility?.watchlist.representativeSamples[0]?.hardRejected,
+        false,
+      );
+      assert.equal(parsed.summary.visibility?.rankGap.requiredNotifyRank, "S");
+      assert.match(
+        parsed.summary.visibility?.rankGap.notifyThresholdDescription ?? "",
+        /S requires non-trend-only score >= 8/,
+      );
+      assert.deepEqual(parsed.summary.visibility?.rankGap.rankGapDistribution, {
+        B_to_S: 2,
+      });
+      assert.equal(parsed.summary.visibility?.rankGap.maxObservedRank, "S");
+      assert.equal(parsed.summary.visibility?.rankGap.maxObservedScoreTotal, 10);
+      assert.equal(parsed.summary.visibility?.rankGap.closestToNotifyCount, 1);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.scoreBreakdownAvailable, true);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.availableCount, 1);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.unavailableCount, 3);
+      assert.deepEqual(parsed.summary.visibility?.scoreBreakdown.componentTotalSums, {
+        core: 0,
+        learned: 2,
+        trend: 0,
+        combo: 0,
+      });
+      assert.deepEqual(parsed.summary.visibility?.scoreBreakdown.hitSourceDistribution, {
+        learned_keyword: 1,
+      });
+      assert.deepEqual(parsed.summary.visibility?.scoreBreakdown.hitTagDistribution, {
+        social: 1,
+      });
 
       const eligible = parsed.queues.notifyCandidate.find(
         (item) => item.mint === seeded.eligibleMint,
@@ -728,6 +877,21 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(rankBlocked?.holderSnapshotCount, 0);
       assert.equal(rankBlocked?.reviewFlags?.hasWebsite, true);
       assert.equal(rankBlocked?.reviewFlags?.linkCount, 1);
+      assert.deepEqual(rankBlocked?.scoreBreakdownSummary, {
+        available: true,
+        componentTotals: {
+          core: 0,
+          learned: 2,
+          trend: 0,
+          combo: 0,
+        },
+        hitSourceCounts: {
+          learned_keyword: 1,
+        },
+        hitTagCounts: {
+          social: 1,
+        },
+      });
 
       const hardRejected = parsed.preview.find((item) => item.mint === seeded.hardRejectedMint);
       assert.equal(hardRejected?.notifyCandidateEligible, false);
@@ -735,10 +899,25 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(hardRejected?.hardRejectReason, "test hard reject");
       assert.equal(hardRejected?.rankGapToNotify, null);
 
+      const hardRejectedB = parsed.preview.find((item) => item.mint === seeded.hardRejectedBMint);
+      assert.equal(hardRejectedB?.notifyCandidateEligible, false);
+      assert.deepEqual(hardRejectedB?.notifyCandidateBlockers, [
+        "rank_not_s",
+        "hard_rejected",
+      ]);
+      assert.equal(
+        parsed.summary.visibility?.watchlist.representativeSamples.every(
+          (item) => item.hardRejected === false,
+        ),
+        true,
+      );
+
       const serialized = JSON.stringify(parsed);
       assert.equal(serialized.includes("rawJson"), false);
       assert.equal(serialized.includes("entrySnapshot"), false);
       assert.equal(serialized.includes("reviewFlagsJson"), false);
+      assert.equal(serialized.includes("normalizedText"), false);
+      assert.equal(serialized.includes("not-emitted"), false);
     });
   });
 
@@ -839,6 +1018,35 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
         oldestMetricPending: [],
       });
       assert.deepEqual(parsed.preview, []);
+    });
+  });
+
+  await t.test("includeBlockers reports scoreBreakdown unavailable when no safe reasons exist", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "empty-blockers.db")}`;
+
+      await runDbPush(databaseUrl);
+
+      const result = await runReviewQueueGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "5",
+          "--includeBlockers",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as ReviewQueueGeckoterminalOutput;
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.scoreBreakdownAvailable, false);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.availableCount, 0);
+      assert.equal(parsed.summary.visibility?.scoreBreakdown.unavailableCount, 0);
+      assert.equal(parsed.summary.visibility?.watchlist.watchlistCandidateCount, 0);
+      assert.deepEqual(parsed.summary.visibility?.rankGap.rankGapDistribution, {});
+      assert.equal(parsed.summary.visibility?.rankGap.maxObservedRank, null);
+      assert.equal(parsed.summary.visibility?.rankGap.maxObservedScoreTotal, null);
     });
   });
 });

@@ -4,6 +4,39 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow B-watchlist visibility, 2026-05-31:
+
+- `review:queue:geckoterminal --includeBlockers` now includes a read-only
+  B/A watchlist lane, rank-gap summary, and raw-text-free scoreBreakdown
+  source/tag aggregate. This does not change notifyCandidate eligibility,
+  Telegram send policy, Notification behavior, DB schema, or default output
+  without `--includeBlockers`.
+- Watchlist criteria are explicit: `scoreRank` in `["A", "B"]` and
+  `hardRejected=false`; it is a human review lane, not a notification lane.
+  `notifyCandidate` remains `scoreRank === "S" && hardRejected=false`, and
+  Telegram remains S-only.
+- Read-only runtime on the default 24h Gecko queue reports
+  `watchlistCandidateCount=7`, all `B / 2`, all with `metricsCount=1`, no
+  watchlist reviewFlags/social/Metaplex/description presence, and
+  `rankGap.maxObservedRank=B`, `maxObservedScoreTotal=2`,
+  `closestToNotifyCount=7`. Rolling 168h reports `watchlistCandidateCount=14`,
+  all `B / 2`, with Metric coverage `1=13`, `0=1`.
+- Safe scoreBreakdown aggregate is available for existing partial rows:
+  default 24h `availableCount=149`, `unavailableCount=210`,
+  component totals `core=27`, `learned=1`, `trend=0`, `combo=0`, hit sources
+  `core=20`, `learned_pattern=1`, and safe hit tags `animal=17`,
+  `ai_phrase=1`, `tech=1`, `meme=2`. Rolling 168h has
+  `availableCount=424`, `unavailableCount=1013`, component totals
+  `core=48`, `learned=5`, `trend=0`, `combo=0`, hit sources `core=34`,
+  `learned_pattern=2`, `learned_keyword=3`, and safe tags `animal=31`,
+  `ai_phrase=2`, `tech=1`, `meme=2`, `social=3`.
+- Verification used TypeScript, targeted review queue and help tests,
+  read-only queue reports, notification planners, retry planner, and bounded
+  planner. No production write/fetch/send, Metric write, Token write,
+  Notification create/update, HolderSnapshot write, Telegram send,
+  schema/migration change, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run.
+
 Green blocker visibility review, 2026-05-31:
 
 - Current HEAD is `a15039d feat: show notify candidate blockers in reports`

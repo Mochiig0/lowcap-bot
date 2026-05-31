@@ -7,6 +7,8 @@ const DEFAULT_SINCE_HOURS = 24;
 const DEFAULT_LIMIT = 5;
 const DEFAULT_STALE_AFTER_HOURS = 6;
 const OLDEST_PENDING_PREVIEW_LIMIT = 3;
+const NOTIFY_REQUIRED_RANK = "S" as const;
+const S_RANK_MIN = 8;
 
 type Args = {
   sinceHours: number;
@@ -78,6 +80,61 @@ type ReviewFlagsPresenceDistribution = {
   linkPresent: number;
 };
 
+type ScoreComponentTotals = {
+  core: number;
+  learned: number;
+  trend: number;
+  combo: number;
+};
+
+type SafeScoreBreakdownSummary = {
+  available: boolean;
+  componentTotals: ScoreComponentTotals;
+  hitSourceCounts: Record<string, number>;
+  hitTagCounts: Record<string, number>;
+};
+
+type RankGapSummary = {
+  requiredNotifyRank: "S";
+  notifyThresholdDescription: string;
+  rankGapDistribution: Record<string, number>;
+  maxObservedRank: string | null;
+  maxObservedScoreTotal: number | null;
+  closestToNotifyCount: number;
+};
+
+type WatchlistSummary = {
+  watchlistCandidateCount: number;
+  watchlistCriteria: {
+    scoreRanks: Array<"A" | "B">;
+    hardRejected: false;
+    notificationCandidate: false;
+    readOnly: true;
+  };
+  watchlistRankDistribution: Record<string, number>;
+  watchlistScoreTotalDistribution: Record<string, number>;
+  watchlistMetricCoverage: Record<string, number>;
+  watchlistReviewFlagsPresence: ReviewFlagsPresenceDistribution;
+  representativeSamples: Array<{
+    id: number;
+    mintAbbrev: string;
+    scoreRank: string;
+    scoreTotal: number;
+    hardRejected: boolean;
+    metricsCount: number;
+    reviewFlags: ReviewFlagsView | null;
+  }>;
+};
+
+type ScoreBreakdownVisibilitySummary = {
+  scoreBreakdownAvailable: boolean;
+  availableCount: number;
+  unavailableCount: number;
+  componentTotalSums: ScoreComponentTotals;
+  hitSourceDistribution: Record<string, number>;
+  hitTagDistribution: Record<string, number>;
+};
+
 type SelectedToken = {
   id: number;
   mint: string;
@@ -105,9 +162,11 @@ type SelectedToken = {
   reviewFlagsCount: number;
   notificationCount: number;
   holderSnapshotCount: number;
+  scoreBreakdownSummary: SafeScoreBreakdownSummary;
 };
 
 type ReviewQueueItem = {
+  id: number;
   mint: string;
   name: string | null;
   symbol: string | null;
@@ -138,6 +197,7 @@ type ReviewQueueItem = {
   notifyCandidateBlockers?: NotifyCandidateBlocker[];
   rankGapToNotify?: RankGapToNotify | null;
   notifyCandidateRule?: "scoreRank === S && hardRejected === false";
+  scoreBreakdownSummary?: SafeScoreBreakdownSummary;
   queuesMatched: QueueName[];
   reviewReasons: string[];
 };
@@ -311,6 +371,100 @@ function countReviewFlags(reviewFlags: ReviewFlagsView | null): number {
   ].filter(Boolean).length;
 }
 
+function createZeroComponentTotals(): ScoreComponentTotals {
+  return {
+    core: 0,
+    learned: 0,
+    trend: 0,
+    combo: 0,
+  };
+}
+
+function createEmptyScoreBreakdownSummary(): SafeScoreBreakdownSummary {
+  return {
+    available: false,
+    componentTotals: createZeroComponentTotals(),
+    hitSourceCounts: {},
+    hitTagCounts: {},
+  };
+}
+
+function readScoreComponentTotals(value: unknown): ScoreComponentTotals | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const object = value as JsonObject;
+  const keys: Array<keyof ScoreComponentTotals> = ["core", "learned", "trend", "combo"];
+  const totals = createZeroComponentTotals();
+
+  for (const key of keys) {
+    const raw = object[key];
+    if (raw === undefined) {
+      continue;
+    }
+    if (typeof raw !== "number" || !Number.isFinite(raw)) {
+      return null;
+    }
+    totals[key] = raw;
+  }
+
+  return totals;
+}
+
+function safeCategory(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!/^[a-z0-9_-]{1,64}$/.test(normalized)) {
+    return "other";
+  }
+
+  return normalized;
+}
+
+function extractSafeScoreBreakdown(scoreBreakdown: unknown): SafeScoreBreakdownSummary {
+  if (!scoreBreakdown || typeof scoreBreakdown !== "object" || Array.isArray(scoreBreakdown)) {
+    return createEmptyScoreBreakdownSummary();
+  }
+
+  const object = scoreBreakdown as JsonObject;
+  const componentTotals = readScoreComponentTotals(object.totals);
+  if (componentTotals === null) {
+    return createEmptyScoreBreakdownSummary();
+  }
+
+  const hitSourceCounts: Record<string, number> = {};
+  const hitTagCounts: Record<string, number> = {};
+  const hits = Array.isArray(object.hits) ? object.hits : [];
+
+  for (const hit of hits) {
+    if (!hit || typeof hit !== "object" || Array.isArray(hit)) {
+      continue;
+    }
+
+    const hitObject = hit as JsonObject;
+    const source = safeCategory(hitObject.source);
+    if (source !== null) {
+      incrementCount(hitSourceCounts, source);
+    }
+
+    const tag = safeCategory(hitObject.tag);
+    if (tag !== null) {
+      incrementCount(hitTagCounts, tag);
+    }
+  }
+
+  return {
+    available: true,
+    componentTotals,
+    hitSourceCounts,
+    hitTagCounts,
+  };
+}
+
 function buildSelectedToken(token: {
   id: number;
   mint: string;
@@ -328,6 +482,7 @@ function buildSelectedToken(token: {
   rescoredAt: Date | null;
   entrySnapshot: unknown;
   reviewFlagsJson: unknown;
+  scoreBreakdown: unknown;
   metrics: Array<{
     observedAt: Date;
     source: string | null;
@@ -375,6 +530,7 @@ function buildSelectedToken(token: {
     reviewFlagsCount: countReviewFlags(reviewFlags),
     notificationCount: 0,
     holderSnapshotCount: token._count.holderSnapshots ?? 0,
+    scoreBreakdownSummary: extractSafeScoreBreakdown(token.scoreBreakdown),
   };
 }
 
@@ -434,6 +590,10 @@ function isNotifyCandidate(token: SelectedToken): boolean {
   return token.scoreRank === "S" && !token.hardRejected;
 }
 
+function isWatchlistCandidate(token: Pick<SelectedToken, "scoreRank" | "hardRejected">): boolean {
+  return !token.hardRejected && (token.scoreRank === "A" || token.scoreRank === "B");
+}
+
 function buildNotifyCandidateBlockers(token: SelectedToken): NotifyCandidateBlocker[] {
   const blockers: NotifyCandidateBlocker[] = [];
 
@@ -454,7 +614,7 @@ function buildRankGapToNotify(token: SelectedToken): RankGapToNotify | null {
 
   return {
     currentRank: token.scoreRank,
-    requiredRank: "S",
+    requiredRank: NOTIFY_REQUIRED_RANK,
     currentScore: token.scoreTotal,
     summary: `needs S rank; current ${token.scoreRank}/${token.scoreTotal}`,
   };
@@ -473,6 +633,21 @@ function buildNotifyCandidateVisibility(token: SelectedToken): NotifyCandidateVi
 
 function isHighPriorityRecent(token: SelectedToken): boolean {
   return !token.hardRejected && (token.scoreRank === "S" || token.scoreRank === "A");
+}
+
+function rankPriority(rank: string): number {
+  switch (rank) {
+    case "S":
+      return 4;
+    case "A":
+      return 3;
+    case "B":
+      return 2;
+    case "C":
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 function getAgeHours(selectionAnchorAt: string): number {
@@ -613,6 +788,7 @@ function buildReviewQueueItem(
   const notifyVisibility = includeBlockers ? buildNotifyCandidateVisibility(token) : null;
 
   return {
+    id: token.id,
     mint: token.mint,
     name: token.name,
     symbol: token.symbol,
@@ -645,6 +821,7 @@ function buildReviewQueueItem(
           notifyCandidateBlockers: notifyVisibility.notifyCandidateBlockers,
           rankGapToNotify: notifyVisibility.rankGapToNotify,
           notifyCandidateRule: "scoreRank === S && hardRejected === false" as const,
+          scoreBreakdownSummary: token.scoreBreakdownSummary,
         }
       : {}),
     queuesMatched,
@@ -701,7 +878,166 @@ function incrementNumberKeyCount(counts: Record<string, number>, value: number):
   counts[key] = (counts[key] ?? 0) + 1;
 }
 
-function buildVisibilitySummary(items: ReviewQueueItem[]): {
+function addComponentTotals(target: ScoreComponentTotals, source: ScoreComponentTotals): void {
+  target.core += source.core;
+  target.learned += source.learned;
+  target.trend += source.trend;
+  target.combo += source.combo;
+}
+
+function addRecordCounts(target: Record<string, number>, source: Record<string, number>): void {
+  for (const [key, value] of Object.entries(source)) {
+    target[key] = (target[key] ?? 0) + value;
+  }
+}
+
+function buildReviewFlagsPresenceDistribution(items: ReviewQueueItem[]): ReviewFlagsPresenceDistribution {
+  const distribution: ReviewFlagsPresenceDistribution = {
+    hasWebsite: 0,
+    hasX: 0,
+    hasTelegram: 0,
+    metaplexHit: 0,
+    descriptionPresent: 0,
+    linkPresent: 0,
+  };
+
+  for (const item of items) {
+    if (item.reviewFlags?.hasWebsite) distribution.hasWebsite += 1;
+    if (item.reviewFlags?.hasX) distribution.hasX += 1;
+    if (item.reviewFlags?.hasTelegram) distribution.hasTelegram += 1;
+    if (item.reviewFlags?.metaplexHit) distribution.metaplexHit += 1;
+    if (item.reviewFlags?.descriptionPresent) distribution.descriptionPresent += 1;
+    if ((item.reviewFlags?.linkCount ?? 0) > 0) distribution.linkPresent += 1;
+  }
+
+  return distribution;
+}
+
+function abbreviateMint(mint: string): string {
+  if (mint.length <= 16) {
+    return mint;
+  }
+
+  return `${mint.slice(0, 8)}...${mint.slice(-6)}`;
+}
+
+function buildWatchlistSummary(items: ReviewQueueItem[], limit: number): WatchlistSummary {
+  const watchlistItems = items
+    .filter((item) => isWatchlistCandidate(item))
+    .sort((left, right) => {
+      if (rankPriority(right.scoreRank) !== rankPriority(left.scoreRank)) {
+        return rankPriority(right.scoreRank) - rankPriority(left.scoreRank);
+      }
+      if (right.scoreTotal !== left.scoreTotal) {
+        return right.scoreTotal - left.scoreTotal;
+      }
+      return sortBySelectionAnchorDesc(left, right);
+    });
+  const watchlistRankDistribution: Record<string, number> = {};
+  const watchlistScoreTotalDistribution: Record<string, number> = {};
+  const watchlistMetricCoverage: Record<string, number> = {};
+
+  for (const item of watchlistItems) {
+    incrementCount(watchlistRankDistribution, item.scoreRank);
+    incrementNumberKeyCount(watchlistScoreTotalDistribution, item.scoreTotal);
+    incrementNumberKeyCount(watchlistMetricCoverage, item.metricsCount);
+  }
+
+  return {
+    watchlistCandidateCount: watchlistItems.length,
+    watchlistCriteria: {
+      scoreRanks: ["A", "B"],
+      hardRejected: false,
+      notificationCandidate: false,
+      readOnly: true,
+    },
+    watchlistRankDistribution,
+    watchlistScoreTotalDistribution,
+    watchlistMetricCoverage,
+    watchlistReviewFlagsPresence: buildReviewFlagsPresenceDistribution(watchlistItems),
+    representativeSamples: watchlistItems.slice(0, Math.min(5, limit)).map((item) => ({
+      id: item.id,
+      mintAbbrev: abbreviateMint(item.mint),
+      scoreRank: item.scoreRank,
+      scoreTotal: item.scoreTotal,
+      hardRejected: item.hardRejected,
+      metricsCount: item.metricsCount,
+      reviewFlags: item.reviewFlags,
+    })),
+  };
+}
+
+function buildRankGapSummary(items: ReviewQueueItem[]): RankGapSummary {
+  const rankGapDistribution: Record<string, number> = {};
+  let maxObservedRank: string | null = null;
+  let maxObservedScoreTotal: number | null = null;
+
+  for (const item of items) {
+    if (item.scoreRank !== NOTIFY_REQUIRED_RANK) {
+      incrementCount(rankGapDistribution, `${item.scoreRank}_to_${NOTIFY_REQUIRED_RANK}`);
+    }
+
+    if (
+      maxObservedRank === null ||
+      rankPriority(item.scoreRank) > rankPriority(maxObservedRank) ||
+      (rankPriority(item.scoreRank) === rankPriority(maxObservedRank) &&
+        (maxObservedScoreTotal === null || item.scoreTotal > maxObservedScoreTotal))
+    ) {
+      maxObservedRank = item.scoreRank;
+      maxObservedScoreTotal = item.scoreTotal;
+    }
+  }
+
+  const closestToNotifyCount =
+    maxObservedRank === null || maxObservedScoreTotal === null
+      ? 0
+      : items.filter(
+          (item) =>
+            item.scoreRank === maxObservedRank && item.scoreTotal === maxObservedScoreTotal,
+        ).length;
+
+  return {
+    requiredNotifyRank: NOTIFY_REQUIRED_RANK,
+    notifyThresholdDescription:
+      `S requires non-trend-only score >= ${S_RANK_MIN}; notifyCandidate also requires hardRejected=false`,
+    rankGapDistribution,
+    maxObservedRank,
+    maxObservedScoreTotal,
+    closestToNotifyCount,
+  };
+}
+
+function buildScoreBreakdownVisibilitySummary(
+  items: ReviewQueueItem[],
+): ScoreBreakdownVisibilitySummary {
+  const componentTotalSums = createZeroComponentTotals();
+  const hitSourceDistribution: Record<string, number> = {};
+  const hitTagDistribution: Record<string, number> = {};
+  let availableCount = 0;
+
+  for (const item of items) {
+    const summary = item.scoreBreakdownSummary;
+    if (!summary?.available) {
+      continue;
+    }
+
+    availableCount += 1;
+    addComponentTotals(componentTotalSums, summary.componentTotals);
+    addRecordCounts(hitSourceDistribution, summary.hitSourceCounts);
+    addRecordCounts(hitTagDistribution, summary.hitTagCounts);
+  }
+
+  return {
+    scoreBreakdownAvailable: availableCount > 0,
+    availableCount,
+    unavailableCount: items.length - availableCount,
+    componentTotalSums,
+    hitSourceDistribution,
+    hitTagDistribution,
+  };
+}
+
+function buildVisibilitySummary(items: ReviewQueueItem[], sampleLimit: number): {
   scoreRankDistribution: Record<string, number>;
   scoreTotalDistribution: Record<string, number>;
   metadataStatusDistribution: Record<string, number>;
@@ -710,6 +1046,9 @@ function buildVisibilitySummary(items: ReviewQueueItem[]): {
   notifyCandidateEligibleCount: number;
   notifyCandidateBlockerDistribution: NotifyCandidateBlockerDistribution;
   reviewFlagsPresenceDistribution: ReviewFlagsPresenceDistribution;
+  watchlist: WatchlistSummary;
+  rankGap: RankGapSummary;
+  scoreBreakdown: ScoreBreakdownVisibilitySummary;
 } {
   const scoreRankDistribution: Record<string, number> = {};
   const scoreTotalDistribution: Record<string, number> = {};
@@ -718,14 +1057,6 @@ function buildVisibilitySummary(items: ReviewQueueItem[]): {
   const notifyCandidateBlockerDistribution: NotifyCandidateBlockerDistribution = {
     rank_not_s: 0,
     hard_rejected: 0,
-  };
-  const reviewFlagsPresenceDistribution: ReviewFlagsPresenceDistribution = {
-    hasWebsite: 0,
-    hasX: 0,
-    hasTelegram: 0,
-    metaplexHit: 0,
-    descriptionPresent: 0,
-    linkPresent: 0,
   };
 
   let hardRejectedCount = 0;
@@ -746,17 +1077,6 @@ function buildVisibilitySummary(items: ReviewQueueItem[]): {
     for (const blocker of item.notifyCandidateBlockers ?? []) {
       notifyCandidateBlockerDistribution[blocker] += 1;
     }
-
-    if (item.reviewFlags?.hasWebsite) reviewFlagsPresenceDistribution.hasWebsite += 1;
-    if (item.reviewFlags?.hasX) reviewFlagsPresenceDistribution.hasX += 1;
-    if (item.reviewFlags?.hasTelegram) reviewFlagsPresenceDistribution.hasTelegram += 1;
-    if (item.reviewFlags?.metaplexHit) reviewFlagsPresenceDistribution.metaplexHit += 1;
-    if (item.reviewFlags?.descriptionPresent) {
-      reviewFlagsPresenceDistribution.descriptionPresent += 1;
-    }
-    if ((item.reviewFlags?.linkCount ?? 0) > 0) {
-      reviewFlagsPresenceDistribution.linkPresent += 1;
-    }
   }
 
   return {
@@ -767,7 +1087,10 @@ function buildVisibilitySummary(items: ReviewQueueItem[]): {
     hardRejectedCount,
     notifyCandidateEligibleCount,
     notifyCandidateBlockerDistribution,
-    reviewFlagsPresenceDistribution,
+    reviewFlagsPresenceDistribution: buildReviewFlagsPresenceDistribution(items),
+    watchlist: buildWatchlistSummary(items, sampleLimit),
+    rankGap: buildRankGapSummary(items),
+    scoreBreakdown: buildScoreBreakdownVisibilitySummary(items),
   };
 }
 
@@ -830,6 +1153,7 @@ async function run(): Promise<void> {
       rescoredAt: true,
       entrySnapshot: true,
       reviewFlagsJson: true,
+      scoreBreakdown: true,
       metrics: {
         orderBy: [{ observedAt: "desc" }, { id: "desc" }],
         take: 1,
@@ -962,7 +1286,9 @@ async function run(): Promise<void> {
           notifyCandidateCount: notifyCandidates.length,
           staleReviewCount: staleReview.length,
           highPriorityRecentCount: highPriorityRecent.length,
-          ...(args.includeBlockers ? { visibility: buildVisibilitySummary(reviewItems) } : {}),
+          ...(args.includeBlockers
+            ? { visibility: buildVisibilitySummary(reviewItems, args.limit) }
+            : {}),
         },
         queues: {
           notifyCandidate: limitItems(notifyCandidates, args.limit),

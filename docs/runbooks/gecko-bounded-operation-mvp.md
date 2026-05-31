@@ -96,6 +96,14 @@ watchlist/review signal, not a Telegram notification candidate. Continue to
 keep bounded operation report/notification phases read-only unless a later
 human-approved Red explicitly targets a send path.
 
+`--includeBlockers` now makes that watchlist explicit. It reports
+`watchlistCandidateCount`, watchlist rank/score/Metric/reviewFlags
+distributions, safe representative token ids / abbreviated mints, rank gap to
+S, and aggregate scoreBreakdown component/source/tag counts. The report still
+does not run Metric/enrich phases, fetch externally, write DB rows, create or
+update Notifications, send Telegram, dump rawJson, or expose raw score
+keywords.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

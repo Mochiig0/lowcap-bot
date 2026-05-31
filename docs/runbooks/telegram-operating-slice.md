@@ -73,6 +73,13 @@ added next, make it a read-only or capture-only B watchlist/report lane first.
 Do not send Telegram for B-rank rows and do not change auto-send eligibility
 until a separate design review explicitly changes the notification policy.
 
+That B-watchlist now exists as report visibility only. It counts B/A,
+non-hard-rejected rows under `review:queue:geckoterminal --includeBlockers`
+and labels the criteria as read-only and not notification candidates. Current
+runtime has default watchlist `7` and rolling 168h watchlist `14`, all B-rank
+with `scoreTotal=2`; Telegram, auto-send, retry execution, and Notification
+creation/update remain locked.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,
