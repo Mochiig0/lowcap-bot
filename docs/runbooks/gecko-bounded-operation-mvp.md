@@ -257,6 +257,27 @@ text dump, and `pnpm smoke` remained `0`. Queue after the run still has
 default 24h `metricPendingCount=159` and rolling 168h
 `metricPendingCount=1017`; choose the next step with a fresh Green preflight.
 
+A following Green preflight switched the post-run backlog from Metric
+continuation to enrich/rescore because the exact Metric continuation command
+with `--sinceMinutes 420` selected `0` rows, while the enrich/rescore
+simulation had Metric-covered `mint_only` rows available. The approved
+enrich/rescore Red then ran once:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --interItemDelayMs 15000 --write
+```
+
+It selected `49` rows (`7117..7069`) after one previewed row aged out of the
+420 minute window. The run wrote Token context/rescore updates for `49` rows:
+`enrichWritten=49`, `rescoreWritten=49`, `contextWritten=49`, `error=0`,
+`rateLimited=false`, `notifyWouldSend=0`, `notifySent=0`, and
+`interItemDelayCount=48`. Metadata moved `mint_only=2440`, `partial=570`,
+`enriched=13` -> `mint_only=2391`, `partial=619`, `enriched=13`; Metric,
+Notification, and HolderSnapshot counts did not change. Notification
+create/update, Telegram send, retry execution, auto live send,
+scheduler/systemd, rawJson full dump, offensive raw text dump, and
+`pnpm smoke` remained `0`.
+
 Cycle implementation verification on 2026-05-27 stayed non-production.
 `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-6h-pipeline-cycle-plan.json --postRunMetricCycles 3 --postRunEnrichCycles 3`
 returned `readOnly=true`, `executeRequested=false`, `postRunMetricCycles=3`,

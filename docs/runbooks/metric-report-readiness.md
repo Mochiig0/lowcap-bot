@@ -30,6 +30,15 @@ HolderSnapshot write, Telegram send, retry execution, auto live send,
 scheduler/systemd, rawJson full dump, offensive raw text dump, and
 `pnpm smoke` remain `0`.
 
+That Token-context Red subsequently ran and did not change Metric report
+coverage. It selected token ids `7117..7069`, all of which already had
+`metricsCount=1`, and updated them from `mint_only` to `partial`; id `7068`
+aged out of the 420 minute window and remained unselected. Metric count stayed
+`956`, Metric buckets stayed `0=2207`, `1=729`, `2+=87`, and selected rows
+kept `notificationCount=0` / `holderSnapshotCount=0`. Report CLIs remain
+read-only and rawJson-free; any next report decision should happen in a fresh
+Green pass after the docs commit.
+
 Latest report check, 2026-05-26: after the post-6H Metric pending snapshot
 limit 50 Red, selected ids `6067..6018` all have `metricsCount=1` and Metric
 ids `1666..1715`. Representative rawJson-free `metrics:report` checks for ids

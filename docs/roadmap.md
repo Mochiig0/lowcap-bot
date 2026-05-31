@@ -11,34 +11,34 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
-Current Green preflight at HEAD
-`c4a8c48 docs: record post run metric pending continuation` shows the next
-bounded step should switch from Metric continuation to enrich/rescore.
-Although the default 24h queue still has `metricPendingCount=159`, the exact
-Metric continuation candidate with `--sinceMinutes 420` now selects `0` rows;
-the remaining Metric pending rows have aged beyond that 420 minute window.
-
-Prisma read-only simulation for the enrich/rescore continuation selected token
-ids `7117..7068`, all `metadataStatus=mint_only`, all with `metricsCount=1`,
-and all with `notificationCount=0` / `holderSnapshotCount=0`. Queue/planner
-safety remains clear: Token / Metric / Notification / HolderSnapshot is
-`3023 / 956 / 22 / 1`, Notification statuses are `captured=17`, `sent=5`,
-`failed=0`, retry candidate is `0`, enabled auto-send allowed candidate is
-`0`, and notify candidates remain `0`. `ops:plan:bounded --postRunPlan`
-now recommends `enrich_pending_rescore`.
-
-Next human-approved Red candidate:
+The Skill-guarded enrich/rescore continuation after Metric coverage ran once
+with expected HEAD `79424cd` and the exact command:
 
 ```bash
 pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --interItemDelayMs 15000 --write
 ```
 
-Expected side effects are external GeckoTerminal token snapshot fetch and
-production DB Token update up to `50`. Expected non-effects are Metric write
-`0`, Notification create/update `0`, HolderSnapshot write `0`, Telegram send
-`0` because `--notify` is omitted, retry execution `0`, auto live send
-execution `0`, scheduler/systemd `0`, rawJson full dump `0`, offensive raw
-text dump `0`, and `pnpm smoke` `0`.
+It selected and updated `49` rows (`7117..7069`), not the preflight's full
+`50`, because one row aged outside the 420 minute command window before
+selection. Results: `ok=49`, `error=0`, `enrichWritten=49`,
+`rescoreWritten=49`, `contextWritten=49`, `notifyWouldSend=0`,
+`notifySent=0`, `rateLimited=false`, and `interItemDelayCount=48`. Metadata
+moved `mint_only=2440`, `partial=570`, `enriched=13` ->
+`mint_only=2391`, `partial=619`, `enriched=13`; Token / Metric /
+Notification / HolderSnapshot counts stayed `3023 / 956 / 22 / 1`.
+
+Notification/Telegram boundaries stayed intact: Metric write `0`,
+Notification create/update `0`, HolderSnapshot write `0`, Telegram send `0`,
+retry execution `0`, auto live send `0`, scheduler/systemd `0`, rawJson full
+dump `0`, and `pnpm smoke` `0`. Default queue after the run has
+`metricPendingCount=159`, `enrichPendingCount=210`, `notifyCandidateCount=0`;
+rolling 168h has `metricPendingCount=1017`, `enrichPendingCount=1013`,
+`notifyCandidateCount=0`; auto-send allowed candidate and retry candidate
+remain `0`.
+
+Next operating task should be a Green preflight against the new docs HEAD to
+decide whether to continue enrich/rescore with the same 420 minute window,
+adjust the Metric pending window intentionally, or pause for report review.
 
 The latest Skill-guarded post-run Metric pending continuation ran once with
 expected HEAD `d975bb0` and the exact command:

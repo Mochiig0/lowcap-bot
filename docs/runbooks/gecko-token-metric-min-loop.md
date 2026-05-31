@@ -196,6 +196,21 @@ pnpm -s token:enrich-rescore:geckoterminal -- --pumpOnly --limit 50 --sinceMinut
 This command remains a separate human-approved Red only and must omit
 `--notify`.
 
+The enrich/rescore continuation then ran once with that exact command. It
+selected `49` rows rather than the preflight's `50` because one row aged
+outside the 420 minute command window before selection. Token ids `7117..7069`
+moved from `mint_only` to `partial`; id `7068` remained `mint_only` and can be
+reconsidered only after a fresh Green preflight. Summary: `ok=49`, `error=0`,
+`enrichWritten=49`, `rescoreWritten=49`, `contextWritten=49`,
+`interItemDelayMs=15000`, `interItemDelayCount=48`, `rateLimited=false`, and
+`notifySent=0`. DB row counts stayed Token / Metric / Notification /
+HolderSnapshot `3023 / 956 / 22 / 1`; metadata moved to `mint_only=2391`,
+`partial=619`, `enriched=13`; Metric buckets stayed `0=2207`, `1=729`,
+`2+=87`; Notification statuses stayed `captured=17`, `sent=5`, `failed=0`.
+No Metric row, Notification, HolderSnapshot, Telegram send, retry execution,
+auto live send, scheduler/systemd, rawJson full dump, or `pnpm smoke` was
+produced.
+
 Earlier failed-attempt state did not advance: Token / Metric /
 Notification / HolderSnapshot stayed `2304 / 656 / 22 / 1`, metadata stayed
 `mint_only=1921`, `partial=370`, `enriched=13`, Metric buckets stayed
