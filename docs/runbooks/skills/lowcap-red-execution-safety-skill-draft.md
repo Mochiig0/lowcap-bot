@@ -8,6 +8,39 @@ This document is a future Skill draft for compressing lowcap-bot Red execution
 prompts. It is not a `.codex/skills/.../SKILL.md` file and was not copied into
 any global or repo-local Skills directory.
 
+## Repo-Local Skill Placement
+
+Placement date: 2026-05-31.
+
+Implemented as a repo-local Skill:
+
+- `.codex/skills/lowcap-red-execution-safety/SKILL.md`
+
+The repo-local `SKILL.md` is intentionally shorter than this draft. It keeps the
+Red execution guardrails that Codex must apply at task time:
+
+- human approval
+- exact-command one-shot execution
+- no retry / no second Red / no option changes without separate approval
+- pre-run stop conditions
+- post-run safe summaries
+- rawJson, offensive raw text, and secrets boundaries
+- Notification / Telegram / scheduler boundaries
+
+The root `AGENTS.md` now contains a short note telling Codex to use this
+repo-local Skill for human-approved Red execution tasks. The note also keeps
+explicit user instructions, `AGENTS.md`, project runbooks, and CLI output as
+the higher-priority sources of truth.
+
+Not done in this placement:
+
+- no global Skill copy
+- no actual Red execution
+- no production DB write
+- no external fetch
+- no notification or Telegram execution
+- no app code, schema, or migration change
+
 ## Review Decision
 
 Review date: 2026-05-31.

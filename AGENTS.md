@@ -9,6 +9,12 @@ This repo is a CLI-first, mint-driven accumulation MVP. It now includes narrow, 
 - The formal phased implementation roadmap lives in `docs/implementation-roadmap.md`.
 - `docs/roadmap.md` remains the narrower near-term operating roadmap.
 
+## Repo-Local Codex Skills
+
+- For human-approved Red execution tasks in this repo, use the repo-local `lowcap-red-execution-safety` Skill when available.
+- The Skill supplements, but does not replace, explicit user instructions, this `AGENTS.md`, project runbooks, or CLI planner/runner output.
+- Existing CLI / DB / planner / runner output remains the source of truth for current state, side effects, stop conditions, and post-run summaries.
+
 ## Three Lanes
 
 1. Full import lane
