@@ -11,6 +11,20 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
+The Green review of watchlist readiness output is complete. Current
+`--includeBlockers` output is useful enough for manual B-watchlist review and
+does not require notification policy changes. Default 24h has `7` watchlist
+rows and all `7` are `ready_for_review`; rolling 168h has `14` watchlist rows,
+`13` ready and `1` not ready due to `missing_metric`. Every watchlist row is
+still `B / 2`, so it remains far from `A>=5` and non-trend-only `S>=8`.
+
+Recommended next slice: keep the B watchlist **report-only**. If the current
+`--includeBlockers` output feels too broad for operators, add a small Yellow
+`--watchlistOnly` option that filters output to watchlist summary and rows.
+Do not tune scoring dictionaries, loosen hardReject, create capture-only B
+Notifications, or change Telegram / auto-send behavior until manual review of
+the ready B samples shows a clear need.
+
 The Yellow watchlist / scoreBreakdown report refinement is implemented.
 `review:queue:geckoterminal --includeBlockers` now shows watchlist readiness
 and scoreBreakdown availability reasons without changing notifyCandidate,

@@ -6,6 +6,28 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Watchlist readiness review, 2026-05-31: the new readiness output is usable as
+a human review lane. Default 24h has `7` B-watchlist rows and all are
+`ready_for_review`; rolling 168h has `14` B-watchlist rows, with `13` ready
+and one `missing_metric`. The readiness definition is sufficient for report
+triage: partial/enriched context, Metric coverage, scoreBreakdown availability,
+no existing Notification/HolderSnapshot, and no hard reject. Social, website,
+Metaplex, and description signals should remain visibility fields, not
+readiness requirements, because the current watchlist would otherwise collapse
+to zero before human review.
+
+The scoreBreakdown availability reason output is also sufficient for now.
+Default 24h has `available=149` and `unavailable_mint_only=210`; rolling 168h
+has `available=424` and `unavailable_mint_only=1013`. Both windows have
+`unavailable_legacy_or_unknown=0`, so there is no evidence of legacy/report
+loss in the current queue. More unavailable rows should be handled by future
+data collection or enrich/rescore backlog work, not by report code changes.
+
+Keep the B watchlist report-only. It is useful for manual sample review, but
+all watchlist rows are still `B / 2`, far below notify thresholds. If operator
+review becomes cumbersome, add a narrow `--watchlistOnly` report option rather
+than changing scoring or notification behavior.
+
 Watchlist readiness update, 2026-05-31: `review:queue:geckoterminal
 --includeBlockers` now reports whether B/A watchlist rows are ready for human
 review and why scoreBreakdown is unavailable. Readiness is a report-only

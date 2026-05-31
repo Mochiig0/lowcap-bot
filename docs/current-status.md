@@ -4,6 +4,44 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green watchlist readiness review, 2026-05-31:
+
+- Current HEAD is `11a9e8a feat: add watchlist readiness to blocker reports`
+  with a clean working tree. This pass was read-only / docs-only; no
+  production write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, schema/migration change,
+  rawJson full dump, offensive raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`. Default 24h queue has
+  `geckoOriginTokenCount=359`, `metricPendingCount=159`,
+  `enrichPendingCount=210`, `staleReviewCount=210`, and
+  `notifyCandidateCount=0`. Rolling 168h has
+  `geckoOriginTokenCount=1437`, `metricPendingCount=1017`,
+  `enrichPendingCount=1013`, `staleReviewCount=1068`, and
+  `notifyCandidateCount=0`.
+- Watchlist readiness output is coherent. Default 24h has
+  `watchlistCandidateCount=7`, `watchlistReadyCount=7`, and
+  `watchlistNotReadyCount=0`; rolling 168h has
+  `watchlistCandidateCount=14`, `watchlistReadyCount=13`,
+  `watchlistNotReadyCount=1`, with the single not-ready reason
+  `missing_metric=1`. Watchlist rows are all `B / 2`, partial, not
+  hardRejected, and have scoreBreakdown available.
+- The representative safe samples expose only ids, abbreviated mints, rank,
+  score, metadataStatus, Metric count, readiness, readiness reasons, and safe
+  reviewFlags booleans. No rawJson, normalizedText, raw keywords, offensive raw
+  text, name/symbol, or notification payload text is needed for this review.
+- ScoreBreakdown availability remains explainable: default 24h has
+  `available=149`, `unavailable_mint_only=210`,
+  `unavailable_not_rescored=0`, `unavailable_legacy_or_unknown=0`; rolling
+  168h has `available=424`, `unavailable_mint_only=1013`, and no unknown
+  unavailable bucket. The gap is backlog/enrichment maturity, not report loss.
+- Decision: keep B watchlist report-only, keep `notifyCandidate` and Telegram
+  S-only, and do not create capture-only B Notifications yet. The next useful
+  Yellow is optional `--watchlistOnly` output filtering if operators find
+  `--includeBlockers` too noisy; otherwise use current output for manual
+  sample review before scoring dictionary changes.
+
 Yellow watchlist readiness visibility, 2026-05-31:
 
 - `review:queue:geckoterminal --includeBlockers` now adds watchlist readiness

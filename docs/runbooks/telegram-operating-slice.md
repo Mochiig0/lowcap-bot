@@ -95,6 +95,14 @@ because of missing Metric coverage. `notifyCandidate` remains S-only,
 Telegram remains S-only, auto-send planner remains unchanged, and no
 Notification create/update or Telegram send path was added.
 
+The follow-up readiness review keeps the same decision. The ready B-watchlist
+rows are useful for human review, but they are all `B / 2` and not close to
+S-rank notification eligibility. Social, website, Metaplex, and description
+signals should stay as visibility only; do not require them for readiness and
+do not use them to unlock Telegram. If more operator ergonomics are needed,
+add `--watchlistOnly` as a read-only report filter. Do not create capture-only
+B Notifications or change auto-send behavior from this state.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,
