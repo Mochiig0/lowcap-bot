@@ -11,27 +11,27 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
-The Yellow B-watchlist visibility slice is implemented. With
-`--includeBlockers`, `review:queue:geckoterminal` now reports a read-only B/A
-watchlist, rank-gap summary, and raw-text-free scoreBreakdown source/tag
-aggregate. The notify rule is unchanged (`scoreRank === "S" &&
-hardRejected=false`), Telegram remains S-only, and default output without
-`--includeBlockers` remains focused on the existing queue groups.
+The Green review of the B-watchlist / scoreBreakdown aggregate is complete.
+Current watchlist rows are useful as a review surface but not strong enough to
+drive scoring or notification policy changes. Default 24h has `7` watchlist
+rows and rolling 168h has `14`; every watchlist row is `B / 2`, none is near
+`A>=5` or non-trend-only `S>=8`, and watchlist reviewFlags/social/Metaplex/
+description/link presence is `0`.
 
-Runtime check shows the current default 24h watchlist has `7` candidates, all
-`B / 2`, all with one Metric and no watchlist reviewFlags/social/Metaplex/
-description presence. Rolling 168h has `14` B-watchlist candidates, also all
-`B / 2`; Metric coverage is `13` with one Metric and `1` without. This is
-useful human-review visibility, not a send trigger.
+ScoreBreakdown availability is primarily a pipeline maturity signal. Default
+24h has `available=149`, `unavailable=210`; rolling 168h has `available=424`,
+`unavailable=1013`. The unavailable side aligns with `mint_only` backlog.
+Stored score reasons are sparse: default source counts are `core=20`,
+`learned_pattern=1`, with tags `animal=17`, `ai_phrase=1`, `tech=1`,
+`meme=2`; rolling 168h adds only small learned/social counts. This is not
+enough evidence for dictionary tuning yet.
 
-Safe scoreBreakdown aggregate is now visible without raw keywords or raw token
-text. Default 24h has scoreBreakdown available for `149` rows and unavailable
-for `210`; source/tag counts show mostly core/animal hits with very sparse
-learned and no trend/combo contribution. Recommended next slice: Green review
-of the new watchlist and scoreBreakdown aggregate, then decide whether to tune
-the scoring dictionary, improve enrichment/social coverage, or keep collecting
-data. Do not change notify/Telegram behavior until that review identifies a
-clear policy change.
+Recommended next slice: **Yellow watchlist / scoreBreakdown report refinement
+without policy changes**. Add clearer readiness splits for B-watchlist rows
+(`metadataStatus`, Metric coverage, scoreBreakdown availability) and explicit
+unavailable reasons. Keep B watchlist report-only, keep Telegram S-only, keep
+auto-send planner unchanged, and avoid capture-only B Notifications until a
+later Green review finds stronger candidates.
 
 The Skill-guarded enrich/rescore continuation after Metric coverage ran once
 with expected HEAD `79424cd` and the exact command:

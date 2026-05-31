@@ -104,6 +104,13 @@ does not run Metric/enrich phases, fetch externally, write DB rows, create or
 update Notifications, send Telegram, dump rawJson, or expose raw score
 keywords.
 
+The first review of the watchlist output found it should remain a report-only
+surface. Default watchlist rows are all `B / 2` with `metricsCount=1`; rolling
+168h has one B-watchlist row without a Metric. ScoreBreakdown unavailable rows
+track the `mint_only` backlog. Before changing scoring or notification policy,
+add clearer readiness splits for `metadataStatus`, Metric coverage, and
+scoreBreakdown availability.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

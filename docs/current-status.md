@@ -4,6 +4,43 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green watchlist / scoreBreakdown review, 2026-05-31:
+
+- Current HEAD is `a21f8f4 feat: add watchlist visibility to blocker reports`
+  with a clean working tree. This pass was read-only / docs-only; no
+  production write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, schema/migration change,
+  rawJson full dump, offensive raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; auto-send allowed candidate `0`, enabled auto-send
+  allowed candidate `0`, retry candidate `0`; bounded post-run planner reports
+  the current 6h window clear with `recommendedFirstStep=no_action_queue_clear`.
+- Default 24h `--includeBlockers` queue still has
+  `geckoOriginTokenCount=359`, `metricPendingCount=159`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`,
+  `highPriorityRecentCount=0`, and `staleReviewCount=210`. Rolling 168h has
+  `geckoOriginTokenCount=1437`, `metricPendingCount=1017`,
+  `enrichPendingCount=1013`, `notifyCandidateCount=0`, and
+  `staleReviewCount=1068`.
+- Watchlist quality: default watchlist has `7` rows, all `B / 2`, all with
+  `metricsCount=1`, and no website/X/Telegram/Metaplex/description/link
+  signals. Rolling 168h watchlist has `14` rows, all `B / 2`, with Metric
+  coverage `1=13`, `0=1`, and the same absent reviewFlags/social/Metaplex/
+  description/link signals. No rows are near `A>=5` or non-trend-only `S>=8`.
+- ScoreBreakdown review: default 24h has `available=149`,
+  `unavailable=210`; rolling 168h has `available=424`, `unavailable=1013`.
+  The unavailable rows line up with the `mint_only` backlog, not a report
+  parser failure. Stored score reasons are sparse: default source counts are
+  `core=20`, `learned_pattern=1`, tags `animal=17`, `ai_phrase=1`, `tech=1`,
+  `meme=2`; rolling 168h adds only `learned_keyword=3` and `social=3`.
+- Decision: do not tune scoring dictionaries yet, do not loosen hardReject,
+  do not create capture-only B Notifications yet, and keep Telegram S-only.
+  The next best Yellow is Candidate C with a small Candidate B element:
+  make scoreBreakdown / watchlist reporting more actionable by explaining
+  why scoreBreakdown is unavailable, splitting watchlist readiness by
+  `metadataStatus` and Metric coverage, and keeping B-watchlist report-only.
+
 Yellow B-watchlist visibility, 2026-05-31:
 
 - `review:queue:geckoterminal --includeBlockers` now includes a read-only

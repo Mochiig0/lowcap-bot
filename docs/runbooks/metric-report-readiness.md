@@ -71,6 +71,15 @@ totals `core=48`, `learned=5`, `trend=0`, `combo=0`. No raw keywords,
 normalized text, rawJson, entrySnapshot, or reviewFlagsJson are emitted by the
 new summary.
 
+The first Green review of that output recommends more report refinement before
+scoring changes. Watchlist rows are all `B / 2`, not close to the current
+`A>=5` or non-trend-only `S>=8` thresholds; default watchlist rows all have one
+Metric but no reviewFlags/social/Metaplex/description/link signals. The
+scoreBreakdown unavailable count aligns with `mint_only` rows, so the next
+useful report improvement is to show watchlist readiness and scoreBreakdown
+availability by metadata status and Metric coverage. Keep the watchlist
+report-only until stronger evidence exists.
+
 Latest report check, 2026-05-31: after the second Skill-guarded post-run
 Metric pending continuation, selected ids `7067..7018` all have
 `metricsCount=1` and new Metric ids `2016..2065`. Representative rawJson-free

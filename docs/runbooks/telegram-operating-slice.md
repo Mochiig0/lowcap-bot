@@ -80,6 +80,12 @@ runtime has default watchlist `7` and rolling 168h watchlist `14`, all B-rank
 with `scoreTotal=2`; Telegram, auto-send, retry execution, and Notification
 creation/update remain locked.
 
+The follow-up Green review keeps this boundary unchanged. Watchlist rows are
+not near A/S thresholds and have no watchlist social/Metaplex/description/link
+presence. Do not create capture-only B Notifications yet; first improve the
+read-only watchlist readiness and scoreBreakdown availability explanations.
+Telegram send and auto-send eligibility remain S-only.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,
