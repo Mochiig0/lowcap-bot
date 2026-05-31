@@ -7293,3 +7293,30 @@ Queue state now confirms the immediate Metric pending item is closed:
 
 Next step should not continue detect writes. The narrow next lane is
 enrich/rescore Green preflight for the five new mint-only Metric-1 Tokens.
+
+## 2026-05-31 Logged Runner Post-run Metric Continuation
+
+After the progress-logged bounded runner left expected post-run backlog, a
+separate human-approved Red used the repo-local
+`lowcap-red-execution-safety` Skill and ran one Metric pending continuation:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+This was not another bounded runner execute and did not run detect, enrich, or
+notification send. It wrote `50` Metrics and moved Token / Metric /
+Notification / HolderSnapshot from `3023 / 856 / 22 / 1` to
+`3023 / 906 / 22 / 1`. Metric buckets moved from `0=2307`, `1=629`, `2+=87`
+to `0=2257`, `1=679`, `2+=87`. Notification statuses stayed `captured=17`,
+`sent=5`, `failed=0`.
+
+Selected ids `7117..7068` moved from `metricsCount=0` to `metricsCount=1`.
+New Metric ids are `1966..2015`. Queue after still has bounded backlog:
+default `metricPendingCount=209`, rolling 168h `metricPendingCount=1067`,
+and `notifyCandidateCount=0`. Auto-send allowed candidates and retry
+candidates remain `0`.
+
+Expected boundaries held: no Token write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no retry execution, no auto live send,
+no scheduler/systemd, and no rawJson full dump.

@@ -2020,6 +2020,54 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## 2026-05-31 Post-run Metric Pending Continuation With Skill
+
+The approved Skill-shortened Metric pending continuation Red ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Execution summary:
+
+- `selected=50`
+- `ok=50`
+- `written=50`
+- `skipped=0`
+- `error=0`
+- `interItemDelayMs=15000`
+- `interItemDelayCount=49`
+- provider error: no
+- 429: no
+- retry: no
+- notification capture: no
+
+Counts moved only in Metric:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `3023 / 856 / 22 / 1 -> 3023 / 906 / 22 / 1`
+- Metric buckets: `0=2307`, `1=629`, `2+=87` ->
+  `0=2257`, `1=679`, `2+=87`
+- metadataStatus stayed `mint_only=2440`, `partial=570`, `enriched=13`
+- Notification statuses stayed `captured=17`, `sent=5`, `failed=0`
+
+Selected token ids `7117..7068` moved from `metricsCount=0` to
+`metricsCount=1`. New Metric ids are `1966..2015`, all source
+`geckoterminal.token_snapshot`, with observedAt range
+`2026-05-31T10:21:54.029Z` to `2026-05-31T10:34:35.328Z`. Safe summaries for
+the new Metrics show price / FDV / reserve / topPool presence true. The
+selected rows stayed `notificationCount=0` and `holderSnapshotCount=0`.
+
+Queue after: default 24h `metricPendingCount=209`, `enrichPendingCount=259`,
+`notifyCandidateCount=0`; rolling 168h `metricPendingCount=1067`,
+`enrichPendingCount=1062`, `notifyCandidateCount=0`. Auto-send allowed
+candidate and retry candidate stayed `0`.
+
+Expected non-effects held: no Token write, no Notification create/update, no
+HolderSnapshot write, no Telegram send, no retry execution, no auto live send,
+no scheduler/systemd, no rawJson full dump, no offensive raw text dump, and no
+`pnpm smoke`.
+
 ## 2026-05-24 Metric Backlog Accumulation Preflight
 
 The Green preflight for returning from enrich backlog work to Metric

@@ -4,6 +4,37 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Red post-run Metric pending continuation with Skill, 2026-05-31:
+
+- Applied the repo-local `lowcap-red-execution-safety` Skill and ran the
+  human-approved exact command once:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Start/end were `2026-05-31T19:21:32+09:00` ->
+  `2026-05-31T19:34:49+09:00` (~13m17s). No retry, second Red, option
+  change, manual backfill, notification send, retry execution, auto live send,
+  scheduler/systemd, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run.
+- Result: `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+  `interItemDelayMs=15000`, `interItemDelayCount=49`. Provider error and 429
+  were not observed.
+- DB counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `3023 / 856 / 22 / 1` -> `3023 / 906 / 22 / 1`. Metric
+  buckets moved `0=2307`, `1=629`, `2+=87` -> `0=2257`, `1=679`, `2+=87`.
+  Metadata stayed `mint_only=2440`, `partial=570`, `enriched=13`, and
+  Notification statuses stayed `captured=17`, `sent=5`, `failed=0`.
+- Selected token ids `7117..7068` moved from `metricsCount=0` to
+  `metricsCount=1`. New Metric ids are `1966..2015`, source
+  `geckoterminal.token_snapshot`, observed from
+  `2026-05-31T10:21:54.029Z` to `2026-05-31T10:34:35.328Z`. Representative
+  safe summaries show price / FDV / reserve / topPool presence true;
+  `notificationCount=0` and `holderSnapshotCount=0` for the selected rows.
+- Queue/planner after: default 24h `metricPendingCount=209`,
+  `enrichPendingCount=259`, `notifyCandidateCount=0`; rolling 168h
+  `metricPendingCount=1067`, `enrichPendingCount=1062`,
+  `notifyCandidateCount=0`. Auto-send allowed candidate `0`, retry candidate
+  `0`, and bounded post-run planner still recommends
+  `metric_pending_snapshot` because backlog remains.
+
 Green current-HEAD preflight for Skill-shortened Metric pending Red, 2026-05-31:
 
 - The repo-local `lowcap-red-execution-safety` Skill safely stopped the first

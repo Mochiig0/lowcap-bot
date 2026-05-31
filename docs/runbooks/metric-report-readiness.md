@@ -1838,6 +1838,27 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## 2026-05-31 Post-run Metric Continuation Report Check
+
+After the Skill-shortened post-run Metric pending continuation wrote Metric ids
+`1966..2015`, representative read-only `metrics:report` checks confirmed the
+new rows are report-readable without rawJson dumps.
+
+Checked token ids:
+
+- `7117`: Metric id `1966`, observedAt `2026-05-31T10:21:54.029Z`
+- `7092`: Metric id `1991`, observedAt `2026-05-31T10:28:21.645Z`
+- `7068`: Metric id `2015`, observedAt `2026-05-31T10:34:35.328Z`
+
+Each report returned one `geckoterminal.token_snapshot` Metric with safe
+booleans `priceUsdPresent=true`, `fdvUsdPresent=true`,
+`reserveUsdPresent=true`, and `topPoolPresent=true`. The selected rows moved
+to `metricsCount=1`, while `notificationCount=0` and
+`holderSnapshotCount=0` stayed unchanged.
+
+The report check was read-only and did not write DB rows, fetch providers,
+send Telegram, update Notifications, or dump rawJson.
+
 ## Metric Backlog Report/Selection Preflight
 
 Date: 2026-05-24 21:41 JST

@@ -11,6 +11,30 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
+The Skill-shortened post-run Metric pending Red ran successfully once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It wrote `50` Metrics (`1966..2015`) for selected token ids `7117..7068`,
+moving them from `metricsCount=0` to `metricsCount=1`. DB counts moved Token /
+Metric / Notification / HolderSnapshot `3023 / 856 / 22 / 1` ->
+`3023 / 906 / 22 / 1`; Metric buckets moved `0=2307`, `1=629`, `2+=87` ->
+`0=2257`, `1=679`, `2+=87`; Notification statuses stayed `captured=17`,
+`sent=5`, `failed=0`. No Token write, Notification create/update,
+HolderSnapshot write, Telegram send, retry execution, auto live send,
+scheduler/systemd, rawJson full dump, offensive raw text dump, or
+`pnpm smoke` occurred.
+
+Backlog remains by design: default queue now has `metricPendingCount=209` and
+`enrichPendingCount=259`; rolling 168h has `metricPendingCount=1067` and
+`enrichPendingCount=1062`; notify candidates remain `0`. Auto-send allowed
+candidate and retry candidate remain `0`. The next operating decision should
+stay bounded: either repeat one more human-approved Metric pending continuation
+Red, or pause for Green review of whether to switch to enrich/rescore after
+more Metric coverage. Scheduler/systemd and always-on auto-send remain locked.
+
 The first shortened Red prompt trial using the repo-local
 `lowcap-red-execution-safety` Skill stopped safely before execution because it
 detected stale state: the prompt expected `HEAD=48bb4e3`, while the actual
