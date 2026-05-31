@@ -8,6 +8,53 @@ This document is a future Skill draft for compressing lowcap-bot Red execution
 prompts. It is not a `.codex/skills/.../SKILL.md` file and was not copied into
 any global or repo-local Skills directory.
 
+## Review Decision
+
+Review date: 2026-05-31.
+
+Decision: **ready to prepare as a repo-local Skill**.
+
+The draft is scoped tightly enough for Red execution safety. It names Green,
+Yellow, Bounded Runner, Notification / Telegram, and Handoff as related future
+Skills, but does not try to make this Skill own their full workflows. That is
+the right split: this Skill should trigger when a human-approved command may
+write production state, fetch providers, write checkpoints, or send Telegram.
+
+Placement recommendation:
+
+- first real install target:
+  `.codex/skills/lowcap-red-execution-safety/SKILL.md`
+- do not install globally yet
+- do not copy this draft into `C:\Users\mochi\.codex\skills` yet
+- do not make `ops:plan:bounded` or `ops:run:bounded` depend on Skills
+
+Reason:
+
+- the rules are lowcap-bot specific: `pnpm` commands, bounded runner phases,
+  Notification / Telegram boundaries, `pnpm smoke` caveat, checkpoint
+  expectations, and current runbook references
+- repo-local placement avoids leaking lowcap-specific safety assumptions into
+  unrelated repos
+- a later global Skill can be made only after extracting generic Red-operation
+  guardrails from this project-specific version
+
+AGENTS.md recommendation:
+
+- no AGENTS.md change is needed for this review
+- when the real repo-local Skill is added, add one short AGENTS.md note that
+  tells Codex to use `lowcap-red-execution-safety` for human-approved Red
+  commands
+- keep AGENTS.md as policy and repo boundaries; keep procedural Red checklists
+  in the Skill
+
+Pre-install action:
+
+- compress the real `SKILL.md` to the proposed outline rather than copying this
+  whole draft verbatim
+- keep this draft as the detailed design reference
+- keep runbooks as historical source material and CLI output as operational
+  source of truth
+
 ## Purpose
 
 This Skill should make Codex safer and more consistent when running
@@ -341,16 +388,25 @@ actual state and behavior.
 
 ## Open Questions Before Real Skill Install
 
-- Should the real Skill live in a repo-local Skill directory or global
-  `C:\Users\mochi\.codex\skills`?
-- If repo-local, what path should Codex discover reliably?
-- Should `AGENTS.md` mention the Skill after it exists?
-- Should Green Preflight, Yellow Implementation, Bounded Runner Operation, and
-  Notification / Telegram Safety become separate Skills?
-- Should Red Execution Safety be tested alone first before adding the other
-  Skills?
-- Should references point to runbooks directly, or should a smaller
-  `references/` file be bundled with the real Skill?
+Resolved by review:
+
+- Place the first real Skill repo-locally at
+  `.codex/skills/lowcap-red-execution-safety/SKILL.md`.
+- Do not install a global version yet.
+- Add a short `AGENTS.md` reference only in the same task that adds the real
+  repo-local Skill.
+- Keep Green Preflight, Yellow Implementation, Bounded Runner Operation,
+  Notification / Telegram Safety, and Handoff as separate future Skills.
+- Test Red Execution Safety alone first before adding more lowcap Skills.
+
+Still open:
+
+- Should the real Skill include a small `references/` file, or should it link
+  directly to existing runbooks?
+- Should the real Skill include `agents/openai.yaml` metadata in the first
+  install task, or defer UI metadata until after one usage review?
+- Should the real Skill mention Windows global Skill paths at all, or keep
+  itself fully repo-local?
 
 ## Proposed Future SKILL.md Outline
 
