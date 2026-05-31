@@ -4,6 +4,34 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green current-HEAD preflight for Skill-shortened Metric pending Red, 2026-05-31:
+
+- The repo-local `lowcap-red-execution-safety` Skill safely stopped the first
+  shortened Red prompt trial before execution because the prompt expected
+  `HEAD=48bb4e3` while the actual HEAD was
+  `1c27c35 docs: review red prompt shortening with skill`. No Red command,
+  DB write, external fetch, Metric write, Notification/Telegram action, or
+  rawJson full dump occurred.
+- Current preflight is now aligned to HEAD
+  `1c27c35 docs: review red prompt shortening with skill` with a clean working
+  tree. DB counts are Token / Metric / Notification / HolderSnapshot
+  `3023 / 856 / 22 / 1`; metadata is `mint_only=2440`, `partial=570`,
+  `enriched=13`; Metric buckets are `0=2307`, `1=629`, `2+=87`; Notification
+  statuses are `captured=17`, `sent=5`, `failed=0`.
+- Queue/planner remains clear for a bounded post-run Metric continuation:
+  default 24h `metricPendingCount=259`, `enrichPendingCount=259`,
+  `notifyCandidateCount=0`; rolling 168h `metricPendingCount=1117`,
+  `enrichPendingCount=1062`, `notifyCandidateCount=0`;
+  `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` recommends
+  `metric_pending_snapshot` with no blockers or stop codes. Auto-send allowed
+  candidates and retry candidates remain `0`.
+- Read-only Metric pending preview without `--write` selected `50` rows and
+  confirmed all selected rows have `metricsCount=0`, `notificationCount=0`,
+  and `holderSnapshotCount=0`; preview status was `selection_preview` and did
+  not fetch or write.
+- Next Red candidate, requiring separate human approval:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 Red logged bounded runner execute, 2026-05-31:
 
 - Ran the human-approved exact command once:

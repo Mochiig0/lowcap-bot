@@ -11,6 +11,34 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-05-31
 
+The first shortened Red prompt trial using the repo-local
+`lowcap-red-execution-safety` Skill stopped safely before execution because it
+detected stale state: the prompt expected `HEAD=48bb4e3`, while the actual
+HEAD was `1c27c35 docs: review red prompt shortening with skill`. That trial
+had no DB write, external fetch, Metric write, Notification/Telegram action, or
+rawJson full dump.
+
+Current HEAD preflight now supports reissuing the same post-run Metric pending
+continuation as a separate human-approved Red. State is clean at HEAD
+`1c27c35`; Token / Metric / Notification / HolderSnapshot is
+`3023 / 856 / 22 / 1`; Notification statuses are `captured=17`, `sent=5`,
+`failed=0`; retry candidate and enabled auto-send allowed candidate are `0`.
+Default queue still has `metricPendingCount=259`, rolling 168h has
+`metricPendingCount=1117`, and the bounded post-run planner recommends
+`metric_pending_snapshot`.
+
+Next human-approved Red candidate:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects are external GeckoTerminal fetch and Metric write up to
+`50`. Expected non-effects are Token write `0`, Notification create/update
+`0`, HolderSnapshot write `0`, Telegram send `0`, retry execution `0`, auto
+live send execution `0`, scheduler/systemd `0`, rawJson full dump `0`,
+offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 The first progress-logged `ops:run:bounded --execute` Red ran once with the
 approved command and no retry. It verified the new progress stream: phase logs
 appeared for preflight, detect, Metric cycles `1/2` and `2/2`, enrich cycles

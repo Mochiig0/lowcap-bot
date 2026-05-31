@@ -11,6 +11,87 @@ This review checks whether the repo-local
 general safety text in Red execution prompts. It does not execute any Red
 command and does not perform production write/fetch/send work.
 
+## Stale HEAD Guard Trial
+
+Date: 2026-05-31.
+
+A shortened Red prompt trial attempted to use the repo-local
+`lowcap-red-execution-safety` Skill for the post-run
+`metric_pending_snapshot` continuation. The Skill stopped execution before the
+Red command because the prompt expected `HEAD=48bb4e3`, while the actual repo
+HEAD was `1c27c35 docs: review red prompt shortening with skill`.
+
+Result:
+
+- Red command not executed
+- DB write `0`
+- external fetch `0`
+- Notification create/update `0`
+- Telegram send `0`
+- Metric write `0`
+- Token / HolderSnapshot write `0`
+- rawJson full dump `0`
+
+Conclusion: the shortened prompt was safe enough to catch stale state through
+the Skill's `HEAD is unexpected` stop condition. The next Red prompt should use
+the current HEAD and current queue/planner state.
+
+## Current HEAD Preflight For Metric Pending Continuation
+
+Date: 2026-05-31.
+
+Current preflight state:
+
+- HEAD: `1c27c35 docs: review red prompt shortening with skill`
+- working tree: clean
+- DB counts: Token / Metric / Notification / HolderSnapshot =
+  `3023 / 856 / 22 / 1`
+- metadataStatus: `mint_only=2440`, `partial=570`, `enriched=13`
+- Metric buckets: `0=2307`, `1=629`, `2+=87`
+- Notification statuses: `captured=17`, `sent=5`, `failed=0`
+- failed Notification count: `0`
+- retry candidate count: `0`
+- enabled auto-send allowed candidate count: `0`
+
+Queue/planner:
+
+- review queue default 24h: `geckoOriginTokenCount=359`,
+  `metricPendingCount=259`, `enrichPendingCount=259`,
+  `staleReviewCount=107`, `notifyCandidateCount=0`
+- review queue rolling 168h: `geckoOriginTokenCount=1437`,
+  `metricPendingCount=1117`, `enrichPendingCount=1062`,
+  `staleReviewCount=965`, `notifyCandidateCount=0`
+- `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` recommends
+  `metric_pending_snapshot`
+- post-run planner has `blockedBy=[]` and `stopConditionCodes=[]`
+- auto-send planner: allowed candidate `0`, `wouldSend=false`,
+  `wouldUpdateNotification=false`
+- retry planner: candidate `0`
+
+Read-only Metric pending preview:
+
+- command used `--onlyMetricPending` without `--write`, which the CLI documents
+  as a selection preview that does not fetch GeckoTerminal snapshots
+- selected count: `50`
+- all previewed selected rows had `metricsCount=0`
+- all previewed selected rows had `notificationCount=0`
+- all previewed selected rows had `holderSnapshotCount=0`
+- preview status: `selection_preview`
+- preview wrote `0` Metrics and fetched `0` provider snapshots
+
+Current Red candidate, requiring separate human approval:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected side effects are external GeckoTerminal fetch and production DB Metric
+write up to `50`, moving selected Tokens from `metricsCount=0` to
+`metricsCount=1`. Expected non-effects are Token write `0`, Notification
+create/update `0`, HolderSnapshot write `0`, Telegram send `0`, retry
+execution `0`, auto-send execution `0`, scheduler/systemd `0`, rawJson full
+dump `0`, offensive raw text dump `0`, and `pnpm smoke` `0`.
+
 ## Confirmed Inputs
 
 - Codex CLI: `codex-cli 0.133.0`
