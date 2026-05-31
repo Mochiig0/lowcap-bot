@@ -4,6 +4,34 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow watchlist-only review mode, 2026-06-01:
+
+- `review:queue:geckoterminal` now supports `--watchlistOnly`. It implies the
+  existing blocker/watchlist visibility and returns a focused
+  `mode=watchlist_only` JSON payload with watchlist summary, rank gap,
+  scoreBreakdown availability, and safe `watchlistRows` only.
+- Existing default output and `--includeBlockers` output remain compatible.
+  `--watchlistOnly --includeBlockers` is accepted and keeps the same
+  watchlist-only mode. The option is read-only and does not change
+  notifyCandidate, Telegram, hardReject, scoring thresholds, Notification
+  behavior, DB schema, or production write behavior.
+- Watchlist rows expose only token id, abbreviated mint, scoreRank,
+  scoreTotal, metadataStatus, metricsCount, readiness, readiness reasons,
+  scoreBreakdown availability, safe scoreBreakdown component/source/tag
+  counts, and safe reviewFlags booleans. They omit raw names, raw symbols,
+  normalizedText, raw keywords, rawJson, entrySnapshot, and reviewFlagsJson.
+- Runtime read-only checks match the previous review: default 24h
+  `watchlistCandidateCount=7`, `watchlistReadyCount=7`; rolling 168h
+  `watchlistCandidateCount=14`, `watchlistReadyCount=13`,
+  `watchlistNotReadyCount=1` with `missing_metric=1`. All watchlist rows are
+  still `B / 2`, so they remain report-only and far from Telegram eligibility.
+- Verification used TypeScript, targeted review queue and help tests,
+  `--watchlistOnly` runtime reports, notification planners, retry planner, and
+  bounded planner. No production write/fetch/send, Metric write, Token write,
+  Notification create/update, HolderSnapshot write, Telegram send,
+  schema/migration change, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run.
+
 Green watchlist readiness review, 2026-05-31:
 
 - Current HEAD is `11a9e8a feat: add watchlist readiness to blocker reports`

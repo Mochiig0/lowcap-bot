@@ -15,6 +15,7 @@ type Args = {
   limit: number;
   pumpOnly: boolean;
   includeBlockers: boolean;
+  watchlistOnly: boolean;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -150,6 +151,21 @@ type WatchlistSummary = {
   }>;
 };
 
+type WatchlistRow = {
+  id: number;
+  mintAbbrev: string;
+  scoreRank: string;
+  scoreTotal: number;
+  metadataStatus: string;
+  hardRejected: boolean;
+  metricsCount: number;
+  readiness: "ready" | "not_ready";
+  readinessReasons: WatchlistReadinessReason[];
+  scoreBreakdownAvailable: boolean;
+  scoreBreakdownSummary: SafeScoreBreakdownSummary;
+  reviewFlags: ReviewFlagsView | null;
+};
+
 type ScoreBreakdownVisibilitySummary = {
   scoreBreakdownAvailable: boolean;
   availableCount: number;
@@ -250,7 +266,7 @@ function printUsageAndExit(message?: string): never {
   console.log(
     [
       "Usage:",
-      "pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly] [--includeBlockers]",
+      "pnpm review:queue:geckoterminal -- [--sinceHours <N>] [--limit <N>] [--pumpOnly] [--includeBlockers] [--watchlistOnly]",
     ].join("\n"),
   );
   process.exit(1);
@@ -275,6 +291,7 @@ function parseArgs(argv: string[]): Args {
     limit: DEFAULT_LIMIT,
     pumpOnly: false,
     includeBlockers: false,
+    watchlistOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -291,6 +308,12 @@ function parseArgs(argv: string[]): Args {
     }
 
     if (key === "--includeBlockers") {
+      out.includeBlockers = true;
+      continue;
+    }
+
+    if (key === "--watchlistOnly") {
+      out.watchlistOnly = true;
       out.includeBlockers = true;
       continue;
     }
@@ -1012,17 +1035,7 @@ function abbreviateMint(mint: string): string {
 }
 
 function buildWatchlistSummary(items: ReviewQueueItem[], limit: number): WatchlistSummary {
-  const watchlistItems = items
-    .filter((item) => isWatchlistCandidate(item))
-    .sort((left, right) => {
-      if (rankPriority(right.scoreRank) !== rankPriority(left.scoreRank)) {
-        return rankPriority(right.scoreRank) - rankPriority(left.scoreRank);
-      }
-      if (right.scoreTotal !== left.scoreTotal) {
-        return right.scoreTotal - left.scoreTotal;
-      }
-      return sortBySelectionAnchorDesc(left, right);
-    });
+  const watchlistItems = buildSortedWatchlistItems(items);
   const watchlistRankDistribution: Record<string, number> = {};
   const watchlistScoreTotalDistribution: Record<string, number> = {};
   const watchlistMetadataStatusDistribution: Record<string, number> = {};
@@ -1070,26 +1083,47 @@ function buildWatchlistSummary(items: ReviewQueueItem[], limit: number): Watchli
     watchlistReadyCount,
     watchlistNotReadyCount: watchlistItems.length - watchlistReadyCount,
     watchlistReadinessReasonDistribution,
-    representativeSamples: watchlistItems.slice(0, Math.min(5, limit)).map((item) => {
-      const readinessReasons = buildWatchlistReadinessReasons(item);
-      return {
-        id: item.id,
-        mintAbbrev: abbreviateMint(item.mint),
-        scoreRank: item.scoreRank,
-        scoreTotal: item.scoreTotal,
-        metadataStatus: item.metadataStatus,
-        hardRejected: item.hardRejected,
-        metricsCount: item.metricsCount,
-        readiness:
-          readinessReasons.length === 1 && readinessReasons[0] === "ready_for_review"
-            ? "ready"
-            : "not_ready",
-        readinessReasons,
-        scoreBreakdownAvailable: item.scoreBreakdownSummary?.available === true,
-        reviewFlags: item.reviewFlags,
-      };
-    }),
+    representativeSamples: buildWatchlistRows(watchlistItems, Math.min(5, limit)).map(
+      ({ scoreBreakdownSummary, ...sample }) => sample,
+    ),
   };
+}
+
+function buildSortedWatchlistItems(items: ReviewQueueItem[]): ReviewQueueItem[] {
+  return items
+    .filter((item) => isWatchlistCandidate(item))
+    .sort((left, right) => {
+      if (rankPriority(right.scoreRank) !== rankPriority(left.scoreRank)) {
+        return rankPriority(right.scoreRank) - rankPriority(left.scoreRank);
+      }
+      if (right.scoreTotal !== left.scoreTotal) {
+        return right.scoreTotal - left.scoreTotal;
+      }
+      return sortBySelectionAnchorDesc(left, right);
+    });
+}
+
+function buildWatchlistRows(items: ReviewQueueItem[], limit: number): WatchlistRow[] {
+  return items.slice(0, limit).map((item) => {
+    const readinessReasons = buildWatchlistReadinessReasons(item);
+    return {
+      id: item.id,
+      mintAbbrev: abbreviateMint(item.mint),
+      scoreRank: item.scoreRank,
+      scoreTotal: item.scoreTotal,
+      metadataStatus: item.metadataStatus,
+      hardRejected: item.hardRejected,
+      metricsCount: item.metricsCount,
+      readiness:
+        readinessReasons.length === 1 && readinessReasons[0] === "ready_for_review"
+          ? "ready"
+          : "not_ready",
+      readinessReasons,
+      scoreBreakdownAvailable: item.scoreBreakdownSummary?.available === true,
+      scoreBreakdownSummary: item.scoreBreakdownSummary ?? createEmptyScoreBreakdownSummary(),
+      reviewFlags: item.reviewFlags,
+    };
+  });
 }
 
 function buildRankGapSummary(items: ReviewQueueItem[]): RankGapSummary {
@@ -1385,6 +1419,51 @@ async function run(): Promise<void> {
       return sortBySelectionAnchorDesc(left, right);
     });
 
+  if (args.watchlistOnly) {
+    const visibility = buildVisibilitySummary(reviewItems, args.limit);
+    console.log(
+      JSON.stringify(
+        {
+          readOnly: true,
+          originSource: GECKOTERMINAL_NEW_POOLS_SOURCE,
+          mode: "watchlist_only",
+          selection: {
+            sinceHours: args.sinceHours,
+            limit: args.limit,
+            pumpOnly: args.pumpOnly,
+            includeBlockers: args.includeBlockers,
+            watchlistOnly: args.watchlistOnly,
+            staleAfterHours,
+            sinceCutoff: sinceCutoff.toISOString(),
+            geckoOriginTokenCount: reviewItems.length,
+            skippedNonPumpCount,
+          },
+          summary: {
+            geckoOriginTokenCount: reviewItems.length,
+            firstSeenSourceSnapshotCount: sortedTokens.filter(
+              (token) => token.hasFirstSeenSourceSnapshot,
+            ).length,
+            notifyCandidateCount: notifyCandidates.length,
+            notifyCandidateEligibleCount: visibility.notifyCandidateEligibleCount,
+            notifyCandidateBlockerDistribution: visibility.notifyCandidateBlockerDistribution,
+            scoreRankDistribution: visibility.scoreRankDistribution,
+            scoreTotalDistribution: visibility.scoreTotalDistribution,
+            watchlist: visibility.watchlist,
+            rankGap: visibility.rankGap,
+            scoreBreakdown: visibility.scoreBreakdown,
+          },
+          watchlistRows: buildWatchlistRows(
+            buildSortedWatchlistItems(reviewItems),
+            args.limit,
+          ),
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -1395,6 +1474,7 @@ async function run(): Promise<void> {
           limit: args.limit,
           pumpOnly: args.pumpOnly,
           includeBlockers: args.includeBlockers,
+          watchlistOnly: args.watchlistOnly,
           staleAfterHours,
           sinceCutoff: sinceCutoff.toISOString(),
           geckoOriginTokenCount: reviewItems.length,

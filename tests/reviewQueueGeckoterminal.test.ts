@@ -84,11 +84,13 @@ type OldestPendingPreviewItem = {
 type ReviewQueueGeckoterminalOutput = {
   readOnly: boolean;
   originSource: string;
+  mode?: "watchlist_only";
   selection: {
     sinceHours: number;
     limit: number;
     pumpOnly: boolean;
     includeBlockers?: boolean;
+    watchlistOnly?: boolean;
     staleAfterHours: number;
     sinceCutoff: string;
     geckoOriginTokenCount: number;
@@ -188,6 +190,25 @@ type ReviewQueueGeckoterminalOutput = {
     oldestMetricPending: OldestPendingPreviewItem[];
   };
   preview: ReviewQueueItem[];
+  watchlistRows?: Array<{
+    id: number;
+    mintAbbrev: string;
+    scoreRank: string;
+    scoreTotal: number;
+    metadataStatus: string;
+    hardRejected: boolean;
+    metricsCount: number;
+    readiness: "ready" | "not_ready";
+    readinessReasons: string[];
+    scoreBreakdownAvailable: boolean;
+    scoreBreakdownSummary: {
+      available: boolean;
+      componentTotals: Record<string, number>;
+      hitSourceCounts: Record<string, number>;
+      hitTagCounts: Record<string, number>;
+    };
+    reviewFlags: ReviewQueueItem["reviewFlags"];
+  }>;
 };
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
@@ -898,7 +919,7 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /Unknown arg: --mint/);
     assert.match(
       result.stdout,
-      /pnpm review:queue:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\] \[--includeBlockers\]/,
+      /pnpm review:queue:geckoterminal -- \[--sinceHours <N>\] \[--limit <N>\] \[--pumpOnly\] \[--includeBlockers\] \[--watchlistOnly\]/,
     );
   });
 
@@ -1139,6 +1160,124 @@ test("reviewQueueGeckoterminal boundary", async (t) => {
       assert.equal(serialized.includes("normalizedText"), false);
       assert.equal(serialized.includes("not-emitted"), false);
       assert.equal(serialized.includes("safe-test-hidden"), false);
+    });
+  });
+
+  await t.test("watchlistOnly focuses output on safe watchlist rows", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "watchlist-only.db")}`;
+
+      await runDbPush(databaseUrl);
+      await seedBlockerVisibilityTokens(databaseUrl);
+
+      const result = await runReviewQueueGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "10",
+          "--pumpOnly",
+          "--watchlistOnly",
+        ],
+        databaseUrl,
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout);
+      assert.equal(parsed.readOnly, true);
+      assert.equal(parsed.mode, "watchlist_only");
+      assert.equal(parsed.selection.includeBlockers, true);
+      assert.equal(parsed.selection.watchlistOnly, true);
+      assert.equal(parsed.summary.notifyCandidateCount, 1);
+      assert.equal(parsed.summary.notifyCandidateEligibleCount, 1);
+      assert.equal(parsed.summary.watchlist.watchlistCandidateCount, 4);
+      assert.equal(parsed.summary.watchlist.watchlistReadyCount, 1);
+      assert.equal(parsed.summary.watchlist.watchlistNotReadyCount, 3);
+      assert.deepEqual(parsed.summary.watchlist.watchlistRankDistribution, {
+        B: 4,
+      });
+      assert.deepEqual(parsed.summary.watchlist.watchlistScoreTotalDistribution, {
+        "2": 4,
+      });
+      assert.deepEqual(parsed.summary.watchlist.watchlistReadinessReasonDistribution, {
+        ready_for_review: 1,
+        missing_metric: 2,
+        missing_context: 1,
+        score_breakdown_unavailable: 2,
+        hard_rejected: 0,
+        unknown: 1,
+      });
+      assert.equal(parsed.summary.rankGap.requiredNotifyRank, "S");
+      assert.equal(parsed.summary.rankGap.maxObservedRank, "S");
+      assert.equal(parsed.summary.rankGap.maxObservedScoreTotal, 10);
+      assert.equal(parsed.summary.scoreBreakdown.scoreBreakdownAvailable, true);
+      assert.deepEqual(parsed.summary.scoreBreakdown.availabilityReasonDistribution, {
+        available: 3,
+        unavailable_mint_only: 1,
+        unavailable_not_rescored: 0,
+        unavailable_legacy_or_unknown: 3,
+      });
+
+      assert.equal(parsed.watchlistRows.length, 4);
+      assert.equal(
+        parsed.watchlistRows.every(
+          (item: { scoreRank: string; hardRejected: boolean }) =>
+            item.scoreRank === "B" && item.hardRejected === false,
+        ),
+        true,
+      );
+      assert.equal(
+        parsed.watchlistRows.some(
+          (item: { readiness: string }) => item.readiness === "ready",
+        ),
+        true,
+      );
+      assert.equal(
+        parsed.watchlistRows.some(
+          (item: { readinessReasons: string[] }) =>
+            item.readinessReasons.includes("missing_context"),
+        ),
+        true,
+      );
+      assert.equal(
+        parsed.watchlistRows.every(
+          (item: { scoreBreakdownSummary: { hitSourceCounts: Record<string, number> } }) =>
+            typeof item.scoreBreakdownSummary.hitSourceCounts === "object",
+        ),
+        true,
+      );
+      assert.equal(parsed.queues, undefined);
+      assert.equal(parsed.preview, undefined);
+      assert.equal(parsed.oldestPendingPreview, undefined);
+
+      const combinedResult = await runReviewQueueGeckoterminal(
+        [
+          "--sinceHours",
+          "24",
+          "--limit",
+          "10",
+          "--pumpOnly",
+          "--includeBlockers",
+          "--watchlistOnly",
+        ],
+        databaseUrl,
+      );
+      assert.equal(combinedResult.ok, true);
+      const combined = JSON.parse(combinedResult.stdout);
+      assert.equal(combined.mode, "watchlist_only");
+      assert.equal(combined.selection.includeBlockers, true);
+      assert.equal(combined.selection.watchlistOnly, true);
+      assert.equal(combined.summary.watchlist.watchlistCandidateCount, 4);
+
+      const serialized = JSON.stringify(parsed);
+      assert.equal(serialized.includes("rawJson"), false);
+      assert.equal(serialized.includes("entrySnapshot"), false);
+      assert.equal(serialized.includes("reviewFlagsJson"), false);
+      assert.equal(serialized.includes("normalizedText"), false);
+      assert.equal(serialized.includes("not-emitted"), false);
+      assert.equal(serialized.includes("safe-test-hidden"), false);
+      assert.equal(serialized.includes("Eligible Token"), false);
+      assert.equal(serialized.includes("Hard Rejected B Token"), false);
     });
   });
 

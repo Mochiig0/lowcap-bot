@@ -122,6 +122,18 @@ now shows `7 / 7` watchlist rows ready for review; rolling 168h shows
 lane and does not change bounded runner phases, notification planners,
 Telegram send policy, or DB write behavior.
 
+When only the B/A watchlist is needed, use `--watchlistOnly`:
+
+```bash
+pnpm -s review:queue:geckoterminal -- --pumpOnly --limit 20 --watchlistOnly
+```
+
+This mode implies the safe blocker/watchlist visibility and emits a focused
+watchlist-only payload. It omits unrelated queue groups, includes safe
+watchlist rows and scoreBreakdown source/tag summaries, and remains
+raw-text-free. It does not change runner phases, Metric/enrich commands,
+Notification planner behavior, Telegram send policy, or any DB write behavior.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

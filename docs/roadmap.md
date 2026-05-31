@@ -9,7 +9,20 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-05-31
+Date: 2026-06-01
+
+The Yellow `--watchlistOnly` review mode is implemented. It keeps the B
+watchlist report-only and returns a focused read-only payload with watchlist
+summary, readiness, rank gap, scoreBreakdown availability, and safe
+watchlist rows. Default queue output and `--includeBlockers` output remain
+compatible, and `--watchlistOnly --includeBlockers` is accepted.
+
+Recommended next slice: **Green watchlist-only review**. Use the focused
+output to manually inspect ready B samples without changing scoring,
+hardReject, notifyCandidate, Telegram, auto-send, or Notification semantics.
+If the ready B samples still look weak, continue data collection/backlog work
+before scoring dictionary tuning. If samples reveal obvious missed narratives,
+plan a separate scoring dictionary review.
 
 The Green review of watchlist readiness output is complete. Current
 `--includeBlockers` output is useful enough for manual B-watchlist review and

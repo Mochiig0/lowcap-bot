@@ -103,6 +103,13 @@ do not use them to unlock Telegram. If more operator ergonomics are needed,
 add `--watchlistOnly` as a read-only report filter. Do not create capture-only
 B Notifications or change auto-send behavior from this state.
 
+The `--watchlistOnly` report filter is now available and keeps the Telegram
+boundary unchanged. It is a read-only review mode for B/A watchlist rows only;
+it does not create/update Notifications, does not send Telegram, does not
+alter auto-send eligibility, and does not loosen the S-only notify rule. Use it
+for operator review before considering any scoring or notification design
+change.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

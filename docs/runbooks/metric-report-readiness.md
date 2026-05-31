@@ -6,6 +6,25 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Watchlist-only review mode, 2026-06-01: use
+`review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
+the operating question is limited to B/A watchlist review. The option implies
+the same safe blocker/watchlist visibility as `--includeBlockers`, but omits
+the unrelated queue groups and returns safe `watchlistRows` plus focused
+summary fields.
+
+The focused output includes watchlist counts, readiness reasons, rank/score
+distributions, Metric and metadata coverage, scoreBreakdown availability,
+rank gap to S, and safe per-row scoreBreakdown component/source/tag counts.
+It still does not expose raw names, raw symbols, normalizedText, raw keywords,
+rawJson, entrySnapshot, reviewFlagsJson, or offensive raw text.
+
+Runtime checks returned the same state as the readiness review: default 24h
+has `watchlistCandidateCount=7` and `watchlistReadyCount=7`; rolling 168h has
+`watchlistCandidateCount=14`, `watchlistReadyCount=13`, and one
+`missing_metric` row. The option is report-only; it does not change
+notifyCandidate, Telegram, Notification, DB, or scoring behavior.
+
 Watchlist readiness review, 2026-05-31: the new readiness output is usable as
 a human review lane. Default 24h has `7` B-watchlist rows and all are
 `ready_for_review`; rolling 168h has `14` B-watchlist rows, with `13` ready
