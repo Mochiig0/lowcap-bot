@@ -26,6 +26,15 @@ It only reports the next recommended step and command candidates as strings. It
 does not run detect watch, metric snapshot writes, enrich/rescore writes,
 Notification send, retry execution, external fetch, scheduler, or systemd.
 
+Provider diagnostics update, 2026-06-01: Metric snapshot failures now carry
+safe provider error categories and aggregate counts. The minimum loop can
+distinguish network/fetch-layer failures, timeouts, HTTP 429, other HTTP
+errors, parse errors, provider shape errors, empty provider results, and
+unknown errors without dumping raw provider responses or rawJson. This is
+visibility only: retry policy, Metric writes, Notification capture, Telegram,
+and selection behavior are unchanged. Use this output in a Green review before
+another broad backlog Red.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

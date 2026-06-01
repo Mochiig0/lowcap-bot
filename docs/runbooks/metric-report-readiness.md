@@ -73,6 +73,16 @@ not yet classify fetch-layer causes beyond `fetch failed`, the next useful
 Yellow is provider error visibility rather than scoring, notification, or
 watchlist changes.
 
+That provider error visibility is now implemented. Future Metric snapshot
+reviews can use `errorCategoryCounts` and per-item safe `errorCategory` values
+to tell network/fetch failures, timeouts, HTTP 429, other HTTP errors,
+parse/shape failures, provider-empty results, and unknown errors apart. This
+does not create report evidence by itself and does not change retry, write,
+Notification, Telegram, scoring, or watchlist behavior. The next report
+readiness step is to observe classified output in a Green preflight or a
+narrowly approved diagnostic Red, then decide whether new Metric rows can be
+collected safely.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

@@ -26,6 +26,18 @@ outage, sandbox/network reachability, and other fetch-layer failures in
 operator summaries. A future Yellow should add raw-response-free provider error
 classification and aggregate counts before another broad Red retry.
 
+Provider error classification update, 2026-06-01: that visibility gap is now
+closed for `metric:snapshot:geckoterminal`. Failed item output includes safe
+`errorCategory`, optional HTTP status/statusText, and retryable hint. Command
+summaries include `providerErrorCount`, `errorCategoryCounts`, first
+category/status, and category-specific counts for network fetch errors,
+timeouts, HTTP 429, other HTTP errors, parse errors, shape errors, empty
+provider results, and unknown errors. The implementation does not add retry,
+does not change write or Notification behavior, and does not print raw
+response bodies, rawJson, stacks, full provider URLs, provider dumps, secrets,
+or env values. Broad Metric backlog retry still requires a fresh Green
+preflight and separate human approval.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

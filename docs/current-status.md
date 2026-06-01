@@ -4,6 +4,29 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Yellow provider error classification update, 2026-06-01:
+
+- `metric:snapshot:geckoterminal` now emits raw-response-free provider error
+  classification for failed Metric snapshot items. Categories are
+  `network_fetch_error`, `timeout`, `http_429`, `http_error`, `parse_error`,
+  `shape_error`, `provider_empty`, and `unknown`.
+- Per-item failures now include safe `errorCategory`, optional HTTP
+  status/statusText, and a retryable hint. Command summaries include
+  `errorCategoryCounts`, provider error count, first category/status, and
+  category-specific counts.
+- Retry behavior, selection logic, write behavior, Notification capture,
+  Telegram behavior, DB schema, and default success output were not changed.
+  Raw response bodies, rawJson, stacks, full provider URLs, secrets, and
+  provider dumps remain out of CLI output.
+- Verification used TypeScript, targeted Metric snapshot tests, help/read-only
+  preview, notification planners, retry planner, and ops planner. This Yellow
+  did not run production write/fetch/send, any `--write`, exact-mint fetch
+  diagnostics, `ops:run:bounded --execute`, detect write/watch, Token
+  enrich/rescore write, notification send, scheduler/systemd, or `pnpm smoke`.
+- Next step: run a Green preflight or narrowly approved diagnostic Red that can
+  observe the new categories. Do not retry broad Metric backlog writes without
+  current HEAD / queue / planner review and human approval.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

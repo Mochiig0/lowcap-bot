@@ -11,6 +11,21 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The Yellow provider diagnostic visibility slice is complete.
+`metric:snapshot:geckoterminal` now classifies failed provider items into safe
+categories: `network_fetch_error`, `timeout`, `http_429`, `http_error`,
+`parse_error`, `shape_error`, `provider_empty`, and `unknown`. Summaries now
+include aggregate counts and first category/status, while per-item failures
+include safe category/status/retryable fields. Retry behavior, write behavior,
+selection, Notification capture, Telegram, DB schema, and default success path
+are unchanged.
+
+Recommended next slice: **Green classified-provider preflight**. Use the safe
+Metric snapshot preview and planners first, then decide whether a very small
+human-approved diagnostic Red is justified. Do not retry the broad 50-row
+Metric backlog Red until the new classified output is observed under current
+HEAD and safety planners remain clear.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

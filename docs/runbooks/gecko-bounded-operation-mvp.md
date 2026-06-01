@@ -47,6 +47,14 @@ Each step includes a status (`ready`, `blocked`, `not_needed`, or
 expected side effects, expected non-effects, blockers, and stop condition
 codes. The planner emits strings only and never executes the candidates.
 
+Metric snapshot provider errors now include safe classification fields. When
+bounded or post-run Metric phases fail before a Metric candidate is built,
+inspect the command summary's provider error aggregate before deciding on a
+retry. Categories include network fetch error, timeout, HTTP 429, other HTTP
+error, parse error, shape error, provider-empty, and unknown. This visibility
+does not add retry behavior and does not change DB writes, Notification
+capture, Telegram, or selection logic.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

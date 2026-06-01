@@ -30,6 +30,16 @@ type CommandFailure = {
 
 type CommandResult = CommandSuccess | CommandFailure;
 
+type ProviderErrorCategory =
+  | "network_fetch_error"
+  | "timeout"
+  | "http_429"
+  | "http_error"
+  | "parse_error"
+  | "shape_error"
+  | "provider_empty"
+  | "unknown";
+
 type MetricSnapshotGeckoterminalOutput = {
   mode: "single" | "recent_batch";
   dryRun: boolean;
@@ -61,6 +71,18 @@ type MetricSnapshotGeckoterminalOutput = {
     writtenCount: number;
     interItemDelayMs: number;
     interItemDelayCount: number;
+    providerErrorCount: number;
+    errorCategoryCounts: Record<ProviderErrorCategory, number>;
+    networkFetchErrorCount: number;
+    timeoutCount: number;
+    http429Count: number;
+    httpErrorCount: number;
+    parseErrorCount: number;
+    shapeErrorCount: number;
+    providerEmptyCount: number;
+    unknownErrorCount: number;
+    firstErrorCategory: ProviderErrorCategory | null;
+    firstHttpStatus: number | null;
   };
   items: Array<{
     token: {
@@ -106,6 +128,10 @@ type MetricSnapshotGeckoterminalOutput = {
     latestObservedAt?: string;
     minGapMinutes?: number;
     error?: string;
+    errorCategory?: ProviderErrorCategory;
+    httpStatus?: number | null;
+    httpStatusText?: string | null;
+    retryable?: boolean;
   }>;
 };
 
@@ -148,6 +174,7 @@ async function runMetricSnapshotGeckoterminal(
   options?: {
     databaseUrl?: string;
     geckoSnapshotFile?: string;
+    geckoSnapshotErrorOnce?: string;
   },
 ): Promise<CommandResult> {
   const stdoutPath = join(
@@ -178,6 +205,9 @@ async function runMetricSnapshotGeckoterminal(
           ...(options?.databaseUrl ? { DATABASE_URL: options.databaseUrl } : {}),
           ...(options?.geckoSnapshotFile
             ? { GECKOTERMINAL_TOKEN_SNAPSHOT_FILE: options.geckoSnapshotFile }
+            : {}),
+          ...(options?.geckoSnapshotErrorOnce
+            ? { GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE: options.geckoSnapshotErrorOnce }
             : {}),
         },
       },
@@ -346,6 +376,10 @@ async function writeSnapshotFixture(filePath: string, mint: string): Promise<voi
     ),
     "utf8",
   );
+}
+
+async function writeRawSnapshotFixture(filePath: string, content: string): Promise<void> {
+  await writeFile(filePath, content, "utf8");
 }
 
 async function seedRecentMetric(
@@ -1387,6 +1421,182 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.errorCount, 0);
       assert.equal(parsed.summary.writtenCount, 0);
       assert.deepEqual(parsed.items, []);
+    });
+  });
+
+  await t.test("classifies provider fetch failures without raw provider dumps", async () => {
+    const cases: Array<{
+      name: string;
+      injectedError?: string;
+      fixtureContent?: string;
+      category: ProviderErrorCategory;
+      summaryKey:
+        | "networkFetchErrorCount"
+        | "timeoutCount"
+        | "http429Count"
+        | "httpErrorCount"
+        | "parseErrorCount"
+        | "shapeErrorCount"
+        | "providerEmptyCount";
+      httpStatus: number | null;
+      retryable: boolean;
+    }> = [
+      {
+        name: "network",
+        injectedError: "fetch failed",
+        category: "network_fetch_error",
+        summaryKey: "networkFetchErrorCount",
+        httpStatus: null,
+        retryable: true,
+      },
+      {
+        name: "timeout",
+        injectedError: "The operation was aborted due to timeout",
+        category: "timeout",
+        summaryKey: "timeoutCount",
+        httpStatus: null,
+        retryable: true,
+      },
+      {
+        name: "http-429",
+        injectedError: "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+        category: "http_429",
+        summaryKey: "http429Count",
+        httpStatus: 429,
+        retryable: true,
+      },
+      {
+        name: "http-500",
+        injectedError: "GeckoTerminal token snapshot request failed: 500 Internal Server Error",
+        category: "http_error",
+        summaryKey: "httpErrorCount",
+        httpStatus: 500,
+        retryable: true,
+      },
+      {
+        name: "parse",
+        fixtureContent: "{ not json",
+        category: "parse_error",
+        summaryKey: "parseErrorCount",
+        httpStatus: null,
+        retryable: false,
+      },
+      {
+        name: "shape",
+        fixtureContent: JSON.stringify({ data: { attributes: {} } }),
+        category: "shape_error",
+        summaryKey: "shapeErrorCount",
+        httpStatus: null,
+        retryable: false,
+      },
+      {
+        name: "empty",
+        fixtureContent: JSON.stringify({ data: null }),
+        category: "provider_empty",
+        summaryKey: "providerEmptyCount",
+        httpStatus: null,
+        retryable: false,
+      },
+    ];
+
+    for (const input of cases) {
+      await withTempDir(async (dir) => {
+        const databaseUrl = `file:${join(dir, `${input.name}.db`)}`;
+        const mint = `MetricSnapshotProviderError${input.name.replace("-", "")}111111111pump`;
+        const geckoSnapshotFile = join(dir, `${input.name}-snapshot.json`);
+
+        await runDbPush(databaseUrl);
+        await seedToken(databaseUrl, mint);
+        if (input.fixtureContent !== undefined) {
+          await writeRawSnapshotFixture(geckoSnapshotFile, input.fixtureContent);
+        }
+
+        const result = await runMetricSnapshotGeckoterminal(
+          ["--mint", mint],
+          {
+            databaseUrl,
+            ...(input.fixtureContent !== undefined ? { geckoSnapshotFile } : {}),
+            ...(input.injectedError ? { geckoSnapshotErrorOnce: input.injectedError } : {}),
+          },
+        );
+        assert.equal(result.ok, true);
+
+        const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+        assert.equal(parsed.summary.selectedCount, 1);
+        assert.equal(parsed.summary.okCount, 0);
+        assert.equal(parsed.summary.errorCount, 1);
+        assert.equal(parsed.summary.writtenCount, 0);
+        assert.equal(parsed.summary.providerErrorCount, 1);
+        assert.equal(parsed.summary.errorCategoryCounts[input.category], 1);
+        assert.equal(parsed.summary[input.summaryKey], 1);
+        assert.equal(parsed.summary.firstErrorCategory, input.category);
+        assert.equal(parsed.summary.firstHttpStatus, input.httpStatus);
+        assert.equal(parsed.items[0]?.status, "error");
+        assert.equal(parsed.items[0]?.errorCategory, input.category);
+        assert.equal(parsed.items[0]?.httpStatus, input.httpStatus);
+        assert.equal(parsed.items[0]?.retryable, input.retryable);
+        assert.equal(parsed.items[0]?.writeSummary.wouldCreateMetric, false);
+        assert.equal(parsed.items[0]?.writeSummary.metricId, null);
+
+        assert.equal(result.stdout.includes("rawJson"), false);
+        assert.equal(result.stdout.includes("stack"), false);
+        assert.equal(result.stdout.includes("api.geckoterminal.com"), false);
+        assert.equal(result.stdout.includes("GECKOTERMINAL_TOKEN_API_URL"), false);
+        assert.equal(result.stdout.includes("not json"), false);
+        assert.deepEqual(await readMetrics(databaseUrl, mint), []);
+        assert.deepEqual(await readNotifications(databaseUrl, mint), []);
+      });
+    }
+  });
+
+  await t.test("aggregates mixed provider error categories without changing success handling", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "mixed-provider-errors.db")}`;
+      const geckoSnapshotFile = join(dir, "mixed-provider-errors-snapshot.json");
+      const now = Date.now();
+      const firstMint = "MetricSnapshotMixedErrorA111111111111111111111pump";
+      const secondMint = "MetricSnapshotMixedOkB1111111111111111111111pump";
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: firstMint,
+        createdAt: new Date(now),
+        metadataStatus: "mint_only",
+      });
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: secondMint,
+        createdAt: new Date(now - 1_000),
+        metadataStatus: "mint_only",
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, secondMint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        ["--limit", "2", "--sinceMinutes", "10"],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          geckoSnapshotErrorOnce:
+            "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.summary.selectedCount, 2);
+      assert.equal(parsed.summary.okCount, 1);
+      assert.equal(parsed.summary.errorCount, 1);
+      assert.equal(parsed.summary.writtenCount, 0);
+      assert.equal(parsed.summary.providerErrorCount, 1);
+      assert.equal(parsed.summary.errorCategoryCounts.http_429, 1);
+      assert.equal(parsed.summary.http429Count, 1);
+      assert.equal(parsed.summary.firstErrorCategory, "http_429");
+      assert.equal(parsed.summary.firstHttpStatus, 429);
+      assert.equal(parsed.items[0]?.status, "error");
+      assert.equal(parsed.items[0]?.errorCategory, "http_429");
+      assert.equal(parsed.items[1]?.status, "ok");
+      assert.equal(parsed.items[1]?.metricCandidate?.safeSummary.topPoolPresent, true);
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
     });
   });
 });

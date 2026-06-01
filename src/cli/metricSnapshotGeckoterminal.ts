@@ -115,6 +115,33 @@ type NotificationSkippedReason =
   | "metric_not_created"
   | "not_single_mint_mode";
 
+type ProviderErrorCategory =
+  | "network_fetch_error"
+  | "timeout"
+  | "http_429"
+  | "http_error"
+  | "parse_error"
+  | "shape_error"
+  | "provider_empty"
+  | "unknown";
+
+type ProviderErrorCategoryCounts = Record<ProviderErrorCategory, number>;
+
+type ProviderErrorAggregate = {
+  providerErrorCount: number;
+  errorCategoryCounts: ProviderErrorCategoryCounts;
+  networkFetchErrorCount: number;
+  timeoutCount: number;
+  http429Count: number;
+  httpErrorCount: number;
+  parseErrorCount: number;
+  shapeErrorCount: number;
+  providerEmptyCount: number;
+  unknownErrorCount: number;
+  firstErrorCategory: ProviderErrorCategory | null;
+  firstHttpStatus: number | null;
+};
+
 type ProcessedTokenResult = {
   token: {
     id: number;
@@ -146,6 +173,10 @@ type ProcessedTokenResult = {
   latestObservedAt?: string;
   minGapMinutes?: number;
   error?: string;
+  errorCategory?: ProviderErrorCategory;
+  httpStatus?: number | null;
+  httpStatusText?: string | null;
+  retryable?: boolean;
 };
 
 type SelectedTokenSummary = {
@@ -181,7 +212,7 @@ type CliOutput = {
     writtenCount: number;
     interItemDelayMs: number;
     interItemDelayCount: number;
-  };
+  } & ProviderErrorAggregate;
   items: ProcessedTokenResult[];
 };
 
@@ -214,7 +245,7 @@ type WatchCycleResult = {
     skippedAfterRateLimit: number;
     interItemDelayMs: number;
     interItemDelayCount: number;
-  };
+  } & ProviderErrorAggregate;
   items: ProcessedTokenResult[];
 };
 
@@ -249,6 +280,18 @@ type WatchOutput = {
   abortedDueToRateLimit: boolean;
   skippedAfterRateLimit: number;
   interItemDelayCount: number;
+  providerErrorCount: number;
+  errorCategoryCounts: ProviderErrorCategoryCounts;
+  networkFetchErrorCount: number;
+  timeoutCount: number;
+  http429Count: number;
+  httpErrorCount: number;
+  parseErrorCount: number;
+  shapeErrorCount: number;
+  providerEmptyCount: number;
+  unknownErrorCount: number;
+  firstErrorCategory: ProviderErrorCategory | null;
+  firstHttpStatus: number | null;
   items: ProcessedTokenResult[];
   cycles: WatchCycleResult[];
 };
@@ -263,6 +306,174 @@ class CliUsageError extends Error {
     super(message);
     this.name = "CliUsageError";
   }
+}
+
+class ProviderHttpError extends Error {
+  readonly status: number;
+  readonly statusText: string;
+
+  constructor(status: number, statusText: string) {
+    super(`GeckoTerminal token snapshot request failed: ${status} ${statusText}`);
+    this.name = "ProviderHttpError";
+    this.status = status;
+    this.statusText = statusText;
+  }
+}
+
+class ProviderJsonParseError extends Error {
+  constructor() {
+    super("provider JSON parse failed");
+    this.name = "ProviderJsonParseError";
+  }
+}
+
+class ProviderShapeError extends Error {
+  constructor() {
+    super("provider response shape invalid");
+    this.name = "ProviderShapeError";
+  }
+}
+
+class ProviderEmptyError extends Error {
+  constructor() {
+    super("provider response data empty");
+    this.name = "ProviderEmptyError";
+  }
+}
+
+type ClassifiedProviderError = {
+  errorCategory: ProviderErrorCategory;
+  httpStatus: number | null;
+  httpStatusText: string | null;
+  retryable: boolean;
+  message: string;
+};
+
+const PROVIDER_ERROR_CATEGORIES: ProviderErrorCategory[] = [
+  "network_fetch_error",
+  "timeout",
+  "http_429",
+  "http_error",
+  "parse_error",
+  "shape_error",
+  "provider_empty",
+  "unknown",
+];
+
+function createEmptyProviderErrorCategoryCounts(): ProviderErrorCategoryCounts {
+  return PROVIDER_ERROR_CATEGORIES.reduce<ProviderErrorCategoryCounts>(
+    (counts, category) => {
+      counts[category] = 0;
+      return counts;
+    },
+    {
+      network_fetch_error: 0,
+      timeout: 0,
+      http_429: 0,
+      http_error: 0,
+      parse_error: 0,
+      shape_error: 0,
+      provider_empty: 0,
+      unknown: 0,
+    },
+  );
+}
+
+function classifyProviderError(error: unknown): ClassifiedProviderError {
+  if (error instanceof ProviderHttpError) {
+    const errorCategory = error.status === 429 ? "http_429" : "http_error";
+    return {
+      errorCategory,
+      httpStatus: error.status,
+      httpStatusText: error.statusText,
+      retryable: error.status === 429 || error.status === 408 || error.status >= 500,
+      message:
+        error.status === 429
+          ? "provider HTTP 429 rate limit"
+          : `provider HTTP error ${error.status}`,
+    };
+  }
+
+  if (error instanceof ProviderJsonParseError || error instanceof SyntaxError) {
+    return {
+      errorCategory: "parse_error",
+      httpStatus: null,
+      httpStatusText: null,
+      retryable: false,
+      message: "provider JSON parse failed",
+    };
+  }
+
+  if (error instanceof ProviderShapeError) {
+    return {
+      errorCategory: "shape_error",
+      httpStatus: null,
+      httpStatusText: null,
+      retryable: false,
+      message: "provider response shape invalid",
+    };
+  }
+
+  if (error instanceof ProviderEmptyError) {
+    return {
+      errorCategory: "provider_empty",
+      httpStatus: null,
+      httpStatusText: null,
+      retryable: false,
+      message: "provider response data empty",
+    };
+  }
+
+  const name = error instanceof Error ? error.name : "";
+  const message = error instanceof Error ? error.message : String(error);
+  const httpMatch = message.match(
+    /^GeckoTerminal token snapshot request failed: (?<status>\d{3})(?: (?<statusText>.*))?$/,
+  );
+
+  if (httpMatch?.groups?.status) {
+    const status = Number(httpMatch.groups.status);
+    const statusText = httpMatch.groups.statusText ?? "";
+    const errorCategory = status === 429 ? "http_429" : "http_error";
+    return {
+      errorCategory,
+      httpStatus: status,
+      httpStatusText: statusText,
+      retryable: status === 429 || status === 408 || status >= 500,
+      message: status === 429 ? "provider HTTP 429 rate limit" : `provider HTTP error ${status}`,
+    };
+  }
+
+  if (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    /timeout|timed out|aborted/i.test(message)
+  ) {
+    return {
+      errorCategory: "timeout",
+      httpStatus: null,
+      httpStatusText: null,
+      retryable: true,
+      message: "provider request timed out",
+    };
+  }
+
+  if (message === "fetch failed" || /fetch failed/i.test(message) || name === "TypeError") {
+    return {
+      errorCategory: "network_fetch_error",
+      httpStatus: null,
+      httpStatusText: null,
+      retryable: true,
+      message: "provider fetch failed before HTTP response",
+    };
+  }
+
+  return {
+    errorCategory: "unknown",
+    httpStatus: null,
+    httpStatusText: null,
+    retryable: false,
+    message: "provider error unknown",
+  };
 }
 
 function getUsageText(): string {
@@ -592,6 +803,33 @@ function isRateLimitErrorMessage(message: string | undefined): boolean {
   }
 
   return message.includes("429 Too Many Requests");
+}
+
+function buildProviderErrorAggregate(items: ProcessedTokenResult[]): ProviderErrorAggregate {
+  const errorCategoryCounts = createEmptyProviderErrorCategoryCounts();
+  const errorItems = items.filter((item) => item.status === "error");
+
+  for (const item of errorItems) {
+    const category = item.errorCategory ?? "unknown";
+    errorCategoryCounts[category] += 1;
+  }
+
+  const firstError = errorItems[0];
+
+  return {
+    providerErrorCount: errorItems.length,
+    errorCategoryCounts,
+    networkFetchErrorCount: errorCategoryCounts.network_fetch_error,
+    timeoutCount: errorCategoryCounts.timeout,
+    http429Count: errorCategoryCounts.http_429,
+    httpErrorCount: errorCategoryCounts.http_error,
+    parseErrorCount: errorCategoryCounts.parse_error,
+    shapeErrorCount: errorCategoryCounts.shape_error,
+    providerEmptyCount: errorCategoryCounts.provider_empty,
+    unknownErrorCount: errorCategoryCounts.unknown,
+    firstErrorCategory: firstError?.errorCategory ?? null,
+    firstHttpStatus: firstError?.httpStatus ?? null,
+  };
 }
 
 function readOptionalRelationshipAddress(
@@ -993,7 +1231,11 @@ async function fetchTokenSnapshotRaw(mint: string): Promise<unknown> {
   const fixtureFilePath = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE;
   if (fixtureFilePath) {
     const content = await readFile(fixtureFilePath, "utf-8");
-    return JSON.parse(content) as unknown;
+    try {
+      return JSON.parse(content) as unknown;
+    } catch {
+      throw new ProviderJsonParseError();
+    }
   }
 
   const response = await fetch(
@@ -1007,12 +1249,14 @@ async function fetchTokenSnapshotRaw(mint: string): Promise<unknown> {
   );
 
   if (!response.ok) {
-    throw new Error(
-      `GeckoTerminal token snapshot request failed: ${response.status} ${response.statusText}`,
-    );
+    throw new ProviderHttpError(response.status, response.statusText);
   }
 
-  return (await response.json()) as unknown;
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    throw new ProviderJsonParseError();
+  }
 }
 
 async function findLatestMetricObservedAt(
@@ -1075,6 +1319,9 @@ function parseSnapshotTopPool(
 
 function parseSanitizedSnapshot(raw: unknown): SanitizedSnapshot {
   const input = ensureObject(raw, "raw");
+  if (input.data === null) {
+    throw new ProviderEmptyError();
+  }
   const data = ensureObject(input.data, "raw.data");
   const attributes = ensureObject(data.attributes, "raw.data.attributes");
   const relationships =
@@ -1121,6 +1368,18 @@ function parseSanitizedSnapshot(raw: unknown): SanitizedSnapshot {
     topPoolCount: topPoolIds.length,
     topPool: parseSnapshotTopPool(topPoolIds, included),
   };
+}
+
+function parseProviderSnapshot(raw: unknown): SanitizedSnapshot {
+  try {
+    return parseSanitizedSnapshot(raw);
+  } catch (error) {
+    if (error instanceof ProviderEmptyError) {
+      throw error;
+    }
+
+    throw new ProviderShapeError();
+  }
 }
 
 function buildProcessedTokenView(token: SelectedToken): ProcessedTokenResult["token"] {
@@ -1185,7 +1444,7 @@ async function processToken(
 
     const raw = await fetchTokenSnapshotRaw(token.mint);
     const observedAt = new Date().toISOString();
-    const rawJson = parseSanitizedSnapshot(raw);
+    const rawJson = parseProviderSnapshot(raw);
     const metricCandidate: MetricCandidate = {
       observedAt,
       source: args.source,
@@ -1249,6 +1508,7 @@ async function processToken(
       }),
     };
   } catch (error) {
+    const classifiedError = classifyProviderError(error);
     return {
       token: buildProcessedTokenView(token),
       metricSource: args.source,
@@ -1258,7 +1518,11 @@ async function processToken(
         wouldCreateMetric: false,
         metricId: null,
       }),
-      error: error instanceof Error ? error.message : String(error),
+      error: classifiedError.message,
+      errorCategory: classifiedError.errorCategory,
+      httpStatus: classifiedError.httpStatus,
+      httpStatusText: classifiedError.httpStatusText,
+      retryable: classifiedError.retryable,
     };
   }
 }
@@ -1307,7 +1571,11 @@ async function executeSnapshotCycle(
     const result = await processToken(token, args);
     items.push(result);
 
-    if (args.watch && result.status === "error" && isRateLimitErrorMessage(result.error)) {
+    if (
+      args.watch &&
+      result.status === "error" &&
+      (result.errorCategory === "http_429" || isRateLimitErrorMessage(result.error))
+    ) {
       rateLimited = true;
       rateLimitedCount += 1;
       abortedDueToRateLimit = true;
@@ -1339,6 +1607,8 @@ function buildOneShotOutput(
   args: MetricSnapshotArgs,
   execution: SnapshotExecutionResult,
 ): CliOutput {
+  const providerErrorAggregate = buildProviderErrorAggregate(execution.items);
+
   return {
     mode: execution.mode,
     dryRun: !args.write,
@@ -1365,6 +1635,7 @@ function buildOneShotOutput(
       writtenCount: execution.items.filter((item) => item.writeSummary.metricId !== null).length,
       interItemDelayMs: args.interItemDelayMs,
       interItemDelayCount: execution.interItemDelayCount,
+      ...providerErrorAggregate,
     },
     items: execution.items,
   };
@@ -1404,6 +1675,7 @@ function createFailedCycleResult(
       skippedAfterRateLimit: 0,
       interItemDelayMs: args.interItemDelayMs,
       interItemDelayCount: 0,
+      ...buildProviderErrorAggregate([]),
     },
     items: [],
   };
@@ -1414,6 +1686,8 @@ function buildWatchCycleResult(
   cycle: number,
   execution: SnapshotExecutionResult,
 ): WatchCycleResult {
+  const providerErrorAggregate = buildProviderErrorAggregate(execution.items);
+
   return {
     cycle,
     failed: false,
@@ -1442,6 +1716,7 @@ function buildWatchCycleResult(
       skippedAfterRateLimit: execution.skippedAfterRateLimit,
       interItemDelayMs: args.interItemDelayMs,
       interItemDelayCount: execution.interItemDelayCount,
+      ...providerErrorAggregate,
     },
     items: execution.items,
   };
@@ -1457,6 +1732,9 @@ function logWatchCycleSummary(cycle: WatchCycleResult): void {
       `skipped=${cycle.summary.skippedCount}`,
       `error=${cycle.summary.errorCount}`,
       `written=${cycle.summary.writtenCount}`,
+      `providerErrorCount=${cycle.summary.providerErrorCount}`,
+      `firstErrorCategory=${cycle.summary.firstErrorCategory ?? "none"}`,
+      `firstHttpStatus=${cycle.summary.firstHttpStatus ?? "none"}`,
       `rateLimited=${cycle.summary.rateLimited}`,
       `rateLimitedCount=${cycle.summary.rateLimitedCount}`,
       `abortedDueToRateLimit=${cycle.summary.abortedDueToRateLimit}`,
@@ -1473,6 +1751,7 @@ function buildWatchOutput(
   cycles: WatchCycleResult[],
 ): WatchOutput {
   const flattenedItems = cycles.flatMap((cycle) => cycle.items);
+  const providerErrorAggregate = buildProviderErrorAggregate(flattenedItems);
 
   return {
     mode: cycles[0]?.mode ?? (args.mint ? "single" : "recent_batch"),
@@ -1526,6 +1805,7 @@ function buildWatchOutput(
       (sum, cycle) => sum + cycle.summary.interItemDelayCount,
       0,
     ),
+    ...providerErrorAggregate,
     items: flattenedItems,
     cycles,
   };
