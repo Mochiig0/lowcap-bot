@@ -4,6 +4,32 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Red safe Metric backlog continuation attempt, 2026-06-01:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `4817ccc` matched and the working tree was clean.
+- The exact safe alias command was run once and was not retried:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- The safe alias avoided the previous `tsx` IPC `EPERM` and reached app logic.
+  It selected `50` rows, ids `7017..6968`, but all `50` provider requests
+  returned `fetch failed`. Summary: selected `50`, ok `0`, skipped `0`,
+  error `50`, written `0`, `interItemDelayMs=15000`,
+  `interItemDelayCount=49`.
+- DB counts stayed Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; Metric buckets stayed `0=2207`, `1=729`, `2+=87`;
+  Notification status stayed `captured=17`, `sent=5`, `failed=0`.
+- Selected rows stayed `metadataStatus=mint_only`, `metricsCount=0`,
+  `notificationCount=0`, and `holderSnapshotCount=0`; no new Metric ids or
+  observedAt values were produced.
+- Notification capture stayed disabled; Notification create/update,
+  HolderSnapshot write, Token write, Telegram send, retry execution,
+  auto-send execution, scheduler/systemd, rawJson full dump, offensive raw
+  text dump, and `pnpm smoke` stayed `0`.
+- Post-checks stayed safe: default queue remains empty, rolling 168h queue
+  remains `metricPendingCount=1017`, `enrichPendingCount=1013`,
+  `notifyCandidateCount=0`, enabled auto-send allowed candidate `0`, and retry
+  candidate `0`.
+
 Green safe Metric backlog preflight, 2026-06-01:
 
 - Current HEAD is `aa33756 chore: add safe cli scripts for codex red

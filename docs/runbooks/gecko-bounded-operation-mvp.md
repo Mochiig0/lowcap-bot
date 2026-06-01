@@ -174,6 +174,13 @@ the next targeted Metric Red instead of a fresh bounded runner execute; the
 bounded runner remains reserved for fresh 6H collection after a separate
 preflight.
 
+The following safe Metric Red reached app logic but wrote no rows because all
+provider fetches failed. It selected the expected `50` backlog rows and then
+returned error `50`, written `0`; DB counts and queue counts were unchanged.
+This confirms the safe alias launch path works, but provider availability must
+be reviewed before another Red. Do not switch to bounded runner execute as a
+compensation step without a fresh preflight.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

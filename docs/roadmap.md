@@ -11,6 +11,18 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The safe Metric backlog Red was attempted once. The safe alias fixed the prior
+process-launch issue: no `tsx` IPC `EPERM` occurred, and app logic selected
+the expected `50` rows (`7017..6968`). The batch did not write Metrics because
+all selected provider requests returned `fetch failed`; result was selected
+`50`, error `50`, written `0`. DB counts, Metric buckets, Notification state,
+and 168h queue counts remained unchanged.
+
+Next operating decision should be another Green review rather than an immediate
+retry. The launch path is fixed, but provider/network availability prevented
+Metric capture in this run. Do not compensate with a second write command
+without a fresh preflight and human-approved exact command.
+
 The safe Metric backlog preflight is complete on HEAD `aa33756`. The safe
 alias help path no longer hits the `tsx` IPC `EPERM`, and the read-only
 preview for `sinceMinutes=10080` selects `50` Metric-zero rows

@@ -314,6 +314,16 @@ pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinut
 
 This remains human-approved Red only and was not executed during preflight.
 
+That safe Red was then attempted once. The safe alias avoided IPC `EPERM` and
+reached application logic, but every selected item failed provider fetch.
+Result: selected `50`, ok `0`, error `50`, written `0`,
+`interItemDelayMs=15000`, and `interItemDelayCount=49`. Token / Metric /
+Notification / HolderSnapshot stayed `3023 / 956 / 22 / 1`; Metric buckets
+stayed `0=2207`, `1=729`, `2+=87`; selected ids `7017..6968` stayed
+`metricsCount=0`; and Notification / Telegram / HolderSnapshot side effects
+stayed `0`. Do not retry from this run; use a fresh Green review before the
+next Red.
+
 Latest post-6H Metric pending update, 2026-05-26: bounded
 `metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
 `--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,

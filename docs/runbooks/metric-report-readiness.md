@@ -59,6 +59,13 @@ write-free, fetch-free, and selected `50` Metric-zero rows with no
 Notification or HolderSnapshot rows. Until that Red actually succeeds, report
 readiness still depends on the existing `956` Metric rows.
 
+The safe Red did not add report evidence. It reached app logic but all `50`
+provider fetches failed, so Metric count stayed `956`, selected rows stayed
+`metricsCount=0`, and there are no new Metric ids or observedAt values to
+inspect. Report readiness and B-watchlist conclusions are unchanged; the next
+step should be provider/error review or a fresh Green data-collection
+preflight, not scoring or notification policy changes.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies
