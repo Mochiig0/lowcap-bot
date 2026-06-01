@@ -6,6 +6,25 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
+raw-text-free human review, but the current sample does not justify scoring
+dictionary changes. The default 24h window has drifted to
+`watchlistCandidateCount=0`; rolling 168h still has `14` watchlist rows,
+`13` ready and `1` `missing_metric`. All rows are `B / 2`, partial, and not
+close to the A or S thresholds.
+
+Safe samples show repeated low-strength scoreBreakdown tags rather than a
+clear missed narrative. The rolling 168h aggregate has tags `animal=31`,
+`ai_phrase=2`, `tech=1`, `meme=2`, and `social=3`; visible watchlist rows are
+mostly `core` source with `animal` tags, plus one `tech` sample. ReviewFlags
+remain absent across watchlist rows. This is useful for manual triage, but not
+enough evidence to raise weights or change thresholds.
+
+Keep the B watchlist report-only. More useful next steps are data collection
+or backlog preflight to grow the sample, followed by another Green review.
+Do not add capture-only B Notifications or change Telegram / notifyCandidate
+rules from this evidence.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

@@ -110,6 +110,14 @@ alter auto-send eligibility, and does not loosen the S-only notify rule. Use it
 for operator review before considering any scoring or notification design
 change.
 
+The first `--watchlistOnly` sample review keeps that boundary closed. Rolling
+168h has 14 B-watchlist rows, but every row is still `B / 2` and no sample is
+near S-rank notification eligibility. The safe tag pattern is mostly
+low-strength `animal` / `core` evidence, with no social, website, Metaplex, or
+description signals in the watchlist rows. Keep Telegram S-only, keep
+Notification candidate S-only, and do not add capture-only B Notifications
+from this sample.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

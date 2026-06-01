@@ -4,6 +4,38 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green watchlist sample review, 2026-06-01:
+
+- Current HEAD is `06d8010 feat: add watchlist only review queue mode` with a
+  clean working tree. This pass was read-only / docs-only; no production
+  write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, schema/migration change,
+  rawJson full dump, offensive raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; disabled and enabled auto-send planners both allow
+  `0`; retry candidate is `0`.
+- Time has moved the default 24h review window forward: default
+  `--watchlistOnly` now has `geckoOriginTokenCount=0`,
+  `watchlistCandidateCount=0`, and `notifyCandidateCount=0`. This is window
+  drift, not a report failure.
+- Rolling 168h `--watchlistOnly` remains useful for sample review:
+  `geckoOriginTokenCount=1437`, `watchlistCandidateCount=14`,
+  `watchlistReadyCount=13`, `watchlistNotReadyCount=1`, readiness reasons
+  `ready_for_review=13` and `missing_metric=1`, all watchlist rows `B / 2`,
+  metadata `partial=14`, Metric coverage `1=13`, `0=1`, and no website/X/
+  Telegram/Metaplex/description/link signals.
+- Safe scoreBreakdown sample tags are heavily concentrated in low-strength
+  categories: aggregate 168h tags are `animal=31`, `ai_phrase=2`, `tech=1`,
+  `meme=2`, `social=3`; the visible watchlist rows are mostly `core` source
+  with `animal` tags, plus one `tech` sample. No row is near `A>=5` or
+  non-trend-only `S>=8`.
+- Decision: do not tune scoring dictionaries yet, do not add capture-only B
+  Notifications, and keep Telegram / notifyCandidate S-only. Keep the B
+  watchlist report-only and collect/review more data before scoring changes.
+  If the next task is operational, prefer Green preflight for a bounded data
+  collection/backlog step over a scoring Yellow.
+
 Yellow watchlist-only review mode, 2026-06-01:
 
 - `review:queue:geckoterminal` now supports `--watchlistOnly`. It implies the

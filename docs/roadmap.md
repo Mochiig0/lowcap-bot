@@ -11,6 +11,20 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The Green `--watchlistOnly` sample review is complete. The default 24h window
+has drifted clear, so current watchlist review should use rolling 168h. That
+window still has `14` B-watchlist rows, `13` ready and `1` not ready due to
+`missing_metric`; all are `B / 2`, partial, and far from `A>=5` or
+non-trend-only `S>=8`. Safe tags are concentrated in low-strength categories
+such as `animal`, with small `ai_phrase`, `tech`, `meme`, and `social`
+presence.
+
+Recommended next slice: **data collection / backlog preflight**, not scoring
+dictionary tuning. Keep the B watchlist report-only, keep notifyCandidate and
+Telegram S-only, and do not introduce capture-only B Notifications yet. A
+future scoring dictionary Yellow should wait until manual review sees repeated
+safe patterns that are clearly under-scored.
+
 The Yellow `--watchlistOnly` review mode is implemented. It keeps the B
 watchlist report-only and returns a focused read-only payload with watchlist
 summary, readiness, rank gap, scoreBreakdown availability, and safe
