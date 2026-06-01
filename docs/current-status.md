@@ -27,6 +27,38 @@ Yellow provider error classification update, 2026-06-01:
   observe the new categories. Do not retry broad Metric backlog writes without
   current HEAD / queue / planner review and human approval.
 
+Green classified provider diagnostic preflight, 2026-06-01:
+
+- Current HEAD is `66fb80a feat: classify metric provider errors safely` with
+  a clean working tree. This pass was read-only / docs-only; no production
+  write/fetch/send, external fetch, exact-mint diagnostic, Metric write,
+  Token enrich/rescore write, `ops:run:bounded --execute`, detect write,
+  notification send, retry execution, auto live send, scheduler/systemd,
+  schema/migration change, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`. Default queue remains clear:
+  `metricPendingCount=0`, `enrichPendingCount=0`, `notifyCandidateCount=0`.
+  Rolling 168h still has `metricPendingCount=1017`,
+  `enrichPendingCount=1013`, and `notifyCandidateCount=0`. Disabled and
+  enabled auto-send allowed candidate count stayed `0`; retry candidate stayed
+  `0`.
+- Safe alias help returns the expected Usage path without IPC `EPERM`.
+  Read-only previews with `sinceMinutes=10080` selected ids `7017..7013`
+  for limit `5` and `7017..6968` for limit `50`. Both previews were
+  `dryRun=true`, `writeEnabled=false`, `status=selection_preview`, and
+  did not fetch or write. All selected rows had `metricsCount=0`,
+  `notificationCount=0`, and `holderSnapshotCount=0`.
+- Classification fields are present in the preview summary:
+  `providerErrorCount=0`, all `errorCategoryCounts=0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`. This confirms the
+  output shape is ready for a diagnostic write command, but selection preview
+  cannot observe provider fetch failure categories because it intentionally
+  performs no external fetch.
+- Decision: do not retry the same broad 50-row Red yet. The next candidate is
+  a small human-approved diagnostic Red with safe alias and `--limit 1`, which
+  can classify provider behavior while capping Metric write impact at one row.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

@@ -83,6 +83,13 @@ readiness step is to observe classified output in a Green preflight or a
 narrowly approved diagnostic Red, then decide whether new Metric rows can be
 collected safely.
 
+The classified-output Green preflight observed only selection-preview rows, so
+report readiness remains unchanged. Limit `5` and limit `50` previews showed
+the new provider aggregate fields with zero errors and no rawJson, but no
+provider request was made and no Metric candidate was constructed. A limit `1`
+diagnostic Red is the narrowest next step if provider classification is needed;
+otherwise continue report/watchlist decisions from the existing Metric set.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

@@ -38,6 +38,16 @@ response bodies, rawJson, stacks, full provider URLs, provider dumps, secrets,
 or env values. Broad Metric backlog retry still requires a fresh Green
 preflight and separate human approval.
 
+Classified-output preflight, 2026-06-01: safe preview with
+`--onlyMetricPending` confirms the classification fields are present even when
+no provider fetch is performed. Limit `5` selected ids `7017..7013`; limit
+`50` selected ids `7017..6968`. Both previews were `dryRun=true`,
+`writeEnabled=false`, `selection_preview`, and produced
+`providerErrorCount=0` with zeroed `errorCategoryCounts`. All selected rows
+were Metric-zero, Notification-zero, and HolderSnapshot-zero. Since preview
+mode does not fetch by design, the next useful provider classification step is
+a separately approved limit `1` diagnostic Red, not a same-50 retry.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

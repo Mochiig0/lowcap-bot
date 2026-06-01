@@ -35,6 +35,13 @@ visibility only: retry policy, Metric writes, Notification capture, Telegram,
 and selection behavior are unchanged. Use this output in a Green review before
 another broad backlog Red.
 
+The first classified-output Green review confirmed the output shape in
+fetch-free preview mode. The same rolling 168h Metric backlog still selects
+clean Metric-zero rows, and preview summaries now include zeroed
+`errorCategoryCounts`. Because preview does not call the provider, use a
+separate human-approved limit `1` diagnostic Red if provider classification is
+needed. Do not jump directly back to the broad 50-row backlog command.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

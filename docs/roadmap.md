@@ -26,6 +26,20 @@ human-approved diagnostic Red is justified. Do not retry the broad 50-row
 Metric backlog Red until the new classified output is observed under current
 HEAD and safety planners remain clear.
 
+That Green preflight is now complete on HEAD `66fb80a`. Safe preview confirms
+the classified summary shape is present (`providerErrorCount=0`,
+zeroed `errorCategoryCounts`, no first category/status) and the same 168h
+Metric pending rows are still cleanly selectable without fetch/write. Because
+preview mode intentionally does not hit the provider, it cannot classify the
+previous `fetch failed` condition.
+
+Recommended next slice: **small diagnostic Red, limit 1**, not a same-50 retry.
+Use the safe alias with `--limit 1` and human approval to observe the new
+provider category with Metric write capped at one row. If that returns
+`network_fetch_error` or `timeout`, pause for provider/network review before
+larger backlog writes. If it succeeds, run a fresh Green preflight before any
+larger Metric continuation.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was
