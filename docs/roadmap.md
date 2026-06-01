@@ -11,6 +11,20 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The safe CLI execution Yellow is complete. The root cause of the latest Red
+failure is not Metric logic; it is the direct `tsx` package-script execution
+path failing before app logic with IPC `listen EPERM`. The runner already uses
+`node --import tsx` internally, and direct-node help / Metric selection preview
+work in this environment.
+
+Recommended next Red prompt pattern: use the new safe aliases or explicit
+direct-node command forms for Red-prone GeckoTerminal CLIs:
+`metric:snapshot:geckoterminal:safe`,
+`token:enrich-rescore:geckoterminal:safe`, and
+`detect:geckoterminal:new-pools:safe`. Existing scripts are retained for local
+compatibility; Codex Red prompts should avoid the older direct `tsx` scripts
+unless explicitly approved.
+
 The human-approved Metric backlog continuation Red was attempted once with the
 exact `sinceMinutes=10080` command, but it did not reach application logic.
 The child `tsx` process failed to create its IPC pipe (`listen EPERM` under

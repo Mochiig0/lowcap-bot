@@ -291,6 +291,17 @@ buckets stayed `0=2207`, `1=729`, `2+=87`; Notification statuses stayed
 `notifyCandidateCount=0`. The selected rows did not advance to
 `metricsCount=1`; another Red requires a fresh Green preflight.
 
+Use safe command forms for the next Codex Red attempt. Prefer:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes <WINDOW> --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+The safe alias executes the same CLI through `node --import tsx` instead of the
+direct `tsx` package-script path that failed before app logic. It does not
+relax any Red rule: exact command, human approval, no retry, no second write,
+and Notification / Telegram boundaries still apply.
+
 Latest post-6H Metric pending update, 2026-05-26: bounded
 `metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
 `--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,

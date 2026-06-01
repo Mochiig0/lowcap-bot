@@ -31,6 +31,12 @@ Enforce exact-command, approval, side-effect boundaries, and post-run reporting.
 ## Mandatory Red rules
 
 - Human approval is required.
+- For Red-prone GeckoTerminal CLIs in Codex, prefer the repo safe scripts that
+  execute through `node --import tsx`: `metric:snapshot:geckoterminal:safe`,
+  `token:enrich-rescore:geckoterminal:safe`, and
+  `detect:geckoterminal:new-pools:safe`.
+- Do not use the older direct `tsx` package scripts for new Codex Red command
+  patterns unless the user explicitly approves that exact form.
 - Run the exact command one time only.
 - Do not retry unless separately approved.
 - Do not run a second command.
@@ -55,6 +61,8 @@ Enforce exact-command, approval, side-effect boundaries, and post-run reporting.
 - Stop conditions are written.
 - Checkpoint path is safe if relevant.
 - Exact command is fixed.
+- If a command uses a package script, confirm whether it is a safe
+  `node --import tsx` script or an older direct `tsx` script before execution.
 
 ## Stop immediately if
 

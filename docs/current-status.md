@@ -4,6 +4,24 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Safe CLI execution update, 2026-06-01:
+
+- The Red failure was traced to the package script form using direct `tsx`
+  before app logic. `node --import tsx src/cli/...` works in this environment:
+  help output is available for Metric snapshot, Token enrich/rescore, and
+  GeckoTerminal detect CLIs, and the Metric selection preview runs as
+  `dryRun=true`, `writeEnabled=false`, selected `50`, written `0`.
+- Added safe Red-prone aliases that execute through `node --import tsx`:
+  `metric:snapshot:geckoterminal:safe`,
+  `token:enrich-rescore:geckoterminal:safe`, and
+  `detect:geckoterminal:new-pools:safe`. Existing package scripts remain for
+  local compatibility, but future Codex Red prompts should prefer the safe
+  aliases or explicit `node --import tsx src/cli/...` commands.
+- This Yellow pass ran no production write/fetch/send, no Metric write, no
+  Token enrich/rescore write, no detect write/watch, no notification send, no
+  retry execution, no scheduler/systemd, no `pnpm smoke`, and no rawJson or
+  offensive raw text dump.
+
 Red Metric backlog continuation attempt, 2026-06-01:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

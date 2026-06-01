@@ -153,6 +153,20 @@ DB counts stayed `3023 / 956 / 22 / 1`, Metric buckets stayed `0=2207`,
 `notifyCandidateCount=0`. Treat this as a safe stop, not a completed Metric
 batch; use a new Green preflight before issuing another Red.
 
+For future Codex Red prompts, do not use the older direct `tsx` package-script
+forms for GeckoTerminal write/watch CLIs. The repo now provides safe aliases
+that run through `node --import tsx`:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- ...
+pnpm -s token:enrich-rescore:geckoterminal:safe -- ...
+pnpm -s detect:geckoterminal:new-pools:safe -- ...
+```
+
+`ops:run:bounded` already uses `node --import tsx` internally for phase
+execution. Safe aliases do not change side-effect rules; `--write`, `--watch`,
+and `--execute` still require separate Red approval.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

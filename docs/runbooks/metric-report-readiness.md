@@ -46,6 +46,13 @@ unchanged; current report/watchlist conclusions still depend on the existing
 `956` Metric rows. Run a fresh Green preflight before another data-collection
 Red.
 
+Safe CLI execution follow-up: future Codex Red data-collection prompts should
+use the safe `node --import tsx` path, for example
+`metric:snapshot:geckoterminal:safe`, before expecting new Metric evidence.
+This changes only the process launch path; report readiness, rawJson
+boundaries, Notification / Telegram policy, and scoring/watchlist behavior are
+unchanged.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies
