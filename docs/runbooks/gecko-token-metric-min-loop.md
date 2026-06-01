@@ -49,6 +49,14 @@ loop should pause broad Metric backlog writes until provider/network
 reachability is reviewed. Enrich/report paths remain separate decisions and
 must be preflighted independently.
 
+Provider/network review then isolated the issue to the current Codex sandbox
+network path. The default GeckoTerminal host config is in use and appears sane;
+normal sandbox DNS / Node fetch returns `EAI_AGAIN`, while approved
+non-sandbox HEAD checks resolve and reach the provider. For Metric backlog Red,
+do not retry inside the same restricted sandbox. Either run the safe alias in
+an explicitly approved out-of-sandbox/network-enabled context or switch to a
+different preflighted task.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

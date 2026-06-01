@@ -57,6 +57,18 @@ provider-empty result, or unknown error was observed. This points to a
 fetch-layer failure before HTTP response handling. Do not retry a larger batch
 until provider/network reachability is reviewed.
 
+Provider/network reachability review, 2026-06-02: the failure is reproducible
+inside the normal Codex sandbox as DNS/fetch-layer failure. `curl -I` cannot
+resolve `api.geckoterminal.com`, and Node `fetch` HEAD reports `fetch failed`
+with cause code `EAI_AGAIN`. With approved non-sandbox diagnostics, the same
+host resolves and HTTPS HEAD requests reach GeckoTerminal/Cloudflare and return
+safe HTTP status headers. The CLI is using the default provider host because
+`GECKOTERMINAL_TOKEN_API_URL` is unset, and the timeout remains `10000ms`.
+Conclusion: the previous `network_fetch_error` is most consistent with
+sandbox DNS/network restriction, not HTTP 429, bad provider URL config, or a
+confirmed provider outage. Avoid in-sandbox retry; use an explicitly approved
+out-of-sandbox Red/network path if Metric backlog write is needed.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

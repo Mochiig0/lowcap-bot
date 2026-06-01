@@ -88,6 +88,41 @@ Red classified provider diagnostic, 2026-06-01:
   / network environment review, or switch to a non-Metric backlog path until
   network fetch-layer reachability is understood.
 
+Green provider/network reachability review, 2026-06-02:
+
+- Current HEAD is `3c6bc46 docs: record classified metric provider
+  diagnostic` with a clean working tree. This pass was read-only /
+  diagnostics-only; no DB write, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write/watch, notification send, retry
+  execution, auto live send, scheduler/systemd, rawJson full dump, offensive
+  raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; default queue remains clear and rolling 168h still
+  has `metricPendingCount=1017`, `enrichPendingCount=1013`,
+  `notifyCandidateCount=0`. Disabled/enabled auto-send allowed `0`; retry
+  candidate `0`.
+- Safe config inspection found `GECKOTERMINAL_TOKEN_API_URL` is unset, so the
+  CLI uses the built-in GeckoTerminal token API host. The safe host is
+  `api.geckoterminal.com`; timeout is `10000ms`; endpoint shape is
+  `/api/v2/networks/solana/tokens/{mint}?include=top_pools`. No env values,
+  secrets, or provider bodies were printed.
+- In the normal sandbox, DNS/provider reachability fails: `getent hosts`
+  returned no address, `curl -I` failed with host resolution error, and Node
+  `fetch` HEAD returned `TypeError: fetch failed` with cause code `EAI_AGAIN`.
+- With approved non-sandbox read-only diagnostics, the same host resolves and
+  HTTPS HEAD reaches Cloudflare / GeckoTerminal. Root and token collection
+  HEAD requests returned safe HTTP `404` headers quickly, proving DNS/TLS/HTTP
+  reachability outside the sandbox. This supports Codex sandbox DNS/network
+  restriction as the likely cause of the prior `network_fetch_error`, not an
+  invalid provider URL or observed provider outage.
+- Selection preview remains fetch-free and write-free: limit `1` selects id
+  `7017`, all counts are clean, `providerErrorCount=0`, and rawJson is not
+  printed.
+- Decision: do not run another in-sandbox Metric Red retry. Next candidate is
+  either an approved Red run outside the restricted sandbox using the same safe
+  alias, or an operator-side network approval/path decision. No code/config
+  fix is indicated from this review.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

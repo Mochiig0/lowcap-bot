@@ -52,6 +52,18 @@ sandbox/network reachability, DNS/TLS/connectivity, or provider outage is
 blocking Node fetch. If external network diagnostics are desired, they should
 be a separately approved Green/Yellow diagnostic task with no DB write.
 
+That provider/network review is complete. In the normal Codex sandbox,
+GeckoTerminal host lookup and Node `fetch` fail before HTTP response with DNS
+`EAI_AGAIN`, matching the CLI's `network_fetch_error`. Approved non-sandbox
+read-only diagnostics resolve the same host and receive safe HTTP `404` HEAD
+responses from GeckoTerminal/Cloudflare. The provider URL config is using the
+default host and appears sane.
+
+Recommended next slice: **operator-approved out-of-sandbox Red or network
+approval decision**, not an in-sandbox retry. If the next Red is run in the
+same restricted sandbox, it is expected to repeat `network_fetch_error`. No app
+code or provider URL config fix is currently indicated.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

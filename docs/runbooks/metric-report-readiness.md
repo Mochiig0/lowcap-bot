@@ -97,6 +97,13 @@ readiness still depends on the existing `956` Metric rows. Do not interpret
 the failure as a scoring/watchlist issue; it is a provider/network diagnostic
 issue until reachability is resolved or bypassed by a different data path.
 
+The provider/network review confirmed no additional Metric evidence should be
+expected from in-sandbox retries. The sandbox cannot resolve the GeckoTerminal
+host, while non-sandbox diagnostics can reach it. Report readiness remains
+unchanged until a network-enabled Metric path succeeds or another data path is
+chosen. This does not change scoring, watchlist, Notification, or Telegram
+policy.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies
