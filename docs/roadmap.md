@@ -40,6 +40,18 @@ provider category with Metric write capped at one row. If that returns
 larger backlog writes. If it succeeds, run a fresh Green preflight before any
 larger Metric continuation.
 
+The limit `1` diagnostic Red has now run once. It selected token id `7017`,
+wrote no Metric, and classified the failure as `network_fetch_error` with no
+HTTP status. This confirms the provider problem is still occurring before an
+HTTP response is available and is not currently an observed `429`, other HTTP
+status, parse, shape, or provider-empty failure.
+
+Recommended next slice: **Green provider/network environment review**. Do not
+retry the same Metric backlog batch yet. The useful question is whether Codex
+sandbox/network reachability, DNS/TLS/connectivity, or provider outage is
+blocking Node fetch. If external network diagnostics are desired, they should
+be a separately approved Green/Yellow diagnostic task with no DB write.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

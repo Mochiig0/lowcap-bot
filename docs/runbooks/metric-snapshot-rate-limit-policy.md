@@ -48,6 +48,15 @@ were Metric-zero, Notification-zero, and HolderSnapshot-zero. Since preview
 mode does not fetch by design, the next useful provider classification step is
 a separately approved limit `1` diagnostic Red, not a same-50 retry.
 
+That limit `1` diagnostic Red classified the provider failure as
+`network_fetch_error`. The command selected id `7017`, wrote `0` Metric rows,
+and returned `providerErrorCount=1`, `network_fetch_error=1`,
+`firstErrorCategory=network_fetch_error`, `firstHttpStatus=null`, and
+`retryable=true`. No HTTP 429, other HTTP status, parse error, shape error,
+provider-empty result, or unknown error was observed. This points to a
+fetch-layer failure before HTTP response handling. Do not retry a larger batch
+until provider/network reachability is reviewed.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

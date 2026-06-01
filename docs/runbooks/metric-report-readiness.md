@@ -90,6 +90,13 @@ provider request was made and no Metric candidate was constructed. A limit `1`
 diagnostic Red is the narrowest next step if provider classification is needed;
 otherwise continue report/watchlist decisions from the existing Metric set.
 
+The limit `1` diagnostic Red also produced no new report evidence. It selected
+id `7017`, but provider fetch failed before HTTP response and no Metric row was
+created. Classification is now available (`network_fetch_error`), but report
+readiness still depends on the existing `956` Metric rows. Do not interpret
+the failure as a scoring/watchlist issue; it is a provider/network diagnostic
+issue until reachability is resolved or bypassed by a different data path.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

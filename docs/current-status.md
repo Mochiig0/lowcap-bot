@@ -59,6 +59,35 @@ Green classified provider diagnostic preflight, 2026-06-01:
   a small human-approved diagnostic Red with safe alias and `--limit 1`, which
   can classify provider behavior while capping Metric write impact at one row.
 
+Red classified provider diagnostic, 2026-06-01:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `e085773` matched and the working tree was clean.
+- The exact command was run once and was not retried:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 1 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- The command reached app logic, selected token id `7017`, and attempted one
+  provider fetch. Result: `selected=1`, `ok=0`, `skipped=0`, `error=1`,
+  `written=0`, `interItemDelayCount=0`.
+- Provider classification worked. Summary showed `providerErrorCount=1`,
+  `network_fetch_error=1`, all other categories `0`,
+  `firstErrorCategory=network_fetch_error`, `firstHttpStatus=null`, and item
+  `retryable=true`. This means the failure happened before an HTTP response
+  was available, matching a network/fetch-layer failure rather than a visible
+  HTTP 429 / 4xx / 5xx.
+- DB counts stayed Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; Metric buckets stayed `0=2207`, `1=729`, `2+=87`;
+  Notification status stayed `captured=17`, `sent=5`, `failed=0`.
+- Selected token id `7017` stayed `metadataStatus=mint_only`,
+  `metricsCount=0`, `notificationCount=0`, `holderSnapshotCount=0`; no new
+  Metric id, observedAt, or safe market-data booleans were produced.
+- Notification capture stayed disabled by batch mode; Notification
+  create/update, HolderSnapshot write, Token write, Telegram send, retry
+  execution, auto-send execution, scheduler/systemd, rawJson full dump,
+  offensive raw text dump, and `pnpm smoke` stayed `0`.
+- Decision: do not run a same-batch retry. Next step should be Green provider
+  / network environment review, or switch to a non-Metric backlog path until
+  network fetch-layer reachability is understood.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

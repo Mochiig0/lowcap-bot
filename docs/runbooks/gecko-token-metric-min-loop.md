@@ -42,6 +42,13 @@ clean Metric-zero rows, and preview summaries now include zeroed
 separate human-approved limit `1` diagnostic Red if provider classification is
 needed. Do not jump directly back to the broad 50-row backlog command.
 
+The limit `1` diagnostic Red confirmed the broad backlog failure is a
+fetch-layer issue: selected id `7017` remained Metric-zero, and the provider
+result was classified as `network_fetch_error` with no HTTP status. The minimum
+loop should pause broad Metric backlog writes until provider/network
+reachability is reviewed. Enrich/report paths remain separate decisions and
+must be preflighted independently.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 
