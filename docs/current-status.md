@@ -4,6 +4,33 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Red Metric backlog continuation attempt, 2026-06-01:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `8a23fb1` matched and the working tree was clean.
+- The exact command was run once and was not retried:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- The command failed before application logic because the child `tsx` process
+  could not create its IPC pipe (`listen EPERM` under `/tmp/tsx-1000`). No
+  fallback direct-node command, second Red command, retry, or manual backfill
+  was run.
+- DB counts stayed Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; metadata stayed `mint_only=2391`, `partial=619`,
+  `enriched=13`; Metric buckets stayed `0=2207`, `1=729`, `2+=87`; and
+  Notification status stayed `captured=17`, `sent=5`, `failed=0`.
+- Because the CLI stopped before app logic, selected rows did not move to
+  `metricsCount=1`, no new Metric ids or observedAt values were produced, and
+  representative new Metric reports were not applicable.
+- Notification capture remained disabled by command intent, and observed side
+  effects were `0`: external fetch, Metric write, Token write,
+  Notification create/update, HolderSnapshot write, Telegram send, retry
+  execution, auto-send execution, scheduler/systemd, rawJson full dump,
+  offensive raw text dump, and `pnpm smoke`.
+- Post-checks stayed safe: default queue remains empty, rolling 168h queue
+  remains `metricPendingCount=1017`, `enrichPendingCount=1013`,
+  `notifyCandidateCount=0`, enabled auto-send allowed candidate `0`, and retry
+  candidate `0`.
+
 Green backlog data collection preflight, 2026-06-01:
 
 - Current HEAD is `b2fec13 docs: review watchlist samples for scoring direction`

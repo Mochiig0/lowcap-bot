@@ -11,6 +11,20 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The human-approved Metric backlog continuation Red was attempted once with the
+exact `sinceMinutes=10080` command, but it did not reach application logic.
+The child `tsx` process failed to create its IPC pipe (`listen EPERM` under
+`/tmp/tsx-1000`). Per the Red Skill boundary, no retry, fallback direct-node
+write, second Red command, or manual backfill was run. DB counts and queues
+remained unchanged: Token / Metric / Notification / HolderSnapshot
+`3023 / 956 / 22 / 1`, rolling 168h `metricPendingCount=1017`, and enabled
+auto-send allowed candidate `0`.
+
+Next operating decision should be a fresh Green preflight. Do not reuse stale
+selection blindly; either address the `tsx` IPC execution boundary for package
+scripts or choose a newly approved exact command after current HEAD / queue /
+planner review.
+
 The backlog/data collection preflight is complete. The current 24h/420m and
 1440m windows are empty, but the rolling 168h backlog remains large:
 `metricPendingCount=1017` and `enrichPendingCount=1013`. Metric dry-run

@@ -143,6 +143,16 @@ Metric dry-run selected `50` clean Metric-zero rows with no Notification or
 HolderSnapshot rows. The runner remains a later option when fresh 6H data
 collection is the goal.
 
+That targeted Metric backlog Red was then attempted once with the approved
+exact command. It stopped before application logic because package-script `tsx`
+failed to create its IPC pipe (`listen EPERM` under `/tmp/tsx-1000`). No retry,
+second Red command, fallback direct-node write, or manual compensation was run.
+DB counts stayed `3023 / 956 / 22 / 1`, Metric buckets stayed `0=2207`,
+`1=729`, `2+=87`, and rolling 168h queue counts stayed
+`metricPendingCount=1017`, `enrichPendingCount=1013`,
+`notifyCandidateCount=0`. Treat this as a safe stop, not a completed Metric
+batch; use a new Green preflight before issuing another Red.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

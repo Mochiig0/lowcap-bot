@@ -280,6 +280,17 @@ and a fresh bounded runner execute is not first while the 6h operating window
 is clear. This preflight did not run any write/fetch/send command, did not
 execute the runner, and did not dump rawJson or offensive raw text.
 
+The follow-up Metric backlog Red attempted that exact command once. It stopped
+before app logic because the package-script `tsx` child process failed to
+create its IPC pipe (`listen EPERM` under `/tmp/tsx-1000`). No retry, second
+Red command, fallback direct-node write, or manual backfill was run. Token /
+Metric / Notification / HolderSnapshot stayed `3023 / 956 / 22 / 1`; Metric
+buckets stayed `0=2207`, `1=729`, `2+=87`; Notification statuses stayed
+`captured=17`, `sent=5`, `failed=0`; and the 168h queue stayed
+`metricPendingCount=1017`, `enrichPendingCount=1013`,
+`notifyCandidateCount=0`. The selected rows did not advance to
+`metricsCount=1`; another Red requires a fresh Green preflight.
+
 Latest post-6H Metric pending update, 2026-05-26: bounded
 `metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
 `--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,

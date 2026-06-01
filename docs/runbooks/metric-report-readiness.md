@@ -37,6 +37,15 @@ HolderSnapshot rows. Choose Metric backlog continuation first to improve data
 coverage before more report/scoring review; keep B watchlist report-only and
 Telegram / notifyCandidate S-only.
 
+The subsequent Metric backlog Red did not produce new Metric evidence. The
+exact command was attempted once, but package-script `tsx` failed before app
+logic with an IPC pipe `EPERM`, so no external fetch, Metric write, observedAt,
+new Metric id, Token update, Notification update, HolderSnapshot write,
+Telegram send, retry, or rawJson dump occurred. Report readiness is therefore
+unchanged; current report/watchlist conclusions still depend on the existing
+`956` Metric rows. Run a fresh Green preflight before another data-collection
+Red.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies
