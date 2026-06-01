@@ -4,6 +4,47 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green provider error review, 2026-06-01:
+
+- Current HEAD is `491d12b docs: record safe metric backlog continuation` with
+  a clean working tree. This pass was read-only / docs-only; no production
+  write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, schema/migration change,
+  rawJson full dump, offensive raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; Metric buckets remain `0=2207`, `1=729`, `2+=87`;
+  Notification status remains `captured=17`, `sent=5`, `failed=0`.
+- Queue state is unchanged: default `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`; rolling 168h
+  `metricPendingCount=1017`, `enrichPendingCount=1013`,
+  `notifyCandidateCount=0`. Disabled and enabled auto-send allowed candidate
+  `0`; retry candidate `0`.
+- Source inspection shows `fetchTokenSnapshotRaw()` uses Node `fetch()` against
+  `GECKOTERMINAL_TOKEN_API_URL/{mint}?include=top_pools` with a 10s timeout.
+  Non-OK HTTP responses throw a safe message with HTTP status/statusText, but
+  fetch-layer failures surface only as `fetch failed`. Therefore the latest
+  `fetch failed` result did not expose whether the root cause was DNS,
+  connection/TLS, timeout, sandbox/network reachability, or provider outage.
+- The CLI processes batch items sequentially and continues per item. In
+  one-shot batch mode, rate-limit early stop is not active; the watch-only
+  rate-limit short-circuit checks `429 Too Many Requests`.
+- The selected ids `7017..6968` are only about `32.1..32.9` hours old, all
+  `geckoterminal.new_pools`, `metadataStatus=mint_only`, `metricsCount=0`,
+  `notificationCount=0`, and `holderSnapshotCount=0`. This makes an
+  old-backlog-only explanation weaker than an environment/provider reachability
+  issue, though token endpoint unavailability for individual mints is still
+  unproven because no HTTP status was observed.
+- Safe alias help still works and a limit-5 preview remains fetch-free:
+  selected ids `7017..7013`, all `selection_preview`, `writeEnabled=false`,
+  `writtenCount=0`, `metricsCount=0`, `notificationCount=0`,
+  `holderSnapshotCount=0`, and Notification capture enabled count `0`.
+- Decision: do not retry the same 50 and do not issue an exact-mint Red yet.
+  Next candidate is a Yellow provider-diagnostic visibility improvement that
+  safely classifies Metric snapshot provider errors into network/fetch,
+  timeout, HTTP status, 429, parse/shape, and unknown buckets without dumping
+  raw response bodies, rawJson, or token text.
+
 Red safe Metric backlog continuation attempt, 2026-06-01:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

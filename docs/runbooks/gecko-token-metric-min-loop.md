@@ -324,6 +324,15 @@ stayed `0=2207`, `1=729`, `2+=87`; selected ids `7017..6968` stayed
 stayed `0`. Do not retry from this run; use a fresh Green review before the
 next Red.
 
+The follow-up provider review found the selected rows are not especially old:
+ids `7017..6968` are about `32.1..32.9` hours from their GeckoTerminal
+detectedAt anchors, all `geckoterminal.new_pools`, `mint_only`, Metric-zero,
+Notification-zero, and HolderSnapshot-zero. Source inspection shows HTTP
+status failures would be visible in the safe error string, but this run only
+showed fetch-layer `fetch failed`. The next minimum-loop implementation task
+should improve provider error reason visibility before another broad Metric
+Red.
+
 Latest post-6H Metric pending update, 2026-05-26: bounded
 `metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
 `--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,

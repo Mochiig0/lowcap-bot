@@ -66,6 +66,13 @@ inspect. Report readiness and B-watchlist conclusions are unchanged; the next
 step should be provider/error review or a fresh Green data-collection
 preflight, not scoring or notification policy changes.
 
+Provider/error review confirms report readiness remains unchanged because the
+failure happened before Metric candidate construction. No safe market-data
+booleans or observedAt values exist for ids `7017..6968`. Since the CLI does
+not yet classify fetch-layer causes beyond `fetch failed`, the next useful
+Yellow is provider error visibility rather than scoring, notification, or
+watchlist changes.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

@@ -16,6 +16,16 @@ targeted tests, CLI `--help`, fetch-free `--onlyMetricPending` previews,
 `mvp:status`, `ops:plan:bounded`, `notification:auto-send:plan`,
 `notification:retry:plan`, and `review:queue:geckoterminal`.
 
+Provider error review, 2026-06-01: the safe Metric backlog Red selected
+`50` rows but all items returned `fetch failed`, with no Metric writes. Source
+inspection confirms that non-OK HTTP responses would include a safe
+`GeckoTerminal token snapshot request failed: <status> <statusText>` message,
+while Node fetch-layer failures currently collapse to `fetch failed`. The
+current CLI therefore cannot distinguish DNS/connection/TLS, timeout, provider
+outage, sandbox/network reachability, and other fetch-layer failures in
+operator summaries. A future Yellow should add raw-response-free provider error
+classification and aggregate counts before another broad Red retry.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

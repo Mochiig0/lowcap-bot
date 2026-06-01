@@ -11,6 +11,19 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The Green provider-error review is complete. The safe alias launch path is
+working, but the latest Metric backlog Red failed at the provider fetch layer:
+`fetch failed` was reported for all `50` selected rows and no HTTP status was
+available. Source inspection shows non-OK HTTP responses would include
+status/statusText, so this result is more consistent with network/fetch-layer
+reachability, timeout, or provider outage than with a visible 404/429 response.
+
+Recommended next slice: **Yellow provider diagnostic visibility** for
+`metric:snapshot:geckoterminal`. Add safe error classification/aggregation for
+network fetch failures, timeouts, HTTP statuses, 429, parse/shape failures, and
+unknown errors. Do not retry the same 50-row Red or run exact-mint write
+diagnostics until the error reason is visible enough to decide.
+
 The safe Metric backlog Red was attempted once. The safe alias fixed the prior
 process-launch issue: no `tsx` IPC `EPERM` occurred, and app logic selected
 the expected `50` rows (`7017..6968`). The batch did not write Metrics because
