@@ -53,6 +53,12 @@ This changes only the process launch path; report readiness, rawJson
 boundaries, Notification / Telegram policy, and scoring/watchlist behavior are
 unchanged.
 
+Safe Metric preflight on 2026-06-01 confirms the next report-readiness data
+collection step can be issued as a Red candidate. The safe alias preview is
+write-free, fetch-free, and selected `50` Metric-zero rows with no
+Notification or HolderSnapshot rows. Until that Red actually succeeds, report
+readiness still depends on the existing `956` Metric rows.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

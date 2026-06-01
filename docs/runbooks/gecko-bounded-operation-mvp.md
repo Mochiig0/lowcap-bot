@@ -167,6 +167,13 @@ pnpm -s detect:geckoterminal:new-pools:safe -- ...
 execution. Safe aliases do not change side-effect rules; `--write`, `--watch`,
 and `--execute` still require separate Red approval.
 
+The safe Metric alias preflight on 2026-06-01 passed: help output is available
+without IPC `EPERM`, and the read-only preview selected `50` Metric-zero rows
+for the rolling backlog window (`sinceMinutes=10080`). Use the safe alias for
+the next targeted Metric Red instead of a fresh bounded runner execute; the
+bounded runner remains reserved for fresh 6H collection after a separate
+preflight.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

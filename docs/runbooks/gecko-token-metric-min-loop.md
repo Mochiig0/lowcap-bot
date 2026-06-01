@@ -302,6 +302,18 @@ direct `tsx` package-script path that failed before app logic. It does not
 relax any Red rule: exact command, human approval, no retry, no second write,
 and Notification / Telegram boundaries still apply.
 
+Safe preflight on 2026-06-01 confirmed the concrete window for the next Red.
+`metric:snapshot:geckoterminal:safe -- --help` returned Usage without IPC
+`EPERM`, and the write-free preview with `sinceMinutes=10080` selected `50`
+rows, ids `7017..6968`, all `metricsCount=0`, `notificationCount=0`, and
+`holderSnapshotCount=0`. The next exact Red candidate is:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+This remains human-approved Red only and was not executed during preflight.
+
 Latest post-6H Metric pending update, 2026-05-26: bounded
 `metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
 `--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,

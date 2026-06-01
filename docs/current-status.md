@@ -4,6 +4,34 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green safe Metric backlog preflight, 2026-06-01:
+
+- Current HEAD is `aa33756 chore: add safe cli scripts for codex red
+  execution` with a clean working tree. This pass was read-only / docs-only;
+  no production write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, schema/migration change,
+  rawJson full dump, offensive raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; Metric buckets remain `0=2207`, `1=729`, `2+=87`;
+  Notification status remains `captured=17`, `sent=5`, `failed=0`.
+- Default queue remains clear:
+  `metricPendingCount=0`, `enrichPendingCount=0`, `notifyCandidateCount=0`.
+  Rolling 168h remains the backlog window:
+  `geckoOriginTokenCount=1437`, `metricPendingCount=1017`,
+  `enrichPendingCount=1013`, `staleReviewCount=1068`,
+  `notifyCandidateCount=0`.
+- Disabled and enabled auto-send planners both have failed `0`, allowed
+  candidate `0`, and `wouldSend=false`; retry planner has candidate `0`.
+- `metric:snapshot:geckoterminal:safe -- --help` returns Usage without IPC
+  `EPERM`. The safe script preview with `sinceMinutes=10080` is
+  `dryRun=true`, `writeEnabled=false`, `writtenCount=0`,
+  `selection_preview=50`, selected ids `7017..6968`, all `metricsCount=0`,
+  `notificationCount=0`, `holderSnapshotCount=0`, and notification capture
+  enabled count `0`.
+- Decision: a human-approved Red can now use the exact safe alias command:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 Safe CLI execution update, 2026-06-01:
 
 - The Red failure was traced to the package script form using direct `tsx`

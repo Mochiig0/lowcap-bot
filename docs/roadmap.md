@@ -11,6 +11,25 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The safe Metric backlog preflight is complete on HEAD `aa33756`. The safe
+alias help path no longer hits the `tsx` IPC `EPERM`, and the read-only
+preview for `sinceMinutes=10080` selects `50` Metric-zero rows
+(`7017..6968`) with no Notification or HolderSnapshot rows. Default queue is
+clear, rolling 168h still has `metricPendingCount=1017`, enabled auto-send
+allowed candidate is `0`, and retry candidate is `0`.
+
+Recommended next slice: **human-approved Red Metric backlog continuation via
+safe alias**:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Expected effects are external GeckoTerminal fetch and up to `50` Metric rows;
+Token write, Notification create/update, HolderSnapshot write, Telegram send,
+retry/auto-send execution, scheduler/systemd, and rawJson full dump should
+remain `0`.
+
 The safe CLI execution Yellow is complete. The root cause of the latest Red
 failure is not Metric logic; it is the direct `tsx` package-script execution
 path failing before app logic with IPC `listen EPERM`. The runner already uses
