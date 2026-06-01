@@ -134,6 +134,15 @@ watchlist rows and scoreBreakdown source/tag summaries, and remains
 raw-text-free. It does not change runner phases, Metric/enrich commands,
 Notification planner behavior, Telegram send policy, or any DB write behavior.
 
+Backlog preflight on 2026-06-01 found the short 6h/420m operating window clear
+but the 168h backlog still large. `ops:run:bounded` plan-only remains
+unblocked with checkpoint `/tmp/lowcap-bot-next-plan.json`, two Metric cycles,
+and two enrich cycles, but the more targeted next Red should be Metric backlog
+continuation rather than a fresh bounded runner execute. A 10080 minute
+Metric dry-run selected `50` clean Metric-zero rows with no Notification or
+HolderSnapshot rows. The runner remains a later option when fresh 6H data
+collection is the goal.
+
 Post-run Metric/enrich phases can be bounded into multiple cycles:
 
 - `--postRunMetricCycles <N>` controls how many Metric pending snapshot

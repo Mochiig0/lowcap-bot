@@ -264,6 +264,22 @@ enrich/rescore, report review, notification planner review, and optional
 auto-send planner review. It emits command candidates only, with Metric and
 enrich post-run limits defaulting to `50`; it does not execute any command.
 
+Backlog data collection preflight on 2026-06-01 found the short 420 and 1440
+minute windows clear for both Metric and enrich continuation, while the
+rolling 168h queue still had `metricPendingCount=1017` and
+`enrichPendingCount=1013`. A read-only Metric selection preview with
+`sinceMinutes=10080` selected `50` clean rows, ids `7017..6968`, all
+`metadataStatus=mint_only`, `metricsCount=0`, `notificationCount=0`, and
+`holderSnapshotCount=0`. Prisma read-only enrich simulation with the same
+window selected ids `7068..7019`, all `metadataStatus=mint_only`,
+`metricsCount=1`, `notificationCount=0`, and `holderSnapshotCount=0`.
+
+The next minimum-loop Red candidate should therefore be Metric backlog
+continuation with `sinceMinutes=10080`; enrich continuation is second choice,
+and a fresh bounded runner execute is not first while the 6h operating window
+is clear. This preflight did not run any write/fetch/send command, did not
+execute the runner, and did not dump rawJson or offensive raw text.
+
 Latest post-6H Metric pending update, 2026-05-26: bounded
 `metric:snapshot:geckoterminal` ran with `--onlyMetricPending`,
 `--limit 50`, `--sinceMinutes 360`, `--minGapMinutes 60`,

@@ -11,6 +11,19 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-01
 
+The backlog/data collection preflight is complete. The current 24h/420m and
+1440m windows are empty, but the rolling 168h backlog remains large:
+`metricPendingCount=1017` and `enrichPendingCount=1013`. Metric dry-run
+selection with `sinceMinutes=10080` cleanly selects `50` Metric-zero rows
+with no Notification or HolderSnapshot rows. Enrich simulation with the same
+window also selects `50` rows, all already at `metricsCount=1`.
+
+Recommended next slice: **human-approved Red Metric backlog continuation** with
+the wider `10080` minute window. This is narrower than a fresh 6H bounded
+runner execute and directly improves Metric coverage before more enrich or
+scoring review. Enrich continuation is second choice. Fresh bounded runner is
+not first because the short operating window is currently clear.
+
 The Green `--watchlistOnly` sample review is complete. The default 24h window
 has drifted clear, so current watchlist review should use rolling 168h. That
 window still has `14` B-watchlist rows, `13` ready and `1` not ready due to

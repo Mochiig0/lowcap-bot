@@ -25,6 +25,18 @@ or backlog preflight to grow the sample, followed by another Green review.
 Do not add capture-only B Notifications or change Telegram / notifyCandidate
 rules from this evidence.
 
+Backlog preflight follow-up, 2026-06-01: report/watchlist review is not the
+next Red because the default window has drifted clear and the watchlist sample
+is still small. Rolling 168h remains the useful operating window:
+`metricPendingCount=1017`, `enrichPendingCount=1013`, and
+`notifyCandidateCount=0`. A rawJson-free Metric selection preview with
+`sinceMinutes=10080` selected `50` Metric-zero rows, ids `7017..6968`, with
+no Notification or HolderSnapshot rows. Enrich simulation selected `50` rows,
+ids `7068..7019`, all with one Metric row and no Notification or
+HolderSnapshot rows. Choose Metric backlog continuation first to improve data
+coverage before more report/scoring review; keep B watchlist report-only and
+Telegram / notifyCandidate S-only.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

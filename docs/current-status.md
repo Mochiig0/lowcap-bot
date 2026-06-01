@@ -4,6 +4,44 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Green backlog data collection preflight, 2026-06-01:
+
+- Current HEAD is `b2fec13 docs: review watchlist samples for scoring direction`
+  with a clean working tree. This pass was read-only / docs-only; no
+  production write/fetch/send, Metric write, Token enrich/rescore write,
+  `ops:run:bounded --execute`, detect write, notification send, retry
+  execution, auto live send, scheduler/systemd, schema/migration change,
+  rawJson full dump, offensive raw text dump, or `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`; disabled and enabled auto-send planners both allow
+  `0`; retry candidate is `0`.
+- The default 24h Gecko review queue is now empty due to window drift:
+  `geckoOriginTokenCount=0`, `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`. Rolling 168h still has
+  `geckoOriginTokenCount=1437`, `metricPendingCount=1017`,
+  `enrichPendingCount=1013`, `staleReviewCount=1068`, and
+  `notifyCandidateCount=0`. Rolling 168h watchlist remains `14` B/2 rows,
+  `13` ready and `1` `missing_metric`.
+- Metric continuation preview: `sinceMinutes=420` and `1440` selected `0`.
+  `sinceMinutes=10080` selected `50` rows, ids `7017..6968`, all
+  `metadataStatus=mint_only`, `metricsCount=0`, `notificationCount=0`,
+  `holderSnapshotCount=0`, `status=selection_preview`, dry-run only,
+  Notification capture disabled, and would-create-Metric `50`.
+- Enrich read-only simulation: `sinceMinutes=420` and `1440` selected `0`.
+  `sinceMinutes=10080` selected `50` rows, ids `7068..7019`, all
+  `metadataStatus=mint_only`, all `metricsCount=1`, and all
+  `notificationCount=0` / `holderSnapshotCount=0`.
+- Runner plan-only is unblocked with `computedSinceMinutes=420`,
+  `postRunMetricCycles=2`, `postRunEnrichCycles=2`, checkpoint
+  `/tmp/lowcap-bot-next-plan.json`, and all phases planned. The broader
+  `ops:plan:bounded --postRunPlan` sees the 6h window clear and recommends
+  `detect_watch_dry_run`; production execute was not run.
+- Decision: choose Metric backlog continuation first, using the wider
+  `sinceMinutes=10080` window. It has a clean 50-row selection and directly
+  improves Metric coverage before more enrich or scoring review. Enrich is the
+  second choice. Fresh bounded runner execute is not first because the 6h
+  window is clear and the 168h Metric backlog is still large.
+
 Green watchlist sample review, 2026-06-01:
 
 - Current HEAD is `06d8010 feat: add watchlist only review queue mode` with a
