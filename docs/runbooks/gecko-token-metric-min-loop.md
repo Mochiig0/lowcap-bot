@@ -140,6 +140,22 @@ HolderSnapshot counts stayed `0`. Counts moved only in Metric:
 since the pre-run snapshot. The next step should be Green report/queue review
 with an explicit lane decision, because the enrich backlog remains high.
 
+That lane decision switched to enrich/report, and a small network-enabled
+limit `10` enrich/rescore Red succeeded. It selected ids `7068..7059`, all of
+which had one GeckoTerminal Metric and no Notification or HolderSnapshot rows.
+The safe alias exact command ran once without `--notify` and returned
+`selected=10`, `ok=10`, `error=0`, `enrichWriteCount=10`,
+`rescoreWriteCount=10`, `contextWriteCount=10`,
+`metaplexAttemptedCount=10`, `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`.
+
+The selected rows moved from `mint_only` to `partial` with enriched/rescored
+timestamps, reviewFlags, and GeckoTerminal context. Their Metrics remained
+`2015..2024`; no new Metric rows were written. Notification / Telegram,
+HolderSnapshot, retry, auto-send, scheduler/systemd, rawJson dump, and `pnpm
+smoke` stayed `0`. The next step should be Green post-run enrich/report
+review for ids `7068..7059` before any additional Red.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

@@ -456,6 +456,50 @@ Red network-enabled Metric backlog limit 50 continuation, 2026-06-03:
   Metric backlog with switching to the enrich/report lane because
   `enrichPendingCount` remains high.
 
+Red network-enabled enrich/rescore limit 10, 2026-06-03:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `34533c0 docs: record network enabled metric backlog continuation`
+  matched and the working tree was clean before execution.
+- The exact command was run once in an approved network-enabled /
+  out-of-sandbox context and was not retried:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 10 --sinceMinutes 10080 --interItemDelayMs 15000 --write`.
+- `--notify` was not used. Preflight selected ids `7068..7059`; all were
+  `mint_only`, `metricsCount=1`, `notificationCount=0`,
+  `holderSnapshotCount=0`, score `C / 0`, `hardRejected=false`, and had no
+  existing reviewFlags.
+- The Red succeeded: `selected=10`, `ok=10`, `error=0`,
+  `enrichWriteCount=10`, `rescoreWriteCount=10`, `contextWriteCount=10`,
+  `metaplexAttemptedCount=10`, `metaplexAvailableCount=0`,
+  `metaplexWriteCount=0`, `notifyWouldSendCount=0`, `notifySentCount=0`,
+  `rateLimited=false`, and `interItemDelayCount=9`. Metaplex secondary lookup
+  returned `metadata_account_missing=10`.
+- DB counts stayed Token / Metric / Notification / HolderSnapshot
+  `3023 / 1207 / 22 / 1`; Metric buckets stayed `0=1956`, `1=980`,
+  `2+=87`. Metadata status moved `mint_only=2391`, `partial=619`,
+  `enriched=13` -> `mint_only=2381`, `partial=629`, `enriched=13`.
+- Selected ids `7068..7059` moved to `metadataStatus=partial`,
+  `enrichedAt` present, `rescoredAt` present, reviewFlags present, and
+  GeckoTerminal context present. Their `metricsCount` stayed `1`,
+  `notificationCount` stayed `0`, and `holderSnapshotCount` stayed `0`.
+  Nine stayed score `C / 0` and non-hard-rejected; one moved to score
+  `C / 1` and `hardRejected=true`.
+- Latest Metric ids for the selected tokens remain `2015..2024`; no Metric
+  rows were created. Notification count stayed `22`, failed Notification
+  stayed `0`, disabled/enabled auto-send allowed stayed `0`, retry candidate
+  stayed `0`, and default queue stayed clear. Rolling 168h after the run had
+  `metricPendingCount=433`, `enrichPendingCount=725`, and
+  `notifyCandidateCount=0`; the drop versus pre-run includes the 10 enriched
+  rows plus normal 168h window drift.
+- Token write was the only production DB write class. Metric write,
+  Notification create/update/send, HolderSnapshot write, Telegram send, retry
+  execution, auto-send execution, scheduler/systemd, schema/migration/app code
+  change, rawJson full dump, offensive raw text dump, and `pnpm smoke` stayed
+  `0`.
+- Decision: run a fresh Green post-run enrich/report review for ids
+  `7068..7059` before any next Red. That review should decide whether to run
+  another small enrich Red, return to Metric backlog, or stay report-only.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

@@ -194,6 +194,23 @@ decision**. Confirm Metric ids `2267..2316`, then explicitly choose whether
 to continue another network-enabled Metric backlog batch or switch to the
 enrich/report lane because the enrich backlog remains high.
 
+That Green review chose the enrich/report lane, and the first small
+network-enabled enrich/rescore Red is now complete. It selected ids
+`7068..7059` and ran the safe alias exact command once without `--notify`.
+Result: `selected=10`, `ok=10`, `error=0`, `enrichWriteCount=10`,
+`rescoreWriteCount=10`, `contextWriteCount=10`,
+`metaplexAttemptedCount=10`, `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, `notifySentCount=0`, and `rateLimited=false`.
+Counts stayed `3023 / 1207 / 22 / 1`; metadata moved
+`mint_only=2391, partial=619, enriched=13 -> mint_only=2381, partial=629,
+enriched=13`. Notification / Telegram, Metric, HolderSnapshot, retry,
+auto-send, scheduler/systemd, rawJson dump, and `pnpm smoke` stayed `0`.
+
+Recommended next slice: **Green post-run enrich/report review** for ids
+`7068..7059`. Confirm the updated context/reviewFlags/report visibility, then
+decide whether the next step is another small enrich Red, Metric backlog, or
+report-only review.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was
