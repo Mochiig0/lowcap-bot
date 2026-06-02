@@ -111,6 +111,21 @@ resolve and reach the host with HTTP HEAD `404`. Keep Metric provider-fetch
 Red out of the normal sandbox unless a future same-context preflight proves
 provider reachability.
 
+Network-enabled diagnostic result, 2026-06-02: the approved out-of-sandbox
+limit `1` Red succeeded. It selected token id `7017`, wrote Metric id `2066`
+at `observedAt=2026-06-02T10:47:11.851Z`, and returned `selected=1`,
+`ok=1`, `error=0`, `written=1`, `providerErrorCount=0`, and all
+`errorCategoryCounts=0`. RawJson-free `metrics:report` confirmed
+`priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+`topPoolPresent=true`. Counts moved only in Metric:
+`3023 / 956 / 22 / 1 -> 3023 / 957 / 22 / 1`; Metric buckets moved
+`0=2207, 1=729, 2+=87 -> 0=2206, 1=730, 2+=87`; rolling 168h
+`metricPendingCount` moved `728 -> 727`. Notification capture stayed disabled,
+Notification / Telegram stayed unchanged, and no retry, auto-send, scheduler,
+systemd, rawJson dump, or `pnpm smoke` occurred. Any broader limit `50`
+continuation still requires a fresh Green preflight and separate human
+approval.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

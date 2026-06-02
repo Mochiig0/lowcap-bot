@@ -88,6 +88,19 @@ network-enabled / out-of-sandbox and should start as limit `1` diagnostic
 only. Current 168h backlog preview is `metricPendingCount=728` and
 `enrichPendingCount=779`; default queue and notify candidates remain `0`.
 
+That network-enabled limit `1` diagnostic Red is now complete. It selected id
+`7017`, reached GeckoTerminal outside the normal sandbox, and wrote Metric id
+`2066` at `observedAt=2026-06-02T10:47:11.851Z`. Provider diagnostics were
+clean (`providerErrorCount=0`, all error categories `0`), and rawJson-free
+reports confirmed price / FDV / reserve / top-pool presence. Counts moved only
+in Metric: `3023 / 956 / 22 / 1 -> 3023 / 957 / 22 / 1`; rolling 168h
+`metricPendingCount` moved `728 -> 727`; Notification / Telegram stayed `0`.
+
+Recommended next slice: **fresh Green preflight for a separate limit 50
+network-enabled Metric backlog Red** if the operator wants broader Metric data
+collection. Do not continue directly from the diagnostic without a new
+preflight and human-approved exact command.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

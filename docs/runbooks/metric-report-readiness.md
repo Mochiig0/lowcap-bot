@@ -104,6 +104,17 @@ unchanged until a network-enabled Metric path succeeds or another data path is
 chosen. This does not change scoring, watchlist, Notification, or Telegram
 policy.
 
+Network-enabled Metric diagnostic, 2026-06-02: report readiness gained one new
+GeckoTerminal Metric row. The approved out-of-sandbox limit `1` Red wrote
+Metric id `2066` for token id `7017` at
+`observedAt=2026-06-02T10:47:11.851Z`. `metrics:report -- --tokenId 7017
+--limit 1` confirms the row rawJson-free with `volume24h=0` and
+`priceUsdPresent=true`, `fdvUsdPresent=true`, `reserveUsdPresent=true`, and
+`topPoolPresent=true`. `token:show` confirms the selected mint remains
+`mint_only`, score `C / 0`, with `metricsCount=1`. Notification / Telegram,
+Token, HolderSnapshot, retry, auto-send, scheduler/systemd, and rawJson dump
+side effects stayed `0`.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

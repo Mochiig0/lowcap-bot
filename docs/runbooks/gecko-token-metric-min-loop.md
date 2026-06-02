@@ -66,6 +66,16 @@ requires a successful limit `1` diagnostic plus a fresh Green preflight. This
 policy does not unlock scheduler/systemd, notification send, retry execution,
 or `pnpm smoke`.
 
+The network-enabled limit `1` diagnostic succeeded. Token id `7017`
+(`3HMckPJ43Zfh6fv4J79coAMX3ewb5pH8pUjRhQhapump`) moved from
+`metricsCount=0` to `metricsCount=1` with Metric id `2066`, observed at
+`2026-06-02T10:47:11.851Z`. Provider errors were `0`, and rawJson-free
+reporting confirmed price / FDV / reserve / top-pool presence. Token,
+Notification, HolderSnapshot, Telegram, retry, auto-send, scheduler/systemd,
+and rawJson dump side effects stayed `0`. This proves the provider path works
+in the approved network-enabled context, but a limit `50` backlog continuation
+still needs a fresh Green preflight and separate Red approval.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

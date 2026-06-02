@@ -175,6 +175,48 @@ Green network-enabled Metric Red policy, 2026-06-02:
   or a later network-enabled bounded runner. No app code/config fix is
   indicated by the current evidence.
 
+Red network-enabled Metric diagnostic, 2026-06-02:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `227308c docs: update red execution safety skill` matched and the
+  working tree was clean before execution.
+- The exact command was run once in an approved network-enabled /
+  out-of-sandbox context and was not retried:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 1 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Preflight selected token id `7017`, mint
+  `3HMckPJ43Zfh6fv4J79coAMX3ewb5pH8pUjRhQhapump`, with
+  `metadataStatus=mint_only`, `metricsCount=0`, `notificationCount=0`, and
+  `holderSnapshotCount=0`. Provider HEAD reached GeckoTerminal/Cloudflare
+  outside the sandbox with HTTP `404` for the root HEAD check.
+- The Red succeeded: `selected=1`, `ok=1`, `skipped=0`, `error=0`,
+  `written=1`, `interItemDelayCount=0`. Provider diagnostics stayed clean:
+  `providerErrorCount=0`, all `errorCategoryCounts=0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Metric id `2066` was created at `observedAt=2026-06-02T10:47:11.851Z`
+  with source `geckoterminal.token_snapshot` and `volume24h=0`. RawJson-free
+  `metrics:report` confirmed `priceUsdPresent=true`, `fdvUsdPresent=true`,
+  `reserveUsdPresent=true`, and `topPoolPresent=true`.
+- DB counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `3023 / 956 / 22 / 1` -> `3023 / 957 / 22 / 1`.
+  Metric buckets moved `0=2207`, `1=729`, `2+=87` -> `0=2206`, `1=730`,
+  `2+=87`.
+- Token id `7017` now has `metricsCount=1` and remains `mint_only`,
+  score `C / 0`, `hardRejected=false`, `notificationCount=0`, and
+  `holderSnapshotCount=0`. `token:show` confirms latest Metric `2066`.
+- Default queue remains clear: `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`. Rolling 168h now has
+  `metricPendingCount=727`, `enrichPendingCount=779`, and
+  `notifyCandidateCount=0`. Disabled/enabled auto-send allowed candidate
+  count stayed `0`; retry candidate stayed `0`; failed Notification stayed
+  `0`.
+- Notification capture was disabled and skipped as `not_single_mint_mode`.
+  Token write, Notification create/update, HolderSnapshot write, Telegram
+  send, retry execution, auto-send execution, scheduler/systemd, rawJson full
+  dump, offensive raw text dump, and `pnpm smoke` stayed `0`.
+- Decision: network-enabled provider fetch works for the limit `1` diagnostic.
+  The next Metric backlog action should still be a fresh Green preflight
+  before considering a separate human-approved limit `50` Red.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with
