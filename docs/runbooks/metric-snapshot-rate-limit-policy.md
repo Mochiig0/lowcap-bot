@@ -156,6 +156,24 @@ HolderSnapshot write, retry, auto-send, scheduler, systemd, rawJson dump, or
 `pnpm smoke` occurred. Do a fresh Green report/queue review before another
 Metric backlog Red.
 
+Network-enabled backlog limit `50` continuation, 2026-06-02: after the Green
+post-run review, the next approved out-of-sandbox Red again ran the exact safe
+alias command once and completed without provider errors. It selected ids
+`6966..6917`, wrote Metric ids `2117..2166`, and returned `selected=50`,
+`ok=50`, `skipped=0`, `error=0`, `written=50`,
+`interItemDelayCount=49`, `providerErrorCount=0`, and all
+`errorCategoryCounts=0`. ObservedAt range was
+`2026-06-02T14:20:28.829Z` to `2026-06-02T14:33:24.017Z`; rawJson-free
+checks confirmed price / FDV / reserve / top-pool presence for all 50 new
+rows. Counts moved only in Metric:
+`3023 / 1007 / 22 / 1 -> 3023 / 1057 / 22 / 1`; Metric buckets moved
+`0=2156, 1=780, 2+=87 -> 0=2106, 1=830, 2+=87`; rolling 168h
+`metricPendingCount` moved `677 -> 627`. Notification capture stayed
+disabled, Notification / Telegram stayed unchanged, and no Token write,
+HolderSnapshot write, retry, auto-send, scheduler, systemd, rawJson dump, or
+`pnpm smoke` occurred. Continue the one-Red-then-one-Green cadence before any
+third batch.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,
