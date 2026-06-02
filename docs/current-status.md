@@ -123,6 +123,58 @@ Green provider/network reachability review, 2026-06-02:
   alias, or an operator-side network approval/path decision. No code/config
   fix is indicated from this review.
 
+Green network-enabled Metric Red policy, 2026-06-02:
+
+- Current HEAD is `c2e0e4b docs: review metric provider network
+  reachability`. Codex CLI after update is `codex-cli 0.136.0` (the command
+  also printed a read-only PATH update warning). The working tree was already
+  dirty at preflight start with docs and repo-local skill edits; this pass did
+  not change app code, schema, migrations, or production DB state. This pass
+  was read-only / docs-only; no production DB write, Metric write,
+  Token enrich/rescore write, `ops:run:bounded --execute`, detect write/watch,
+  notification send, retry execution, auto live send, scheduler/systemd,
+  schema/migration change, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run. The only external provider access was read-only
+  HEAD/DNS reachability diagnostics; no token JSON or response body was
+  fetched.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 956 / 22 / 1`. Default queue is clear. Rolling 168h remains the
+  backlog window with `metricPendingCount=728`, `enrichPendingCount=779`,
+  and `notifyCandidateCount=0`. Disabled/enabled auto-send allowed `0`; retry
+  candidate `0`. Metric buckets remain `0=2207`, `1=729`, `2+=87`.
+- Safe alias status is preserved. `metric:snapshot:geckoterminal:safe -- --help`
+  prints the expected usage text without IPC `EPERM` (exit code `1` for help).
+  The safe dry-run preview selected `5` Metric-zero rows, emitted
+  `dryRun=true`, `writeEnabled=false`, `selection_preview`,
+  `providerErrorCount=0`, and did not fetch or write. Selected rows had
+  `metricsCount=0`, `notificationCount=0`, and `holderSnapshotCount=0`.
+- Sandbox provider reachability still fails after the Codex CLI update:
+  `getent hosts api.geckoterminal.com` returned no address, `curl -I` failed
+  with `Could not resolve host`, and Node `fetch` HEAD returned
+  `TypeError EAI_AGAIN`. Approved out-of-sandbox read-only diagnostics resolved
+  the host and reached GeckoTerminal/Cloudflare with HTTP `404` HEAD status,
+  confirming provider network reachability outside the normal sandbox.
+- Policy decision: normal Codex sandbox Metric provider-fetch Red is allowed
+  only when current DNS/provider reachability succeeds in preflight or a recent
+  in-sandbox Metric fetch succeeded. Otherwise, do not run Metric provider Red
+  in the sandbox.
+- Network-enabled / out-of-sandbox Metric Red may be allowed only with explicit
+  operator approval for that execution context, safe alias command shape,
+  clean selected preview, captured DB/queue/planner state, failed
+  Notification `0`, retry candidate `0`, enabled auto-send allowed `0`, and
+  documented side effects / non-effects. Notification / Telegram execution
+  stays out of scope, and retry / second command still requires separate
+  approval.
+- Diagnostic-first rule: run a network-enabled limit `1` Metric diagnostic Red
+  before any broad limit `50` Metric backlog retry. If the diagnostic succeeds,
+  perform a fresh Green preflight before a separate limit `50` Red. If it
+  returns `network_fetch_error` or `timeout`, pause Metric backlog writes and
+  review the network/provider path again.
+- If network-enabled Red is not desired, keep old Metric backlog paused and
+  choose a separately preflighted non-Metric path such as enrich/report review
+  or a later network-enabled bounded runner. No app code/config fix is
+  indicated by the current evidence.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

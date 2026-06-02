@@ -55,6 +55,15 @@ error, parse error, shape error, provider-empty, and unknown. This visibility
 does not add retry behavior and does not change DB writes, Notification
 capture, Telegram, or selection logic.
 
+If the Metric provider failure is `network_fetch_error` caused by Codex sandbox
+DNS/network restriction, do not run Metric phases in that same restricted
+sandbox. A network-enabled / out-of-sandbox Metric Red must be explicitly
+approved and should start with a limit `1` diagnostic before broader backlog
+or bounded-runner Metric coverage. The bounded runner remains plan-only unless
+`--execute` is separately approved, and network-enabled execution does not
+unlock scheduler/systemd, notification send, retry execution, or auto live
+send.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

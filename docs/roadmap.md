@@ -9,7 +9,7 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-06-01
+Date: 2026-06-02
 
 The Yellow provider diagnostic visibility slice is complete.
 `metric:snapshot:geckoterminal` now classifies failed provider items into safe
@@ -63,6 +63,30 @@ Recommended next slice: **operator-approved out-of-sandbox Red or network
 approval decision**, not an in-sandbox retry. If the next Red is run in the
 same restricted sandbox, it is expected to repeat `network_fetch_error`. No app
 code or provider URL config fix is currently indicated.
+
+The network-enabled Metric Red policy is now defined. Normal Codex sandbox
+Metric provider-fetch Red is allowed only after current DNS/provider
+reachability succeeds or a recent in-sandbox Metric fetch succeeded. With the
+current sandbox DNS restriction, Metric Red requires explicit network-enabled
+or out-of-sandbox approval, safe alias command shape, clean selection preview,
+DB/queue/planner capture, failed Notification `0`, retry candidate `0`, and
+enabled auto-send allowed `0`.
+
+Recommended next slice: **network-enabled limit 1 Metric diagnostic Red** if
+the operator wants to resume Metric backlog. Do this before any broad limit 50
+retry. If the diagnostic succeeds, run a fresh Green preflight before a
+separate limit 50 Red. If not, keep Metric backlog paused and switch to
+preflighted enrich/report or network-enabled bounded runner planning.
+
+The Codex CLI post-update Green preflight is complete on `codex-cli 0.136.0`.
+The safe Metric snapshot alias still avoids the `tsx` IPC `EPERM` path and its
+dry-run preview selects clean Metric-zero candidates without fetch/write.
+Normal sandbox DNS still cannot resolve `api.geckoterminal.com`, while
+approved out-of-sandbox read-only diagnostics resolve and reach the host with
+HTTP HEAD. Therefore the next Metric provider-fetch Red should remain
+network-enabled / out-of-sandbox and should start as limit `1` diagnostic
+only. Current 168h backlog preview is `metricPendingCount=728` and
+`enrichPendingCount=779`; default queue and notify candidates remain `0`.
 
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:

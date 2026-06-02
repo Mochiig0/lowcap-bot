@@ -57,6 +57,15 @@ do not retry inside the same restricted sandbox. Either run the safe alias in
 an explicitly approved out-of-sandbox/network-enabled context or switch to a
 different preflighted task.
 
+Network-enabled Metric Red policy: when the normal Codex sandbox cannot
+resolve the provider host, Metric snapshot Red must not run there. To resume
+Metric backlog, first run a separately approved network-enabled / out-of-
+sandbox limit `1` diagnostic with the safe alias, clean selection preview, and
+notification/retry/auto-send blockers at `0`. A broad limit `50` continuation
+requires a successful limit `1` diagnostic plus a fresh Green preflight. This
+policy does not unlock scheduler/systemd, notification send, retry execution,
+or `pnpm smoke`.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

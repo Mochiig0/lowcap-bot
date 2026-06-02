@@ -69,6 +69,48 @@ sandbox DNS/network restriction, not HTTP 429, bad provider URL config, or a
 confirmed provider outage. Avoid in-sandbox retry; use an explicitly approved
 out-of-sandbox Red/network path if Metric backlog write is needed.
 
+Network-enabled Metric Red policy, 2026-06-02: normal Codex sandbox Metric
+provider-fetch Red is allowed only when provider DNS/reachability succeeds in
+the same execution context or a recent in-sandbox Metric provider fetch
+succeeded. If sandbox DNS still fails, do not run Metric provider-fetch Red
+there. A network-enabled / out-of-sandbox Metric Red requires explicit
+operator approval, safe alias command shape, clean selection preview, captured
+DB/queue/planner state, failed Notification `0`, retry candidate `0`, enabled
+auto-send allowed `0`, documented side effects / non-effects, no Telegram or
+Notification execution, and no retry / second command unless separately
+approved.
+
+Use a diagnostic-first sequence. The first network-enabled Metric Red after
+this DNS finding should be limit `1`:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 1 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Only after a successful limit `1` diagnostic and a fresh Green preflight should
+the broader limit `50` backlog command be considered:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+If the diagnostic returns `network_fetch_error` or `timeout`, pause Metric
+backlog writes and review the network/provider path again. If network-enabled
+execution is not desired, keep the old Metric backlog paused and choose a
+separately preflighted non-Metric path.
+
+Codex CLI post-update preflight, 2026-06-02: `codex-cli 0.136.0` was checked
+after update. The safe alias still prints help without IPC `EPERM` and the
+fetch-free preview remains `dryRun=true`, `writeEnabled=false`, and
+`selection_preview` with `selectedCount=5`, `providerErrorCount=0`, and clean
+selected rows (`metricsCount=0`, `notificationCount=0`,
+`holderSnapshotCount=0`). Normal sandbox DNS still fails for
+`api.geckoterminal.com` (`curl` host resolution failure and Node HEAD
+`TypeError EAI_AGAIN`), while approved out-of-sandbox read-only diagnostics
+resolve and reach the host with HTTP HEAD `404`. Keep Metric provider-fetch
+Red out of the normal sandbox unless a future same-context preflight proves
+provider reachability.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,
