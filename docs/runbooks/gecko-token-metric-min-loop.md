@@ -106,6 +106,16 @@ Metric: `3023 / 1007 / 22 / 1 -> 3023 / 1057 / 22 / 1`; rolling 168h
 `metricPendingCount` moved `677 -> 627`. Keep the next step Green report/queue
 review before any third network-enabled backlog Red.
 
+That Green review passed, and a third network-enabled limit `50` Metric
+backlog continuation also succeeded. It selected ids `6916..6867`, wrote
+Metric ids `2167..2216`, returned `selected=50`, `ok=50`, `written=50`,
+`error=0`, `providerErrorCount=0`, and all provider error categories `0`.
+All selected rows moved to `metricsCount=1`, while Notification and
+HolderSnapshot counts stayed `0`. Counts moved only in Metric:
+`3023 / 1057 / 22 / 1 -> 3023 / 1107 / 22 / 1`; rolling 168h
+`metricPendingCount` moved `627 -> 577`. Keep the next step Green
+report/queue review before any fourth network-enabled backlog Red.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 
