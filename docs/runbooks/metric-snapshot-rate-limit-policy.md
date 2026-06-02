@@ -211,6 +211,28 @@ HolderSnapshot write, retry, auto-send, scheduler, systemd, rawJson dump, or
 `pnpm smoke` occurred. Continue the one-Red-then-one-Green cadence before any
 fifth batch or lane switch.
 
+Network-enabled backlog limit `50` continuation, 2026-06-03: after the next
+Green post-run review, the fifth approved out-of-sandbox Red again ran the
+exact safe alias command once and completed without provider errors. Preflight
+selected ids `6716..6667`, all with `metricsCount=0`,
+`notificationCount=0`, and `holderSnapshotCount=0`. The Red wrote Metric ids
+`2267..2316` and returned `selected=50`, `ok=50`, `skipped=0`, `error=0`,
+`written=50`, `interItemDelayCount=49`, `providerErrorCount=0`, and all
+`errorCategoryCounts=0`. ObservedAt range was
+`2026-06-02T21:06:59.052Z` to `2026-06-02T21:19:47.722Z`; rawJson-free
+checks confirmed price / FDV / reserve / top-pool presence for all 50 new
+rows. Counts moved only in Metric:
+`3023 / 1157 / 22 / 1 -> 3023 / 1207 / 22 / 1`; Metric buckets moved
+`0=2006, 1=930, 2+=87 -> 0=1956, 1=980, 2+=87`. Rolling 168h now shows
+`metricPendingCount=475`, `enrichPendingCount=777`, and
+`notifyCandidateCount=0`; the difference from pre-run `527 / 779` includes
+the 50-row Metric write plus two rows drifting out of the 168h window.
+Notification capture stayed disabled, Notification / Telegram stayed
+unchanged, and no Token write, HolderSnapshot write, retry, auto-send,
+scheduler, systemd, rawJson dump, or `pnpm smoke` occurred. The next Green
+review should explicitly compare another Metric backlog batch with switching
+to the enrich/report lane.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

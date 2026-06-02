@@ -128,6 +128,18 @@ stayed `0`. Counts moved only in Metric:
 `metricPendingCount` moved `577 -> 527`. Keep the next step Green
 report/queue review before any fifth network-enabled backlog Red.
 
+That Green review passed, and a fifth network-enabled limit `50` Metric
+backlog continuation also succeeded. It selected ids `6716..6667`, wrote
+Metric ids `2267..2316`, returned `selected=50`, `ok=50`, `written=50`,
+`error=0`, `providerErrorCount=0`, and all provider error categories `0`.
+All selected rows moved to `metricsCount=1`, while Notification and
+HolderSnapshot counts stayed `0`. Counts moved only in Metric:
+`3023 / 1157 / 22 / 1 -> 3023 / 1207 / 22 / 1`; rolling 168h now shows
+`metricPendingCount=475`, `enrichPendingCount=777`, and
+`notifyCandidateCount=0`, including two rows drifting out of the 168h window
+since the pre-run snapshot. The next step should be Green report/queue review
+with an explicit lane decision, because the enrich backlog remains high.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

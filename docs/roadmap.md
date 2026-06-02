@@ -177,6 +177,23 @@ HolderSnapshot, retry, auto-send, scheduler/systemd, rawJson dump, and
 Recommended next slice: **Green post-run Metric/report review** before any
 fifth network-enabled backlog Red or lane switch decision.
 
+That Green review passed and the fifth network-enabled limit `50`
+continuation Red is now complete. It selected ids `6716..6667`, wrote Metric
+ids `2267..2316`, and returned `selected=50`, `ok=50`, `written=50`,
+`error=0`, `providerErrorCount=0`, and all error categories `0`. Counts again
+moved only in Metric: `3023 / 1157 / 22 / 1 -> 3023 / 1207 / 22 / 1`;
+Metric buckets moved `0=2006, 1=930, 2+=87 -> 0=1956, 1=980, 2+=87`.
+Rolling 168h now shows `metricPendingCount=475` and
+`enrichPendingCount=777`; this reflects the 50-row write plus two rows
+drifting out of the 168h window. Notification / Telegram, Token,
+HolderSnapshot, retry, auto-send, scheduler/systemd, rawJson dump, and
+`pnpm smoke` stayed `0`.
+
+Recommended next slice: **Green post-run Metric/report review with lane
+decision**. Confirm Metric ids `2267..2316`, then explicitly choose whether
+to continue another network-enabled Metric backlog batch or switch to the
+enrich/report lane because the enrich backlog remains high.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was
