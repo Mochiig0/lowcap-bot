@@ -126,6 +126,19 @@ systemd, rawJson dump, or `pnpm smoke` occurred. Any broader limit `50`
 continuation still requires a fresh Green preflight and separate human
 approval.
 
+Network-enabled backlog limit `50` preflight, 2026-06-02: the fresh Green
+preflight after Metric id `2066` found the next backlog slice ready. DB counts
+are `3023 / 957 / 22 / 1`, Metric buckets are `0=2206`, `1=730`, `2+=87`,
+default queue is clear, and rolling 168h has `metricPendingCount=727`,
+`enrichPendingCount=779`, `notifyCandidateCount=0`. Failed Notification,
+retry candidate, and enabled auto-send allowed candidate counts are all `0`.
+Safe preview selected ids `7016..6967` with `dryRun=true`,
+`writeEnabled=false`, `selectedCount=50`, `providerErrorCount=0`, no external
+fetch, and no rawJson dump. All selected rows have `metricsCount=0`,
+`notificationCount=0`, `holderSnapshotCount=0`, and Notification capture
+disabled. The next candidate may be issued only as a separate human-approved
+network-enabled / out-of-sandbox Red; do not run it in the normal sandbox.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

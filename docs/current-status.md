@@ -217,6 +217,40 @@ Red network-enabled Metric diagnostic, 2026-06-02:
   The next Metric backlog action should still be a fresh Green preflight
   before considering a separate human-approved limit `50` Red.
 
+Green network-enabled Metric backlog limit 50 preflight, 2026-06-02:
+
+- Current HEAD is `3432959 docs: record network enabled metric diagnostic`
+  with a clean working tree. This pass was read-only / docs-only; no
+  production DB write, external provider fetch, Metric write, Token
+  enrich/rescore write, `ops:run:bounded --execute`, detect write/watch,
+  notification send, retry execution, auto live send, scheduler/systemd,
+  schema/migration change, rawJson full dump, offensive raw text dump, or
+  `pnpm smoke` was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3023 / 957 / 22 / 1`; Metric buckets remain `0=2206`, `1=730`, `2+=87`.
+  Default queue is clear: `metricPendingCount=0`, `enrichPendingCount=0`,
+  `notifyCandidateCount=0`. Rolling 168h has `metricPendingCount=727`,
+  `enrichPendingCount=779`, and `notifyCandidateCount=0`.
+- Notification planners are clear for the Metric backlog decision:
+  disabled/enabled auto-send allowed candidate count `0`, retry candidate
+  `0`, failed Notification `0`, and no live send/update planned.
+  `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` shows the 6h
+  operation window queue is clear and the broader 168h backlog remains
+  historical data-collection work rather than current-window work.
+- The safe Metric preview for the proposed backlog command was fetch-free and
+  write-free: `dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+  `writtenCount=0`, `providerErrorCount=0`, all `errorCategoryCounts=0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Selected ids are `7016..6967`. All selected rows are GeckoTerminal
+  `new_pools` pump-origin `mint_only` rows with `metricsCount=0`,
+  `notificationCount=0`, `holderSnapshotCount=0`, and
+  `notificationCaptureEnabled=false`. No rawJson was printed and no external
+  provider fetch occurred during preview.
+- Decision: the next Red candidate can be issued, but only as a separate
+  human-approved network-enabled / out-of-sandbox Red. The normal Codex
+  sandbox remains unsuitable for Metric provider fetch unless future
+  same-context DNS/provider reachability succeeds.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

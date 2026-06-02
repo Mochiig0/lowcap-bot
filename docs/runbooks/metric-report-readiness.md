@@ -115,6 +115,14 @@ Metric id `2066` for token id `7017` at
 Token, HolderSnapshot, retry, auto-send, scheduler/systemd, and rawJson dump
 side effects stayed `0`.
 
+Network-enabled backlog preflight, 2026-06-02: no additional report evidence
+was created in the Green limit `50` preflight. The safe preview selected ids
+`7016..6967` for potential data collection, all with `metricsCount=0`,
+`notificationCount=0`, and `holderSnapshotCount=0`, but remained
+`dryRun=true`, `writeEnabled=false`, fetch-free, write-free, and rawJson-free.
+If the next human-approved network-enabled Red succeeds, report readiness
+should be revisited against the newly created Metric rows.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

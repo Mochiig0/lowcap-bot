@@ -76,6 +76,15 @@ and rawJson dump side effects stayed `0`. This proves the provider path works
 in the approved network-enabled context, but a limit `50` backlog continuation
 still needs a fresh Green preflight and separate Red approval.
 
+That fresh Green preflight is complete for the next limit `50` Metric backlog
+slice. The safe preview selected ids `7016..6967`, all `mint_only`, all
+`metricsCount=0`, and all with `notificationCount=0` /
+`holderSnapshotCount=0`. Preview stayed `dryRun=true`, `writeEnabled=false`,
+`providerErrorCount=0`, fetch-free, write-free, and rawJson-free. Because
+normal Codex sandbox DNS is still known-bad for provider fetch, the resulting
+Red candidate must run only in a separately approved network-enabled /
+out-of-sandbox context.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 

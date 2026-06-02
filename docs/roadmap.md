@@ -101,6 +101,23 @@ network-enabled Metric backlog Red** if the operator wants broader Metric data
 collection. Do not continue directly from the diagnostic without a new
 preflight and human-approved exact command.
 
+That limit `50` Green preflight is now complete. HEAD `3432959` matched, the
+working tree was clean, DB counts stayed `3023 / 957 / 22 / 1`, and Metric
+buckets stayed `0=2206`, `1=730`, `2+=87`. Default queue is clear; rolling
+168h has `metricPendingCount=727`, `enrichPendingCount=779`, and
+`notifyCandidateCount=0`. Notification blockers are clear: failed
+Notification `0`, retry candidate `0`, and enabled auto-send allowed `0`.
+
+Safe preview for the proposed backlog command selected ids `7016..6967` with
+`dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+`providerErrorCount=0`, no external fetch, and no rawJson dump. All selected
+rows have `metricsCount=0`, `notificationCount=0`, and
+`holderSnapshotCount=0`; Notification capture is disabled.
+
+Recommended next slice: **network-enabled limit 50 Metric backlog Red** with
+human approval, exact safe alias command, and no second command/retry. Required
+context remains network-enabled / out-of-sandbox.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was
