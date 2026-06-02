@@ -35,6 +35,9 @@ Enforce exact-command, approval, side-effect boundaries, and post-run reporting.
   execute through `node --import tsx`: `metric:snapshot:geckoterminal:safe`,
   `token:enrich-rescore:geckoterminal:safe`, and
   `detect:geckoterminal:new-pools:safe`.
+- For Metric snapshot Red commands that fetch GeckoTerminal provider data, do
+  not run in the normal Codex sandbox when DNS/provider reachability is known
+  to fail. Require explicit network-enabled or out-of-sandbox approval.
 - Do not use the older direct `tsx` package scripts for new Codex Red command
   patterns unless the user explicitly approves that exact form.
 - Run the exact command one time only.
@@ -63,6 +66,8 @@ Enforce exact-command, approval, side-effect boundaries, and post-run reporting.
 - Exact command is fixed.
 - If a command uses a package script, confirm whether it is a safe
   `node --import tsx` script or an older direct `tsx` script before execution.
+- For Metric provider-fetch Red commands, confirm provider DNS/reachability or
+  explicit network-enabled / out-of-sandbox execution approval.
 
 ## Stop immediately if
 
@@ -77,6 +82,8 @@ Enforce exact-command, approval, side-effect boundaries, and post-run reporting.
 - Full `rawJson`, secrets, or offensive raw text would be needed.
 - Schema or migration work becomes unexpectedly needed.
 - Exact command cannot be fixed.
+- Metric provider DNS/reachability is known to fail in the intended execution
+  context and network-enabled / out-of-sandbox approval is absent.
 
 ## During execution
 
