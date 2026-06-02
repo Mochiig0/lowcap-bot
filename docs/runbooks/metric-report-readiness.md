@@ -157,6 +157,17 @@ moved `1057 -> 1107`; selected tokens all moved to `metricsCount=1`;
 Notification and HolderSnapshot counts stayed `0`. Next readiness work should
 again be Green report/queue review before another Metric backlog Red.
 
+Network-enabled continuation result, 2026-06-03: report readiness gained
+another 50 GeckoTerminal Metric rows. The approved out-of-sandbox continuation
+Red wrote Metric ids `2217..2266` for token ids `6866..6859` plus
+`6758..6717`, with observedAt range `2026-06-02T20:20:43.280Z` to
+`2026-06-02T20:33:32.344Z`. RawJson-free aggregate checks and representative
+`metrics:report` output confirmed `priceUsdPresent`, `fdvUsdPresent`,
+`reserveUsdPresent`, and `topPoolPresent` for all 50 new rows. Metric count
+moved `1107 -> 1157`; selected tokens all moved to `metricsCount=1`;
+Notification and HolderSnapshot counts stayed `0`. Next readiness work should
+again be Green report/queue review before another Metric backlog Red.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

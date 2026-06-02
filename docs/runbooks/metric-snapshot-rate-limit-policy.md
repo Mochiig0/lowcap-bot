@@ -192,6 +192,25 @@ HolderSnapshot write, retry, auto-send, scheduler, systemd, rawJson dump, or
 `pnpm smoke` occurred. Continue the one-Red-then-one-Green cadence before any
 fourth batch or lane switch.
 
+Network-enabled backlog limit `50` continuation, 2026-06-03: after the next
+Green post-run review, the fourth approved out-of-sandbox Red again ran the
+exact safe alias command once and completed without provider errors. Preflight
+selected ids `6866..6859` plus `6758..6717`; the skipped gap `6858..6759`
+already had Metrics and was correctly excluded by `--onlyMetricPending`. The
+Red wrote Metric ids `2217..2266` and returned `selected=50`, `ok=50`,
+`skipped=0`, `error=0`, `written=50`, `interItemDelayCount=49`,
+`providerErrorCount=0`, and all `errorCategoryCounts=0`. ObservedAt range was
+`2026-06-02T20:20:43.280Z` to `2026-06-02T20:33:32.344Z`; rawJson-free
+checks confirmed price / FDV / reserve / top-pool presence for all 50 new
+rows. Counts moved only in Metric:
+`3023 / 1107 / 22 / 1 -> 3023 / 1157 / 22 / 1`; Metric buckets moved
+`0=2056, 1=880, 2+=87 -> 0=2006, 1=930, 2+=87`; rolling 168h
+`metricPendingCount` moved `577 -> 527`. Notification capture stayed
+disabled, Notification / Telegram stayed unchanged, and no Token write,
+HolderSnapshot write, retry, auto-send, scheduler, systemd, rawJson dump, or
+`pnpm smoke` occurred. Continue the one-Red-then-one-Green cadence before any
+fifth batch or lane switch.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

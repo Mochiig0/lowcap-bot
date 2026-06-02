@@ -368,6 +368,51 @@ Red network-enabled Metric backlog limit 50 continuation, 2026-06-03:
 - Decision: run a fresh Green post-run/report review before considering any
   further network-enabled Metric backlog Red.
 
+Red network-enabled Metric backlog limit 50 continuation, 2026-06-03:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `86dd5f7 docs: record network enabled metric backlog continuation`
+  matched and the working tree was clean before execution.
+- The exact command was run once in an approved network-enabled /
+  out-of-sandbox context and was not retried:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Preflight preview selected 50 Metric-zero rows. The ids were not contiguous
+  `6866..6817`; they were `6866..6859` plus `6758..6717`. This drift was
+  explained before write: gap ids `6858..6759` were all GeckoTerminal
+  `new_pools` rows with `metricsCount=1`, `notificationCount=0`, and
+  `holderSnapshotCount=0`, so `--onlyMetricPending` correctly skipped them.
+- All selected preview rows were `mint_only`, `metricsCount=0`,
+  `notificationCount=0`, and `holderSnapshotCount=0`. Preview was
+  fetch-free/write-free with `providerErrorCount=0` and all
+  `errorCategoryCounts=0`.
+- The Red succeeded: `selected=50`, `ok=50`, `skipped=0`, `error=0`,
+  `written=50`, and `interItemDelayCount=49`. Provider diagnostics stayed
+  clean: `providerErrorCount=0`, all `errorCategoryCounts=0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Metric ids `2217..2266` were created with source
+  `geckoterminal.token_snapshot`; observedAt range was
+  `2026-06-02T20:20:43.280Z` to `2026-06-02T20:33:32.344Z`.
+  RawJson-free checks across all 50 new Metrics confirmed
+  `priceUsdPresent=50`, `fdvUsdPresent=50`, `reserveUsdPresent=50`, and
+  `topPoolPresent=50`.
+- DB counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `3023 / 1107 / 22 / 1` -> `3023 / 1157 / 22 / 1`.
+  Metric buckets moved `0=2056`, `1=880`, `2+=87` -> `0=2006`,
+  `1=930`, `2+=87`.
+- Selected rows moved to `metricsCount=1` for all 50. Their
+  `notificationCount` stayed `0` and `holderSnapshotCount` stayed `0`.
+- Default queue remains clear: `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`. Rolling 168h now has
+  `metricPendingCount=527`, `enrichPendingCount=779`, and
+  `notifyCandidateCount=0`.
+- Disabled/enabled auto-send allowed candidate count stayed `0`; retry
+  candidate stayed `0`; failed Notification stayed `0`. Notification capture
+  was disabled; Token write, Notification create/update, HolderSnapshot write,
+  Telegram send, retry execution, auto-send execution, scheduler/systemd,
+  rawJson full dump, offensive raw text dump, and `pnpm smoke` stayed `0`.
+- Decision: run a fresh Green post-run/report review before considering any
+  further network-enabled Metric backlog Red or lane switch.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with
