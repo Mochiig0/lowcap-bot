@@ -123,6 +123,18 @@ was created in the Green limit `50` preflight. The safe preview selected ids
 If the next human-approved network-enabled Red succeeds, report readiness
 should be revisited against the newly created Metric rows.
 
+Network-enabled backlog result, 2026-06-02: report readiness gained 50 new
+GeckoTerminal Metric rows. The approved out-of-sandbox limit `50` Red wrote
+Metric ids `2067..2116` for token ids `7016..6967`, with observedAt range
+`2026-06-02T11:19:27.532Z` to `2026-06-02T11:32:15.615Z`. `metrics:report`
+and a rawJson-free aggregate check confirmed the latest rows expose
+`priceUsdPresent`, `fdvUsdPresent`, `reserveUsdPresent`, and `topPoolPresent`
+for all 50. The selected tokens all moved to `metricsCount=1`; Notification
+and HolderSnapshot counts stayed `0`. Metric count moved `957 -> 1007`, while
+Token / Notification / HolderSnapshot counts, Telegram, retry, auto-send,
+scheduler/systemd, and rawJson dump stayed unchanged. Next readiness work
+should inspect these 50 rows in reports before another backlog Red.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies

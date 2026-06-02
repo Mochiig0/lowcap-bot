@@ -251,6 +251,43 @@ Green network-enabled Metric backlog limit 50 preflight, 2026-06-02:
   sandbox remains unsuitable for Metric provider fetch unless future
   same-context DNS/provider reachability succeeds.
 
+Red network-enabled Metric backlog limit 50, 2026-06-02:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `19d0d5d docs: preflight network enabled metric backlog limit fifty`
+  matched and the working tree was clean before execution.
+- The exact command was run once in an approved network-enabled /
+  out-of-sandbox context and was not retried:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- The Red succeeded: `selected=50`, `ok=50`, `skipped=0`, `error=0`,
+  `written=50`, and `interItemDelayCount=49`. Provider diagnostics stayed
+  clean: `providerErrorCount=0`, all `errorCategoryCounts=0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Selected token ids were `7016..6967`. Metric ids `2067..2116` were created
+  with source `geckoterminal.token_snapshot`; observedAt range was
+  `2026-06-02T11:19:27.532Z` to `2026-06-02T11:32:15.615Z`.
+  RawJson-free checks across all 50 new Metrics confirmed
+  `priceUsdPresent=50`, `fdvUsdPresent=50`, `reserveUsdPresent=50`, and
+  `topPoolPresent=50`.
+- DB counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `3023 / 957 / 22 / 1` -> `3023 / 1007 / 22 / 1`.
+  Metric buckets moved `0=2206`, `1=730`, `2+=87` -> `0=2156`,
+  `1=780`, `2+=87`.
+- Selected rows moved to `metricsCount=1` for all 50. Their
+  `notificationCount` stayed `0` and `holderSnapshotCount` stayed `0`.
+- Default queue remains clear: `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`. Rolling 168h now has
+  `metricPendingCount=677`, `enrichPendingCount=779`, and
+  `notifyCandidateCount=0`.
+- Disabled/enabled auto-send allowed candidate count stayed `0`; retry
+  candidate stayed `0`; failed Notification stayed `0`. Notification capture
+  was disabled; Token write, Notification create/update, HolderSnapshot write,
+  Telegram send, retry execution, auto-send execution, scheduler/systemd,
+  rawJson full dump, offensive raw text dump, and `pnpm smoke` stayed `0`.
+- Decision: the network-enabled Metric backlog path is working at limit `50`.
+  Next work should be a fresh Green post-run/report review before any further
+  backlog Red.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

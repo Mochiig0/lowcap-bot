@@ -118,6 +118,22 @@ Recommended next slice: **network-enabled limit 50 Metric backlog Red** with
 human approval, exact safe alias command, and no second command/retry. Required
 context remains network-enabled / out-of-sandbox.
 
+That network-enabled limit `50` Metric backlog Red is now complete. It ran the
+safe alias exact command once in the approved out-of-sandbox context, selected
+ids `7016..6967`, wrote Metric ids `2067..2116`, and returned `selected=50`,
+`ok=50`, `written=50`, `error=0`, `providerErrorCount=0`, and all error
+categories `0`. Counts moved only in Metric:
+`3023 / 957 / 22 / 1 -> 3023 / 1007 / 22 / 1`; Metric buckets moved
+`0=2206, 1=730, 2+=87 -> 0=2156, 1=780, 2+=87`; rolling 168h
+`metricPendingCount` moved `727 -> 677`. Notification / Telegram, Token,
+HolderSnapshot, retry, auto-send, scheduler/systemd, rawJson dump, and
+`pnpm smoke` stayed `0`.
+
+Recommended next slice: **Green post-run Metric/report review**, not an
+immediate second Red. Confirm the new 50 Metric rows in reports and decide
+whether another network-enabled backlog slice or an enrich/report lane is the
+right next operating step.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

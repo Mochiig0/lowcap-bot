@@ -139,6 +139,23 @@ fetch, and no rawJson dump. All selected rows have `metricsCount=0`,
 disabled. The next candidate may be issued only as a separate human-approved
 network-enabled / out-of-sandbox Red; do not run it in the normal sandbox.
 
+Network-enabled backlog limit `50` result, 2026-06-02: the approved
+out-of-sandbox Red ran the exact safe alias command once and completed without
+provider errors. It selected ids `7016..6967`, wrote Metric ids `2067..2116`,
+and returned `selected=50`, `ok=50`, `skipped=0`, `error=0`,
+`written=50`, `interItemDelayCount=49`, `providerErrorCount=0`, and all
+`errorCategoryCounts=0`. ObservedAt range was
+`2026-06-02T11:19:27.532Z` to `2026-06-02T11:32:15.615Z`; rawJson-free
+summary confirmed price / FDV / reserve / top-pool presence for all 50 new
+rows. Counts moved only in Metric:
+`3023 / 957 / 22 / 1 -> 3023 / 1007 / 22 / 1`; Metric buckets moved
+`0=2206, 1=730, 2+=87 -> 0=2156, 1=780, 2+=87`; rolling 168h
+`metricPendingCount` moved `727 -> 677`. Notification capture stayed
+disabled, Notification / Telegram stayed unchanged, and no Token write,
+HolderSnapshot write, retry, auto-send, scheduler, systemd, rawJson dump, or
+`pnpm smoke` occurred. Do a fresh Green report/queue review before another
+Metric backlog Red.
+
 Latest Red result, 2026-05-26: the post-6H Metric pending snapshot limit 50
 ran with `--interItemDelayMs 15000`, selected ids `6067..6018`, and wrote
 Metric ids `1666..1715`. Result: `selected=50`, `written=50`, `skipped=0`,

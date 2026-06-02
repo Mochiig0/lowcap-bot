@@ -85,6 +85,17 @@ normal Codex sandbox DNS is still known-bad for provider fetch, the resulting
 Red candidate must run only in a separately approved network-enabled /
 out-of-sandbox context.
 
+The network-enabled limit `50` backlog continuation then succeeded in that
+approved context. The safe alias exact command ran once, selected ids
+`7016..6967`, wrote Metric ids `2067..2116`, and returned `selected=50`,
+`ok=50`, `written=50`, `error=0`, `providerErrorCount=0`, and all provider
+error categories `0`. All selected rows moved to `metricsCount=1`, while
+Notification and HolderSnapshot counts stayed `0`. Counts moved only in
+Metric: `3023 / 957 / 22 / 1 -> 3023 / 1007 / 22 / 1`; rolling 168h
+`metricPendingCount` moved `727 -> 677`. RawJson-free checks confirmed price /
+FDV / reserve / top-pool presence for all 50 new Metrics. The next step should
+be Green report/queue review before another backlog Red.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 
