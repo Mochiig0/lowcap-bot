@@ -224,6 +224,19 @@ First Phase 2 enrich cleanup review, 2026-06-04:
   optional post-MVP work and should continue to use separate human-approved
   Red prompts.
 
+First Phase 2 watchlist evidence review, 2026-06-04:
+
+- Rolling 168h watchlist has `13` rows, all `B / 2`, `partial`,
+  `metricsCount=1`, non-hard-rejected, ready, and report-only.
+- Evidence is useful for manual review but not strong enough for dictionary
+  tuning: scoreBreakdown is mostly single core hits, learned contribution is
+  small, and trend/combo evidence is absent.
+- Notification remains S-only. `notifyCandidate=0`, auto-send allowed `0 / 0`,
+  retry candidate `0`, and failed Notification `0` are expected.
+- Next Phase 2 task should be bounded runner cadence documentation. More
+  targeted cleanup is optional and should be selected only after a fresh Green
+  preflight.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

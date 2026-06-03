@@ -46,6 +46,25 @@ report-readiness task should be watchlist manual review / scoring evidence
 gathering before more writes. If cleanup is preferred instead, use a separate
 human-approved targeted enrich Red for the next clean `metricsCount=1` rows.
 
+Phase 2 watchlist / scoring evidence review, 2026-06-04: rolling 168h
+watchlist review is rawJson-free and safe for manual use, but the evidence is
+not strong enough for scoring dictionary changes. The current watchlist is
+`13` rows, all `B / 2`, `partial`, `metricsCount=1`, non-hard-rejected,
+scoreBreakdown available, and ready for report-only review.
+
+The score evidence is repetitive and low-strength: aggregate components are
+mostly `core`, with a small learned contribution and no `trend` or `combo`
+points. Safe tags are concentrated in low-strength buckets (`animal=27`,
+`meme=3`, `social=3`, `ai_phrase=1`, `tech=1`). ReviewFlags are sparse:
+only one watchlist row has Telegram / Metaplex / description / link presence,
+and none has website or X presence. No row is close to A/S.
+
+Keep B watchlist report-only. Do not change thresholds, add combo/trend
+weights, create capture-only B Notifications, or loosen the S-only
+notification rule from this sample. The next report-readiness improvement
+should be operational cadence documentation or more data collection after a
+fresh Green cleanup preflight.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

@@ -92,6 +92,24 @@ without a real S candidate. If the operator prefers additional cleanup Red
 instead of no-write review, the next safer cleanup is targeted enrich of the
 next clean `metricsCount=1` rows, not another automatic bounded run.
 
+That watchlist / scoring evidence review is now complete. Rolling 168h has
+`13` ready watchlist rows, all `B / 2`, `partial`, `metricsCount=1`,
+non-hard-rejected, report-only, and below notification eligibility. Safe
+scoreBreakdown aggregates are still weak: mostly single core hits, small
+learned contribution, and no trend/combo evidence. ReviewFlags are sparse, and
+only one watchlist row has community/metadata presence.
+
+Decision: **do not tune the scoring dictionary and do not change notification
+policy yet**. The B/2 watchlist remains useful as a manual report lane, but it
+does not justify capture-only B Notifications, Telegram rehearsal, or lowering
+the S-only notification boundary.
+
+Recommended next slice: **Yellow/docs-only bounded runner cadence docs**.
+This is now more valuable than another immediate write Red because the MVP
+runtime path is proven and the current scoring evidence is not strong enough
+for rule changes. If the operator chooses more data instead, do a fresh Green
+cleanup preflight before selecting targeted enrich or Metric cleanup.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

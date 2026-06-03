@@ -197,6 +197,45 @@ Phase 2 targeted enrich cleanup review, 2026-06-04:
   evidence gathering before another write Red. If the operator chooses more
   cleanup instead, targeted enrich cleanup should be the next Red candidate.
 
+Phase 2 watchlist / scoring evidence review, 2026-06-04:
+
+- The watchlist/scoring evidence review is complete on HEAD
+  `0a23a31 docs: review phase two enrich cleanup` with a clean working tree.
+  This pass was read-only / docs-only: no Red, no Metric write, no Token
+  enrich/rescore write, no bounded execute, no detect write/watch, no
+  notification send, no retry, no auto-send, no scheduler/systemd, no
+  `pnpm smoke`, no raw normalizedText, no raw token name/symbol, and no
+  rawJson dump.
+- Current DB state remains Token / Metric / Notification / HolderSnapshot
+  `3383 / 1357 / 22 / 1`; Metric buckets remain `0=2166`, `1=1130`,
+  `2+=87`. Default 24h queue has `metricPendingCount=210`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=210`, `enrichPendingCount=370`,
+  `notifyCandidateCount=0`.
+- Rolling 168h watchlist has `13` rows. All are `B / 2`, `partial`,
+  `metricsCount=1`, non-hard-rejected, scoreBreakdown available, ready for
+  review, and report-only. Watchlist readiness blockers are all `0`.
+- Safe scoreBreakdown aggregate is still weak: available rows sum to
+  `core=44`, `learned=4`, `trend=0`, `combo=0`; hit sources are mostly
+  `core=31`, with only `learned_pattern=1` and `learned_keyword=3`. Tag
+  counts are concentrated in low-strength buckets (`animal=27`, `meme=3`,
+  `social=3`, `ai_phrase=1`, `tech=1`).
+- Watchlist reviewFlags are sparse: `hasTelegram=1`, `metaplexHit=1`,
+  `descriptionPresent=1`, `linkPresent=1`, `hasWebsite=0`, `hasX=0`.
+  The sample rows are useful manual review targets, but they do not show a
+  repeated high-confidence narrative or anything close to A/S.
+- Notification state stays closed. `notifyCandidateEligibleCount=0`,
+  blockers are `rank_not_s` plus the existing hard-rejected set, disabled and
+  enabled auto-send allowed candidate count is `0 / 0`, retry candidate is
+  `0`, and failed Notification is `0`. B/2 rows should remain report-only;
+  capture-only B Notifications and Telegram policy changes remain out of
+  scope.
+- Decision: do not change scoring dictionary or notification policy from this
+  sample. The recommended next Phase 2 task is Yellow/docs-only bounded runner
+  cadence documentation. If the operator wants more evidence first, run a
+  separate Green cleanup preflight; no Red exact command is issued from this
+  review.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
