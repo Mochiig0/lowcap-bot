@@ -237,6 +237,18 @@ First Phase 2 watchlist evidence review, 2026-06-04:
   targeted cleanup is optional and should be selected only after a fresh Green
   preflight.
 
+Phase 2 cadence documentation, 2026-06-04:
+
+- `docs/runbooks/phase-two-operating-cadence.md` now defines the post-MVP
+  manual cadence for bounded runner use, targeted Metric cleanup, targeted
+  enrich cleanup, watchlist manual review, notification safety review, stop
+  conditions, and locked scope.
+- This does not change the MVP completion decision. It records how to operate
+  the complete-enough MVP without turning it into scheduler/systemd,
+  Telegram auto-send, retry execution, or a generic worker.
+- Next data task should be a Green targeted cleanup preflight, not an
+  immediate Red.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

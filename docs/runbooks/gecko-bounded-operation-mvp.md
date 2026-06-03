@@ -20,6 +20,12 @@ entrypoint for manual bounded runs, but the main personal-MVP runtime gap is
 closed. Future work here is Phase 2 cadence, cleanup, and ergonomics, not an
 MVP blocker.
 
+Phase 2 cadence note, 2026-06-04: use
+`docs/runbooks/phase-two-operating-cadence.md` for the current manual cadence,
+cleanup decision tree, stop conditions, and locked scope. This bounded runner
+runbook remains the command reference; the cadence runbook decides when to use
+it.
+
 ## 6H Planner
 
 Use `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly` before choosing the next

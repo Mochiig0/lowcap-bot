@@ -14,6 +14,12 @@ Notification / Telegram non-effects. Telegram auto-send, retry execution,
 scheduler/systemd, and capture-only B Notifications remain explicitly
 out-of-MVP and locked for a separate Phase 2 review.
 
+Phase 2 cadence note, 2026-06-04: cadence documentation now lives in
+`docs/runbooks/phase-two-operating-cadence.md`. Telegram remains locked by
+default. Run notification safety review only when `notifyCandidateCount`,
+allowed auto-send candidates, retry candidates, or a proposed send path
+appears; cadence docs are not send approval.
+
 ## Report Slice Decision
 
 Outcome/report work is paused at Policy C:

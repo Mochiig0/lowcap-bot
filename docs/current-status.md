@@ -236,6 +236,29 @@ Phase 2 watchlist / scoring evidence review, 2026-06-04:
   separate Green cleanup preflight; no Red exact command is issued from this
   review.
 
+Phase 2 operating cadence, 2026-06-04:
+
+- Added `docs/runbooks/phase-two-operating-cadence.md` as the Phase 2
+  cadence source of truth for manual bounded runs, targeted Metric cleanup,
+  targeted enrich cleanup, watchlist review, notification safety review, stop
+  conditions, and locked scope.
+- MVP remains complete enough for manual bounded-run use. Phase 2 is now
+  operational cleanup and quality improvement, not a reason to unlock
+  scheduler/systemd, Telegram auto-send, retry execution, capture-only B
+  Notifications, or broad scoring dictionary changes.
+- Current cadence snapshot is Token / Metric / Notification / HolderSnapshot
+  `3383 / 1357 / 22 / 1`; Metric buckets `0=2166`, `1=1130`, `2+=87`;
+  default 24h queue `metricPending=210`, `enrichPending=210`,
+  `notifyCandidate=0`; rolling 168h queue `metricPending=210`,
+  `enrichPending=370`, `notifyCandidate=0`; watchlist `13` rows, all
+  `B / 2`, all ready, report-only.
+- Disabled/enabled auto-send allowed remains `0 / 0`, retry candidate remains
+  `0`, failed Notification remains `0`, and the requested 6h planner window is
+  currently clear after time drift.
+- Next recommended task after cadence docs is Green targeted cleanup preflight
+  if more data is wanted. Choose enrich if candidates already have Metrics;
+  choose Metric if candidates are Metric-zero.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

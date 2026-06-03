@@ -110,6 +110,19 @@ runtime path is proven and the current scoring evidence is not strong enough
 for rule changes. If the operator chooses more data instead, do a fresh Green
 cleanup preflight before selecting targeted enrich or Metric cleanup.
 
+That cadence documentation is now defined in
+`docs/runbooks/phase-two-operating-cadence.md`. Phase 2 operation should use
+Green preflight before Red, safe aliases, one exact command per Red,
+network-enabled / out-of-sandbox context for provider fetches, checkpoints
+outside the repo, and explicit stop conditions for dirty worktree, failed
+Notifications, retry candidates, auto-send candidates, unsafe checkpoints,
+unclear selected rows, and raw dump requirements.
+
+Recommended next slice: **Green targeted cleanup preflight** if more data is
+wanted. Use it to decide whether the next cleanup should be targeted enrich
+for already Metric-covered rows or targeted Metric for Metric-zero rows. Do
+not use cadence docs as approval to run Red directly.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

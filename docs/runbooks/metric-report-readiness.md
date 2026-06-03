@@ -65,6 +65,12 @@ notification rule from this sample. The next report-readiness improvement
 should be operational cadence documentation or more data collection after a
 fresh Green cleanup preflight.
 
+Phase 2 cadence documentation, 2026-06-04: the operational cadence now lives in
+`docs/runbooks/phase-two-operating-cadence.md`. Report readiness should feed
+that cadence: review queues and blockers before Red, review watchlist after
+enrich or bounded runs, and keep notification planner review separate from
+send approval.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

@@ -44,6 +44,13 @@ Score distribution after enrich is `C / 0 = 48`, `B / 2 = 2`, with
 `hardRejected=0`. Notification / Telegram, Metric write, HolderSnapshot write,
 retry, auto-send, scheduler/systemd, and rawJson full dump stayed `0`.
 
+Phase 2 cadence note, 2026-06-04: use
+`docs/runbooks/phase-two-operating-cadence.md` before choosing another
+minimum-loop cleanup Red. The cadence rule is Metric first when selected rows
+are Metric-zero, enrich first when selected mint-only rows already have
+`metricsCount>=1`, and watchlist/report review before scoring or notification
+policy changes.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and
