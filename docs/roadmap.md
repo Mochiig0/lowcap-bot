@@ -123,6 +123,14 @@ wanted. Use it to decide whether the next cleanup should be targeted enrich
 for already Metric-covered rows or targeted Metric for Metric-zero rows. Do
 not use cadence docs as approval to run Red directly.
 
+That targeted cleanup preflight is now complete. The 420 minute cleanup window
+has drifted clear. The 10080 minute Metric preview selects clean Metric-zero
+ids `7427..7378`, and DB-only enrich simulation selects the same ids with
+`metricsCount=0`, so the next cleanup lane should be **targeted Metric
+cleanup** before enrich. If approved as Red, use the safe Metric snapshot
+shape with `--limit 50`, `--sinceMinutes 10080`, `--onlyMetricPending`,
+`--noNotificationCapture`, and network-enabled / out-of-sandbox context.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

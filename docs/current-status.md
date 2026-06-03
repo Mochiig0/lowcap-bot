@@ -259,6 +259,32 @@ Phase 2 operating cadence, 2026-06-04:
   if more data is wanted. Choose enrich if candidates already have Metrics;
   choose Metric if candidates are Metric-zero.
 
+Phase 2 targeted cleanup preflight, 2026-06-04:
+
+- Current HEAD is `0303a5e docs: add phase two operating cadence` and the
+  working tree is clean. Token / Metric / Notification / HolderSnapshot remain
+  `3383 / 1357 / 22 / 1`; metadataStatus is `mint_only=2551`,
+  `partial=819`, `enriched=13`; Metric buckets remain `0=2166`, `1=1130`,
+  `2+=87`.
+- Default 24h queue remains `metricPending=210`, `enrichPending=210`,
+  `notifyCandidate=0`; rolling 168h queue remains `metricPending=210`,
+  `enrichPending=370`, `notifyCandidate=0`; watchlist remains `13` ready
+  `B / 2` report-only rows.
+- Metric safe preview with `--sinceMinutes 420` selected `0`; preview with
+  `--sinceMinutes 10080` selected `50` clean Metric-zero rows, ids
+  `7427..7378`, all `metadataStatus=mint_only`, `metricsCount=0`,
+  `notificationCount=0`, `holderSnapshotCount=0`, `providerErrorCount=0`,
+  `dryRun=true`, and `writeEnabled=false`.
+- DB-only enrich simulation selected `0` rows for `420` minutes and selected
+  the same ids `7427..7378` for `10080` minutes. All selected rows are
+  `mint_only`, score `C / 0`, `hardRejected=false`, reviewFlags absent, and
+  still `metricsCount=0`, so enrich cleanup should not run first.
+- Decision: next cleanup lane is targeted Metric cleanup, not targeted enrich
+  cleanup. The next Red candidate, if separately approved, is the
+  network-enabled / out-of-sandbox safe Metric snapshot for limit `50` and
+  `sinceMinutes=10080` with `--onlyMetricPending` and
+  `--noNotificationCapture`.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

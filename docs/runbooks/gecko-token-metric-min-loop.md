@@ -51,6 +51,15 @@ are Metric-zero, enrich first when selected mint-only rows already have
 `metricsCount>=1`, and watchlist/report review before scoring or notification
 policy changes.
 
+Phase 2 targeted cleanup preflight, 2026-06-04: the current cleanup selection
+is Metric-first again. Safe Metric preview with `--sinceMinutes 10080`
+selected ids `7427..7378`, all `mint_only`, `metricsCount=0`,
+`notificationCount=0`, and `holderSnapshotCount=0`, while the DB-only enrich
+simulation selected the same ids and confirmed they still lack Metric
+coverage. The next Red candidate, if approved, is a network-enabled /
+out-of-sandbox Metric safe snapshot with `--limit 50`, `--sinceMinutes 10080`,
+`--onlyMetricPending`, and `--noNotificationCapture`.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

@@ -258,12 +258,51 @@ Snapshot from the 2026-06-04 cadence-doc Green checks:
 - failed Notification: `0`
 - requested 6h planner window: currently clear after time drift
 
+## Latest Targeted Cleanup Preflight
+
+Snapshot from the 2026-06-04 targeted cleanup Green preflight:
+
+- HEAD: `0303a5e docs: add phase two operating cadence`
+- working tree: clean
+- Token / Metric / Notification / HolderSnapshot:
+  `3383 / 1357 / 22 / 1`
+- metadataStatus: `mint_only=2551`, `partial=819`, `enriched=13`
+- Metric buckets: `0=2166`, `1=1130`, `2+=87`
+- default 24h queue: `metricPending=210`, `enrichPending=210`,
+  `notifyCandidate=0`
+- rolling 168h queue: `metricPending=210`, `enrichPending=370`,
+  `notifyCandidate=0`
+- rolling 168h watchlist: `13` rows, all `B / 2`, all ready, report-only
+- disabled/enabled auto-send allowed: `0 / 0`
+- retry candidate: `0`
+- failed Notification: `0`
+- Metric preview, `sinceMinutes=420`: `selectedCount=0`
+- Metric preview, `sinceMinutes=10080`: `selectedCount=50`, ids
+  `7427..7378`, all `metadataStatus=mint_only`, `metricsCount=0`,
+  `notificationCount=0`, `holderSnapshotCount=0`, `dryRun=true`,
+  `writeEnabled=false`, `providerErrorCount=0`
+- DB-only enrich simulation, `sinceMinutes=420`: `selectedCount=0`
+- DB-only enrich simulation, `sinceMinutes=10080`: `selectedCount=50`, same
+  ids `7427..7378`, all `mint_only`, `metricsCount=0`, score `C / 0`,
+  `hardRejected=false`, reviewFlags absent
+
+Decision: targeted Metric cleanup is the next lane. Enrich cleanup should wait
+because the current enrich selection would hit Metric-zero rows first.
+
 ## Next Recommended Task
 
-The next task should be a Green targeted cleanup preflight if the operator
-wants more data. Choose targeted enrich if the next selected rows already have
-Metric coverage; choose targeted Metric if the next selected rows are
-Metric-zero.
+The next task should be a human-approved targeted Metric cleanup Red if the
+operator wants more data progress:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Required context is network-enabled / out-of-sandbox. Expected effects are
+external GeckoTerminal fetch up to `50`, Metric write up to `50`, and selected
+Tokens moving `metricsCount=0 -> 1`. Expected non-effects are Token write `0`,
+Notification create/update/send `0`, HolderSnapshot write `0`, Telegram send
+`0`, retry / auto-send / scheduler/systemd `0`, and rawJson full dump `0`.
 
 If no runtime data progress is needed, keep the next task as report/status
 review. Do not run notification rehearsal, scoring dictionary edits, or

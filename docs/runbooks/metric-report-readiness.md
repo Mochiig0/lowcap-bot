@@ -71,6 +71,13 @@ that cadence: review queues and blockers before Red, review watchlist after
 enrich or bounded runs, and keep notification planner review separate from
 send approval.
 
+Targeted cleanup preflight, 2026-06-04: the next report-readiness data task is
+Metric coverage, not enrich. The 10080 minute Metric preview selected clean
+Metric-zero ids `7427..7378`; DB-only enrich simulation selected the same ids
+and showed `metricsCount=0`, so enrich would not improve report readiness
+until a Metric cleanup pass runs. Notification / Telegram planners remain
+closed.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to
