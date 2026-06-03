@@ -17,22 +17,26 @@ The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
 and quality improvement. This does not unlock Telegram auto-send,
 scheduler/systemd, trading automation, or scoring dictionary changes.
 
-Recommended next slice: **Phase 2 targeted Metric pending cleanup**. The
-Phase 2 triage is complete: safe Metric preview has clean Metric-zero rows,
-while read-only enrich simulation shows the next enrich candidates still lack
-Metric coverage. If the operator wants runtime cleanup, run one separately
-approved network-enabled / out-of-sandbox Metric snapshot Red with the safe
-alias, `--limit 50`, `--sinceMinutes 10080`, and `--noNotificationCapture`.
-No immediate Red is required for MVP completion itself.
+The first Phase 2 targeted Metric pending cleanup Red is now complete. It ran
+one separately approved network-enabled / out-of-sandbox safe Metric snapshot
+command with `--limit 50`, `--sinceMinutes 10080`, and
+`--noNotificationCapture`. This was post-MVP backlog hygiene, not an MVP
+completion requirement.
 
-Triage evidence: default 24h queue is `metricPending=260`,
-`enrichPending=260`, `notifyCandidate=0`; rolling 168h is
-`metricPending=260`, `enrichPending=484`, `notifyCandidate=0`; watchlist is
-`12` rows, all `B / 2`, all ready, report-only. Metric preview
-`sinceMinutes=420` selected `12` clean rows (`7477..7466`), and
-`sinceMinutes=10080` selected `50` clean rows (`7477..7428`). Enrich
-simulation selected the same leading rows but all have `metricsCount=0`, so
-targeted enrich cleanup should wait until Metric coverage is added.
+Result evidence: selected ids `7477..7428`, Metric ids `2417..2466`,
+`selected=50`, `ok=50`, `written=50`, `error=0`, `providerErrorCount=0`, and
+all provider error categories `0`. Counts moved only in Metric:
+`3383 / 1307 / 22 / 1 -> 3383 / 1357 / 22 / 1`; Metric buckets moved to
+`0=2166`, `1=1130`, `2+=87`. Notification / Telegram, Token,
+HolderSnapshot, retry, auto-send, scheduler/systemd, and rawJson dumps stayed
+unchanged. Queue after is default `metricPending=210`,
+`enrichPending=260`, `notifyCandidate=0`; rolling 168h
+`metricPending=210`, `enrichPending=453`, `notifyCandidate=0`.
+
+Recommended next slice: **Green post-run Metric/report review and targeted
+enrich preflight** for the newly Metric-covered rows. Do not continue with a
+second Metric cleanup Red until that review confirms the new rows and decides
+whether enrich cleanup should now take priority.
 
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with

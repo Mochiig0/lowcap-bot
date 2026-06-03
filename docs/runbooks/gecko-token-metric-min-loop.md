@@ -2389,6 +2389,37 @@ Expected non-effects held: no Metric write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no auto-send or retry execution, no
 scheduler/systemd, no repo-local data diff, and no rawJson full dump.
 
+## 2026-06-03 Phase 2 Targeted Metric Cleanup Result
+
+After personal MVP completion, the first Phase 2 cleanup Red ran one approved
+network-enabled / out-of-sandbox Metric pending snapshot:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Result: `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`interItemDelayCount=49`, `providerErrorCount=0`, and all provider error
+categories `0`. Selected ids were `7477..7428`; new Metric ids were
+`2417..2466`; observedAt range was
+`2026-06-03T15:01:13.407Z..2026-06-03T15:13:59.756Z`.
+
+Counts moved only in Metric:
+
+- Token / Metric / Notification / HolderSnapshot:
+  `3383 / 1307 / 22 / 1 -> 3383 / 1357 / 22 / 1`
+- Metric buckets:
+  `0=2216`, `1=1080`, `2+=87 -> 0=2166`, `1=1130`, `2+=87`
+
+All selected rows moved to `metricsCount=1`; selected Notification total and
+HolderSnapshot total stayed `0`. Representative rawJson-free `metrics:report`
+checks for token ids `7477`, `7453`, and `7428` show price / FDV / reserve /
+top-pool presence. Notification / Telegram, retry, auto-send,
+scheduler/systemd, and rawJson dumps remained unchanged.
+
+Next step should be Green post-run Metric/report review and targeted enrich
+preflight for the newly Metric-covered rows before any further Red.
+
 ## 2026-05-31 Post-run Metric Pending Continuation With Skill
 
 The approved Skill-shortened Metric pending continuation Red ran once:

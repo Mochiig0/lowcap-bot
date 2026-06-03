@@ -156,6 +156,24 @@ First Phase 2 triage decision, 2026-06-03:
   out-of-sandbox context. It remains post-MVP cleanup, not an MVP completion
   requirement.
 
+First Phase 2 cleanup execution, 2026-06-03:
+
+- The targeted Metric cleanup Red completed in network-enabled /
+  out-of-sandbox context.
+- Exact command ran once with the safe Metric alias, `--limit 50`,
+  `--sinceMinutes 10080`, `--onlyMetricPending`, `--noNotificationCapture`,
+  and `--write`.
+- Selected ids `7477..7428` moved from `metricsCount=0` to `metricsCount=1`.
+- Metric ids `2417..2466` were created; rawJson-free safe checks show
+  price / FDV / reserve / top-pool presence for `50 / 50`.
+- Counts moved only in Metric: `3383 / 1307 / 22 / 1 ->
+  3383 / 1357 / 22 / 1`.
+- Notification / Telegram, HolderSnapshot, retry, auto-send,
+  scheduler/systemd, and rawJson dumps remained unchanged.
+- This confirms the first Phase 2 cleanup path, but it is still post-MVP
+  improvement. The next task should be Green review / targeted enrich
+  preflight, not automatic continuation.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

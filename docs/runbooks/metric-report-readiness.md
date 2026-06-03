@@ -2320,6 +2320,35 @@ write, Notification create/update, HolderSnapshot write, Telegram send,
 scheduler/systemd, repo-local data diff, and rawJson full dump. Human approval
 is required; do not add `--notify`.
 
+## 2026-06-03 Phase 2 Targeted Metric Cleanup Report Readiness
+
+The first post-MVP Phase 2 targeted Metric cleanup wrote Metric ids
+`2417..2466` for token ids `7477..7428` with the safe GeckoTerminal Metric
+alias in network-enabled / out-of-sandbox context. The Red ran exactly once
+and returned `selected=50`, `ok=50`, `written=50`, `error=0`,
+`providerErrorCount=0`, and all provider error categories `0`.
+
+RawJson-free readiness checks:
+
+- selected rows all moved to `metricsCount=1`
+- selected rows remained `metadataStatus=mint_only`
+- selected Notification total stayed `0`
+- selected HolderSnapshot total stayed `0`
+- safe market-data booleans are price / FDV / reserve / top-pool present for
+  `50 / 50`
+- representative `metrics:report` checks for token ids `7477`, `7453`, and
+  `7428` each returned the expected new Metric row and did not dump rawJson
+
+Counts moved only in Metric: Token / Metric / Notification / HolderSnapshot
+`3383 / 1307 / 22 / 1 -> 3383 / 1357 / 22 / 1`. Metric buckets moved from
+`0=2216`, `1=1080`, `2+=87` to `0=2166`, `1=1130`, `2+=87`.
+
+Queue after is default `metricPendingCount=210`, `enrichPendingCount=260`,
+`notifyCandidateCount=0`; rolling 168h `metricPendingCount=210`,
+`enrichPendingCount=453`, `notifyCandidateCount=0`. The next useful Green is
+post-run review plus targeted enrich preflight for these newly Metric-covered
+rows.
+
 ## 2026-05-31 Post-run Metric Continuation Report Check
 
 After the Skill-shortened post-run Metric pending continuation wrote Metric ids

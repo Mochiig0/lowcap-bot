@@ -7619,3 +7619,24 @@ candidates remain `0`.
 Expected boundaries held: no Token write, no Notification create/update, no
 HolderSnapshot write, no Telegram send, no retry execution, no auto live send,
 no scheduler/systemd, and no rawJson full dump.
+
+## 2026-06-03 Phase 2 Metric Cleanup After MVP Validation
+
+After the network-enabled 6H bounded runner satisfied personal MVP runtime
+validation, the first Phase 2 cleanup was a short targeted Metric pending Red,
+not another long bounded runner. The approved safe alias command ran once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It selected ids `7477..7428`, wrote Metric ids `2417..2466`, and completed
+with `selected=50`, `ok=50`, `written=50`, `error=0`,
+`providerErrorCount=0`, and all provider error categories `0`. This reduced
+Metric pending backlog without detect, bounded runner execution, enrich,
+Notification creation/update, Telegram send, retry, auto-send,
+scheduler/systemd, HolderSnapshot write, or rawJson dump.
+
+The bounded-run MVP remains complete enough for personal use. This cleanup is
+Phase 2 backlog hygiene; future Red tasks should continue as one-command
+targeted operations with Green review between runs.
