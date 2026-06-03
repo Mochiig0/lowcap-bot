@@ -174,6 +174,19 @@ First Phase 2 cleanup execution, 2026-06-03:
   improvement. The next task should be Green review / targeted enrich
   preflight, not automatic continuation.
 
+First Phase 2 enrich preflight, 2026-06-04:
+
+- Post-run Metric review confirmed the Metric cleanup rows are report-readable
+  and rawJson-free.
+- `sinceMinutes=420` no longer selects the cleanup batch because the
+  created/first-seen window drifted.
+- `sinceMinutes=10080` selects ids `7477..7428`, count `50`, all
+  `mint_only`, `metricsCount=1`, `score=C/0`, `hardRejected=false`,
+  `reviewFlagsPresent=false`, `notificationCount=0`, and
+  `holderSnapshotCount=0`.
+- The next Phase 2 Red candidate is targeted enrich cleanup for those rows,
+  not another Metric cleanup batch.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

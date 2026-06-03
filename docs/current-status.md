@@ -82,6 +82,42 @@ Phase 2 targeted Metric cleanup, 2026-06-03:
   targeted enrich preflight for the newly Metric-covered rows before any
   further Red.
 
+Phase 2 targeted enrich cleanup preflight, 2026-06-04:
+
+- The post-run Metric cleanup review is complete on HEAD
+  `be0380c docs: record phase two metric cleanup` with a clean working tree.
+  This pass was read-only / docs-only: no Red, no Metric write, no Token
+  enrich/rescore write, no bounded execute, no detect write/watch, no
+  notification send, no retry, no auto-send, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson dump.
+- DB state remains Token / Metric / Notification / HolderSnapshot
+  `3383 / 1357 / 22 / 1`; metadata status remains `mint_only=2601`,
+  `partial=769`, `enriched=13`; Metric buckets remain `0=2166`, `1=1130`,
+  `2+=87`.
+- Representative rawJson-free `metrics:report` checks for token ids `7477`,
+  `7453`, and `7428` confirmed Metric ids `2417`, `2441`, and `2466`, source
+  `geckoterminal.token_snapshot`, and price / FDV / reserve / top-pool
+  presence.
+- Prisma read-only enrich simulation shows `sinceMinutes=420` now selects
+  `0` rows because the created/first-seen window has drifted past the cleanup
+  batch. `sinceMinutes=10080` selects exactly ids `7477..7428`, count `50`.
+  All selected rows are `mint_only`, `metricsCount=1`, `score=C/0`,
+  `hardRejected=false`, `reviewFlagsPresent=false`, with selected
+  Notification total `0` and HolderSnapshot total `0`.
+- Queue/planner state: default 24h has `metricPendingCount=210`,
+  `enrichPendingCount=260`, `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=210`, `enrichPendingCount=420`,
+  `notifyCandidateCount=0`; watchlist 168h is `12` rows, all `B / 2`, all
+  ready, report-only. Disabled/enabled auto-send allowed remains `0 / 0`,
+  retry candidate remains `0`, and failed Notification remains `0`.
+- Recommended next Red, if approved, is one network-enabled / out-of-sandbox
+  targeted enrich cleanup:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write`.
+  Expected writes are Token enrich/rescore/context/reviewFlags updates up to
+  `50`; expected non-effects are Metric write `0`, Notification
+  create/update/send `0`, HolderSnapshot write `0`, Telegram send `0`, retry
+  / auto-send / scheduler/systemd `0`, and rawJson full dump `0`.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

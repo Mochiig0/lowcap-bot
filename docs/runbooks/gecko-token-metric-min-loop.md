@@ -2420,6 +2420,29 @@ scheduler/systemd, and rawJson dumps remained unchanged.
 Next step should be Green post-run Metric/report review and targeted enrich
 preflight for the newly Metric-covered rows before any further Red.
 
+## 2026-06-04 Phase 2 Targeted Enrich Cleanup Preflight
+
+Read-only post-run review confirmed that the Metric cleanup rows `7477..7428`
+are now the next clean enrich target. The `sinceMinutes=420` enrich simulation
+selects `0` rows because time drift moved the cleanup batch outside that
+created/first-seen window. The `sinceMinutes=10080` simulation selects exactly
+ids `7477..7428`, count `50`.
+
+All selected rows are `mint_only`, have `metricsCount=1`, score `C / 0`,
+`hardRejected=false`, no existing reviewFlags, selected Notification total
+`0`, and selected HolderSnapshot total `0`. Representative rawJson-free
+`metrics:report` checks for ids `7477`, `7453`, and `7428` confirmed source
+`geckoterminal.token_snapshot` and price / FDV / reserve / top-pool presence.
+
+Next Red candidate, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write
+```
+
+Use network-enabled / out-of-sandbox context and human approval. Do not add
+`--notify`; Notification / Telegram must remain locked.
+
 ## 2026-05-31 Post-run Metric Pending Continuation With Skill
 
 The approved Skill-shortened Metric pending continuation Red ran once:

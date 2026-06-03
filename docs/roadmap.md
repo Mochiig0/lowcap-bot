@@ -38,6 +38,19 @@ enrich preflight** for the newly Metric-covered rows. Do not continue with a
 second Metric cleanup Red until that review confirms the new rows and decides
 whether enrich cleanup should now take priority.
 
+That Green review is now complete. The newly Metric-covered ids `7477..7428`
+remain clean: Metric ids `2417..2466` exist, representative rawJson-free
+reports show source `geckoterminal.token_snapshot` and price / FDV / reserve /
+top-pool presence, and selected Notification / HolderSnapshot totals are `0`.
+The strict 420 minute enrich window has drifted to `selectedCount=0`, but
+`sinceMinutes=10080` selects exactly ids `7477..7428`, all `mint_only`,
+`metricsCount=1`, `C/0`, non-hard-rejected, and without existing reviewFlags.
+
+Recommended next slice: **Phase 2 targeted enrich cleanup Red** with human
+approval in network-enabled / out-of-sandbox context, using the safe alias and
+`--limit 50 --sinceMinutes 10080`. Do not run more Metric cleanup first unless
+this enrich Red is blocked by a fresh preflight.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

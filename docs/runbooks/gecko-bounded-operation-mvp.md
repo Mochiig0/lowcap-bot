@@ -7640,3 +7640,9 @@ scheduler/systemd, HolderSnapshot write, or rawJson dump.
 The bounded-run MVP remains complete enough for personal use. This cleanup is
 Phase 2 backlog hygiene; future Red tasks should continue as one-command
 targeted operations with Green review between runs.
+
+The Green review after that Metric cleanup selected targeted enrich cleanup as
+the next one-command Phase 2 task. Because `sinceMinutes=420` has drifted past
+ids `7477..7428`, the fixed candidate uses `sinceMinutes=10080` with the safe
+token enrich/rescore alias, `--limit 50`, and `--interItemDelayMs 15000`.
+This remains a short targeted cleanup, not another bounded runner execute.

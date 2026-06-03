@@ -2349,6 +2349,42 @@ Queue after is default `metricPendingCount=210`, `enrichPendingCount=260`,
 post-run review plus targeted enrich preflight for these newly Metric-covered
 rows.
 
+## 2026-06-04 Phase 2 Enrich Cleanup Preflight
+
+The post-run Metric cleanup review confirmed that token ids `7477..7428` are
+ready for targeted enrich cleanup. Representative rawJson-free `metrics:report`
+checks:
+
+- token id `7477` -> Metric id `2417`, source
+  `geckoterminal.token_snapshot`, price / FDV / reserve / top-pool present
+- token id `7453` -> Metric id `2441`, source
+  `geckoterminal.token_snapshot`, price / FDV / reserve / top-pool present
+- token id `7428` -> Metric id `2466`, source
+  `geckoterminal.token_snapshot`, price / FDV / reserve / top-pool present
+
+Prisma read-only simulation for `token:enrich-rescore:geckoterminal:safe`
+selection:
+
+- `sinceMinutes=420`: selected `0` because the created/first-seen window has
+  drifted past the cleanup batch
+- `sinceMinutes=10080`: selected ids `7477..7428`, count `50`
+- selected rows are all `mint_only`, `metricsCount=1`, `score=C/0`,
+  `hardRejected=false`, and `reviewFlagsPresent=false`
+- selected Notification total is `0`; selected HolderSnapshot total is `0`
+
+Recommended next Red exact command, not executed here:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write
+```
+
+Human approval is required. Required context is network-enabled /
+out-of-sandbox. Expected side effects are external GeckoTerminal fetch,
+best-effort Metaplex fetch, and Token enrich/rescore/context/reviewFlags
+updates for up to `50` rows. Expected non-effects are Metric write,
+Notification create/update/send, HolderSnapshot write, Telegram send, retry,
+auto-send, scheduler/systemd, and rawJson full dump.
+
 ## 2026-05-31 Post-run Metric Continuation Report Check
 
 After the Skill-shortened post-run Metric pending continuation wrote Metric ids
