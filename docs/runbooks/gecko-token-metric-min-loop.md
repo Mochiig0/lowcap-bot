@@ -156,6 +156,23 @@ HolderSnapshot, retry, auto-send, scheduler/systemd, rawJson dump, and `pnpm
 smoke` stayed `0`. The next step should be Green post-run enrich/report
 review for ids `7068..7059` before any additional Red.
 
+That Green review passed, and the next small network-enabled limit `10`
+enrich/rescore continuation also succeeded. It selected ids `7058..7049`, all
+of which had one GeckoTerminal Metric and no Notification or HolderSnapshot
+rows. The safe alias exact command ran once without `--notify` and returned
+`selected=10`, `ok=10`, `error=0`, `enrichWriteCount=10`,
+`rescoreWriteCount=10`, `contextWriteCount=10`,
+`metaplexAttemptedCount=10`, `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`.
+
+The selected rows moved from `mint_only` to `partial` with enriched/rescored
+timestamps, reviewFlags, and GeckoTerminal context. Their Metrics remained
+`2025..2034`; no new Metric rows were written. All stayed score `C / 0` and
+`hardRejected=false`. Notification / Telegram, HolderSnapshot, Metric write,
+retry, auto-send, scheduler/systemd, rawJson dump, and `pnpm smoke` stayed
+`0`. The next step should be Green post-run enrich/report review for ids
+`7058..7049` before any additional Red.
+
 For a full bounded 6H flow, use the default-safe pipeline runner in plan mode
 first:
 
