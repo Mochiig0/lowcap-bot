@@ -34,6 +34,20 @@ pending work (`6h metricPending=204`, `default metricPending=260`,
 approved Metric pending snapshot only after Green review, not another
 long-running bounded runner and not Telegram/scheduler work.
 
+That Green review is complete. Time drift has cleared the strict 6h planner
+window, but the bounded runner's intended 420 minute buffered follow-up window
+still has clean Metric backlog. Safe Metric preview selected ids `7477..7428`
+with `dryRun=true`, `writeEnabled=false`, `metricsCount=0`,
+`notificationCount=0`, `holderSnapshotCount=0`, `providerErrorCount=0`, no
+fetch, and no rawJson dump. Enrich simulation found no 420 minute mint-only
+rows with Metric coverage, so targeted enrich is not the shortest cleanup.
+
+Recommended next slice: **either declare/checklist the personal MVP complete,
+or run one short targeted network-enabled Metric pending Red**. If runtime
+cleanup is preferred, use the safe alias `--limit 50 --sinceMinutes 420`
+command with human approval. Avoid another long bounded runner and keep
+Telegram auto-send, scheduler/systemd, and scoring dictionary work out of MVP.
+
 The Yellow provider diagnostic visibility slice is complete.
 `metric:snapshot:geckoterminal` now classifies failed provider items into safe
 categories: `network_fetch_error`, `timeout`, `http_429`, `http_error`,

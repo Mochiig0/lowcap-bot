@@ -56,6 +56,15 @@ satisfies the personal-MVP minimum-loop runtime validation for the
 network-enabled path. The next minimum-loop work should be post-run review and
 targeted Metric pending preflight for the remaining fresh backlog.
 
+That post-run review found the next minimal cleanup is Metric, not enrich.
+`sinceMinutes=420` Metric preview selected ids `7477..7428`, all
+`mint_only`, all `metricsCount=0`, and all with no Notification or
+HolderSnapshot rows. The preview was dry-run/write-disabled and did not fetch.
+The same 420 minute window has no mint-only rows with Metric coverage for
+enrich. If an additional Red is desired before the MVP completion checklist,
+use one targeted network-enabled Metric pending snapshot with the safe alias
+and no Notification capture.
+
 Before choosing a new bounded operation command, run the read-only planner:
 
 ```bash

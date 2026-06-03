@@ -111,6 +111,15 @@ execution, scheduler, or systemd action was run. Post-run watchlist remains
 report-only (`12` ready `B / 2` rows) and does not justify capture-only B
 Notifications or Telegram policy changes.
 
+Post-run Green review keeps this unchanged. Default and rolling review queues
+still have `notifyCandidateCount=0`; disabled/enabled auto-send planners have
+allowed candidate count `0 / 0`; retry planner has candidate count `0`; failed
+Notification count is `0`. The proposed short Metric pending cleanup command
+uses `--noNotificationCapture` and has expected Notification create/update/send
+`0` and Telegram send `0`. Do not use this cleanup as a reason to unlock
+auto-send, retry execution, capture-only B Notifications, scheduler/systemd, or
+Telegram policy changes.
+
 The follow-up Green review keeps this boundary unchanged. Watchlist rows are
 not near A/S thresholds and have no watchlist social/Metaplex/description/link
 presence. Do not create capture-only B Notifications yet; first improve the

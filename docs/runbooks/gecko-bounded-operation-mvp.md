@@ -160,6 +160,32 @@ did not unlock scheduler/systemd. Auto-send allowed stayed `0` in both
 disabled and enabled planner modes, retry candidate stayed `0`, and failed
 Notification stayed `0`.
 
+Post-run Green review, 2026-06-03: the run record remains consistent after
+read-only review. DB counts are still `3383 / 1307 / 22 / 1`; representative
+Metric ids `2317`, `2367`, and `2416` have safe market-data booleans present;
+representative Token ids `7478`, `7528`, and `7577` are partial with
+reviewFlags, GeckoTerminal context, one Metric, no Notification rows, and no
+HolderSnapshot rows. The notification planners still have failed `0`, retry
+candidate `0`, and enabled/disabled allowed auto-send `0 / 0`.
+
+The strict `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` window is
+clear after time drift, but a targeted Metric snapshot preview using the
+runner's buffered `sinceMinutes=420` follow-up window selected `50` clean
+Metric-zero rows (`7477..7428`). The preview was dry-run, write-disabled,
+fetch-free, rawJson-free, and had provider error counts at `0`. A short
+targeted Metric pending Red can be issued as a separate human-approved task:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 420 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Required context remains network-enabled / out-of-sandbox. Expected side
+effects are external GeckoTerminal fetch up to `50`, Metric write up to `50`,
+and selected Tokens moving `metricsCount=0 -> 1`. Expected non-effects:
+Token write `0`, Notification create/update/send `0`, HolderSnapshot write
+`0`, Telegram send `0`, retry / auto-send / scheduler/systemd `0`, rawJson
+full dump `0`.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

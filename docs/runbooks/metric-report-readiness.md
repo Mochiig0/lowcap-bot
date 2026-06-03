@@ -82,6 +82,16 @@ phases completed, and post-run `--watchlistOnly` now shows 12 ready B/2 rows
 for report-only human review. `notifyCandidateCount` remains `0`, which is
 expected because the notify path remains S-only and no S rows were observed.
 
+Post-run Green review confirmed the same evidence without adding new rows.
+Representative Metric ids `2317`, `2367`, and `2416` all report source
+`geckoterminal.token_snapshot` and safe price / FDV / reserve / top-pool
+presence. Representative Token ids `7478`, `7528`, and `7577` remain partial,
+with reviewFlags and GeckoTerminal context, one Metric, no Notification rows,
+and no HolderSnapshot rows. The next report-readiness data collection slice,
+if any, should be a targeted Metric pending snapshot for ids `7477..7428`;
+targeted enrich is not useful in the 420 minute buffered window because no
+mint-only rows there currently have Metric coverage.
+
 The subsequent Metric backlog Red did not produce new Metric evidence. The
 exact command was attempted once, but package-script `tsx` failed before app
 logic with an IPC pipe `EPERM`, so no external fetch, Metric write, observedAt,

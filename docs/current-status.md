@@ -55,6 +55,46 @@ Network-enabled MVP bounded runner validation, 2026-06-03:
   preflight for the remaining 6h/168h Metric backlog, not Telegram or
   scheduler work.
 
+Green post-run bounded runner review, 2026-06-03:
+
+- Current HEAD `5dd4cbd docs: record network enabled mvp bounded runner`
+  matched the pushed run record and the working tree was clean. This pass was
+  read-only / docs-only: no Red, no Metric write, no Token enrich/rescore
+  write, no `ops:run:bounded --execute`, no detect write/watch, no
+  notification send, no retry, no auto live send, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson full dump was run.
+- DB counts remain Token / Metric / Notification / HolderSnapshot
+  `3383 / 1307 / 22 / 1`; metadata status remains `mint_only=2601`,
+  `partial=769`, `enriched=13`; Metric buckets remain `0=2216`, `1=1080`,
+  `2+=87`; Notification statuses remain `captured=17`, `sent=5`,
+  `failed=0`.
+- Queue state after time drift: default 24h has `metricPendingCount=260`,
+  `enrichPendingCount=260`, and `notifyCandidateCount=0`. Rolling 168h has
+  `metricPendingCount=274`, `enrichPendingCount=526`, and
+  `notifyCandidateCount=0`. The bounded planner's strict requested 6h window
+  is now clear, while the 420 minute buffered window still has actionable
+  Metric backlog.
+- Representative rawJson-free checks passed. Metric ids `2317`, `2367`, and
+  `2416` have source `geckoterminal.token_snapshot` and all expose safe
+  price / FDV / reserve / top-pool booleans. Token ids `7478`, `7528`, and
+  `7577` are `partial`, have `metricsCount=1`, reviewFlags and GeckoTerminal
+  context, `notificationCount=0`, and `holderSnapshotCount=0`.
+- Targeted Metric preview with the safe alias and `sinceMinutes=420` selected
+  `50` clean Metric-zero rows, ids `7477..7428`. Preview stayed
+  `dryRun=true`, `writeEnabled=false`, `providerErrorCount=0`, all
+  `errorCategoryCounts=0`, no external fetch, no DB write, and no rawJson
+  dump. All selected rows are `mint_only` with `metricsCount=0`,
+  `notificationCount=0`, and `holderSnapshotCount=0`.
+- Enrich simulation shows no useful 420 minute enrich Red: the same window has
+  `0` mint-only rows with Metric coverage. In the 10080 minute window there
+  are `252` mint-only rows with one Metric and no Notification /
+  HolderSnapshot rows, but that is broader backlog work and not the shortest
+  post-run cleanup.
+- MVP runtime validation remains satisfied. The recommended next Red, if one
+  more post-run cleanup is desired, is a targeted network-enabled Metric
+  pending snapshot with the safe alias and `--limit 50`. The higher-priority
+  non-Red alternative is a docs-only MVP completion checklist/declaration.
+
 Yellow provider error classification update, 2026-06-01:
 
 - `metric:snapshot:geckoterminal` now emits raw-response-free provider error
