@@ -13,6 +13,13 @@ investigation OS: detect one pump.fun candidate, enrich it, append bounded
 Metric observations, and verify the saved state without exposing rawJson or
 secrets.
 
+MVP completion note, 2026-06-03: the network-enabled 6H bounded runner
+validation passed and is recorded in
+`docs/runbooks/mvp-completion-checklist.md`. This runbook remains the operating
+entrypoint for manual bounded runs, but the main personal-MVP runtime gap is
+closed. Future work here is Phase 2 cadence, cleanup, and ergonomics, not an
+MVP blocker.
+
 ## 6H Planner
 
 Use `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly` before choosing the next

@@ -4,6 +4,23 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Personal MVP completion declaration, 2026-06-03:
+
+- Personal MVP runtime validation is passed and the repo is now complete enough
+  for personal bounded-run use. This means manual network-enabled bounded
+  operation is validated; it does not mean production-ready, always-on,
+  fully automated, or profitable prediction system.
+- The completion checklist lives at
+  `docs/runbooks/mvp-completion-checklist.md`. It defines MVP scope, evidence,
+  operating rules, known non-blocking gaps, out-of-MVP items, and Phase 2
+  follow-up work.
+- The remaining metric/enrich backlog, `notifyCandidate=0`, B/2 watchlist
+  status, low Metaplex hit rate, and normal-sandbox GeckoTerminal DNS failure
+  are known operating conditions, not blockers to the personal MVP decision.
+- Next phase is operational cleanup and quality improvement. Targeted Metric
+  pending cleanup is optional; no immediate Red is required to declare the MVP
+  complete enough.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

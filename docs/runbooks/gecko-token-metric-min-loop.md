@@ -16,6 +16,11 @@ append, and rawJson-free report confirmation, use
 This minimum-loop document remains the evidence log for individual mint
 progression and Metric time-series confirmation.
 
+MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
+enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for
+the acceptance decision, included scope, out-of-MVP items, and Phase 2 tasks.
+Remaining Metric/enrich backlog is post-MVP cleanup, not a blocker.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

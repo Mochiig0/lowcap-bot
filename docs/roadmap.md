@@ -11,6 +11,17 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 Date: 2026-06-03
 
+Personal MVP runtime validation is complete enough for personal bounded-run
+use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
+The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
+and quality improvement. This does not unlock Telegram auto-send,
+scheduler/systemd, trading automation, or scoring dictionary changes.
+
+Recommended next slice: **Phase 2 cleanup selection**. Choose one focused
+post-MVP task: targeted Metric pending cleanup, targeted enrich cleanup,
+watchlist manual review, notification safety rehearsal, or bounded-runner
+cadence docs. No immediate Red is required for MVP completion itself.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

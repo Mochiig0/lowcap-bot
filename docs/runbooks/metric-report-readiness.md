@@ -6,6 +6,11 @@ This runbook records the read-only confirmation that accumulated GeckoTerminal
 Metric rows can be inspected through report / outcome CLI commands without
 writing DB rows, fetching external APIs, sending Telegram, or dumping rawJson.
 
+MVP completion note, 2026-06-03: report readiness is sufficient for personal
+bounded-run MVP completion. The queue, blocker, watchlist, Metric, and
+notification planner views are available and rawJson-free enough for manual
+operation. Further report/dashboard polish belongs to Phase 2.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

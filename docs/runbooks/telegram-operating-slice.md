@@ -8,6 +8,12 @@ Telegram send, production DB write, Notification create/update, external fetch,
 Metric snapshot, detect watch, retry execution, scheduler, systemd, schema
 change, migration, application code change, or rawJson full dump was executed.
 
+MVP completion note, 2026-06-03: Telegram safety is sufficient for personal
+bounded-run MVP completion because the bounded runner and planners preserved
+Notification / Telegram non-effects. Telegram auto-send, retry execution,
+scheduler/systemd, and capture-only B Notifications remain explicitly
+out-of-MVP and locked for a separate Phase 2 review.
+
 ## Report Slice Decision
 
 Outcome/report work is paused at Policy C:
