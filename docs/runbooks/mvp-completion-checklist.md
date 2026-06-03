@@ -207,6 +207,23 @@ First Phase 2 enrich cleanup execution, 2026-06-04:
 - This is Phase 2 cleanup evidence, not a change to the MVP completion
   decision. Run Green post-run enrich/report review before any further Red.
 
+First Phase 2 enrich cleanup review, 2026-06-04:
+
+- The targeted rows `7477..7428` are confirmed reportable and rawJson-free:
+  `partial=50`, reviewFlags / scoreBreakdown / GeckoTerminal context
+  `50 / 50`, Metaplex context `1 / 50`, `metricsCount=1` for `50 / 50`, and
+  selected Notification / HolderSnapshot totals `0`.
+- Score distribution is still weak: `C / 0 = 48`, `B / 2 = 2`,
+  `hardRejected=0`. The B rows are useful as manual watchlist evidence, not as
+  notification candidates.
+- `notifyCandidate=0` is expected because current notification eligibility
+  remains S-only and the reviewed rows are below S. Notification / Telegram
+  remain locked.
+- The next Phase 2 task should be no-write watchlist manual review / scoring
+  evidence gathering. Additional targeted enrich or Metric cleanup remains
+  optional post-MVP work and should continue to use separate human-approved
+  Red prompts.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

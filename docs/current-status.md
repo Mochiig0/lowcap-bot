@@ -159,6 +159,44 @@ Phase 2 targeted enrich cleanup, 2026-06-04:
   `0`. Next operating step should be Green post-run enrich/report review and
   lane decision before any additional Red.
 
+Phase 2 targeted enrich cleanup review, 2026-06-04:
+
+- The post-run enrich/report review is complete on HEAD
+  `4ab97f5 docs: record phase two enrich cleanup` with a clean working tree.
+  This pass was read-only / docs-only: no Red, no Metric write, no Token
+  enrich/rescore write, no bounded execute, no detect write/watch, no
+  notification send, no retry, no auto-send, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson dump.
+- DB state remains Token / Metric / Notification / HolderSnapshot
+  `3383 / 1357 / 22 / 1`; metadata status remains `mint_only=2551`,
+  `partial=819`, `enriched=13`; Metric buckets remain `0=2166`, `1=1130`,
+  `2+=87`.
+- Target ids `7477..7428` are confirmed `partial` with `enrichedAt`,
+  `rescoredAt`, reviewFlags, scoreBreakdown, and GeckoTerminal context present
+  for `50 / 50`. Existing Metric ids `2417..2466` remain latest, with
+  price / FDV / reserve / top-pool presence for `50 / 50`; selected
+  Notification total and HolderSnapshot total remain `0`.
+- Target score distribution remains `C / 0 = 48`, `B / 2 = 2`, and
+  `hardRejected=0`. The two target `B / 2` rows are report-only watchlist
+  evidence; no target row is notification-eligible.
+- Current queue/planner state: default 24h has `metricPendingCount=210`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=210`, `enrichPendingCount=370`,
+  `notifyCandidateCount=0`. Rolling 168h watchlist currently shows `13` rows
+  due time-window drift, all `B / 2`, all ready, report-only. Disabled/enabled
+  auto-send allowed remains `0 / 0`, retry candidate remains `0`, and failed
+  Notification remains `0`.
+- `notifyCandidate=0` is expected: the planner remains S-only for notification
+  eligibility, while the current reviewed rows are below S and blocked by
+  `rank_not_s`. No Notification / Telegram execution path is indicated.
+- Read-only simulations show both cleanup lanes are possible: enrich
+  simulation with `sinceMinutes=10080` finds `50` clean `mint_only`,
+  `metricsCount=1` rows, while safe Metric preview finds `50` clean
+  Metric-zero rows. Because watchlist gained fresh B/2 report-only evidence,
+  the recommended next Phase 2 task is Green watchlist manual review / scoring
+  evidence gathering before another write Red. If the operator chooses more
+  cleanup instead, targeted enrich cleanup should be the next Red candidate.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

@@ -30,6 +30,22 @@ Telegram send occurred. Rolling 168h watchlist increased to `14` ready `B / 2`
 report-only rows. The next report-readiness step is Green post-run review and
 lane decision, not automatic continuation.
 
+Phase 2 enrich cleanup review, 2026-06-04: the post-run report review confirms
+the 50 targeted rows are safe to inspect without rawJson. Representative ids
+`7477`, `7453`, and `7428` are `partial`, have reviewFlags and scoreBreakdown
+present, keep one latest GeckoTerminal Metric, and have no Notification or
+HolderSnapshot rows. Target aggregate remains `C / 0 = 48`, `B / 2 = 2`,
+`hardRejected=0`, with the two B rows treated as watchlist-only evidence.
+
+Current rolling 168h watchlist is `13` ready `B / 2` rows after time-window
+drift. `notifyCandidateCount=0` is expected because the notification rule is
+still S-only and the reviewed rows are below that threshold. Safe blocker
+review shows `rank_not_s` as the active reason for the reviewed target rows.
+Read-only lane checks found more cleanup is possible, but the next
+report-readiness task should be watchlist manual review / scoring evidence
+gathering before more writes. If cleanup is preferred instead, use a separate
+human-approved targeted enrich Red for the next clean `metricsCount=1` rows.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

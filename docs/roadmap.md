@@ -73,6 +73,25 @@ decision**. Do not automatically run another Red; first verify the 50 enriched
 rows and decide between more Metric cleanup, more enrich cleanup, or watchlist
 manual review.
 
+That Green review is now complete. Target ids `7477..7428` are all `partial`
+with reviewFlags, scoreBreakdown, GeckoTerminal context, one latest Metric,
+and no Notification or HolderSnapshot rows. Existing Metric ids `2417..2466`
+remain latest and rawJson-free safe checks show price / FDV / reserve /
+top-pool presence for all 50. Score distribution stayed `C / 0 = 48`,
+`B / 2 = 2`, and `hardRejected=0`.
+
+The watchlist did change, but only as report-only evidence: the two target
+`B / 2` rows are below notification threshold, and rolling 168h currently
+shows `13` ready `B / 2` watchlist rows due time-window drift. Notification
+candidate count remains `0`, as expected, because the notify rule is still
+S-only and blockers are `rank_not_s`.
+
+Recommended next slice: **Green watchlist manual review / scoring evidence
+gathering**. Do not tune scoring yet and do not run a notification rehearsal
+without a real S candidate. If the operator prefers additional cleanup Red
+instead of no-write review, the next safer cleanup is targeted enrich of the
+next clean `metricsCount=1` rows, not another automatic bounded run.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two
