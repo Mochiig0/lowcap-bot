@@ -103,6 +103,63 @@ exists, failed Notification / retry candidate / enabled auto-send allowed is
 greater than `0`, plan-only output becomes blocked, or Telegram /
 Notification execution appears in the plan.
 
+Network-enabled 6H bounded runner result, 2026-06-03: the Red candidate above
+was approved and run exactly once in the required out-of-sandbox context. The
+checkpoint path was safe and did not exist before execution. The run started at
+`2026-06-03T12:30:59+09:00`, ended at `2026-06-03T19:27:48+09:00`, and the
+runner reported `durationMs=24908118`.
+
+Runner summary:
+
+- `executeRequested=true`, `readOnly=false`, `computedSinceMinutes=420`,
+  `maxIterations=360`
+- `postRunMetricCycles=2`, `postRunEnrichCycles=2`
+- `metricCyclesExecuted=2`, `enrichCyclesExecuted=2`
+- `metricCyclesStoppedReason=null`, `enrichCyclesStoppedReason=null`
+- `blockedBy=[]`, `stopConditionCodes=[]`
+- completed phases: preflight, detect write, Metric pending snapshot,
+  enrich/rescore, report review, notification planner review
+
+Phase results:
+
+- `detect_write`: `completedIterations=360`, `failedCount=0`,
+  `rateLimitRetryCount=0`, `importedCount=360`, `existingCount=0`,
+  checkpoint enabled
+- `metric_pending_snapshot`: two cycles executed with `interItemDelayCount=49`
+  per cycle; DB validation found Metric ids `2317..2416` and safe
+  price / FDV / reserve / top-pool booleans present for `100 / 100`
+- `enrich_rescore`: two cycles executed with `interItemDelayCount=49` per
+  cycle; DB validation found token ids `7478..7577` moved to `partial` with
+  reviewFlags and GeckoTerminal context for `100 / 100`, Metaplex context for
+  `2 / 100`, and `hardRejected=0`
+- `report_review` and `notification_plan_review` completed as read-only
+  planner/report phases
+
+DB counts moved Token / Metric / Notification / HolderSnapshot
+`3023 / 1207 / 22 / 1 -> 3383 / 1307 / 22 / 1`. Metric buckets moved to
+`0=2216`, `1=1080`, `2+=87`; metadata status moved to
+`mint_only=2601`, `partial=769`, `enriched=13`. Notification statuses stayed
+`captured=17`, `sent=5`, `failed=0`.
+
+The checkpoint now exists at `/tmp/lowcap-bot-mvp-6h-20260602.json` with a
+small source/cursor payload for `geckoterminal.new_pools`; the cursor points
+to `poolCreatedAt=2026-06-03T09:35:16.000Z` and a pool address abbreviation
+only. No repo-local data file was written by the checkpoint.
+
+Post-run planner state shows the bounded runner path is operational, but there
+is follow-up backlog work: default 24h has `metricPendingCount=260` and
+`enrichPendingCount=260`; requested 6h has `metricPendingCount=204` and
+`enrichPendingCount=204`; rolling 168h has `metricPendingCount=428` and
+`enrichPendingCount=680`. `notifyCandidateCount=0` in all windows. The next
+manual step should be a Green post-run review and targeted Metric pending
+snapshot preflight, not a second bounded runner or notification send.
+
+Notification / Telegram boundary: the run did not create or update
+Notifications, did not send Telegram, did not execute retry or auto-send, and
+did not unlock scheduler/systemd. Auto-send allowed stayed `0` in both
+disabled and enabled planner modes, retry candidate stayed `0`, and failed
+Notification stayed `0`.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

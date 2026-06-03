@@ -43,6 +43,19 @@ command from the bounded operation runbook and must remain
 network-enabled / out-of-sandbox with Notification / Telegram execution
 locked.
 
+That network-enabled 6H bounded runner Red has now completed successfully. It
+ran detect for 360 iterations, created/reused `360` Token rows, wrote `100`
+Metric rows in two post-run Metric cycles, and enriched/rescored `100` Token
+rows in two post-run enrich cycles. DB counts moved
+`3023 / 1207 / 22 / 1 -> 3383 / 1307 / 22 / 1`; Notification and
+HolderSnapshot counts were unchanged. New Metric ids are `2317..2416`, and
+the enriched token ids are `7478..7577`. RawJson-free safe checks confirmed
+price / FDV / reserve / top-pool presence for `100 / 100` new Metrics and
+GeckoTerminal context / reviewFlags for `100 / 100` updated Tokens. This
+satisfies the personal-MVP minimum-loop runtime validation for the
+network-enabled path. The next minimum-loop work should be post-run review and
+targeted Metric pending preflight for the remaining fresh backlog.
+
 Before choosing a new bounded operation command, run the read-only planner:
 
 ```bash

@@ -65,6 +65,23 @@ after detect, Metric, and enrich phases, and the notification phase remains
 planner-only. Keep report commands rawJson-free in the post-run Green review
 after that future bounded runner execution.
 
+Network-enabled 6H bounded runner result, 2026-06-03: report readiness gained
+100 fresh GeckoTerminal Metric rows and 100 freshly enriched/rescored Token
+rows from the approved bounded runner validation. Metric ids `2317..2416`
+correspond to token ids `7478..7577`, with observedAt range
+`2026-06-03T09:36:14.454Z` to `2026-06-03T10:01:40.359Z`. RawJson-free safe
+aggregation confirmed `priceUsdPresent`, `fdvUsdPresent`,
+`reserveUsdPresent`, and `topPoolPresent` for all 100 new Metrics.
+
+The same 100 tokens moved to `metadataStatus=partial` with GeckoTerminal
+context and reviewFlags present for all 100. Metaplex context was present for
+2 rows. Score distribution was `C / 0 = 94`, `C / 1 = 2`, and `B / 2 = 4`;
+hardRejected count was `0`. No selected token had Notification or
+HolderSnapshot rows. The runner's report-review and notification-plan-review
+phases completed, and post-run `--watchlistOnly` now shows 12 ready B/2 rows
+for report-only human review. `notifyCandidateCount` remains `0`, which is
+expected because the notify path remains S-only and no S rows were observed.
+
 The subsequent Metric backlog Red did not produce new Metric evidence. The
 exact command was attempted once, but package-script `tsx` failed before app
 logic with an IPC pipe `EPERM`, so no external fetch, Metric write, observedAt,

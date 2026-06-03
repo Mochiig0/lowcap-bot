@@ -4,6 +4,57 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Network-enabled MVP bounded runner validation, 2026-06-03:
+
+- The repo-local `lowcap-red-execution-safety` Skill was applied. Expected
+  HEAD `4017258 docs: preflight network enabled mvp bounded runner` matched,
+  the working tree was clean, and checkpoint
+  `/tmp/lowcap-bot-mvp-6h-20260602.json` did not exist before execution.
+- The exact command was run once in an approved network-enabled /
+  out-of-sandbox context:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-mvp-6h-20260602.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+  Start/end were `2026-06-03T12:30:59+09:00` /
+  `2026-06-03T19:27:48+09:00`; runner duration was about `6h55m`.
+- Runner completed all phases: preflight, 360-iteration detect write, two
+  Metric pending snapshot cycles, two enrich/rescore cycles, report review,
+  and notification planner review. Final summary reported
+  `executeRequested=true`, `computedSinceMinutes=420`, `maxIterations=360`,
+  `metricCyclesExecuted=2`, `enrichCyclesExecuted=2`,
+  `metricCyclesStoppedReason=none`, `enrichCyclesStoppedReason=none`,
+  `blockedBy=[]`, and `stopConditionCodes=[]`.
+- Detect imported `360` new pump tokens with `failedCount=0`,
+  `rateLimitRetryCount=0`, `existingCount=0`, and checkpoint enabled. Metric
+  cycles wrote Metric ids `2317..2416` for token ids `7478..7577`; rawJson-free
+  safe checks confirmed price / FDV / reserve / top-pool presence for
+  `100 / 100` new rows. Provider errors were not observed in the completed
+  cycles.
+- Enrich cycles updated the same `100` token rows to `metadataStatus=partial`
+  with reviewFlags and GeckoTerminal context. Score distribution is `C/0=94`,
+  `C/1=2`, `B/2=4`; `hardRejected=0`. Metaplex context was saved for `2 / 100`.
+- DB counts moved Token / Metric / Notification / HolderSnapshot
+  `3023 / 1207 / 22 / 1 -> 3383 / 1307 / 22 / 1`. Metadata status is now
+  `mint_only=2601`, `partial=769`, `enriched=13`. Metric buckets are now
+  `0=2216`, `1=1080`, `2+=87`. Notification statuses stayed
+  `captured=17`, `sent=5`, `failed=0`.
+- Post-run queue: default 24h has `metricPendingCount=260`,
+  `enrichPendingCount=260`, and `notifyCandidateCount=0`; 6h has
+  `metricPendingCount=204`, `enrichPendingCount=204`, and
+  `notifyCandidateCount=0`; rolling 168h has `metricPendingCount=428`,
+  `enrichPendingCount=680`, and `notifyCandidateCount=0`. Watchlist 168h is
+  `12` rows, all `B / 2`, all ready, report-only.
+- Notification and Telegram stayed locked. Notification count did not change;
+  disabled/enabled auto-send allowed candidate count is `0 / 0`, retry
+  candidate is `0`, failed Notification is `0`, and Telegram send was `0`.
+  Notification create/update, HolderSnapshot write, retry execution, auto-send
+  execution, scheduler/systemd, rawJson full dump, offensive raw text dump, and
+  `pnpm smoke` stayed `0`.
+- Personal MVP runtime validation is satisfied for the network-enabled 6H path:
+  detect, Metric, enrich/rescore, report review, and notification planner
+  review ran end-to-end with checkpointing and final progress logging. The
+  next operating step is post-run Green review / Metric pending snapshot
+  preflight for the remaining 6h/168h Metric backlog, not Telegram or
+  scheduler work.
+
 Yellow provider error classification update, 2026-06-01:
 
 - `metric:snapshot:geckoterminal` now emits raw-response-free provider error

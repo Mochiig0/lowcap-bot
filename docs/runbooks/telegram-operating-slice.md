@@ -100,6 +100,17 @@ scheduler/systemd, and rawJson full dump at `0`. If a future plan shows
 Telegram or Notification execution, stop and run a separate Green notification
 review before any Red.
 
+Network-enabled 6H bounded runner result, 2026-06-03: the approved bounded
+runner Red completed without opening the Telegram boundary. Detect, Metric,
+enrich/rescore, report review, and notification planner review ran end-to-end,
+but the notification phase remained planner-only. Notification count stayed
+`22`, statuses stayed `captured=17`, `sent=5`, `failed=0`, disabled/enabled
+auto-send allowed stayed `0 / 0`, retry candidate stayed `0`, and Telegram
+send stayed `0`. No Notification create/update, retry execution, auto-send
+execution, scheduler, or systemd action was run. Post-run watchlist remains
+report-only (`12` ready `B / 2` rows) and does not justify capture-only B
+Notifications or Telegram policy changes.
+
 The follow-up Green review keeps this boundary unchanged. Watchlist rows are
 not near A/S thresholds and have no watchlist social/Metaplex/description/link
 presence. Do not create capture-only B Notifications yet; first improve the

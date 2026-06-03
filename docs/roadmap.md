@@ -9,7 +9,30 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
-Date: 2026-06-02
+Date: 2026-06-03
+
+The network-enabled 6H bounded runner MVP validation is complete. The approved
+out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
+checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two
+enrich cycles, and `interItemDelayMs=15000`. It completed preflight, detect
+write, Metric pending snapshot, enrich/rescore, report review, and
+notification planner review with `blockedBy=[]` and `stopConditionCodes=[]`.
+
+Runtime evidence now covers the personal MVP's main path: 360 new pump tokens
+created, 100 Metric rows written (`2317..2416`), 100 tokens enriched/rescored
+to `partial`, report/planner phases completed, checkpoint written outside the
+repo, and progress/final summary logging observed. Notification / Telegram
+remained unchanged: Notification count stayed `22`, failed count `0`,
+enabled/disabled auto-send allowed `0 / 0`, retry candidate `0`, and Telegram
+send `0`.
+
+Recommended next slice: **Green post-run bounded runner review and targeted
+Metric pending preflight**. The MVP runtime validation itself is no longer the
+main blocker. Post-run planner now shows fresh 6h/default Metric and enrich
+pending work (`6h metricPending=204`, `default metricPending=260`,
+`168h metricPending=428`), so the next Red candidate should be a separately
+approved Metric pending snapshot only after Green review, not another
+long-running bounded runner and not Telegram/scheduler work.
 
 The Yellow provider diagnostic visibility slice is complete.
 `metric:snapshot:geckoterminal` now classifies failed provider items into safe
