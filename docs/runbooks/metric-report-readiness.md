@@ -11,6 +11,13 @@ bounded-run MVP completion. The queue, blocker, watchlist, Metric, and
 notification planner views are available and rawJson-free enough for manual
 operation. Further report/dashboard polish belongs to Phase 2.
 
+Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
+coverage before additional enrich/report work. Watchlist remains useful as
+report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates
+are still Metric-zero. A targeted Metric pending snapshot for ids
+`7477..7428` is the recommended first Red candidate if the operator wants data
+progress before manual watchlist review.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

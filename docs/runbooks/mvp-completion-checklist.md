@@ -139,6 +139,23 @@ These are not MVP blockers:
 
 Phase 2 is operational cleanup and quality improvement.
 
+First Phase 2 triage decision, 2026-06-03:
+
+- Choose targeted Metric pending cleanup first.
+- Reason: Metric preview has clean Metric-zero rows, but read-only enrich
+  simulation shows the next enrich candidates are also Metric-zero. Metric
+  coverage should be added before more enrich/report quality work.
+- Safe preview evidence:
+  - `sinceMinutes=420`: selected ids `7477..7466`, count `12`
+  - `sinceMinutes=10080`: selected ids `7477..7428`, count `50`
+  - selected rows are `mint_only`, `metricsCount=0`,
+    `notificationCount=0`, `holderSnapshotCount=0`
+  - preview stayed `dryRun=true`, `writeEnabled=false`,
+    `providerErrorCount=0`, fetch-free, write-free, and rawJson-free
+- Recommended Red requires human approval and network-enabled /
+  out-of-sandbox context. It remains post-MVP cleanup, not an MVP completion
+  requirement.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

@@ -21,6 +21,34 @@ Personal MVP completion declaration, 2026-06-03:
   pending cleanup is optional; no immediate Red is required to declare the MVP
   complete enough.
 
+Phase 2 operational cleanup triage, 2026-06-03:
+
+- First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
+  backlog hygiene, not an MVP blocker.
+- Current read-only state is Token / Metric / Notification / HolderSnapshot
+  `3383 / 1307 / 22 / 1`; metadata status `mint_only=2601`,
+  `partial=769`, `enriched=13`; Metric buckets `0=2216`, `1=1080`,
+  `2+=87`.
+- Queue state: default 24h has `metricPendingCount=260`,
+  `enrichPendingCount=260`, and `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=260`, `enrichPendingCount=484`, and
+  `notifyCandidateCount=0`. Watchlist 168h remains `12` rows, all `B / 2`,
+  all ready, report-only.
+- Safe Metric preview selected clean Metric-zero rows without fetch/write:
+  `sinceMinutes=420` selected ids `7477..7466` (`12` rows), and
+  `sinceMinutes=10080` selected ids `7477..7428` (`50` rows). All selected
+  rows are `mint_only` with `metricsCount=0`, `notificationCount=0`,
+  `holderSnapshotCount=0`, `providerErrorCount=0`, and no rawJson dump.
+- Prisma read-only enrich simulation found clean candidate rows, but they are
+  still Metric-zero (`metricsCount=0` for both the 420 minute and 10080 minute
+  selections). Therefore enrich cleanup should follow the Metric cleanup, not
+  precede it.
+- Recommended next Red, if approved, is one network-enabled / out-of-sandbox
+  safe Metric pending snapshot with `--limit 50 --sinceMinutes 10080` and
+  `--noNotificationCapture`. Notification / Telegram, retry, auto-send,
+  scheduler/systemd, HolderSnapshot, rawJson dumps, and token writes remain
+  locked.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

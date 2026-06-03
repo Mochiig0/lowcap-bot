@@ -21,6 +21,16 @@ enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for
 the acceptance decision, included scope, out-of-MVP items, and Phase 2 tasks.
 Remaining Metric/enrich backlog is post-MVP cleanup, not a blocker.
 
+Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
+Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
+minute window and `7477..7428` in the 10080 minute window). Read-only enrich
+simulation selected clean mint-only candidates but all still had
+`metricsCount=0`, so enrich cleanup should wait until these rows receive
+Metric coverage. The next Red candidate, if approved, is a network-enabled /
+out-of-sandbox safe Metric pending snapshot with `--limit 50`,
+`--sinceMinutes 10080`, `--onlyMetricPending`, and
+`--noNotificationCapture`.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

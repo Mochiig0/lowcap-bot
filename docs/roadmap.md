@@ -17,10 +17,22 @@ The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
 and quality improvement. This does not unlock Telegram auto-send,
 scheduler/systemd, trading automation, or scoring dictionary changes.
 
-Recommended next slice: **Phase 2 cleanup selection**. Choose one focused
-post-MVP task: targeted Metric pending cleanup, targeted enrich cleanup,
-watchlist manual review, notification safety rehearsal, or bounded-runner
-cadence docs. No immediate Red is required for MVP completion itself.
+Recommended next slice: **Phase 2 targeted Metric pending cleanup**. The
+Phase 2 triage is complete: safe Metric preview has clean Metric-zero rows,
+while read-only enrich simulation shows the next enrich candidates still lack
+Metric coverage. If the operator wants runtime cleanup, run one separately
+approved network-enabled / out-of-sandbox Metric snapshot Red with the safe
+alias, `--limit 50`, `--sinceMinutes 10080`, and `--noNotificationCapture`.
+No immediate Red is required for MVP completion itself.
+
+Triage evidence: default 24h queue is `metricPending=260`,
+`enrichPending=260`, `notifyCandidate=0`; rolling 168h is
+`metricPending=260`, `enrichPending=484`, `notifyCandidate=0`; watchlist is
+`12` rows, all `B / 2`, all ready, report-only. Metric preview
+`sinceMinutes=420` selected `12` clean rows (`7477..7466`), and
+`sinceMinutes=10080` selected `50` clean rows (`7477..7428`). Enrich
+simulation selected the same leading rows but all have `metricsCount=0`, so
+targeted enrich cleanup should wait until Metric coverage is added.
 
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
