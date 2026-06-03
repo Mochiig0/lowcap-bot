@@ -233,6 +233,24 @@ retry, auto-send, scheduler/systemd, rawJson full dump, and `pnpm smoke`
 stayed `0`. Next readiness work should inspect these 10 updated rows before
 another enrich Red or lane change.
 
+Network-enabled enrich/rescore continuation, 2026-06-03: report readiness
+gained Token context for another 10 GeckoTerminal-origin rows. The approved
+out-of-sandbox enrich/rescore Red selected ids `7038..7029`, all with one
+existing GeckoTerminal Metric and no Notification or HolderSnapshot rows. The
+command updated all 10 from `mint_only` to `partial`, wrote GeckoTerminal
+context and reviewFlags, and set enriched/rescored timestamps. No Metric rows
+were created; latest Metric ids remained `2045..2054`.
+
+The run returned `selected=10`, `ok=10`, `error=0`,
+`enrichWriteCount=10`, `rescoreWriteCount=10`, `contextWriteCount=10`,
+`metaplexAttemptedCount=10`, `metaplexAvailableCount=1`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`. No selected row became
+hard-rejected and no row became a Notification candidate; one selected row
+gained Metaplex context. Notification / Telegram, Metric, HolderSnapshot,
+retry, auto-send, scheduler/systemd, rawJson full dump, and `pnpm smoke`
+stayed `0`. Next readiness work should inspect these 10 updated rows before
+another enrich Red or lane change.
+
 Watchlist-only review mode, 2026-06-01: use
 `review:queue:geckoterminal -- --pumpOnly --limit <N> --watchlistOnly` when
 the operating question is limited to B/A watchlist review. The option implies
