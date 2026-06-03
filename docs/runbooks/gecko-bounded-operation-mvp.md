@@ -193,6 +193,19 @@ Token write `0`, Notification create/update/send `0`, HolderSnapshot write
 `0`, Telegram send `0`, retry / auto-send / scheduler/systemd `0`, rawJson
 full dump `0`.
 
+Phase 2 targeted cleanup follow-up, 2026-06-04: the targeted Metric pending
+snapshot for ids `7477..7428` succeeded, and the follow-up targeted
+enrich/rescore cleanup for the same ids also succeeded. The enrich cleanup
+ran once in network-enabled / out-of-sandbox context with the safe alias and
+`--limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write`. It moved
+all 50 rows from `mint_only` to `partial`, wrote enrich/rescore/context/
+reviewFlags updates, saved Metaplex context for `1 / 50`, produced score
+distribution `C / 0 = 48`, `B / 2 = 2`, and left `hardRejected=0`. Counts
+stayed `3383 / 1357 / 22 / 1`; Notification / Telegram, Metric writes,
+HolderSnapshot writes, retry, auto-send, scheduler/systemd, and rawJson dumps
+remained unchanged. Treat this as post-MVP cleanup evidence and run Green
+post-run review before selecting another Phase 2 Red.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

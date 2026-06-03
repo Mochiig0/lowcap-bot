@@ -187,6 +187,26 @@ First Phase 2 enrich preflight, 2026-06-04:
 - The next Phase 2 Red candidate is targeted enrich cleanup for those rows,
   not another Metric cleanup batch.
 
+First Phase 2 enrich cleanup execution, 2026-06-04:
+
+- The targeted enrich cleanup Red completed in network-enabled /
+  out-of-sandbox context.
+- Exact command ran once with the safe enrich/rescore alias, `--limit 50`,
+  `--sinceMinutes 10080`, `--interItemDelayMs 15000`, and `--write`; no
+  `--notify` flag was used.
+- Selected ids `7477..7428` moved from `mint_only` to `partial`.
+- Token enrich/rescore/context/reviewFlags writes completed for `50 / 50`;
+  Metaplex was attempted for `50`, available/saved for `1`, and missing for
+  `48`.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `3383 / 1357 / 22 / 1`; Metric buckets stayed `0=2166`, `1=1130`,
+  `2+=87`.
+- Score distribution is `C / 0 = 48` and `B / 2 = 2`; `hardRejected=0`.
+- Notification / Telegram, Metric write, HolderSnapshot write, retry,
+  auto-send, scheduler/systemd, and rawJson dumps remained unchanged.
+- This is Phase 2 cleanup evidence, not a change to the MVP completion
+  decision. Run Green post-run enrich/report review before any further Red.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

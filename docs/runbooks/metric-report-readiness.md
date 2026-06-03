@@ -18,6 +18,18 @@ are still Metric-zero. A targeted Metric pending snapshot for ids
 `7477..7428` is the recommended first Red candidate if the operator wants data
 progress before manual watchlist review.
 
+Phase 2 enrich cleanup result, 2026-06-04: the targeted enrich cleanup for
+ids `7477..7428` is now complete. All 50 rows moved to `partial` with
+enrichment / rescore timestamps, reviewFlags, scoreBreakdown, and
+GeckoTerminal context present. Existing Metric ids `2417..2466` remain the
+latest rows and rawJson-free safe aggregation confirms price / FDV / reserve /
+top-pool presence for `50 / 50`. Metaplex context is present for `1 / 50`.
+Score distribution is `C / 0 = 48` and `B / 2 = 2`; `hardRejected=0`.
+Selected Notification total and HolderSnapshot total stayed `0`, and no
+Telegram send occurred. Rolling 168h watchlist increased to `14` ready `B / 2`
+report-only rows. The next report-readiness step is Green post-run review and
+lane decision, not automatic continuation.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

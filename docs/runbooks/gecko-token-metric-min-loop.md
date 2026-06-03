@@ -31,6 +31,19 @@ out-of-sandbox safe Metric pending snapshot with `--limit 50`,
 `--sinceMinutes 10080`, `--onlyMetricPending`, and
 `--noNotificationCapture`.
 
+Phase 2 cleanup continuation, 2026-06-04: the targeted Metric cleanup for ids
+`7477..7428` succeeded first, and the follow-up targeted enrich cleanup then
+ran once in the approved network-enabled / out-of-sandbox context. The enrich
+command selected the same ids `7477..7428`, wrote Token enrich/rescore/context
+/ reviewFlags updates for all `50`, moved all selected rows to
+`metadataStatus=partial`, attempted Metaplex for `50`, saved Metaplex context
+for `1`, and left counts Token / Metric / Notification / HolderSnapshot at
+`3383 / 1357 / 22 / 1`. Existing Metric ids `2417..2466` remained the latest
+Metric rows and still have safe price / FDV / reserve / top-pool presence.
+Score distribution after enrich is `C / 0 = 48`, `B / 2 = 2`, with
+`hardRejected=0`. Notification / Telegram, Metric write, HolderSnapshot write,
+retry, auto-send, scheduler/systemd, and rawJson full dump stayed `0`.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

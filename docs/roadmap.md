@@ -51,6 +51,28 @@ approval in network-enabled / out-of-sandbox context, using the safe alias and
 `--limit 50 --sinceMinutes 10080`. Do not run more Metric cleanup first unless
 this enrich Red is blocked by a fresh preflight.
 
+That targeted enrich cleanup Red is now complete. It ran exactly once in the
+approved network-enabled / out-of-sandbox context, selected ids `7477..7428`,
+and returned `selected=50`, `ok=50`, `error=0`, `enrichWriteCount=50`,
+`rescoreWriteCount=50`, `contextWriteCount=50`,
+`metaplexAttemptedCount=50`, `metaplexAvailableCount=1`,
+`notifyWouldSendCount=0`, `notifySentCount=0`, `rateLimited=false`, and
+`interItemDelayCount=49`. Counts stayed `3383 / 1357 / 22 / 1`; metadata
+status moved to `mint_only=2551`, `partial=819`, `enriched=13`; Metric
+buckets stayed `0=2166`, `1=1130`, `2+=87`.
+
+All selected rows moved `mint_only -> partial`, retained `metricsCount=1`,
+and have reviewFlags / scoreBreakdown / GeckoTerminal context present. Score
+distribution is `C / 0 = 48`, `B / 2 = 2`; `hardRejected=0`; Metaplex context
+is present for `1 / 50`. Notification / Telegram, Metric writes,
+HolderSnapshot writes, retry, auto-send, scheduler/systemd, and rawJson dumps
+stayed `0`. Watchlist 168h now shows `14` ready `B / 2` report-only rows.
+
+Recommended next slice: **Green post-run enrich/report review and Phase 2 lane
+decision**. Do not automatically run another Red; first verify the 50 enriched
+rows and decide between more Metric cleanup, more enrich cleanup, or watchlist
+manual review.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two
