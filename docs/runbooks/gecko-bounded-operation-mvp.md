@@ -76,6 +76,33 @@ path, execution context, Notification / Telegram locks, and exact future Red
 scope. Do not run `ops:run:bounded --execute` from this checkpoint without a
 fresh human-approved Red.
 
+Network-enabled 6H bounded runner preflight, 2026-06-03: the fixed plan-only
+command is:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-mvp-6h-20260602.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000
+```
+
+It returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+`computedSinceMinutes=420`, `maxIterations=360`, `postRunMetricCycles=2`,
+`postRunEnrichCycles=2`, `blockedBy=[]`, and `stopConditionCodes=[]`. Phases
+were planned for detect write, two Metric pending snapshot cycles, two
+enrich/rescore cycles, report review, and notification planner review. The
+checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json` is outside the repo and does
+not currently exist.
+
+The next Red candidate is the same command with `--execute` appended:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-mvp-6h-20260602.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Human approval and network-enabled / out-of-sandbox execution are required.
+Stop if the working tree is dirty, HEAD is unexpected, the checkpoint file
+exists, failed Notification / retry candidate / enabled auto-send allowed is
+greater than `0`, plan-only output becomes blocked, or Telegram /
+Notification execution appears in the plan.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

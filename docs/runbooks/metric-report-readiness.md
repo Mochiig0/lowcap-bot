@@ -59,6 +59,12 @@ eligibility. Report/readiness work is sufficient for MVP visibility; the next
 runtime gap is the network-enabled 6H bounded runner validation rather than
 more report fields.
 
+The 6H bounded runner preflight did not add report evidence because it stayed
+plan-only. It did confirm the future Red will include a report-review phase
+after detect, Metric, and enrich phases, and the notification phase remains
+planner-only. Keep report commands rawJson-free in the post-run Green review
+after that future bounded runner execution.
+
 The subsequent Metric backlog Red did not produce new Metric evidence. The
 exact command was attempted once, but package-script `tsx` failed before app
 logic with an IPC pipe `EPERM`, so no external fetch, Metric write, observedAt,

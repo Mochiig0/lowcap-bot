@@ -32,6 +32,17 @@ retry, auto-send, scheduler/systemd, rawJson full dump, and offensive raw text
 dump stayed `0`. Run a fresh Green post-run enrich/report review before the
 next Red.
 
+The follow-up MVP preflight confirmed the next minimum-loop priority is not
+another backlog-only slice. The network-enabled 6H bounded runner path is the
+remaining personal-MVP validation. Plan-only `ops:run:bounded` with checkpoint
+`/tmp/lowcap-bot-mvp-6h-20260602.json`, Metric/enrich limits `50`, two
+post-run Metric cycles, two post-run enrich cycles, and
+`interItemDelayMs=15000` is unblocked and computes a `420` minute window with
+`360` maximum detect iterations. A future Red must use the fixed `--execute`
+command from the bounded operation runbook and must remain
+network-enabled / out-of-sandbox with Notification / Telegram execution
+locked.
+
 Before choosing a new bounded operation command, run the read-only planner:
 
 ```bash

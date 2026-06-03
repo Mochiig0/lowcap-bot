@@ -298,6 +298,35 @@ runner MVP validation**. Second choice is a Yellow/docs-only MVP completion
 checklist/runbook. Another Metric or enrich backlog Red is useful data
 collection, but it is no longer the primary MVP blocker.
 
+That Green preflight is now complete. HEAD `f659dfb` matched, the working tree
+was clean, default queue was clear, rolling 168h still had
+`metricPendingCount=190` and `enrichPendingCount=442`, watchlist remained
+report-only, failed Notification was `0`, disabled/enabled auto-send allowed
+was `0 / 0`, and retry candidate was `0`. The checkpoint path
+`/tmp/lowcap-bot-mvp-6h-20260602.json` is outside the repo, `/tmp` exists,
+and the file does not exist.
+
+The plan-only bounded runner command returned `readOnly=true`,
+`executeRequested=false`, `computedSinceMinutes=420`, `maxIterations=360`,
+`postRunMetricCycles=2`, `postRunEnrichCycles=2`, `blockedBy=[]`, and
+`stopConditionCodes=[]`. It planned detect write, two Metric cycles, two
+enrich cycles, report review, and notification planner review without running
+any phase.
+
+Recommended next slice: **human-approved network-enabled 6H bounded runner
+Red** with the fixed command:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-mvp-6h-20260602.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+This Red must run network-enabled / out-of-sandbox. Expected effects are
+GeckoTerminal fetch, bounded detect watch, Token create/reuse, checkpoint
+write, up to `100` Metric writes, and up to `100` Token enrich/rescore
+updates. Expected non-effects are Notification create/update, Telegram send,
+HolderSnapshot write, retry execution, auto-send execution, scheduler/systemd,
+rawJson full dump, offensive raw text dump, and `pnpm smoke`.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

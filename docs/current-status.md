@@ -731,6 +731,61 @@ Green MVP completion gap review after enrich continuation, 2026-06-03:
   MVP validation over endless Metric or enrich backlog continuation. A
   docs-only MVP completion checklist/runbook is the second-best next task.
 
+Green network-enabled 6H bounded runner MVP preflight, 2026-06-03:
+
+- This pass was read-only / docs-only. It ran no Red command, no
+  `ops:run:bounded --execute`, no detect watch/write, no
+  `metric:snapshot --write`, no token enrich/rescore `--write`, no
+  Notification send, no retry or auto-send execution, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson full dump. Optional provider HEAD diagnostics
+  were not run.
+- Current HEAD `f659dfb docs: review mvp completion gap after enrich run`
+  matched the expected starting point and the working tree was clean at start.
+  DB counts stayed Token / Metric / Notification / HolderSnapshot
+  `3023 / 1207 / 22 / 1`. Metadata status stayed `mint_only=2341`,
+  `partial=669`, `enriched=13`; Metric buckets stayed `0=1956`, `1=980`,
+  `2+=87`.
+- Default Gecko review queue stayed clear: `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`. Rolling 168h still has
+  `metricPendingCount=190`, `enrichPendingCount=442`,
+  `staleReviewCount=442`, and `notifyCandidateCount=0`. The 168h watchlist is
+  still report-only: `11` B-rank rows, all `scoreTotal=2`, all ready, all
+  `metadataStatus=partial`, all `metricsCount=1`, and all below notification
+  eligibility.
+- Notification blockers are clear for runner preflight: failed Notification
+  count `0`, disabled/enabled auto-send allowed count `0 / 0`, retry
+  candidate count `0`, and no planner would send Telegram or update a
+  Notification.
+- Checkpoint path `/tmp/lowcap-bot-mvp-6h-20260602.json` is outside the repo,
+  parent `/tmp` exists, and the file does not exist. It is safe to use as the
+  next Red checkpoint path.
+- Plan-only runner command:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-mvp-6h-20260602.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000`.
+  It returned `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+  `computedSinceMinutes=420`, `maxIterations=360`,
+  `postRunMetricCycles=2`, `postRunEnrichCycles=2`, `blockedBy=[]`, and
+  `stopConditionCodes=[]`.
+- Runner phases are planned and unblocked: `detect_write`,
+  `metric_pending_snapshot` with two planned cycles, `enrich_rescore` with two
+  planned cycles, `report_review`, and `notification_plan_review`. In
+  plan-only mode it performed no external fetch and no DB write.
+- Fixed next Red candidate, requiring human approval and
+  network-enabled / out-of-sandbox execution:
+  `pnpm -s ops:run:bounded -- --hours 6 --pumpOnly --checkpointFile /tmp/lowcap-bot-mvp-6h-20260602.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+- Expected side effects for that future Red: external GeckoTerminal fetch,
+  bounded detect watch for up to 6h, Token create/reuse, checkpoint write,
+  Metric writes up to `100`, Token enrich/rescore updates up to `100`,
+  best-effort Metaplex fetch, read-only report review, and read-only
+  notification planner review.
+- Expected non-effects for that future Red: Notification create/update `0`,
+  Telegram send `0`, HolderSnapshot write `0`, retry execution `0`,
+  auto-send execution `0`, scheduler/systemd `0`, rawJson full dump `0`,
+  offensive raw text dump `0`, and `pnpm smoke` `0`.
+- Decision: the MVP bounded runner preflight passes. The next task can be the
+  human-approved network-enabled / out-of-sandbox bounded runner Red with the
+  exact command above. This is the main remaining personal-MVP runtime
+  validation; backlog Metric/enrich continuation should remain secondary.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

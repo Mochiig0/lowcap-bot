@@ -92,6 +92,14 @@ Notification count is `0`, and retry candidate count is `0`. Do not unlock
 Telegram auto-send, retry execution, or capture-only B Notifications before a
 separate post-MVP design review.
 
+Network-enabled 6H bounded runner preflight, 2026-06-03: the future bounded
+runner Red may execute detect, Metric, and enrich phases, but its notification
+phase remains planner-only. The plan-only output keeps Notification
+create/update, Telegram send, retry execution, auto-send execution,
+scheduler/systemd, and rawJson full dump at `0`. If a future plan shows
+Telegram or Notification execution, stop and run a separate Green notification
+review before any Red.
+
 The follow-up Green review keeps this boundary unchanged. Watchlist rows are
 not near A/S thresholds and have no watchlist social/Metaplex/description/link
 presence. Do not create capture-only B Notifications yet; first improve the
