@@ -680,6 +680,57 @@ Red network-enabled enrich/rescore limit 10 continuation, 2026-06-03:
   `7028..7019` before any next Red. That review should decide whether to run
   another small enrich Red, return to Metric backlog, or stay report-only.
 
+Green MVP completion gap review after enrich continuation, 2026-06-03:
+
+- This pass was read-only / docs-only. It ran no Red command, no
+  `metric:snapshot --write`, no token enrich/rescore `--write`,
+  no `ops:run:bounded --execute`, no detect watch/write, no Notification send,
+  no retry or auto-send execution, no scheduler/systemd, no `pnpm smoke`, and
+  no rawJson full dump.
+- Current HEAD `23b4c5a docs: record network enabled enrich rescore
+  continuation` matched the latest pushed run record and the working tree was
+  clean at start. DB counts stayed Token / Metric / Notification /
+  HolderSnapshot `3023 / 1207 / 22 / 1`.
+- Global metadata status is now `mint_only=2341`, `partial=669`,
+  `enriched=13`; Metric buckets are `0=1956`, `1=980`, `2+=87`.
+- Post-run review of ids `7028..7019` confirmed all 10 are
+  `metadataStatus=partial`, have `enrichedAt`, `rescoredAt`, reviewFlags, and
+  GeckoTerminal context, and have no Metaplex context. Their latest Metric ids
+  remain `2055..2064` with rawJson-free safe booleans present for price /
+  FDV / reserve / top pool. `notificationCount=0`,
+  `holderSnapshotCount=0`, score distribution `C / 0 = 10`, and
+  `hardRejected=false` for all 10.
+- The `C / 0` outcome is expected: scoreBreakdown is present for all 10, but
+  core / learned / trend / combo totals and hit counts are all `0`; reviewFlags
+  also show no website, X, Telegram, Metaplex hit, description, or links.
+  `notifyCandidateCount=0` is expected because the current notify predicate
+  requires rank `S` and non-hard-rejected rows. The 168h blocker summary
+  reports `rank_not_s=791` and `hard_rejected=9`.
+- Default Gecko review queue is clear: `metricPendingCount=0`,
+  `enrichPendingCount=0`, `notifyCandidateCount=0`. Rolling 168h still has
+  `metricPendingCount=190`, `enrichPendingCount=442`,
+  `staleReviewCount=442`, and `notifyCandidateCount=0`.
+- The 168h watchlist is report-only and contains `11` B-rank rows, all
+  `scoreTotal=2`, `metadataStatus=partial`, `metricsCount=1`,
+  non-hard-rejected, ready for review, and still not notify candidates.
+  Watchlist reviewFlags remain empty across the sample.
+- Notification planners remain locked: disabled and enabled auto-send both
+  have allowed candidate count `0`, failed Notification count `0`, and retry
+  candidate count `0`. No Telegram or Notification action is justified from
+  this state.
+- MVP assessment: network-enabled Metric capture, network-enabled
+  enrich/rescore, queue visibility, blocker visibility, watchlist-only review,
+  and notification safety are good enough for the personal MVP path. The main
+  remaining runtime validation gap is the network-enabled 6H bounded runner
+  path: `mvp:status` still reports `boundedWatchReady=false`,
+  `checkpointReady=false`, and scheduler/systemd locked. The current
+  `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan` reports the
+  default 6H queue as clear and the post-run workflow complete, with the next
+  candidate being a separately approved bounded detect write rehearsal.
+- Decision: prioritize a Green preflight for network-enabled 6H bounded runner
+  MVP validation over endless Metric or enrich backlog continuation. A
+  docs-only MVP completion checklist/runbook is the second-best next task.
+
 Green provider error review, 2026-06-01:
 
 - Current HEAD is `491d12b docs: record safe metric backlog continuation` with

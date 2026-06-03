@@ -64,6 +64,18 @@ or bounded-runner Metric coverage. The bounded runner remains plan-only unless
 unlock scheduler/systemd, notification send, retry execution, or auto live
 send.
 
+MVP completion checkpoint, 2026-06-03: network-enabled Metric backlog capture
+and small enrich/rescore continuation have both been proven repeatedly with the
+safe aliases. The remaining personal-MVP runtime gap is not more backlog
+reduction; it is proving the 6H bounded runner path in the intended
+network-enabled context. A read-only plan check currently reports the default
+6H queue clear and the post-run workflow complete, then emits a separately
+approved bounded detect write rehearsal candidate. The next Green should
+preflight that network-enabled bounded runner validation, including checkpoint
+path, execution context, Notification / Telegram locks, and exact future Red
+scope. Do not run `ops:run:bounded --execute` from this checkpoint without a
+fresh human-approved Red.
+
 Post-run workflow limits default to `50` for Metric and enrich steps. Override
 them with `--metricLimit <N>` or `--enrichLimit <N>` if a smaller review slice
 is needed. The existing `--limit` option remains the single-step candidate

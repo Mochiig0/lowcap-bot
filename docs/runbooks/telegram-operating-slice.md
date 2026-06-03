@@ -78,7 +78,19 @@ non-hard-rejected rows under `review:queue:geckoterminal --includeBlockers`
 and labels the criteria as read-only and not notification candidates. Current
 runtime has default watchlist `7` and rolling 168h watchlist `14`, all B-rank
 with `scoreTotal=2`; Telegram, auto-send, retry execution, and Notification
-creation/update remain locked.
+send/update remain locked.
+
+Post-enrich MVP-gap review, 2026-06-03: notification safety remains good enough
+for the personal MVP boundary. The latest reviewed enrich batch
+(`7028..7019`) stayed `C / 0`, non-hard-rejected, and did not create
+Notification rows. Rolling 168h has `notifyCandidateCount=0`; blocker
+visibility explains this as `rank_not_s` for the cohort plus a small
+hard-rejected set. The B watchlist is still report-only: `11` rows, all
+`scoreTotal=2`, ready for review, and not notification candidates. Disabled
+and enabled auto-send planners both have allowed candidate count `0`, failed
+Notification count is `0`, and retry candidate count is `0`. Do not unlock
+Telegram auto-send, retry execution, or capture-only B Notifications before a
+separate post-MVP design review.
 
 The follow-up Green review keeps this boundary unchanged. Watchlist rows are
 not near A/S thresholds and have no watchlist social/Metaplex/description/link

@@ -275,6 +275,29 @@ Recommended next slice: **Green post-run enrich/report review** for ids
 `7028..7019`. Confirm context/reviewFlags/report visibility and lane choice
 before any further Red.
 
+That Green review is now complete. The reviewed rows are all partial with
+GeckoTerminal context, reviewFlags, one existing Metric, and no Notification /
+HolderSnapshot rows. They all stayed `C / 0` because scoreBreakdown is present
+but has zero core / learned / trend / combo hits, and their reviewFlags have no
+website, X, Telegram, Metaplex, description, or link signals. The current
+notify boundary is behaving as designed: 168h has `notifyCandidateCount=0`,
+with blockers explained by `rank_not_s` and a small hard-rejected set.
+
+MVP direction update: stop treating endless backlog reduction as the main
+blocker. Network-enabled Metric capture and enrich/rescore have both been
+proven repeatedly, `review:queue --includeBlockers` and `--watchlistOnly`
+explain candidates safely, and notification planners remain closed. The main
+personal-MVP runtime gap is now the network-enabled 6H bounded runner path:
+`mvp:status` still reports bounded watch and checkpoint readiness as not
+complete, while `ops:plan:bounded -- --hours 6 --pumpOnly --postRunPlan`
+currently sees the 6H queues clear and emits a separately approved bounded
+detect write rehearsal candidate.
+
+Recommended next slice: **Green preflight for network-enabled 6H bounded
+runner MVP validation**. Second choice is a Yellow/docs-only MVP completion
+checklist/runbook. Another Metric or enrich backlog Red is useful data
+collection, but it is no longer the primary MVP blocker.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was

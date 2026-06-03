@@ -49,6 +49,16 @@ Metaplex lookup was attempted for all 10 and returned
 was the only write class; Metric, Notification, HolderSnapshot, Telegram,
 retry, auto-send, scheduler/systemd, and rawJson full dump stayed `0`.
 
+The Green post-run report review for `7028..7019` confirmed the rows are
+reportable but intentionally low priority: scoreBreakdown is present for all
+10, yet core / learned / trend / combo hits are all `0`, reviewFlags have no
+website, X, Telegram, Metaplex, description, or link signals, and all 10 stay
+`C / 0`. This explains why no notify candidate appears. Rolling 168h still has
+`11` B-watchlist rows, all ready for manual review and all below notification
+eligibility. Report/readiness work is sufficient for MVP visibility; the next
+runtime gap is the network-enabled 6H bounded runner validation rather than
+more report fields.
+
 The subsequent Metric backlog Red did not produce new Metric evidence. The
 exact command was attempted once, but package-script `tsx` failed before app
 logic with an IPC pipe `EPERM`, so no external fetch, Metric write, observedAt,
