@@ -78,6 +78,21 @@ and showed `metricsCount=0`, so enrich would not improve report readiness
 until a Metric cleanup pass runs. Notification / Telegram planners remain
 closed.
 
+Targeted Metric cleanup continuation, 2026-06-04: report readiness gained
+another 50 GeckoTerminal Metric rows. The approved out-of-sandbox Red wrote
+Metric ids `2467..2516` for token ids `7427..7378`, with observedAt range
+`2026-06-03T22:55:11.893Z..2026-06-03T23:07:58.536Z`. Safe summary
+aggregation confirms `priceUsdPresent`, `fdvUsdPresent`,
+`reserveUsdPresent`, and `topPoolPresent` for all 50 rows.
+
+Selected rows moved to `metricsCount=1`; selected Notification and
+HolderSnapshot totals stayed `0`. Metric count moved `1357 -> 1407`, while
+Token, Notification, and HolderSnapshot counts stayed unchanged. Queue after
+is default `metricPending=160`, `enrichPending=210`, `notifyCandidate=0`; 168h
+`metricPending=160`, `enrichPending=370`, `notifyCandidate=0`. The next
+report-readiness task should be Green post-run Metric/report review and
+targeted enrich preflight for ids `7427..7378`.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

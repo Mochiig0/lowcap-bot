@@ -60,6 +60,18 @@ coverage. The next Red candidate, if approved, is a network-enabled /
 out-of-sandbox Metric safe snapshot with `--limit 50`, `--sinceMinutes 10080`,
 `--onlyMetricPending`, and `--noNotificationCapture`.
 
+That targeted Metric cleanup continuation succeeded. The safe Metric command
+ran exactly once in the approved network-enabled / out-of-sandbox context,
+selected ids `7427..7378`, wrote Metric ids `2467..2516`, returned
+`selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, and all provider error categories `0`. Counts moved
+only in Metric: `3383 / 1357 / 22 / 1 -> 3383 / 1407 / 22 / 1`; Metric
+buckets moved to `0=2116`, `1=1180`, `2+=87`; selected rows moved to
+`metricsCount=1`; selected Notification and HolderSnapshot totals stayed `0`.
+Safe summary checks confirmed price / FDV / reserve / top-pool presence for
+`50 / 50`. The next minimum-loop step is Green post-run Metric/report review
+and targeted enrich preflight for these rows.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

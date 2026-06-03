@@ -285,6 +285,38 @@ Phase 2 targeted cleanup preflight, 2026-06-04:
   `sinceMinutes=10080` with `--onlyMetricPending` and
   `--noNotificationCapture`.
 
+Phase 2 targeted Metric cleanup continuation, 2026-06-04:
+
+- The repo-local Red safety Skill was applied and the approved
+  network-enabled / out-of-sandbox safe Metric cleanup command ran exactly
+  once:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Expected HEAD `31dadbf docs: preflight phase two targeted cleanup` matched
+  and the working tree was clean before execution. Provider HEAD reached
+  GeckoTerminal from the approved network context.
+- Result: selected ids `7427..7378`, `selected=50`, `ok=50`, `written=50`,
+  `skipped=0`, `error=0`, `interItemDelayCount=49`,
+  `providerErrorCount=0`, all provider error categories `0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Metric ids `2467..2516` were created with observedAt range
+  `2026-06-03T22:55:11.893Z..2026-06-03T23:07:58.536Z`. Safe summary checks
+  confirm price / FDV / reserve / top-pool presence for `50 / 50`.
+- Counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `3383 / 1357 / 22 / 1 -> 3383 / 1407 / 22 / 1`.
+  Metadata status stayed `mint_only=2551`, `partial=819`, `enriched=13`.
+  Metric buckets moved `0=2166`, `1=1130`, `2+=87` to `0=2116`,
+  `1=1180`, `2+=87`.
+- The selected rows moved to `metricsCount=1`; selected Notification total
+  and HolderSnapshot total stayed `0`. Notification / Telegram stayed
+  unchanged, disabled/enabled auto-send allowed stayed `0 / 0`, retry
+  candidate stayed `0`, and failed Notification stayed `0`.
+- Queue after: default 24h has `metricPendingCount=160`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=160`, `enrichPendingCount=370`,
+  `notifyCandidateCount=0`.
+- Next operating step should be Green post-run Metric/report review and
+  targeted enrich preflight for ids `7427..7378` before any additional Red.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

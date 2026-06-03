@@ -7665,3 +7665,30 @@ the next one-command Phase 2 task. Because `sinceMinutes=420` has drifted past
 ids `7477..7428`, the fixed candidate uses `sinceMinutes=10080` with the safe
 token enrich/rescore alias, `--limit 50`, and `--interItemDelayMs 15000`.
 This remains a short targeted cleanup, not another bounded runner execute.
+
+## 2026-06-04 Phase 2 Metric Cleanup Continuation
+
+After the first Phase 2 Metric cleanup and follow-up enrich cleanup, cadence
+preflight again selected Metric-zero rows. The approved network-enabled /
+out-of-sandbox safe Metric command ran exactly once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It selected ids `7427..7378`, wrote Metric ids `2467..2516`, and completed
+with `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, and all provider error categories `0`. Counts moved
+only in Metric: Token / Metric / Notification / HolderSnapshot
+`3383 / 1357 / 22 / 1 -> 3383 / 1407 / 22 / 1`. Metric buckets moved to
+`0=2116`, `1=1180`, `2+=87`.
+
+All selected rows moved to `metricsCount=1`, with selected Notification and
+HolderSnapshot totals still `0`. Safe summary checks confirmed price / FDV /
+reserve / top-pool presence for `50 / 50`. Queue after is default
+`metricPending=160`, `enrichPending=210`, `notifyCandidate=0`; rolling 168h
+`metricPending=160`, `enrichPending=370`, `notifyCandidate=0`.
+
+This remains Phase 2 backlog hygiene, not a new bounded runner requirement.
+The next step should be Green post-run Metric/report review and targeted
+enrich preflight for ids `7427..7378` before any additional write.

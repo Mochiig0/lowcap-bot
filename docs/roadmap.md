@@ -131,6 +131,25 @@ cleanup** before enrich. If approved as Red, use the safe Metric snapshot
 shape with `--limit 50`, `--sinceMinutes 10080`, `--onlyMetricPending`,
 `--noNotificationCapture`, and network-enabled / out-of-sandbox context.
 
+That targeted Metric cleanup Red is now complete. It ran exactly once in the
+approved network-enabled / out-of-sandbox context, selected ids `7427..7378`,
+and returned `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, all provider error categories `0`, and
+`interItemDelayCount=49`. Metric ids `2467..2516` were created, and all
+selected rows moved to `metricsCount=1`.
+
+Counts moved only in Metric: `3383 / 1357 / 22 / 1 -> 3383 / 1407 / 22 / 1`.
+Metric buckets moved to `0=2116`, `1=1180`, `2+=87`. Metadata status stayed
+`mint_only=2551`, `partial=819`, `enriched=13`. Notification / Telegram,
+Token writes, HolderSnapshot writes, retry, auto-send, scheduler/systemd, and
+rawJson dumps stayed unchanged. Queue after is default `metricPending=160`,
+`enrichPending=210`, `notifyCandidate=0`; rolling 168h
+`metricPending=160`, `enrichPending=370`, `notifyCandidate=0`.
+
+Recommended next slice: **Green post-run Metric/report review and targeted
+enrich preflight** for ids `7427..7378`. If that preflight is clean, the next
+write lane should be targeted enrich cleanup, not another automatic Metric Red.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

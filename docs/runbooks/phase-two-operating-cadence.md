@@ -241,22 +241,26 @@ pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --since
 
 ## Current Known State Snapshot
 
-Snapshot from the 2026-06-04 cadence-doc Green checks:
+Snapshot after the 2026-06-04 targeted Metric cleanup continuation:
 
-- HEAD: `688484e docs: review phase two watchlist scoring evidence`
-- working tree: clean
+- HEAD before Red: `31dadbf docs: preflight phase two targeted cleanup`
+- working tree before Red: clean
 - Token / Metric / Notification / HolderSnapshot:
-  `3383 / 1357 / 22 / 1`
-- Metric buckets: `0=2166`, `1=1130`, `2+=87`
-- default 24h queue: `metricPending=210`, `enrichPending=210`,
+  `3383 / 1407 / 22 / 1`
+- metadata status: `mint_only=2551`, `partial=819`, `enriched=13`
+- Metric buckets: `0=2116`, `1=1180`, `2+=87`
+- default 24h queue: `metricPending=160`, `enrichPending=210`,
   `notifyCandidate=0`
-- rolling 168h queue: `metricPending=210`, `enrichPending=370`,
+- rolling 168h queue: `metricPending=160`, `enrichPending=370`,
   `notifyCandidate=0`
-- rolling 168h watchlist: `13` rows, all `B / 2`, all ready, report-only
 - disabled/enabled auto-send allowed: `0 / 0`
 - retry candidate: `0`
 - failed Notification: `0`
-- requested 6h planner window: currently clear after time drift
+- latest targeted Metric cleanup: selected ids `7427..7378`, Metric ids
+  `2467..2516`, `selected=50`, `ok=50`, `written=50`, `error=0`,
+  `providerErrorCount=0`, and all selected rows moved to `metricsCount=1`
+- next cadence step: Green post-run Metric/report review and targeted enrich
+  preflight for the newly Metric-covered rows before any additional Red
 
 ## Latest Targeted Cleanup Preflight
 

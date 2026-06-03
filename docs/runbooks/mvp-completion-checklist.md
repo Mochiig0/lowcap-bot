@@ -249,6 +249,25 @@ Phase 2 cadence documentation, 2026-06-04:
 - Next data task should be a Green targeted cleanup preflight, not an
   immediate Red.
 
+Second Phase 2 Metric cleanup execution, 2026-06-04:
+
+- The targeted Metric cleanup Red completed in network-enabled /
+  out-of-sandbox context after the cadence preflight selected Metric-zero ids
+  `7427..7378`.
+- Exact command ran once with the safe Metric alias, `--limit 50`,
+  `--sinceMinutes 10080`, `--onlyMetricPending`, `--noNotificationCapture`,
+  and `--write`.
+- Metric ids `2467..2516` were created; selected ids `7427..7378` moved from
+  `metricsCount=0` to `metricsCount=1`; rawJson-free safe checks show price /
+  FDV / reserve / top-pool presence for `50 / 50`.
+- Counts moved only in Metric: `3383 / 1357 / 22 / 1 ->
+  3383 / 1407 / 22 / 1`; Metric buckets moved to `0=2116`, `1=1180`,
+  `2+=87`.
+- Notification / Telegram, Token writes, HolderSnapshot, retry, auto-send,
+  scheduler/systemd, and rawJson dumps remained unchanged.
+- This remains post-MVP cleanup evidence. The next task should be Green
+  post-run Metric/report review and targeted enrich preflight for these rows.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup
