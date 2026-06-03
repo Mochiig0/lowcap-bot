@@ -37,6 +37,18 @@ HolderSnapshot rows. Choose Metric backlog continuation first to improve data
 coverage before more report/scoring review; keep B watchlist report-only and
 Telegram / notifyCandidate S-only.
 
+Network-enabled enrich continuation update, 2026-06-03: the latest approved
+small enrich/rescore Red selected ids `7028..7019` and moved all 10 from
+`mint_only` to `partial` without `--notify`. Each row now has enrichment /
+rescore timestamps, reviewFlags, GeckoTerminal context, one existing
+GeckoTerminal Metric (`2055..2064`), and rawJson-free safe Metric booleans
+present for price / FDV / reserve / top pool. All 10 stayed score `C / 0`,
+non-hard-rejected, with `notificationCount=0` and `holderSnapshotCount=0`.
+Metaplex lookup was attempted for all 10 and returned
+`metadata_account_missing=10`, so no Metaplex context was saved. Token update
+was the only write class; Metric, Notification, HolderSnapshot, Telegram,
+retry, auto-send, scheduler/systemd, and rawJson full dump stayed `0`.
+
 The subsequent Metric backlog Red did not produce new Metric evidence. The
 exact command was attempted once, but package-script `tsx` failed before app
 logic with an IPC pipe `EPERM`, so no external fetch, Metric write, observedAt,

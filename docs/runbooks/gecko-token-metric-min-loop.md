@@ -16,6 +16,22 @@ append, and rawJson-free report confirmation, use
 This minimum-loop document remains the evidence log for individual mint
 progression and Metric time-series confirmation.
 
+Latest 168h enrich continuation, 2026-06-03: after five successful
+network-enabled Metric backlog batches and several small enrich/rescore
+batches, the latest approved safe enrich Red selected ids `7028..7019` and
+ran exactly once with `token:enrich-rescore:geckoterminal:safe`,
+`--limit 10`, `--sinceMinutes 10080`, `--interItemDelayMs 15000`, and
+`--write`, without `--notify`. It wrote Token enrich/rescore/context/
+reviewFlags updates for all 10 rows, attempted Metaplex for all 10, saved no
+Metaplex context (`metadata_account_missing=10`), and left all 10 at
+`metadataStatus=partial`, score `C / 0`, and `hardRejected=false`. Existing
+Metric ids `2055..2064` remained the latest Metric rows, and
+Notification / HolderSnapshot counts stayed `0` for the selected ids.
+Metric write, Notification create/update/send, HolderSnapshot write, Telegram,
+retry, auto-send, scheduler/systemd, rawJson full dump, and offensive raw text
+dump stayed `0`. Run a fresh Green post-run enrich/report review before the
+next Red.
+
 Before choosing a new bounded operation command, run the read-only planner:
 
 ```bash

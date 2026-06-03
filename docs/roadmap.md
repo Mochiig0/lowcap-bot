@@ -260,6 +260,21 @@ Recommended next slice: **Green post-run enrich/report review** for ids
 `7038..7029`. Confirm context/reviewFlags/report visibility, Metaplex context
 presence, and lane choice before any further Red.
 
+That Green review passed and another small network-enabled enrich/rescore
+continuation is now complete. It selected ids `7028..7019` and ran the safe
+alias exact command once without `--notify`. Result: `selected=10`, `ok=10`,
+`error=0`, `enrichWriteCount=10`, `rescoreWriteCount=10`,
+`contextWriteCount=10`, `metaplexAttemptedCount=10`,
+`metaplexAvailableCount=0`, `notifyWouldSendCount=0`, `notifySentCount=0`,
+and `rateLimited=false`. Counts stayed `3023 / 1207 / 22 / 1`; no selected
+row became hard-rejected, all remained score `C / 0`, and Metaplex context
+was absent for all 10. Notification / Telegram, Metric, HolderSnapshot, retry,
+auto-send, scheduler/systemd, rawJson dump, and `pnpm smoke` stayed `0`.
+
+Recommended next slice: **Green post-run enrich/report review** for ids
+`7028..7019`. Confirm context/reviewFlags/report visibility and lane choice
+before any further Red.
+
 The Green provider-error review is complete. The safe alias launch path is
 working, but the latest Metric backlog Red failed at the provider fetch layer:
 `fetch failed` was reported for all `50` selected rows and no HTTP status was
