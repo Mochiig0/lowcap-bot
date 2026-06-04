@@ -7692,3 +7692,15 @@ reserve / top-pool presence for `50 / 50`. Queue after is default
 This remains Phase 2 backlog hygiene, not a new bounded runner requirement.
 The next step should be Green post-run Metric/report review and targeted
 enrich preflight for ids `7427..7378` before any additional write.
+
+That Green post-run review is complete. Representative ids `7427`, `7403`,
+and `7378` map to Metric ids `2467`, `2491`, and `2516`, with rawJson-free
+safe Metric booleans present. The rolling `sinceMinutes=10080` DB-only enrich
+simulation selects exactly ids `7427..7378`, all `mint_only`, all
+`metricsCount=1`, all `C / 0`, all non-hard-rejected, all without reviewFlags,
+and all with Notification / HolderSnapshot counts `0`. The 420 minute window
+has drifted clear.
+
+The next bounded-operation-adjacent cleanup, if approved, should be a targeted
+enrich cleanup Red for ids `7427..7378`, not another bounded runner execute and
+not another Metric cleanup first.

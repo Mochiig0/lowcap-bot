@@ -317,6 +317,43 @@ Phase 2 targeted Metric cleanup continuation, 2026-06-04:
 - Next operating step should be Green post-run Metric/report review and
   targeted enrich preflight for ids `7427..7378` before any additional Red.
 
+Phase 2 targeted enrich cleanup preflight, 2026-06-04:
+
+- The post-run Metric cleanup review is complete on HEAD
+  `701e510 docs: record phase two metric cleanup` with a clean working tree.
+  This pass was read-only / docs-only: no Red, no Metric write, no Token
+  enrich/rescore write, no bounded execute, no detect write/watch, no
+  notification send, no retry, no auto-send, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson dump.
+- DB state remains Token / Metric / Notification / HolderSnapshot
+  `3383 / 1407 / 22 / 1`; metadata status remains `mint_only=2551`,
+  `partial=819`, `enriched=13`; Metric buckets remain `0=2116`, `1=1180`,
+  `2+=87`.
+- Representative rawJson-free checks for token ids `7427`, `7403`, and `7378`
+  confirmed Metric ids `2467`, `2491`, and `2516`, source
+  `geckoterminal.token_snapshot`, and price / FDV / reserve / top-pool
+  presence. The full target Metric range is `2467..2516`, and target ids
+  `7427..7378` all have `metricsCount=1`.
+- Prisma read-only enrich simulation shows `sinceMinutes=420` selects `0`
+  rows because the cleanup batch has drifted outside the shorter window.
+  `sinceMinutes=10080` selects exactly ids `7427..7378`, count `50`. All
+  selected rows are `mint_only`, `metricsCount=1`, `score=C/0`,
+  `hardRejected=false`, `reviewFlagsPresent=false`, with selected
+  Notification total `0` and HolderSnapshot total `0`.
+- Queue/planner state: default 24h has `metricPendingCount=160`,
+  `enrichPendingCount=210`, `notifyCandidateCount=0`; rolling 168h has
+  `metricPendingCount=160`, `enrichPendingCount=370`,
+  `notifyCandidateCount=0`; watchlist 168h is `13` rows, all `B / 2`, all
+  ready, report-only. Disabled/enabled auto-send allowed remains `0 / 0`,
+  retry candidate remains `0`, and failed Notification remains `0`.
+- Recommended next Red, if approved, is one network-enabled / out-of-sandbox
+  targeted enrich cleanup:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write`.
+  Expected writes are Token enrich/rescore/context/reviewFlags updates up to
+  `50`; expected non-effects are Metric write `0`, Notification
+  create/update/send `0`, HolderSnapshot write `0`, Telegram send `0`, retry
+  / auto-send / scheduler/systemd `0`, and rawJson full dump `0`.
+
 Network-enabled MVP bounded runner validation, 2026-06-03:
 
 - The repo-local `lowcap-red-execution-safety` Skill was applied. Expected

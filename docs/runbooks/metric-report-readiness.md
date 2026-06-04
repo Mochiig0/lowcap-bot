@@ -93,6 +93,18 @@ is default `metricPending=160`, `enrichPending=210`, `notifyCandidate=0`; 168h
 report-readiness task should be Green post-run Metric/report review and
 targeted enrich preflight for ids `7427..7378`.
 
+That Green review is complete. Representative token ids `7427`, `7403`, and
+`7378` map to Metric ids `2467`, `2491`, and `2516`; each has source
+`geckoterminal.token_snapshot`, one Metric, no Notification rows, no
+HolderSnapshot rows, and safe price / FDV / reserve / top-pool presence.
+Target aggregate remains `mint_only=50`, `metricsCount=1=50`, `C / 0 = 50`,
+`hardRejected=false=50`, and `reviewFlagsPresent=false=50`.
+
+DB-only enrich simulation selects no rows in the 420 minute window after time
+drift, but selects exactly ids `7427..7378` with `sinceMinutes=10080`. This is
+a clean targeted enrich candidate for improving reportability; it should be a
+separate network-enabled / out-of-sandbox Red with no `--notify`.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

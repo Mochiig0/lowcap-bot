@@ -259,8 +259,13 @@ Snapshot after the 2026-06-04 targeted Metric cleanup continuation:
 - latest targeted Metric cleanup: selected ids `7427..7378`, Metric ids
   `2467..2516`, `selected=50`, `ok=50`, `written=50`, `error=0`,
   `providerErrorCount=0`, and all selected rows moved to `metricsCount=1`
-- next cadence step: Green post-run Metric/report review and targeted enrich
-  preflight for the newly Metric-covered rows before any additional Red
+- latest targeted enrich preflight: `sinceMinutes=420` selected `0`; the
+  rolling `sinceMinutes=10080` simulation selected exactly ids `7427..7378`,
+  all `mint_only`, `metricsCount=1`, `C / 0`, non-hard-rejected, without
+  reviewFlags, and with Notification / HolderSnapshot counts `0`
+- next cadence step: targeted enrich cleanup Red for ids `7427..7378` if
+  separately approved, network-enabled / out-of-sandbox, safe alias, no
+  `--notify`
 
 ## Latest Targeted Cleanup Preflight
 

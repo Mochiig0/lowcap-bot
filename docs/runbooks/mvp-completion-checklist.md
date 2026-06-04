@@ -268,6 +268,18 @@ Second Phase 2 Metric cleanup execution, 2026-06-04:
 - This remains post-MVP cleanup evidence. The next task should be Green
   post-run Metric/report review and targeted enrich preflight for these rows.
 
+Second Phase 2 enrich preflight, 2026-06-04:
+
+- Post-run Metric review confirmed ids `7427..7378` are report-readable with
+  Metric ids `2467..2516`, safe price / FDV / reserve / top-pool presence,
+  `metricsCount=1`, and selected Notification / HolderSnapshot totals `0`.
+- The 420 minute enrich window has drifted clear, but `sinceMinutes=10080`
+  selects exactly ids `7427..7378`, all `mint_only`, `metricsCount=1`,
+  `score=C/0`, `hardRejected=false`, and without reviewFlags.
+- The next Phase 2 Red candidate is targeted enrich cleanup for those rows in
+  network-enabled / out-of-sandbox context. This remains post-MVP cleanup, not
+  an MVP blocker.
+
 Possible next tasks:
 
 1. targeted Metric pending cleanup

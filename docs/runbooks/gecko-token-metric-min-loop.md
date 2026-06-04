@@ -72,6 +72,17 @@ Safe summary checks confirmed price / FDV / reserve / top-pool presence for
 `50 / 50`. The next minimum-loop step is Green post-run Metric/report review
 and targeted enrich preflight for these rows.
 
+That Green review and enrich preflight is complete. Representative checks for
+ids `7427`, `7403`, and `7378` confirmed Metric ids `2467`, `2491`, and
+`2516`, source `geckoterminal.token_snapshot`, and safe price / FDV /
+reserve / top-pool presence. DB-only enrich simulation now selects
+`7427..7378` with `sinceMinutes=10080`, all `mint_only`, all
+`metricsCount=1`, all `C / 0`, all non-hard-rejected, all without
+reviewFlags, and all with Notification / HolderSnapshot counts `0`.
+`sinceMinutes=420` selects `0` after time drift. The next Red candidate, if
+approved, is targeted enrich cleanup for this same range with the safe
+token enrich/rescore alias and no `--notify`.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and
