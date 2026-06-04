@@ -26,6 +26,13 @@ cleanup decision tree, stop conditions, and locked scope. This bounded runner
 runbook remains the command reference; the cadence runbook decides when to use
 it.
 
+Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
+for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
+safe alias command ran once and did not trigger Notification / Telegram, but
+the actual selected rows still had `metricsCount=0`. Before any further
+cleanup Red, run a Green anomaly review and confirm future selected ids with
+the same selector semantics used by the write CLI.
+
 ## 6H Planner
 
 Use `pnpm -s ops:plan:bounded -- --hours 6 --pumpOnly` before choosing the next

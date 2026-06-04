@@ -198,6 +198,49 @@ Phase 2 targeted enrich cleanup review, 2026-06-04:
   progress is approved, is targeted enrich cleanup. Do not change scoring or
   notification policy from the current `C / 1` evidence.
 
+Phase 2 targeted enrich cleanup selector drift, 2026-06-04:
+
+- The repo-local Red safety Skill was applied and the approved
+  network-enabled / out-of-sandbox safe enrich cleanup command ran exactly
+  once:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write`.
+- Expected HEAD `5aca5e3 docs: review phase two enrich cleanup` matched and
+  the working tree was clean before execution. Provider HEAD reached
+  GeckoTerminal from the approved network context. No second Red, retry, or
+  fallback command was run.
+- Important drift: the preflight target was ids `7018..6969`, but the CLI
+  selected ids `7377..7328` at execution time. The command completed with
+  `selected=50`, `ok=50`, `error=0`, `enrichWriteCount=50`,
+  `rescoreWriteCount=50`, `contextWriteCount=50`,
+  `metaplexAttemptedCount=50`, `metaplexAvailableCount=1`,
+  `notifyWouldSendCount=0`, `notifySentCount=0`, `rateLimited=false`, and
+  `interItemDelayCount=49`.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `3383 / 1407 / 22 / 1`; metadata status moved to `mint_only=2451`,
+  `partial=919`, `enriched=13`; Metric buckets stayed `0=2116`, `1=1180`,
+  `2+=87`; Notification statuses stayed `captured=17`, `sent=5`, `failed=0`.
+- Actual selected ids `7377..7328` moved to `partial=50` with enrichment /
+  rescore timestamps, reviewFlags, scoreBreakdown, and GeckoTerminal context
+  present for `50 / 50`; Metaplex context is present for `1 / 50`. Score
+  distribution is `C / 0 = 48`, `C / 1 = 1`, `B / 2 = 1`, with
+  `hardRejected=0`.
+- Actual selected ids `7377..7328` still have `metricsCount=0` for `50 / 50`,
+  so they remain metric-pending and the target did not satisfy the intended
+  `metricsCount=1` precondition. The intended ids `7018..6969` were not
+  updated; they remain `mint_only=50`, `metricsCount=1=50`, `C / 0 = 50`,
+  without reviewFlags, and with Notification / HolderSnapshot counts `0`.
+- Notification / Telegram, Metric writes, HolderSnapshot writes, retry,
+  auto-send, scheduler/systemd, and rawJson dumps stayed `0`. Queue after is
+  default 24h `metricPending=0`, `enrichPending=0`, `notifyCandidate=0` and
+  rolling 168h `metricPending=160`, `enrichPending=270`,
+  `notifyCandidate=0`; watchlist 168h is `14` B/2 rows, `13` ready and `1`
+  missing Metric.
+- Next step must be Green post-run anomaly review before any further Red.
+  Specifically compare the DB-only simulation selector with the CLI
+  `recent_batch` selector and decide whether to add a tighter preflight or
+  run Metric cleanup for the mistakenly enriched Metric-zero rows. Do not run
+  the intended `7018..6969` enrich Red until this selector drift is explained.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

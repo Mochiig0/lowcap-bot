@@ -134,6 +134,10 @@ These are not MVP blockers:
 - default 24h and strict 6h queues can drift with time
 - normal sandbox DNS cannot reach the GeckoTerminal provider
 - Metaplex hit rate is low
+- Phase 2 targeted cleanup selectors can drift if DB-only simulation does not
+  match the write CLI selector semantics. This is an operating-cadence issue,
+  not an MVP completion blocker; it requires Green anomaly review before the
+  next Red.
 
 ## Next Phase
 

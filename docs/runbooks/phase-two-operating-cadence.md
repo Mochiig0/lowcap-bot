@@ -272,10 +272,19 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
 - latest post-run review: ids `7427..7378` are reportable and safe, but the
   two `C / 1` rows only add low-strength `core` / `meme` evidence; no target
   row entered the B watchlist and `notifyCandidate=0` remains expected
-- next cadence step: targeted enrich cleanup is the preferred Red lane if more
-  data progress is wanted, because clean Metric-covered `mint_only` candidates
-  remain available; status/docs review is acceptable if no immediate cleanup
-  is needed
+- latest selector-drift event: a later approved targeted enrich cleanup was
+  intended for ids `7018..6969`, but the exact safe alias command selected
+  ids `7377..7328` at execution time. Those actual rows moved to `partial=50`
+  but still have `metricsCount=0=50`; the intended ids `7018..6969` remain
+  `mint_only=50`, `metricsCount=1=50`, and without reviewFlags.
+- current queue after that drift event: default 24h `metricPending=0`,
+  `enrichPending=0`, `notifyCandidate=0`; rolling 168h
+  `metricPending=160`, `enrichPending=270`, `notifyCandidate=0`; watchlist
+  `14` B/2 rows, `13` ready and `1` missing Metric.
+- next cadence step: do a Green selector-drift/anomaly review before any
+  further Red. Do not treat DB-only simulation as sufficient when the write
+  CLI has its own `recent_batch` ordering; the selected ids must be confirmed
+  with the same selector semantics as the exact Red command.
 
 ## Latest Targeted Cleanup Preflight
 

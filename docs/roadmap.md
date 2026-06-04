@@ -211,6 +211,30 @@ counts `0`. A fresh human-approved Red should use the safe enrich alias with
 `--limit 50 --sinceMinutes 10080` in network-enabled / out-of-sandbox context.
 If no runtime progress is needed, choose status/docs review instead.
 
+That follow-up Red exposed selector drift and must be reviewed before more
+writes. The exact safe enrich command ran once in the approved
+network-enabled / out-of-sandbox context on expected HEAD `5aca5e3`, but the
+CLI selected ids `7377..7328` instead of the intended ids `7018..6969`.
+It completed `selected=50`, `ok=50`, `error=0`, `enrichWriteCount=50`,
+`rescoreWriteCount=50`, `contextWriteCount=50`,
+`metaplexAttemptedCount=50`, `metaplexAvailableCount=1`,
+`notifyWouldSendCount=0`, `notifySentCount=0`, and `rateLimited=false`.
+Counts stayed `3383 / 1407 / 22 / 1`, while metadata status moved to
+`mint_only=2451`, `partial=919`, `enriched=13`.
+
+The actual selected ids `7377..7328` are now `partial=50`, but remain
+`metricsCount=0=50`; one of them entered the B/2 watchlist as not ready due
+missing Metric. The intended ids `7018..6969` remain untouched and still
+match the original enrich preflight (`mint_only=50`, `metricsCount=1=50`,
+`C / 0 = 50`, no reviewFlags). Notification / Telegram, Metric writes,
+HolderSnapshot writes, retry, auto-send, scheduler/systemd, and rawJson dumps
+stayed `0`.
+
+Recommended next slice: **Green selector-drift/anomaly review**, not another
+Red. Compare the DB-only simulation with the CLI `recent_batch` selector,
+decide whether to repair the preflight method or run Metric cleanup for
+`7377..7328`, and only then choose the next cleanup lane.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

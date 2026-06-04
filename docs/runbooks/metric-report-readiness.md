@@ -145,6 +145,22 @@ cleanup lane is targeted enrich: DB-only simulation selects ids `7018..6969`,
 all `mint_only`, `metricsCount=1`, `C / 0`, non-hard-rejected, with no
 Notification or HolderSnapshot rows.
 
+Follow-up selector drift, 2026-06-04: the approved targeted enrich cleanup
+did not process the intended ids `7018..6969`. The exact safe enrich/rescore
+command selected ids `7377..7328`, completed `selected=50`, `ok=50`,
+`error=0`, and wrote Token enrich/rescore/context updates for those actual
+rows. Counts stayed Token / Metric / Notification / HolderSnapshot
+`3383 / 1407 / 22 / 1`; metadata status moved to `mint_only=2451`,
+`partial=919`, `enriched=13`.
+
+The actual selected ids `7377..7328` now have reviewFlags, scoreBreakdown, and
+GeckoTerminal context present for `50 / 50`, but remain `metricsCount=0=50`.
+Score distribution is `C / 0 = 48`, `C / 1 = 1`, `B / 2 = 1`, with
+`hardRejected=0`. The intended ids `7018..6969` remain untouched and still
+show `mint_only=50`, `metricsCount=1=50`, `C / 0 = 50`, and no reviewFlags.
+This makes the next report-readiness task Green anomaly review of the selector
+drift, not another write Red.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

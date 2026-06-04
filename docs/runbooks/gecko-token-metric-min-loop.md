@@ -116,6 +116,23 @@ minimum-loop cleanup, DB-only simulation shows clean Metric-covered
 `mint_only` ids `7018..6969`; if another Red is approved, targeted enrich
 cleanup is the preferred lane over another Metric cleanup.
 
+The follow-up targeted enrich cleanup exposed a selector mismatch. The exact
+safe enrich/rescore command ran once in the approved network-enabled /
+out-of-sandbox context, but selected ids `7377..7328` instead of the intended
+ids `7018..6969`. It completed with `selected=50`, `ok=50`, `error=0`,
+`enrichWriteCount=50`, `rescoreWriteCount=50`, `contextWriteCount=50`,
+`metaplexAttemptedCount=50`, `metaplexAvailableCount=1`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`. Counts stayed Token /
+Metric / Notification / HolderSnapshot `3383 / 1407 / 22 / 1`, while
+metadata status moved to `mint_only=2451`, `partial=919`, `enriched=13`.
+
+Actual selected ids `7377..7328` are now `partial` and have reviewFlags,
+scoreBreakdown, and GeckoTerminal context for `50 / 50`, but they still have
+`metricsCount=0=50`. The intended ids `7018..6969` were not updated and still
+match the original Metric-covered enrich preflight. The next minimum-loop task
+must be Green anomaly review of the CLI selector before any further targeted
+cleanup Red.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and
