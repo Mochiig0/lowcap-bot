@@ -187,6 +187,12 @@ and requested windows have no notify candidates, rolling 168h has no eligible
 notify candidate, auto-send remains allowed `0 / 0`, and retry remains `0`.
 No Telegram rehearsal or capture-only B Notification is needed at this point.
 
+The 2026-06-05 periodic Phase 2 status point keeps the same Telegram boundary.
+Default 24h has `notifyCandidate=0`, rolling 168h has `notifyCandidate=0`,
+failed Notification is `0`, retry candidate is `0`, and disabled/enabled
+auto-send allowed candidates are `0 / 0`. Telegram auto-send, capture-only B
+Notification, retry execution, scheduler, and systemd remain locked.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

@@ -328,6 +328,11 @@ Second Phase 2 enrich preflight, 2026-06-04:
   backlog is optional cleanup inventory, and Notification / Telegram /
   scheduler / systemd stay locked. Personal MVP status remains
   complete-enough for manual bounded-run use.
+- The 2026-06-05 periodic Phase 2 review keeps the same MVP decision. Current
+  default 24h queue is clear, rolling 168h backlog is optional cleanup
+  inventory, watchlist remains B/2 report-only, and Notification / Telegram /
+  retry / auto-send remain locked. This is a status point, not a new MVP
+  blocker and not Red approval.
 
 Possible next tasks:
 

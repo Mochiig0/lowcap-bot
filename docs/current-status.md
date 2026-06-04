@@ -467,6 +467,30 @@ Phase 2 operating status/cadence review, 2026-06-05:
   preflight if the operator wants more backlog cleanup; otherwise this status
   review is a safe pause point.
 
+Phase 2 periodic operating review, 2026-06-05:
+
+- Green/read-only periodic review is complete on HEAD
+  `f8a0019 docs: review phase two operating status`; the working tree was
+  clean before review and this turn stayed docs-only.
+- Current DB state is unchanged at Token / Metric / Notification /
+  HolderSnapshot `3383 / 1407 / 22 / 1`; metadata status is
+  `mint_only=2401`, `partial=969`, `enriched=13`; Metric buckets are
+  `0=2116`, `1=1180`, `2+=87`.
+- Default 24h queue remains clear: `metricPending=0`, `enrichPending=0`,
+  `staleReview=0`, and `notifyCandidate=0`. Rolling 168h remains optional
+  cleanup inventory: `metricPending=160`, `enrichPending=220`,
+  `staleReview=270`, and `notifyCandidate=0`.
+- Watchlist 168h remains report-only: `15` B/2 rows, `14` ready and `1`
+  missing Metric. No A/S row appeared and there is no scoring or notification
+  policy trigger.
+- Notification safety remains closed. Failed Notification is `0`, retry
+  candidate is `0`, and disabled/enabled auto-send allowed candidates are
+  `0 / 0`.
+- Cadence decision: choose status point / no action. Do not issue a Red exact
+  command from this review. If the operator wants more cleanup or fresh data
+  later, start with a fresh Green targeted cleanup preflight or bounded runner
+  preflight.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

@@ -349,6 +349,19 @@ point. If cleanup is desired next, start with a fresh Green targeted cleanup
 preflight; otherwise continue periodic status/watchlist review. Scoring,
 Notification, Telegram, scheduler, and systemd policy remain unchanged.
 
+That periodic Phase 2 status review remains stable. Default 24h queue is still
+clear (`metricPending=0`, `enrichPending=0`, `staleReview=0`,
+`notifyCandidate=0`), while rolling 168h remains optional cleanup inventory
+(`metricPending=160`, `enrichPending=220`, `staleReview=270`,
+`notifyCandidate=0`). Watchlist is unchanged at `15` B/2 report-only rows,
+`14` ready and `1` missing Metric. Auto-send allowed stays `0 / 0`, retry
+candidate stays `0`, and failed Notification stays `0`.
+
+Recommended next slice: **status point / no action**. Do not issue a Red
+exact command from this review. If the operator intentionally wants more data
+or cleanup, start with a fresh Green targeted cleanup preflight or bounded
+runner preflight.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

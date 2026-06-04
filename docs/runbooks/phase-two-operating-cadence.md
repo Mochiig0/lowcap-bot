@@ -341,6 +341,16 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   (`failed=0`, `retry=0`, auto-send allowed `0 / 0`). No immediate Red is
   needed. Continue with fresh Green preflight before any targeted cleanup Red,
   and otherwise use this as a safe pause/status point.
+- periodic status review result: the same pause decision remains valid.
+  Current DB counts are `3383 / 1407 / 22 / 1`; metadata is
+  `mint_only=2401`, `partial=969`, `enriched=13`; Metric buckets are
+  `0=2116`, `1=1180`, `2+=87`. Default 24h queue is clear
+  (`metricPending=0`, `enrichPending=0`, `staleReview=0`,
+  `notifyCandidate=0`), rolling 168h remains optional cleanup inventory
+  (`metricPending=160`, `enrichPending=220`, `staleReview=270`,
+  `notifyCandidate=0`), and watchlist remains `15` B/2 rows, `14` ready and
+  `1` missing Metric. Failed Notification, retry candidate, and auto-send
+  allowed candidates remain `0`, so no immediate Red is needed.
 
 ## Latest Targeted Cleanup Preflight
 

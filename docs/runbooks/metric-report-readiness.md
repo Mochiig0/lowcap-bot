@@ -234,6 +234,14 @@ expected. More Metric/enrich cleanup can improve coverage, but it is optional
 and should start with a fresh Green targeted cleanup preflight rather than a
 direct Red.
 
+Periodic Phase 2 status point, 2026-06-05: report readiness remains stable.
+Default 24h has no Metric, enrich, stale-review, or notify backlog; rolling
+168h still has optional cleanup inventory (`metricPending=160`,
+`enrichPending=220`, `staleReview=270`) and `notifyCandidate=0`. Watchlist
+remains `15` B/2 report-only rows, with `14` ready and `1` missing Metric.
+No report or scoring evidence requires immediate Red, scoring dictionary
+changes, or notification policy changes.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to
