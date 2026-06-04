@@ -193,6 +193,12 @@ failed Notification is `0`, retry candidate is `0`, and disabled/enabled
 auto-send allowed candidates are `0 / 0`. Telegram auto-send, capture-only B
 Notification, retry execution, scheduler, and systemd remain locked.
 
+The 2026-06-05 operating-start review also keeps the Telegram boundary closed.
+Disabled and enabled auto-send planners select no Notification, retry planner
+has candidate count `0`, failed Notification is `0`, and
+`notifyCandidate=0` in both default and rolling windows. No notification
+safety rehearsal or Telegram Red is needed today.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

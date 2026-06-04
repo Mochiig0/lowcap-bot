@@ -362,6 +362,18 @@ exact command from this review. If the operator intentionally wants more data
 or cleanup, start with a fresh Green targeted cleanup preflight or bounded
 runner preflight.
 
+The Phase 2 operating-start review reached the same decision. HEAD is
+`3f07a41`, the working tree is clean, default 24h and requested 6h queues are
+clear, and rolling 168h remains optional cleanup inventory
+(`metricPending=160`, `enrichPending=220`, `staleReview=270`,
+`notifyCandidate=0`). Watchlist remains `15` B/2 report-only rows, `14` ready
+and `1` missing Metric. Failed Notification, retry candidate, and auto-send
+allowed remain `0`.
+
+Recommended next slice: **do nothing today / status point**. Do not emit a Red
+candidate. Use fresh Green preflight only when cleanup or fresh data collection
+is intentionally requested.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

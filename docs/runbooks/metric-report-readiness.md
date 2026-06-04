@@ -242,6 +242,12 @@ remains `15` B/2 report-only rows, with `14` ready and `1` missing Metric.
 No report or scoring evidence requires immediate Red, scoring dictionary
 changes, or notification policy changes.
 
+Operating-start review, 2026-06-05: the report surface is still stable enough
+to pause. Default 24h and requested 6h queues are clear, rolling 168h remains
+optional cleanup inventory, and watchlist remains B/2 report-only. Today's
+report-readiness action is no Red; use a fresh Green preflight only when the
+operator intentionally wants cleanup or new data collection.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

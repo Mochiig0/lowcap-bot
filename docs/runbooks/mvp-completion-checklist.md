@@ -333,6 +333,10 @@ Second Phase 2 enrich preflight, 2026-06-04:
   inventory, watchlist remains B/2 report-only, and Notification / Telegram /
   retry / auto-send remain locked. This is a status point, not a new MVP
   blocker and not Red approval.
+- The 2026-06-05 operating-start review also keeps the same MVP decision.
+  Nothing in the current queue, watchlist, or notification planners reopens MVP
+  scope. Today's action is no Red / status point; future cleanup or new data
+  collection should begin with a fresh Green preflight.
 
 Possible next tasks:
 

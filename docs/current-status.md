@@ -491,6 +491,31 @@ Phase 2 periodic operating review, 2026-06-05:
   later, start with a fresh Green targeted cleanup preflight or bounded runner
   preflight.
 
+Phase 2 operating start review, 2026-06-05:
+
+- Green/read-only operating-start review is complete on HEAD
+  `3f07a41 docs: record phase two status point`; the working tree was clean
+  before review and the turn stayed docs-only.
+- DB and queue state remain stable: Token / Metric / Notification /
+  HolderSnapshot is `3383 / 1407 / 22 / 1`; metadata status is
+  `mint_only=2401`, `partial=969`, `enriched=13`; Metric buckets are
+  `0=2116`, `1=1180`, `2+=87`.
+- Default 24h and requested 6h queues are clear:
+  `metricPending=0`, `enrichPending=0`, `staleReview=0`,
+  `notifyCandidate=0`. Rolling 168h remains optional cleanup inventory:
+  `metricPending=160`, `enrichPending=220`, `staleReview=270`,
+  `notifyCandidate=0`.
+- Watchlist remains unchanged at `15` B/2 report-only rows, `14` ready and
+  `1` missing Metric. There are no A/S candidates and no scoring-policy
+  trigger.
+- Notification planners remain closed: failed Notification `0`, retry
+  candidate `0`, disabled/enabled auto-send allowed `0 / 0`, and selected
+  auto-send Notification `null`.
+- Today's operating action: no Red and no fresh preflight required. Treat this
+  as a status point. If the operator intentionally wants more data later, the
+  next task should be a fresh Green targeted cleanup preflight or bounded
+  runner preflight, not a direct Red.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

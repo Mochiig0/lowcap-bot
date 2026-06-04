@@ -351,6 +351,13 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   `notifyCandidate=0`), and watchlist remains `15` B/2 rows, `14` ready and
   `1` missing Metric. Failed Notification, retry candidate, and auto-send
   allowed candidates remain `0`, so no immediate Red is needed.
+- operating-start review result: no new action is required today. The default
+  24h and requested 6h queues are clear, rolling 168h remains optional cleanup
+  inventory, watchlist is unchanged at `15` B/2 rows, and notification
+  planners are closed (`failed=0`, `retry=0`, auto-send allowed `0 / 0`).
+  If the operator wants cleanup or fresh data, start with a fresh Green
+  targeted cleanup preflight or bounded runner preflight. Do not jump directly
+  to Red from this status point.
 
 ## Latest Targeted Cleanup Preflight
 
