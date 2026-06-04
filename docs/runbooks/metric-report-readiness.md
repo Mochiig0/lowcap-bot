@@ -209,6 +209,15 @@ Score distribution is `C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`, with
 report-readiness task should be Green post-run guarded enrich/report review
 and lane decision before another write.
 
+That post-run guarded review is complete. The target ids `7018..6969` retained
+Metric coverage (`metricsCount=1=50`) and have scoreBreakdown / reviewFlags /
+GeckoTerminal context for `50 / 50`; latest Metric ids are `2065..2114`.
+The one target B/2 row and three C/1 rows are weak single-hit evidence, mostly
+core narrative tags, and do not justify scoring dictionary or notification
+policy changes. Keep the B watchlist report-only, keep `notifyCandidate=0` as
+expected under the S-only rule, and continue using `--onlyMetricCovered` for
+any further Phase 2 targeted enrich cleanup.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

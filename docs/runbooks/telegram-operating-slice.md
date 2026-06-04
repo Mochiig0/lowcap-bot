@@ -170,6 +170,12 @@ description signals in the watchlist rows. Keep Telegram S-only, keep
 Notification candidate S-only, and do not add capture-only B Notifications
 from this sample.
 
+The guarded Phase 2 enrich cleanup review keeps the same boundary. Rolling
+168h is now `15` B/2 watchlist rows, `14` ready and `1` missing Metric; the
+new target evidence is still weak (`B / 2 = 1`, `C / 1 = 3`, no A/S and
+`notifyCandidate=0`). Continue treating B rows as report-only, keep Telegram
+locked, and do not add capture-only B Notifications from this sample.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

@@ -317,6 +317,16 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   writes, retry, auto-send, scheduler/systemd, and rawJson dumps stayed `0`.
 - next cadence step: Green post-run guarded enrich/report review and lane
   decision before another Red.
+- post-run guarded review result: the guarded batch matched preflight exactly,
+  with selected ids `7018..6969`, `selection.onlyMetricCovered=true`,
+  `metricsCount=1=50`, and `skippedMetricUncoveredCount=110`. This confirms
+  the selector-drift fix is usable for Metric-first targeted enrich cleanup.
+  The target score distribution is `C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`,
+  `hardRejected=0`; rolling 168h watchlist is `15` B/2 rows, `14` ready and
+  `1` missing Metric. Keep B rows report-only and keep notification/Telegram
+  S-only. If cleanup continues, use another fresh Green guarded preflight;
+  current guarded simulation selects ids `6968..6919` as the next
+  Metric-covered cleanup batch.
 
 ## Latest Targeted Cleanup Preflight
 

@@ -310,6 +310,14 @@ Second Phase 2 enrich preflight, 2026-06-04:
   auto-send, scheduler/systemd, and rawJson dumps stayed locked during the
   guarded cleanup. The next task is Green post-run guarded enrich/report
   review, not automatic continuation.
+- The Green post-run guarded enrich/report review is now complete. The guard
+  selected exactly the intended Metric-covered ids `7018..6969` and reported
+  `skippedMetricUncoveredCount=110`, so the selector drift is considered
+  resolved for this cleanup lane. The batch added one weak B/2 watchlist row
+  and three C/1 rows, but no A/S or notify candidates. This is Phase 2
+  evidence only; personal MVP status remains complete-enough and no scoring,
+  notification, Telegram, scheduler, or systemd policy changes are included in
+  the MVP declaration.
 
 Possible next tasks:
 

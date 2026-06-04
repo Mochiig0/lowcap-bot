@@ -50,6 +50,11 @@ Counts stayed Token / Metric / Notification / HolderSnapshot
 `partial=969`, `enriched=13`; Metric buckets stayed `0=2116`, `1=1180`,
 `2+=87`. Notification / Telegram, Metric writes, HolderSnapshot writes,
 retry, auto-send, scheduler/systemd, and rawJson dumps stayed locked.
+The post-run Green review confirmed this guarded path avoided selector drift:
+all selected ids matched preflight, all selected rows were Metric-covered, and
+`skippedMetricUncoveredCount=110` was visible. The batch added only weak
+watchlist evidence (`C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`, `hardRejected=0`),
+so bounded-run MVP behavior and notification policy remain unchanged.
 
 ## 6H Planner
 

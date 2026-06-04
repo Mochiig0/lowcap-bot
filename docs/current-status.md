@@ -374,6 +374,38 @@ Phase 2 guarded targeted enrich cleanup, 2026-06-05:
 - Next operating step should be Green post-run guarded enrich/report review
   and Phase 2 lane decision before any additional Red.
 
+Phase 2 guarded enrich/report review, 2026-06-05:
+
+- Green post-run review of the guarded cleanup for ids `7018..6969` is
+  complete on HEAD `25fcea9 docs: record guarded phase two enrich cleanup`;
+  the working tree was clean at start and all checks stayed read-only /
+  docs-only.
+- The guarded batch matched its preflight: `selection.onlyMetricCovered=true`,
+  selected ids were exactly `7018..6969`, all selected rows retained
+  `metricsCount=1`, and `skippedMetricUncoveredCount=110` was reported. This
+  confirms the selector-drift fix is operationally effective for Metric-first
+  Phase 2 targeted enrich cleanup.
+- Target rows are all `partial`, with `enrichedAt`, `rescoredAt`, reviewFlags,
+  scoreBreakdown, and GeckoTerminal context present for `50 / 50`. Metaplex
+  context remains `0 / 50`. Latest Metric ids remain `2065..2114`, and safe
+  market-data presence is `50 / 50` for price, FDV, reserve, and top pool.
+- Target score distribution is `C / 0 = 46`, `C / 1 = 3`, and `B / 2 = 1`;
+  `hardRejected=0`. The B/2 row is a new weak watchlist sample from this
+  batch, and the C/1 rows are low-strength single-hit evidence. They do not
+  justify scoring dictionary or notification policy changes.
+- Rolling 168h watchlist is now `15` B/2 rows, `14` ready and `1` missing
+  Metric. `notifyCandidateCount=0` remains expected because blockers are still
+  rank-based (`rank_not_s`) and the notify path remains S-only. Notification /
+  Telegram, Metric writes, HolderSnapshot writes, retry, auto-send,
+  scheduler/systemd, and rawJson full dumps stayed `0` this review turn.
+- Recommended next lane: first choice is Green watchlist/scoring evidence or
+  status review to consolidate whether the 15 B/2 rows are still weak
+  report-only evidence. Second choice, if the operator wants more cleanup
+  progress, is another guarded targeted enrich cleanup after fresh preflight;
+  the current read-only guarded simulation selects ids `6968..6919`, all
+  `mint_only`, `metricsCount=1`, `C / 0`, and with Notification /
+  HolderSnapshot totals `0`.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

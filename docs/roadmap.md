@@ -296,6 +296,28 @@ Phase 2 lane decision**. Do not automatically continue cleanup; first verify
 the guarded batch and decide whether the next lane is more cleanup, watchlist
 review, or status/docs consolidation.
 
+That Green post-run guarded enrich/report review is now complete. The guarded
+batch selected exactly the intended ids `7018..6969`,
+`selection.onlyMetricCovered=true`, and `skippedMetricUncoveredCount=110`,
+confirming the prior selector drift is resolved for this lane. All target rows
+are now `partial`, keep `metricsCount=1`, and have reviewFlags,
+scoreBreakdown, GeckoTerminal context, and latest Metric ids `2065..2114`.
+Score distribution is `C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`, with
+`hardRejected=0` and no Notification or HolderSnapshot rows for the target.
+
+The watchlist increased to `15` rolling-168h B/2 rows, `14` ready and `1`
+missing Metric. The new target B/2 and three C/1 rows are weak single-hit
+evidence, so scoring dictionaries, notification thresholds, capture-only B
+Notifications, and Telegram policy should remain unchanged. `notifyCandidate=0`
+is expected because the visible blocker remains rank-based (`rank_not_s`) and
+the send path is S-only.
+
+Recommended next slice: **Green watchlist/scoring evidence or status review**.
+If the operator prefers continued backlog cleanup instead, use a fresh Green
+preflight for another guarded targeted enrich cleanup; the current read-only
+simulation points at ids `6968..6919` as Metric-covered candidates. Do not use
+the unguarded enrich command for Phase 2 targeted cleanup.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

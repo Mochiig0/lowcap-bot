@@ -178,6 +178,14 @@ Telegram, Metric writes, HolderSnapshot writes, retry, auto-send,
 scheduler/systemd, and rawJson full dump stayed `0`. The next minimum-loop
 step is Green post-run guarded enrich/report review and lane decision.
 
+That review is complete. The guarded selector matched preflight exactly for
+ids `7018..6969`, and the run avoided the previous Metric-uncovered selector
+drift. Report review shows one weak B/2 row and three C/1 rows, all below
+notification thresholds and all with Notification / HolderSnapshot totals `0`.
+For the minimum-loop cadence, keep using `--onlyMetricCovered` for targeted
+enrich cleanup, keep B rows report-only, and run another Green preflight before
+any follow-up Red.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and
