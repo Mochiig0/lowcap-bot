@@ -35,6 +35,9 @@ the same selector semantics used by the write CLI. The follow-up guard is now
 implemented: bounded post-run enrich command candidates include batch-only
 `--onlyMetricCovered`, which preserves default unguarded CLI behavior when
 omitted but requires at least one Metric row for bounded cleanup when present.
+The first guarded targeted enrich preflight selected ids `7018..6969` with
+`metricsCount=1=50` and `skippedMetricUncoveredCount=110`, confirming the
+Metric-first cleanup selector is available for the next approved Red.
 
 ## 6H Planner
 

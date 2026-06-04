@@ -150,6 +150,14 @@ Next targeted enrich Red candidate, after a fresh Green preflight, should use:
 pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write
 ```
 
+That fresh Green preflight is now complete. The guarded selector selected ids
+`7018..6969`, count `50`, with `metricsCount=1=50`,
+`metadataStatus=mint_only=50`, `score=C/0=50`, `hardRejected=0`,
+`reviewFlagsPresent=0`, selected Notification total `0`, selected
+HolderSnapshot total `0`, and `skippedMetricUncoveredCount=110`. The next
+minimum-loop Red may use the guarded command above in network-enabled /
+out-of-sandbox context after human approval.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

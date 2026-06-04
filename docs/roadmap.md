@@ -264,6 +264,15 @@ unguarded Red. Confirm the guarded selector still selects the intended
 Metric-covered ids, then issue a single human-approved network-enabled Red if
 the DB/notification planners remain clean.
 
+That guarded preflight is now complete. Read-only simulation using the
+implemented selector selected ids `7018..6969`, count `50`, all
+`mint_only`, `metricsCount=1`, `C / 0`, no hard rejects, no reviewFlags, and
+selected Notification / HolderSnapshot totals `0`. It also reported
+`skippedMetricUncoveredCount=110`, confirming the prior selector drift is
+handled for the next cleanup Red. Recommended next slice is one
+human-approved network-enabled targeted enrich cleanup with
+`--onlyMetricCovered`; do not use the unguarded enrich command for this lane.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

@@ -301,6 +301,37 @@ Phase 2 enrich selector guard, 2026-06-05:
   change, and no rawJson dump. The next Red should be preceded by a fresh
   read-only preflight using the guarded selector semantics.
 
+Phase 2 guarded enrich cleanup preflight, 2026-06-05:
+
+- Green preflight on HEAD `442d01e feat: add metric covered guard to enrich
+  selector` confirmed the working tree was clean and the current DB state is
+  Token / Metric / Notification / HolderSnapshot `3383 / 1407 / 22 / 1`.
+  Metadata status is `mint_only=2451`, `partial=919`, `enriched=13`; Metric
+  buckets are `0=2116`, `1=1180`, `2+=87`.
+- Queue/planner state is clean for this targeted cleanup: default 24h has
+  `metricPendingCount=0`, `enrichPendingCount=0`, `notifyCandidateCount=0`;
+  rolling 168h has `metricPendingCount=160`, `enrichPendingCount=270`,
+  `notifyCandidateCount=0`; watchlist is `14` B/2 rows with `13` ready and
+  `1` missing Metric. Failed Notification is `0`, retry candidate is `0`, and
+  disabled/enabled auto-send allowed remains `0 / 0`.
+- Prisma read-only simulation using the implemented `selectEligibleBatchTokens`
+  semantics for `--pumpOnly --limit 50 --sinceMinutes 10080
+  --onlyMetricCovered` selected ids `7018..6969`, count `50`. All selected
+  rows are `mint_only`, `metricsCount=1`, `score=C/0`, `hardRejected=false`,
+  `reviewFlagsPresent=false`, selected Notification total `0`, and selected
+  HolderSnapshot total `0`.
+- The guarded selector excluded Metric-uncovered rows as intended:
+  `skippedMetricUncoveredCount=110`, with `skippedCompleteCount=449` and
+  `skippedNonPumpCount=0`. This resolves the prior selector drift for the next
+  targeted enrich cleanup.
+- Recommended next Red, if human-approved and run network-enabled /
+  out-of-sandbox, is exactly:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+  Expected writes are Token enrich/rescore/context/reviewFlags updates up to
+  `50`; expected non-effects are Metric write `0`, Notification
+  create/update/send `0`, HolderSnapshot write `0`, Telegram send `0`, retry
+  / auto-send / scheduler/systemd `0`, and rawJson full dump `0`.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

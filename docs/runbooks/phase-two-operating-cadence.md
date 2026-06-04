@@ -294,6 +294,12 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
 - next cadence step: do a Green guarded targeted enrich preflight before any
   further enrich Red. Do not treat DB-only simulation as sufficient unless it
   mirrors the exact guarded selector semantics.
+- guarded preflight result: the implemented selector selected ids
+  `7018..6969`, all `mint_only`, all `metricsCount=1`, score `C / 0`, no
+  hard rejects, no reviewFlags, selected Notification / HolderSnapshot totals
+  `0`, and `skippedMetricUncoveredCount=110`. The next cleanup Red can be the
+  guarded enrich command shape above, with network-enabled / out-of-sandbox
+  execution and human approval.
 
 ## Latest Targeted Cleanup Preflight
 

@@ -179,6 +179,13 @@ pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --since
 Before another targeted enrich Red, run a fresh Green preflight that mirrors
 this guarded selector.
 
+That guarded preflight is complete: `--onlyMetricCovered` selector semantics
+selected ids `7018..6969`, count `50`, all `mint_only`, all `metricsCount=1`,
+score `C / 0`, no hard rejects, no reviewFlags, selected Notification /
+HolderSnapshot totals `0`, and `skippedMetricUncoveredCount=110`. The next
+report-readiness Red candidate is the guarded targeted enrich cleanup command,
+not the unguarded enrich command and not another Metric cleanup.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to
