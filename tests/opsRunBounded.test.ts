@@ -160,6 +160,7 @@ test("command candidates include bounded pipeline safety flags", () => {
   assert.match(text, /--noNotificationCapture/);
   assert.match(text, /--interItemDelayMs 15000/);
   assert.match(text, /token:enrich-rescore:geckoterminal/);
+  assert.match(text, /--onlyMetricCovered/);
   assert.doesNotMatch(text, /--notify/);
   assert.doesNotMatch(text, /notification:send/);
   assert.doesNotMatch(text, /--live/);
@@ -191,6 +192,7 @@ test("execute mode uses node import tsx for write phase execution commands", asy
   assert.match(String(detectCommand?.args[2]), /src\/cli\/detectGeckoterminalNewPools\.ts$/);
   assert.match(String(metricCommand?.args[2]), /src\/cli\/metricSnapshotGeckoterminal\.ts$/);
   assert.match(String(enrichCommand?.args[2]), /src\/cli\/tokenEnrichRescoreGeckoterminal\.ts$/);
+  assert.ok(enrichCommand?.args.includes("--onlyMetricCovered"));
 
   assert.notEqual(detectCommand?.file, "pnpm");
   assert.notEqual(metricCommand?.file, "pnpm");

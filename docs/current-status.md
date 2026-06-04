@@ -281,6 +281,26 @@ Phase 2 selector drift review, 2026-06-04:
   exact id/range selector, but that is broader than needed. No Red exact
   command is issued from this review.
 
+Phase 2 enrich selector guard, 2026-06-05:
+
+- Yellow implementation added a batch-only `--onlyMetricCovered` option to
+  `token:enrich-rescore:geckoterminal`. Default recent-batch behavior is
+  preserved when the option is omitted; with the option set, batch selection
+  requires at least one related Metric row before a token can be enriched.
+- `--onlyMetricCovered` is intentionally batch-only. Exact `--mint` mode
+  rejects the flag instead of silently changing single-token behavior.
+- Phase 2 targeted enrich cleanup command shapes should now include
+  `--onlyMetricCovered`, for example:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+- The bounded runner post-run enrich phase and `ops:plan:bounded --postRunPlan`
+  command candidates also use the guard so the bounded Metric-first pipeline
+  does not enrich Metric-zero rows during cleanup.
+- This was an implementation/docs/test change only: no production DB write, no
+  provider fetch, no Token / Metric / Notification / HolderSnapshot write, no
+  Telegram send, no retry/auto-send/scheduler/systemd, no schema/migration
+  change, and no rawJson dump. The next Red should be preceded by a fresh
+  read-only preflight using the guarded selector semantics.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

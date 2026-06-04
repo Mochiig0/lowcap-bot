@@ -165,10 +165,19 @@ That anomaly review is complete. The report-readiness conclusion is that the
 write CLI and the preflight were answering different questions: the CLI asks
 "which recent GeckoTerminal pump tokens are still missing name or symbol?",
 while the cleanup preflight asked "which mint-only rows already have Metric
-coverage?". The latter is the desired Phase 2 cleanup policy, but it is not an
-available CLI guard today. The next report-readiness improvement should be a
-Yellow selector option for Metric-covered enrich batches, plus docs/planner
-updates, before another targeted enrich Red.
+coverage?". The latter is the desired Phase 2 cleanup policy.
+
+The Metric-covered guard is now available as batch-only `--onlyMetricCovered`
+on `token:enrich-rescore:geckoterminal`; exact `--mint` mode rejects it and
+default selection remains unchanged when the flag is omitted. Phase 2 targeted
+enrich cleanup and bounded post-run enrich command shapes should use:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write
+```
+
+Before another targeted enrich Red, run a fresh Green preflight that mirrors
+this guarded selector.
 
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring

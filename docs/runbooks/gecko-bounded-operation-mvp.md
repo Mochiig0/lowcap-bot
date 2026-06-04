@@ -31,7 +31,10 @@ for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but
 the actual selected rows still had `metricsCount=0`. Before any further
 cleanup Red, run a Green anomaly review and confirm future selected ids with
-the same selector semantics used by the write CLI.
+the same selector semantics used by the write CLI. The follow-up guard is now
+implemented: bounded post-run enrich command candidates include batch-only
+`--onlyMetricCovered`, which preserves default unguarded CLI behavior when
+omitted but requires at least one Metric row for bounded cleanup when present.
 
 ## 6H Planner
 

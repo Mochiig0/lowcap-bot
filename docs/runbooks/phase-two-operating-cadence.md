@@ -102,6 +102,7 @@ Recommended shape:
 - `--limit 50`
 - `--sinceMinutes 10080` when shorter windows drift past the intended batch
 - `--interItemDelayMs 15000`
+- `--onlyMetricCovered`
 - no `--notify`
 
 Enrich cleanup improves reportability and watchlist evidence. It should not be
@@ -215,7 +216,7 @@ pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinut
 ### Enrich Cleanup Red
 
 ```bash
-pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write
 ```
 
 ## Phase 2 Priorities
@@ -281,17 +282,18 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   `enrichPending=0`, `notifyCandidate=0`; rolling 168h
   `metricPending=160`, `enrichPending=270`, `notifyCandidate=0`; watchlist
   `14` B/2 rows, `13` ready and `1` missing Metric.
-- next cadence step: do a Green selector-drift/anomaly review before any
-  further Red. Do not treat DB-only simulation as sufficient when the write
-  CLI has its own `recent_batch` ordering; the selected ids must be confirmed
-  with the same selector semantics as the exact Red command.
-- selector-drift review result: the current enrich CLI does not require
+- selector-drift review result: the unguarded enrich CLI does not require
   Metric coverage in batch mode. It selects rows missing `name` or `symbol`,
   sorts by `firstSeenSourceSnapshot.detectedAt` or `Token.createdAt` newest
-  first, and only then applies `--pumpOnly` / `--limit`. Until a batch-only
-  `--onlyMetricCovered` or equivalent guard exists, Phase 2 targeted enrich
-  cleanup Red must not rely on a separate DB-only Metric-covered simulation.
-  Prefer Yellow implementation of that guard before more enrich cleanup Red.
+  first, and only then applies `--pumpOnly` / `--limit`.
+- selector guard result: `token:enrich-rescore:geckoterminal` now supports a
+  batch-only `--onlyMetricCovered` flag. Use it for Phase 2 targeted enrich
+  cleanup and bounded post-run enrich command shapes. It preserves default
+  unguarded selection when omitted, rejects exact `--mint` mode, and requires
+  at least one Metric row when present.
+- next cadence step: do a Green guarded targeted enrich preflight before any
+  further enrich Red. Do not treat DB-only simulation as sufficient unless it
+  mirrors the exact guarded selector semantics.
 
 ## Latest Targeted Cleanup Preflight
 

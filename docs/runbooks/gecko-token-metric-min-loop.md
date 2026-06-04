@@ -139,9 +139,16 @@ tokens missing `name` or `symbol`, sorts newest first by
 `firstSeenSourceSnapshot.detectedAt` or `Token.createdAt`, applies
 `--pumpOnly`, and slices to `--limit`. The previous preflight selected
 `7018..6969` only because it added an extra Metric-covered condition. The
-minimum-loop cleanup should now pause targeted enrich Red until a batch-only
-Metric-covered guard such as `--onlyMetricCovered` is implemented, documented,
-and covered by selector tests.
+minimum-loop cleanup now has the missing guard: use batch-only
+`--onlyMetricCovered` for targeted enrich cleanup. It preserves default
+selection when omitted, rejects exact `--mint` mode, and requires at least one
+Metric row when present.
+
+Next targeted enrich Red candidate, after a fresh Green preflight, should use:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write
+```
 
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore

@@ -17,6 +17,10 @@ import {
   type TokenRescorePreview,
 } from "./tokenRescoreShared.js";
 import {
+  needsBatchEnrich,
+  selectEligibleBatchTokens,
+} from "./tokenEnrichRescoreSelector.js";
+import {
   runGeckoTokenWriteForMint,
   toGeckoTokenEnrichRescoreCliItem,
   type GeckoTokenEnrichRescoreCliItem,
@@ -49,6 +53,7 @@ type Args = {
   limit: number;
   sinceMinutes: number;
   pumpOnly: boolean;
+  onlyMetricCovered: boolean;
   interItemDelayMs: number;
 };
 
@@ -79,6 +84,7 @@ type SelectedToken = {
   selectionAnchorAt: string;
   selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
   isGeckoterminalOrigin: boolean;
+  metricsCount: number;
 };
 
 type SnapshotMetadata = {
@@ -160,6 +166,7 @@ type ProcessedItem = {
     selectionAnchorAt: string;
     selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
     isGeckoterminalOrigin: boolean;
+    metricsCount: number;
   };
   selectedReason: "firstSeenSourceSnapshot.detectedAt" | "Token.createdAt";
   status: "ok" | "error";
@@ -221,15 +228,18 @@ type Output = {
     sinceMinutes: number | null;
     sinceCutoff: string | null;
     pumpOnly: boolean;
+    onlyMetricCovered: boolean;
     selectedCount: number;
     selectedIncompleteCount: number;
     skippedCompleteCount: number;
+    skippedMetricUncoveredCount: number;
     skippedNonPumpCount: number;
   };
   summary: {
     selectedCount: number;
     selectedIncompleteCount: number;
     skippedCompleteCount: number;
+    skippedMetricUncoveredCount: number;
     skippedNonPumpCount: number;
     okCount: number;
     errorCount: number;
@@ -323,7 +333,7 @@ class MetaplexFetchError extends Error {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--interItemDelayMs <MS>] [--pumpOnly] [--write] [--notify]",
+    "pnpm token:enrich-rescore:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--interItemDelayMs <MS>] [--pumpOnly] [--onlyMetricCovered] [--write] [--notify]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${GECKOTERMINAL_TOKEN_API_URL}/{mint}?include=top_pools`,
@@ -331,6 +341,7 @@ function getUsageText(): string {
     `- recent batch mode uses firstSeenSourceSnapshot.detectedAt when present, otherwise Token.createdAt`,
     `- recent batch mode looks back ${DEFAULT_SINCE_MINUTES} minutes by default`,
     "- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter",
+    "- recent batch mode may be narrowed to tokens with at least one Metric via --onlyMetricCovered; --mint single mode rejects that batch filter",
     "- --interItemDelayMs adds an opt-in delay between selected batch items; it defaults to 0 and does not add a delay after the final item",
     "- stays dry-run by default and writes Token enrich/rescore updates only when --write is set",
     "- --notify is allowed only with --write and only sends when the token newly enters S-rank and non-hard-rejected state after rescore",
@@ -383,6 +394,7 @@ function parseArgs(argv: string[]): Args {
     limit: DEFAULT_LIMIT,
     sinceMinutes: DEFAULT_SINCE_MINUTES,
     pumpOnly: false,
+    onlyMetricCovered: false,
     interItemDelayMs: 0,
   };
 
@@ -405,6 +417,11 @@ function parseArgs(argv: string[]): Args {
 
     if (key === "--pumpOnly") {
       out.pumpOnly = true;
+      continue;
+    }
+
+    if (key === "--onlyMetricCovered") {
+      out.onlyMetricCovered = true;
       continue;
     }
 
@@ -435,6 +452,10 @@ function parseArgs(argv: string[]): Args {
 
   if (out.notify && !out.write) {
     throw new CliUsageError("--notify requires --write");
+  }
+
+  if (out.mint && out.onlyMetricCovered) {
+    throw new CliUsageError("--onlyMetricCovered is only valid in recent batch mode");
   }
 
   return out;
@@ -1525,6 +1546,9 @@ function buildSelectedToken(token: {
   rescoredAt: Date | null;
   entrySnapshot: unknown;
   reviewFlagsJson: unknown;
+  _count: {
+    metrics: number;
+  };
 }): SelectedToken {
   const firstSeen = extractFirstSeenSourceSnapshot(token.entrySnapshot);
   const originSource =
@@ -1557,15 +1581,8 @@ function buildSelectedToken(token: {
     isGeckoterminalOrigin:
       token.source === GECKOTERMINAL_NEW_POOLS_SOURCE ||
       originSource === GECKOTERMINAL_NEW_POOLS_SOURCE,
+    metricsCount: token._count.metrics,
   };
-}
-
-function needsBatchEnrich(token: SelectedToken): boolean {
-  return token.name === null || token.symbol === null;
-}
-
-function isPumpMint(mint: string): boolean {
-  return mint.endsWith("pump");
 }
 
 async function selectTokens(args: Args): Promise<{
@@ -1574,6 +1591,7 @@ async function selectTokens(args: Args): Promise<{
   sinceCutoff: string | null;
   selectedIncompleteCount: number;
   skippedCompleteCount: number;
+  skippedMetricUncoveredCount: number;
   skippedNonPumpCount: number;
 }> {
   if (args.mint) {
@@ -1597,6 +1615,11 @@ async function selectTokens(args: Args): Promise<{
         rescoredAt: true,
         entrySnapshot: true,
         reviewFlagsJson: true,
+        _count: {
+          select: {
+            metrics: true,
+          },
+        },
       },
     });
 
@@ -1612,6 +1635,7 @@ async function selectTokens(args: Args): Promise<{
       sinceCutoff: null,
       selectedIncompleteCount: needsBatchEnrich(selectedToken) ? 1 : 0,
       skippedCompleteCount: 0,
+      skippedMetricUncoveredCount: 0,
       skippedNonPumpCount: 0,
     };
   }
@@ -1642,6 +1666,11 @@ async function selectTokens(args: Args): Promise<{
       rescoredAt: true,
       entrySnapshot: true,
       reviewFlagsJson: true,
+      _count: {
+        select: {
+          metrics: true,
+        },
+      },
     },
   });
 
@@ -1660,19 +1689,20 @@ async function selectTokens(args: Args): Promise<{
 
       return right.id - left.id;
     });
-  const incompleteTokens = recentGeckoTokens.filter(needsBatchEnrich);
-  const pumpEligibleTokens = args.pumpOnly
-    ? incompleteTokens.filter((token) => isPumpMint(token.mint))
-    : incompleteTokens;
-  const selectedTokens = pumpEligibleTokens.slice(0, args.limit);
+  const batchSelection = selectEligibleBatchTokens(recentGeckoTokens, {
+    limit: args.limit,
+    pumpOnly: args.pumpOnly,
+    onlyMetricCovered: args.onlyMetricCovered,
+  });
 
   return {
     mode: "recent_batch",
-    selectedTokens,
+    selectedTokens: batchSelection.selectedTokens,
     sinceCutoff: sinceCutoff.toISOString(),
-    selectedIncompleteCount: selectedTokens.length,
-    skippedCompleteCount: recentGeckoTokens.length - incompleteTokens.length,
-    skippedNonPumpCount: incompleteTokens.length - pumpEligibleTokens.length,
+    selectedIncompleteCount: batchSelection.selectedIncompleteCount,
+    skippedCompleteCount: batchSelection.skippedCompleteCount,
+    skippedMetricUncoveredCount: batchSelection.skippedMetricUncoveredCount,
+    skippedNonPumpCount: batchSelection.skippedNonPumpCount,
   };
 }
 
@@ -1772,6 +1802,7 @@ function buildTokenOutput(token: SelectedToken): ProcessedItem["token"] {
     selectionAnchorAt: token.selectionAnchorAt,
     selectionAnchorKind: token.selectionAnchorKind,
     isGeckoterminalOrigin: token.isGeckoterminalOrigin,
+    metricsCount: token.metricsCount,
   };
 }
 
@@ -2459,6 +2490,7 @@ type BatchExecutionResult = {
   selectedTokens: SelectedToken[];
   selectedIncompleteCount: number;
   skippedCompleteCount: number;
+  skippedMetricUncoveredCount: number;
   skippedNonPumpCount: number;
   items: ProcessedItem[];
   rateLimited: boolean;
@@ -2510,6 +2542,7 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
     selectedTokens: selection.selectedTokens,
     selectedIncompleteCount: selection.selectedIncompleteCount,
     skippedCompleteCount: selection.skippedCompleteCount,
+    skippedMetricUncoveredCount: selection.skippedMetricUncoveredCount,
     skippedNonPumpCount: selection.skippedNonPumpCount,
     items,
     rateLimited,
@@ -2527,6 +2560,7 @@ function logBatchSummary(output: Output): void {
       `selected=${output.summary.selectedCount}`,
       `selectedIncomplete=${output.summary.selectedIncompleteCount}`,
       `skippedComplete=${output.summary.skippedCompleteCount}`,
+      `skippedMetricUncovered=${output.summary.skippedMetricUncoveredCount}`,
       `skippedNonPump=${output.summary.skippedNonPumpCount}`,
       `ok=${output.summary.okCount}`,
       `error=${output.summary.errorCount}`,
@@ -2574,15 +2608,18 @@ async function main(): Promise<void> {
       sinceMinutes: args.mint ? null : args.sinceMinutes,
       sinceCutoff: execution.sinceCutoff,
       pumpOnly: !args.mint && args.pumpOnly,
+      onlyMetricCovered: !args.mint && args.onlyMetricCovered,
       selectedCount: execution.selectedTokens.length,
       selectedIncompleteCount: execution.selectedIncompleteCount,
       skippedCompleteCount: execution.skippedCompleteCount,
+      skippedMetricUncoveredCount: execution.skippedMetricUncoveredCount,
       skippedNonPumpCount: execution.skippedNonPumpCount,
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
       selectedIncompleteCount: execution.selectedIncompleteCount,
       skippedCompleteCount: execution.skippedCompleteCount,
+      skippedMetricUncoveredCount: execution.skippedMetricUncoveredCount,
       skippedNonPumpCount: execution.skippedNonPumpCount,
       okCount: execution.items.filter((item) => item.status === "ok").length,
       errorCount: execution.items.filter((item) => item.status === "error").length,

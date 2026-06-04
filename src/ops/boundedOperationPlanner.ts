@@ -226,6 +226,7 @@ function buildEnrichPendingCommand(options: BoundedOperationPlannerOptions): str
     `--limit ${options.limit}`,
     `--sinceMinutes ${sinceMinutes}`,
     `--interItemDelayMs ${ENRICH_INTER_ITEM_DELAY_MS}`,
+    "--onlyMetricCovered",
     "--write",
   ].join(" ");
 }

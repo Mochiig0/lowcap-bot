@@ -289,6 +289,7 @@ function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
     String(computeSinceMinutes(options)),
     "--interItemDelayMs",
     String(options.interItemDelayMs),
+    "--onlyMetricCovered",
     "--write",
   ];
   const displayArgs = [

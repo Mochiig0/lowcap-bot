@@ -249,11 +249,20 @@ Metric-zero ids `7327..7278` after the drifted write. The already-updated ids
 `7377..7328` are `partial=50` with reviewFlags and GeckoTerminal context, but
 remain `metricsCount=0=50`.
 
-Recommended next slice: **Yellow add Metric-covered guard to enrich selector**.
-Add a batch-only option such as `--onlyMetricCovered` / `--requireMetric` to
-the safe enrich/rescore CLI, update planner/docs command shapes for targeted
-cleanup, and add selector tests. Do not issue another enrich Red until that
-selector can enforce Metric coverage or exact targeting.
+That Yellow selector work is now implemented. `token:enrich-rescore:geckoterminal`
+supports a batch-only `--onlyMetricCovered` guard that preserves default
+selector behavior when omitted and requires `metricsCount>=1` when present.
+Exact `--mint` mode rejects the guard. Phase 2 targeted enrich cleanup and
+bounded post-run enrich command shapes now use:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write
+```
+
+Recommended next slice: **Green guarded targeted enrich preflight**, not an
+unguarded Red. Confirm the guarded selector still selects the intended
+Metric-covered ids, then issue a single human-approved network-enabled Red if
+the DB/notification planners remain clean.
 
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with

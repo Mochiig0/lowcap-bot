@@ -247,6 +247,7 @@ test("post-run plan makes enrich ready after metric pending is clear", () => {
   assert.match(enrichStep?.commandCandidate ?? "", /token:enrich-rescore:geckoterminal/);
   assert.match(enrichStep?.commandCandidate ?? "", /--limit 50/);
   assert.match(enrichStep?.commandCandidate ?? "", /--interItemDelayMs 15000/);
+  assert.match(enrichStep?.commandCandidate ?? "", /--onlyMetricCovered/);
   assert.match(enrichStep?.commandCandidate ?? "", /--write/);
   assert.doesNotMatch(enrichStep?.commandCandidate ?? "", /--notify/);
 });

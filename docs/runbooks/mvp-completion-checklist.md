@@ -136,8 +136,9 @@ These are not MVP blockers:
 - Metaplex hit rate is low
 - Phase 2 targeted cleanup selectors can drift if DB-only simulation does not
   match the write CLI selector semantics. This is an operating-cadence issue,
-  not an MVP completion blocker; it requires Green anomaly review before the
-  next Red.
+  not an MVP completion blocker. The targeted enrich cleanup path now has a
+  batch-only `--onlyMetricCovered` guard for Metric-first cleanup; run Green
+  guarded preflight before the next Red.
 
 ## Next Phase
 
@@ -295,7 +296,8 @@ Second Phase 2 enrich preflight, 2026-06-04:
 - The 420 minute enrich window has drifted clear, but `sinceMinutes=10080`
   selects exactly ids `7427..7378`, all `mint_only`, `metricsCount=1`,
   `score=C/0`, `hardRejected=false`, and without reviewFlags.
-- The next Phase 2 Red candidate is targeted enrich cleanup for those rows in
+- The next Phase 2 Red candidate should use the guarded targeted enrich shape
+  with `--onlyMetricCovered` after a fresh Green preflight in
   network-enabled / out-of-sandbox context. This remains post-MVP cleanup, not
   an MVP blocker.
 
