@@ -441,6 +441,32 @@ Phase 2 watchlist/scoring evidence status review, 2026-06-05:
   Green targeted cleanup preflight; no Red exact command is issued from this
   review.
 
+Phase 2 operating status/cadence review, 2026-06-05:
+
+- Green/docs-only status review is complete on HEAD
+  `7996155 docs: review phase two watchlist status`; the working tree was
+  clean before review and remained docs-only.
+- Current cadence is functioning as intended. Default 24h and requested 6h
+  queue windows are clear: `metricPendingCount=0`,
+  `enrichPendingCount=0`, `staleReviewCount=0`, and
+  `notifyCandidateCount=0`. Rolling 168h still has backlog
+  (`metricPendingCount=160`, `enrichPendingCount=220`,
+  `staleReviewCount=270`), but this is Phase 2 cleanup inventory rather than
+  an urgent MVP or notification blocker.
+- Watchlist boundary remains stable: rolling 168h has `15` B/2 rows, all
+  `partial`, `14` ready and `1` missing Metric. No A/S rows appeared and no
+  row is close to the S-only notification threshold.
+- Notification safety remains locked: failed Notification `0`, retry
+  candidate `0`, disabled/enabled auto-send allowed `0 / 0`, and
+  `notifyCandidateEligibleCount=0`. Telegram auto-send, capture-only B
+  Notification, scheduler, and systemd remain out of scope.
+- Cadence decision: no immediate Red is needed. Use bounded runner only when
+  fresh data collection is desired, use targeted Metric/enrich cleanup only
+  after a fresh Green preflight, and keep watchlist manual review as a
+  report-only evidence lane. The next task can be a Green targeted cleanup
+  preflight if the operator wants more backlog cleanup; otherwise this status
+  review is a safe pause point.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

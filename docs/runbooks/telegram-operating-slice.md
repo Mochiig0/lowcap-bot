@@ -182,6 +182,11 @@ when planner is enabled, and retry candidates remain `0`. Telegram auto-send
 and capture-only B Notification remain out of scope until a real S candidate
 or separately approved notification rehearsal exists.
 
+The Phase 2 status/cadence review keeps that lock in place. Current default
+and requested windows have no notify candidates, rolling 168h has no eligible
+notify candidate, auto-send remains allowed `0 / 0`, and retry remains `0`.
+No Telegram rehearsal or capture-only B Notification is needed at this point.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

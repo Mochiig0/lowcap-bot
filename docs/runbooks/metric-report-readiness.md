@@ -227,6 +227,13 @@ the notification absence is expected. Keep watchlist review read-only and
 report-only; do not tune scoring dictionaries or notification policy from this
 sample.
 
+The Phase 2 status/cadence review confirms report readiness is stable enough
+to pause. Default 24h and requested 6h windows are clear, rolling 168h
+watchlist remains B/2 report-only, and `notifyCandidateCount=0` remains
+expected. More Metric/enrich cleanup can improve coverage, but it is optional
+and should start with a fresh Green targeted cleanup preflight rather than a
+direct Red.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

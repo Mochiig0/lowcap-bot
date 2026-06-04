@@ -334,6 +334,13 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   and notify eligibility remains `0`. Keep B rows report-only and use a
   status/cadence review as the next non-Red step unless the operator
   explicitly wants another cleanup preflight.
+- status/cadence review result: the cadence is working. Default 24h and
+  requested 6h windows are clear, rolling 168h backlog remains as optional
+  cleanup inventory (`metricPending=160`, `enrichPending=220`,
+  `staleReview=270`), and notification planners remain locked
+  (`failed=0`, `retry=0`, auto-send allowed `0 / 0`). No immediate Red is
+  needed. Continue with fresh Green preflight before any targeted cleanup Red,
+  and otherwise use this as a safe pause/status point.
 
 ## Latest Targeted Cleanup Preflight
 

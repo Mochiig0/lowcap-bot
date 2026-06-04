@@ -336,6 +336,19 @@ Recommended next slice: **Phase 2 status/cadence review**. If the operator
 wants more data cleanup instead, run a fresh Green targeted cleanup preflight
 first; do not issue a Red from this watchlist review.
 
+That Phase 2 status/cadence review is now complete. Current 24h and requested
+6h queue windows are clear, while rolling 168h still has cleanup inventory
+(`metricPending=160`, `enrichPending=220`, `staleReview=270`,
+`notifyCandidate=0`). The B watchlist remains report-only at `15` B/2 rows,
+with `14` ready and `1` missing Metric. Notification safety remains unchanged:
+failed Notification `0`, retry candidate `0`, auto-send allowed disabled /
+enabled `0 / 0`, and no eligible notify candidates.
+
+Recommended next slice: **no immediate Red**. Treat this as a Phase 2 pause
+point. If cleanup is desired next, start with a fresh Green targeted cleanup
+preflight; otherwise continue periodic status/watchlist review. Scoring,
+Notification, Telegram, scheduler, and systemd policy remain unchanged.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two
