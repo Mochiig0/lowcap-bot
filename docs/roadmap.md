@@ -374,6 +374,25 @@ Recommended next slice: **do nothing today / status point**. Do not emit a Red
 candidate. Use fresh Green preflight only when cleanup or fresh data collection
 is intentionally requested.
 
+The 12H bounded runner trial preflight is now complete. This is Phase 2
+endurance validation, not an MVP blocker. Current default 24h and requested
+12h queues are clear, rolling 168h remains optional cleanup inventory
+(`metricPending=160`, `enrichPending=220`, `staleReview=270`,
+`notifyCandidate=0`), and notification planners remain closed. The checkpoint
+candidate `/tmp/lowcap-bot-12h-trial-20260605.json` is outside the repo and
+does not exist.
+
+Plan-only output for the fixed 12H runner command returned `readOnly=true`,
+`dryRun=true`, `executeRequested=false`, `computedSinceMinutes=780`,
+`maxIterations=720`, `postRunMetricCycles=2`, `postRunEnrichCycles=2`,
+`blockedBy=[]`, and `stopConditionCodes=[]`. The planned enrich cycles use
+`--onlyMetricCovered`.
+
+Recommended next slice: **human-approved network-enabled / out-of-sandbox 12H
+bounded runner trial Red**, only if the operator can keep PC / WSL / terminal /
+network stable for about 12.5-13h. Do not run it from normal sandbox and do
+not add notification send or scheduler/systemd.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

@@ -358,6 +358,15 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   If the operator wants cleanup or fresh data, start with a fresh Green
   targeted cleanup preflight or bounded runner preflight. Do not jump directly
   to Red from this status point.
+- 12H bounded runner trial preflight result: the fixed plan-only command is
+  valid for an endurance trial. It plans `maxIterations=720`,
+  `computedSinceMinutes=780`, two Metric cycles, two guarded enrich cycles,
+  report review, and notification planner review, with `blockedBy=[]` and
+  `stopConditionCodes=[]`. The checkpoint path is
+  `/tmp/lowcap-bot-12h-trial-20260605.json`; it is outside the repo and does
+  not exist. Run the Red only from network-enabled / out-of-sandbox context,
+  after confirming the machine, WSL, terminal, and network can stay up for
+  about 12.5-13h.
 
 ## Latest Targeted Cleanup Preflight
 

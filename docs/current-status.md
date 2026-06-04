@@ -516,6 +516,46 @@ Phase 2 operating start review, 2026-06-05:
   next task should be a fresh Green targeted cleanup preflight or bounded
   runner preflight, not a direct Red.
 
+Phase 2 12H bounded runner trial preflight, 2026-06-05:
+
+- Green/read-only preflight is complete on HEAD
+  `f622cbd docs: record phase two operating review`; this is a later
+  docs-only commit after the previously known `3f07a41` status point. The
+  working tree was clean before review and this turn stayed docs-only.
+- Current DB state remains Token / Metric / Notification / HolderSnapshot
+  `3383 / 1407 / 22 / 1`; metadata status `mint_only=2401`, `partial=969`,
+  `enriched=13`; Metric buckets `0=2116`, `1=1180`, `2+=87`.
+- Default 24h and requested 12h queues are clear:
+  `metricPending=0`, `enrichPending=0`, `staleReview=0`,
+  `notifyCandidate=0`. Rolling 168h remains optional cleanup inventory:
+  `metricPending=160`, `enrichPending=220`, `staleReview=270`,
+  `notifyCandidate=0`.
+- Watchlist remains `15` B/2 report-only rows, `14` ready and `1` missing
+  Metric. Notification planners remain closed: failed Notification `0`, retry
+  candidate `0`, disabled/enabled auto-send allowed `0 / 0`.
+- Checkpoint path `/tmp/lowcap-bot-12h-trial-20260605.json` is outside the
+  repo, parent `/tmp` exists, and the file does not exist.
+- Plan-only runner passed with `readOnly=true`, `dryRun=true`,
+  `executeRequested=false`, `computedSinceMinutes=780`,
+  `maxIterations=720`, `postRunMetricCycles=2`,
+  `postRunEnrichCycles=2`, `blockedBy=[]`, and `stopConditionCodes=[]`.
+  Planned phases are detect write, two Metric pending cycles, two guarded
+  enrich cycles with `--onlyMetricCovered`, report review, and notification
+  planner review.
+- Red candidate, if separately approved and run in network-enabled /
+  out-of-sandbox context with PC / WSL / terminal / network stable for about
+  12.5-13h:
+  `pnpm -s ops:run:bounded -- --hours 12 --pumpOnly --checkpointFile /tmp/lowcap-bot-12h-trial-20260605.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --maxIterations 720 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+- Expected side effects for that future Red are GeckoTerminal fetches, detect
+  watch up to 12h, Token create/reuse, checkpoint write, Metric write up to
+  `100`, Token enrich/rescore updates up to `100`, and best-effort Metaplex
+  fetch. Expected non-effects remain Notification create/update `0`, Telegram
+  send `0`, HolderSnapshot write `0`, retry execution `0`, auto-send
+  execution `0`, scheduler/systemd `0`, and rawJson full dump `0`.
+- No provider HEAD was run during this preflight; provider reachability should
+  be checked from the intended network-enabled context before the Red if the
+  operator wants that diagnostic.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

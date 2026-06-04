@@ -7738,3 +7738,63 @@ has drifted clear.
 The next bounded-operation-adjacent cleanup, if approved, should be a targeted
 enrich cleanup Red for ids `7427..7378`, not another bounded runner execute and
 not another Metric cleanup first.
+
+## 2026-06-05 Phase 2 12H Bounded Runner Trial Preflight
+
+After personal MVP completion and Phase 2 cadence stabilization, a 12H bounded
+runner trial was preflighted as endurance validation. This is not an MVP
+blocker and does not unlock scheduler/systemd or Telegram auto-send.
+
+Current read-only state at preflight:
+
+- HEAD: `f622cbd docs: record phase two operating review`
+- working tree: clean
+- Token / Metric / Notification / HolderSnapshot:
+  `3383 / 1407 / 22 / 1`
+- metadata status: `mint_only=2401`, `partial=969`, `enriched=13`
+- Metric buckets: `0=2116`, `1=1180`, `2+=87`
+- default 24h and requested 12h queues: `metricPending=0`,
+  `enrichPending=0`, `staleReview=0`, `notifyCandidate=0`
+- rolling 168h queue: `metricPending=160`, `enrichPending=220`,
+  `staleReview=270`, `notifyCandidate=0`
+- watchlist: `15` B/2 rows, `14` ready and `1` missing Metric
+- failed Notification `0`, retry candidate `0`, disabled/enabled auto-send
+  allowed `0 / 0`
+
+Checkpoint:
+
+- path: `/tmp/lowcap-bot-12h-trial-20260605.json`
+- repo outside: yes
+- parent exists: yes
+- file exists: no
+
+Plan-only command:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 12 --pumpOnly --checkpointFile /tmp/lowcap-bot-12h-trial-20260605.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --maxIterations 720 --postRunBufferMinutes 60 --interItemDelayMs 15000
+```
+
+Plan-only result: `readOnly=true`, `dryRun=true`, `executeRequested=false`,
+`computedSinceMinutes=780`, `maxIterations=720`, post-run Metric cycles `2`,
+post-run enrich cycles `2`, `blockedBy=[]`, and `stopConditionCodes=[]`.
+Planned phases are preflight, detect write, two Metric pending snapshot
+cycles, two enrich/rescore cycles with `--onlyMetricCovered`, report review,
+and notification planner review.
+
+Future Red candidate, requiring separate human approval and network-enabled /
+out-of-sandbox context:
+
+```bash
+pnpm -s ops:run:bounded -- --hours 12 --pumpOnly --checkpointFile /tmp/lowcap-bot-12h-trial-20260605.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --maxIterations 720 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute
+```
+
+Expected side effects for that future Red: external GeckoTerminal fetch,
+detect watch up to 12h, Token create/reuse, checkpoint write, Metric write up
+to `100`, Token enrich/rescore updates up to `100`, and best-effort Metaplex
+fetch. Expected non-effects: Notification create/update `0`, Telegram send
+`0`, HolderSnapshot write `0`, retry execution `0`, auto-send execution `0`,
+scheduler/systemd `0`, rawJson full dump `0`.
+
+Before running the Red, confirm provider reachability from the intended
+network-enabled context and confirm the PC, WSL, terminal, and network can
+remain stable for about 12.5-13h.

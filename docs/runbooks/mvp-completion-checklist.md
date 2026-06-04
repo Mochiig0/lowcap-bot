@@ -337,6 +337,10 @@ Second Phase 2 enrich preflight, 2026-06-04:
   Nothing in the current queue, watchlist, or notification planners reopens MVP
   scope. Today's action is no Red / status point; future cleanup or new data
   collection should begin with a fresh Green preflight.
+- The 2026-06-05 12H bounded runner trial preflight is Phase 2 endurance work,
+  not a new MVP completion requirement. The fixed plan-only command passed and
+  the Red candidate is available for separate human approval, but MVP status
+  remains complete-enough regardless of whether the 12H trial is run.
 
 Possible next tasks:
 
