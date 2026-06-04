@@ -318,6 +318,24 @@ preflight for another guarded targeted enrich cleanup; the current read-only
 simulation points at ids `6968..6919` as Metric-covered candidates. Do not use
 the unguarded enrich command for Phase 2 targeted cleanup.
 
+That watchlist/scoring evidence review is now complete. Rolling 168h has
+`15` B-watchlist rows, all `B / 2` and `partial`; `14` are ready for review
+and `1` is missing Metric. ScoreBreakdown is available for all watchlist rows,
+but the evidence is still low-strength: rows remain score `2`, mostly single
+core hits, with no A/S rows, no trend/combo support, and no meaningful
+notification candidate movement. The broader 168h scoreBreakdown aggregate is
+still dominated by animal/meme-style tags with only one learned-pattern hit.
+
+Decision: keep the B watchlist report-only, keep Notification and Telegram
+S-only / locked, and do not add capture-only B Notifications or scoring
+dictionary changes from this sample. `notifyCandidate=0` and
+`notifyCandidateEligibleCount=0` are expected; auto-send allowed remains
+`0 / 0` and retry candidate count remains `0`.
+
+Recommended next slice: **Phase 2 status/cadence review**. If the operator
+wants more data cleanup instead, run a fresh Green targeted cleanup preflight
+first; do not issue a Red from this watchlist review.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

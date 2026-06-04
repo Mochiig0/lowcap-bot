@@ -186,6 +186,12 @@ For the minimum-loop cadence, keep using `--onlyMetricCovered` for targeted
 enrich cleanup, keep B rows report-only, and run another Green preflight before
 any follow-up Red.
 
+The subsequent watchlist/scoring status review found no reason to change that
+cadence. Rolling 168h has `15` B/2 rows, `14` ready and `1` missing Metric,
+but all remain low-strength report-only samples. Notification eligibility is
+`0`, Telegram stays locked, and the next minimum-loop task should be
+status/cadence review unless cleanup is explicitly preferred.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

@@ -176,6 +176,12 @@ new target evidence is still weak (`B / 2 = 1`, `C / 1 = 3`, no A/S and
 `notifyCandidate=0`). Continue treating B rows as report-only, keep Telegram
 locked, and do not add capture-only B Notifications from this sample.
 
+The full 15-row watchlist/scoring status review confirms no Telegram policy
+change. `notifyCandidateEligibleCount=0`, auto-send allowed remains `0` even
+when planner is enabled, and retry candidates remain `0`. Telegram auto-send
+and capture-only B Notification remain out of scope until a real S candidate
+or separately approved notification rehearsal exists.
+
 The 2026-05-27 execute preflight preserved the Telegram boundary. Auto-send
 planner remains allowed `0`, selected Notification `null`; retry planner
 candidate count remains `0`; Notification statuses remain `captured=17`,

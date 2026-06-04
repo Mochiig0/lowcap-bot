@@ -55,6 +55,10 @@ all selected ids matched preflight, all selected rows were Metric-covered, and
 `skippedMetricUncoveredCount=110` was visible. The batch added only weak
 watchlist evidence (`C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`, `hardRejected=0`),
 so bounded-run MVP behavior and notification policy remain unchanged.
+The follow-up 15-row watchlist review keeps bounded-run status unchanged:
+watchlist rows are still B/2 report-only, notify eligibility is `0`, and
+Telegram / auto-send / scheduler/systemd remain locked. More cleanup remains
+optional Phase 2 backlog hygiene, not a bounded-run MVP requirement.
 
 ## 6H Planner
 

@@ -406,6 +406,41 @@ Phase 2 guarded enrich/report review, 2026-06-05:
   `mint_only`, `metricsCount=1`, `C / 0`, and with Notification /
   HolderSnapshot totals `0`.
 
+Phase 2 watchlist/scoring evidence status review, 2026-06-05:
+
+- Green review of the current rolling 168h B-watchlist is complete on HEAD
+  `ebc94b8 docs: review guarded phase two enrich cleanup`; the working tree
+  was clean and all commands stayed read-only / docs-only.
+- Current DB / queue state remains stable: Token / Metric / Notification /
+  HolderSnapshot is `3383 / 1407 / 22 / 1`; metadata status is
+  `mint_only=2401`, `partial=969`, `enriched=13`; Metric buckets are
+  `0=2116`, `1=1180`, `2+=87`. Default 24h has
+  `metricPendingCount=0`, `enrichPendingCount=0`, `notifyCandidateCount=0`;
+  rolling 168h has `metricPendingCount=160`, `enrichPendingCount=220`,
+  `notifyCandidateCount=0`.
+- Watchlist remains report-only: `watchlistCandidateCount=15`, all `B / 2`,
+  all `partial`, `watchlistReadyCount=14`, `watchlistNotReadyCount=1`, with
+  readiness reasons `ready_for_review=14` and `missing_metric=1`. Metric
+  coverage is `metricsCount=1` for `14` rows and `metricsCount=0` for `1`
+  row.
+- ScoreBreakdown is available for all watchlist rows. Evidence is still weak:
+  each visible B row is score `2`, mostly one core source hit; aggregate tags
+  remain dominated by low-strength animal/meme-style evidence, with no trend
+  or combo contribution and only one learned-pattern hit in the broader 168h
+  scoreBreakdown aggregate.
+- Notification policy should not change. `notifyCandidateCount=0`,
+  `notifyCandidateEligibleCount=0`, and blocker distribution remains
+  rank-based (`rank_not_s`, plus existing hardRejected blockers outside the
+  watchlist). Auto-send planner allowed candidates stay `0` whether disabled
+  or enabled, retry planner candidate count is `0`, and Telegram remains
+  locked.
+- Decision: do not tune scoring dictionaries, do not add capture-only B
+  Notifications, and do not change Telegram / Notification policy from this
+  evidence. Keep B rows report-only. Next Phase 2 task should be a
+  status/cadence review or, if data cleanup is explicitly preferred, a fresh
+  Green targeted cleanup preflight; no Red exact command is issued from this
+  review.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

@@ -218,6 +218,15 @@ policy changes. Keep the B watchlist report-only, keep `notifyCandidate=0` as
 expected under the S-only rule, and continue using `--onlyMetricCovered` for
 any further Phase 2 targeted enrich cleanup.
 
+The full 15-row watchlist review confirms the same report-readiness boundary.
+Rolling 168h has `15` B/2 rows, `14` ready and `1` missing Metric, with
+scoreBreakdown available for all watchlist rows. The rows remain score `2`,
+mostly single core-hit samples, with no trend/combo support and no A/S
+candidate. `notifyCandidateEligibleCount=0` and `rank_not_s` blockers mean
+the notification absence is expected. Keep watchlist review read-only and
+report-only; do not tune scoring dictionaries or notification policy from this
+sample.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

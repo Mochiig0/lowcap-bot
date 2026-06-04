@@ -327,6 +327,13 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   S-only. If cleanup continues, use another fresh Green guarded preflight;
   current guarded simulation selects ids `6968..6919` as the next
   Metric-covered cleanup batch.
+- watchlist/status review result: rolling 168h now has `15` B/2 watchlist
+  rows, `14` ready and `1` missing Metric. This is useful as a report-only
+  manual review surface, but not enough for scoring or notification changes:
+  no row is A/S, scoreTotal remains `2`, evidence is mostly single core hits,
+  and notify eligibility remains `0`. Keep B rows report-only and use a
+  status/cadence review as the next non-Red step unless the operator
+  explicitly wants another cleanup preflight.
 
 ## Latest Targeted Cleanup Preflight
 

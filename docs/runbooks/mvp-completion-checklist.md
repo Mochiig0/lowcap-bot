@@ -318,6 +318,11 @@ Second Phase 2 enrich preflight, 2026-06-04:
   evidence only; personal MVP status remains complete-enough and no scoring,
   notification, Telegram, scheduler, or systemd policy changes are included in
   the MVP declaration.
+- The follow-up watchlist/scoring evidence review keeps the same MVP decision.
+  Rolling 168h has `15` B/2 rows, `14` ready and `1` missing Metric, but the
+  evidence remains report-only and below A/S or notification thresholds. The
+  next work is Phase 2 status/cadence review or an explicit cleanup preflight,
+  not an MVP blocker.
 
 Possible next tasks:
 
