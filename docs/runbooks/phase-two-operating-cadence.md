@@ -300,6 +300,23 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   `0`, and `skippedMetricUncoveredCount=110`. The next cleanup Red can be the
   guarded enrich command shape above, with network-enabled / out-of-sandbox
   execution and human approval.
+- guarded cleanup result: the approved Red used the guarded command shape and
+  selected the intended ids `7018..6969`; `selection.onlyMetricCovered=true`
+  and `skippedMetricUncoveredCount=110` confirmed the Metric-covered guard was
+  active. It completed `selected=50`, `ok=50`, `error=0`,
+  `enrichWriteCount=50`, `rescoreWriteCount=50`, `contextWriteCount=50`,
+  `metaplexAttemptedCount=50`, `metaplexAvailableCount=0`,
+  `notifyWouldSendCount=0`, and `notifySentCount=0`. Counts stayed
+  `3383 / 1407 / 22 / 1`; metadata moved to `mint_only=2401`,
+  `partial=969`, `enriched=13`; Metric buckets stayed `0=2116`, `1=1180`,
+  `2+=87`.
+- selected rows moved `mint_only -> partial`, retained `metricsCount=1`, and
+  now have reviewFlags, scoreBreakdown, GeckoTerminal context, and one latest
+  Metric. Score distribution is `C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`,
+  `hardRejected=0`. Notification / Telegram, Metric writes, HolderSnapshot
+  writes, retry, auto-send, scheduler/systemd, and rawJson dumps stayed `0`.
+- next cadence step: Green post-run guarded enrich/report review and lane
+  decision before another Red.
 
 ## Latest Targeted Cleanup Preflight
 

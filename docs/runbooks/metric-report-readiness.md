@@ -186,6 +186,29 @@ HolderSnapshot totals `0`, and `skippedMetricUncoveredCount=110`. The next
 report-readiness Red candidate is the guarded targeted enrich cleanup command,
 not the unguarded enrich command and not another Metric cleanup.
 
+Guarded enrich cleanup result, 2026-06-05: the approved network-enabled /
+out-of-sandbox safe enrich Red used `--onlyMetricCovered` and processed the
+intended ids `7018..6969`. The run reported
+`selection.onlyMetricCovered=true`, `skippedMetricUncoveredCount=110`,
+`selected=50`, `ok=50`, `error=0`, `enrichWriteCount=50`,
+`rescoreWriteCount=50`, `contextWriteCount=50`,
+`metaplexAttemptedCount=50`, `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`.
+
+Reportability improved without Metric, Notification, HolderSnapshot, or
+Telegram side effects. Counts stayed Token / Metric / Notification /
+HolderSnapshot `3383 / 1407 / 22 / 1`; metadata status moved to
+`mint_only=2401`, `partial=969`, `enriched=13`; Metric buckets stayed
+`0=2116`, `1=1180`, `2+=87`. All selected rows are now `partial`, retain
+`metricsCount=1`, have reviewFlags / scoreBreakdown / GeckoTerminal context,
+and have selected Notification / HolderSnapshot totals `0`.
+
+Score distribution is `C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`, with
+`hardRejected=0`. Rolling 168h watchlist is now `15` B/2 rows, `14` ready and
+`1` missing Metric. `notifyCandidateCount=0` remains expected. The next
+report-readiness task should be Green post-run guarded enrich/report review
+and lane decision before another write.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

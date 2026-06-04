@@ -300,6 +300,16 @@ Second Phase 2 enrich preflight, 2026-06-04:
   with `--onlyMetricCovered` after a fresh Green preflight in
   network-enabled / out-of-sandbox context. This remains post-MVP cleanup, not
   an MVP blocker.
+- The first guarded targeted enrich cleanup using `--onlyMetricCovered` is now
+  complete. It selected the intended ids `7018..6969`,
+  `selection.onlyMetricCovered=true`, `skippedMetricUncoveredCount=110`,
+  `selected=50`, `ok=50`, `error=0`, and moved the rows
+  `mint_only -> partial` while keeping Metric / Notification /
+  HolderSnapshot counts `3383 / 1407 / 22 / 1` unchanged.
+- Notification / Telegram, Metric writes, HolderSnapshot writes, retry,
+  auto-send, scheduler/systemd, and rawJson dumps stayed locked during the
+  guarded cleanup. The next task is Green post-run guarded enrich/report
+  review, not automatic continuation.
 
 Possible next tasks:
 

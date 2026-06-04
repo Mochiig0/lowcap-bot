@@ -158,6 +158,26 @@ HolderSnapshot total `0`, and `skippedMetricUncoveredCount=110`. The next
 minimum-loop Red may use the guarded command above in network-enabled /
 out-of-sandbox context after human approval.
 
+The guarded targeted enrich cleanup succeeded. The safe enrich/rescore command
+included `--onlyMetricCovered`, ran exactly once in the approved
+network-enabled / out-of-sandbox context, and selected the intended ids
+`7018..6969`. Output confirmed `selection.onlyMetricCovered=true`,
+`skippedMetricUncoveredCount=110`, `selected=50`, `ok=50`, `error=0`,
+`enrichWriteCount=50`, `rescoreWriteCount=50`, `contextWriteCount=50`,
+`metaplexAttemptedCount=50`, `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`.
+
+Counts stayed Token / Metric / Notification / HolderSnapshot
+`3383 / 1407 / 22 / 1`; metadata status moved to `mint_only=2401`,
+`partial=969`, `enriched=13`; Metric buckets stayed `0=2116`, `1=1180`,
+`2+=87`. The selected rows moved to `metadataStatus=partial`, kept
+`metricsCount=1`, and now have `enrichedAt`, `rescoredAt`, reviewFlags,
+scoreBreakdown, and GeckoTerminal context for `50 / 50`. Score distribution is
+`C / 0 = 46`, `C / 1 = 3`, `B / 2 = 1`, with `hardRejected=0`. Notification /
+Telegram, Metric writes, HolderSnapshot writes, retry, auto-send,
+scheduler/systemd, and rawJson full dump stayed `0`. The next minimum-loop
+step is Green post-run guarded enrich/report review and lane decision.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and
