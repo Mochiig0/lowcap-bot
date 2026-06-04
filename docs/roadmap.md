@@ -189,6 +189,28 @@ lane decision**. Do not automatically run another Red; first verify the 50
 enriched rows and decide between more Metric cleanup, more enrich cleanup,
 watchlist manual review, or status/docs review.
 
+That Green review is now complete. Target ids `7427..7378` are all `partial`
+with reviewFlags, scoreBreakdown, GeckoTerminal context, one latest Metric,
+and no Notification or HolderSnapshot rows. Existing Metric ids `2467..2516`
+remain latest and rawJson-free safe checks show price / FDV / reserve /
+top-pool presence for all 50. Score distribution is `C / 0 = 48`,
+`C / 1 = 2`, and `hardRejected=0`.
+
+The two `C / 1` rows are ids `7427` and `7413`; safe aggregate evidence is
+only a single-point `core` / `meme` hit pattern, so it does not justify
+scoring dictionary or notification policy changes. No target row entered the
+B watchlist. Rolling 168h watchlist remains `13` ready `B / 2` report-only
+rows, and `notifyCandidate=0` is expected because blockers remain
+`rank_not_s`.
+
+Recommended next slice: **Phase 2 targeted enrich cleanup Red** only if the
+operator wants more data progress. DB-only simulation shows clean
+Metric-covered ids `7018..6969`, all `mint_only`, `metricsCount=1`, `C / 0`,
+non-hard-rejected, without reviewFlags, and with Notification / HolderSnapshot
+counts `0`. A fresh human-approved Red should use the safe enrich alias with
+`--limit 50 --sinceMinutes 10080` in network-enabled / out-of-sandbox context.
+If no runtime progress is needed, choose status/docs review instead.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

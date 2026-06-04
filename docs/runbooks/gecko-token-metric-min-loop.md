@@ -102,6 +102,20 @@ retry, auto-send, scheduler/systemd, and rawJson full dump stayed `0`. The
 next minimum-loop step is Green post-run enrich/report review and lane
 decision.
 
+That Green review is now complete. Representative ids `7427`, `7403`, and
+`7378` are `partial`, have enrichment / rescore timestamps, reviewFlags,
+scoreBreakdown, GeckoTerminal context, one latest Metric, no Notification
+rows, and no HolderSnapshot rows. Latest Metric ids `2467`, `2491`, and
+`2516` expose safe price / FDV / reserve / top-pool booleans without rawJson.
+
+The target aggregate remains `C / 0 = 48`, `C / 1 = 2`, and
+`hardRejected=0`. The `C / 1` rows are ids `7427` and `7413`, with only
+low-strength `core` / `meme` score evidence. No selected row entered the B
+watchlist, and notify blockers remain `rank_not_s`. For the next
+minimum-loop cleanup, DB-only simulation shows clean Metric-covered
+`mint_only` ids `7018..6969`; if another Red is approved, targeted enrich
+cleanup is the preferred lane over another Metric cleanup.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

@@ -159,6 +159,45 @@ Phase 2 targeted enrich cleanup continuation, 2026-06-04:
   `0`. Next operating step should be Green post-run enrich/report review and
   lane decision before any additional Red.
 
+Phase 2 targeted enrich cleanup review, 2026-06-04:
+
+- The post-run enrich/report review is complete on HEAD
+  `9e9a16c docs: record phase two enrich cleanup` with a clean working tree.
+  This pass was read-only / docs-only: no Red, no Metric write, no Token
+  enrich/rescore write, no bounded execute, no detect write/watch, no
+  notification send, no retry, no auto-send, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson dump.
+- DB state remains Token / Metric / Notification / HolderSnapshot
+  `3383 / 1407 / 22 / 1`; metadata status remains `mint_only=2501`,
+  `partial=869`, `enriched=13`; Metric buckets remain `0=2116`, `1=1180`,
+  `2+=87`.
+- Target ids `7427..7378` are confirmed `partial` with `enrichedAt`,
+  `rescoredAt`, reviewFlags, scoreBreakdown, and GeckoTerminal context present
+  for `50 / 50`. Existing Metric ids `2467..2516` remain latest, with
+  price / FDV / reserve / top-pool presence for `50 / 50`; selected
+  Notification total and HolderSnapshot total remain `0`.
+- Target score distribution is `C / 0 = 48`, `C / 1 = 2`, and
+  `hardRejected=0`. The two `C / 1` rows are ids `7427` and `7413`; safe
+  scoreBreakdown aggregate shows only `core` / `meme` single-point evidence.
+  No target row entered the B watchlist.
+- Current queue/planner state: default 24h and requested 6h queues are clear
+  after time drift; rolling 168h has `metricPendingCount=160`,
+  `enrichPendingCount=320`, `notifyCandidateCount=0`. Rolling 168h watchlist
+  has `13` rows, all `B / 2`, all ready, report-only. Disabled/enabled
+  auto-send allowed remains `0 / 0`, retry candidate remains `0`, and failed
+  Notification remains `0`.
+- `notifyCandidate=0` is expected: the planner remains S-only for notification
+  eligibility, while the reviewed target rows are below S and blocked by
+  `rank_not_s`.
+- Read-only next-lane checks show both cleanup lanes are possible:
+  `sinceMinutes=10080` enrich simulation selects clean ids `7018..6969`, all
+  `mint_only`, `metricsCount=1`, `C / 0`, non-hard-rejected, without
+  reviewFlags, and with Notification / HolderSnapshot counts `0`; safe Metric
+  preview selects clean Metric-zero ids `7377..7328`. Because Metric-covered
+  enrich candidates are available, the recommended next Red lane, if more data
+  progress is approved, is targeted enrich cleanup. Do not change scoring or
+  notification policy from the current `C / 1` evidence.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

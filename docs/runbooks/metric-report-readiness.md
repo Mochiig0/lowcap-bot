@@ -126,6 +126,25 @@ remains `0`. Rolling 168h is now `metricPending=160`, `enrichPending=320`,
 The next report-readiness task should be Green post-run enrich/report review
 and lane decision before another write.
 
+That post-run review is complete. Representative ids `7427`, `7403`, and
+`7378` are `partial`, have reviewFlags / scoreBreakdown / GeckoTerminal
+context present, have one latest Metric, and retain Notification /
+HolderSnapshot counts `0`. Latest Metric ids `2467`, `2491`, and `2516`
+remain rawJson-free reportable with price / FDV / reserve / top-pool presence.
+
+The target score distribution remains `C / 0 = 48`, `C / 1 = 2`, with
+`hardRejected=0`. The two `C / 1` rows are ids `7427` and `7413`; safe
+scoreBreakdown aggregate shows only low-strength `core` / `meme` evidence.
+No target row entered watchlist, and all target rows remain below notification
+eligibility with `rank_not_s`.
+
+Current watchlist remains `13` ready `B / 2` rows, report-only. This review
+does not justify scoring dictionary changes, capture-only B Notifications, or
+notification policy changes. If more reportability is desired, the next clean
+cleanup lane is targeted enrich: DB-only simulation selects ids `7018..6969`,
+all `mint_only`, `metricsCount=1`, `C / 0`, non-hard-rejected, with no
+Notification or HolderSnapshot rows.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

@@ -269,8 +269,13 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
 - selected rows moved `mint_only -> partial`; all have reviewFlags,
   scoreBreakdown, GeckoTerminal context, and one latest Metric; score
   distribution is `C / 0 = 48`, `C / 1 = 2`, with `hardRejected=0`
-- next cadence step: Green post-run enrich/report review and lane decision
-  before another Red
+- latest post-run review: ids `7427..7378` are reportable and safe, but the
+  two `C / 1` rows only add low-strength `core` / `meme` evidence; no target
+  row entered the B watchlist and `notifyCandidate=0` remains expected
+- next cadence step: targeted enrich cleanup is the preferred Red lane if more
+  data progress is wanted, because clean Metric-covered `mint_only` candidates
+  remain available; status/docs review is acceptable if no immediate cleanup
+  is needed
 
 ## Latest Targeted Cleanup Preflight
 
@@ -308,11 +313,11 @@ because the current enrich selection would hit Metric-zero rows first.
 The next task should be Green post-run enrich/report review for ids
 `7427..7378`.
 
-That review should confirm the selected rows are reportable, check whether the
-two `C / 1` rows add useful evidence, review watchlist and blockers, and then
-choose one next lane: more targeted Metric cleanup, more targeted enrich
-cleanup, watchlist manual review, or status/docs review.
+That review is now complete. The selected rows are reportable, the two
+`C / 1` rows do not add enough evidence for scoring or notification changes,
+and watchlist remains B/2 report-only.
 
-Do not run notification rehearsal, scoring dictionary edits, another Red, or
-scheduler/systemd work from the current B/2/C evidence without a fresh Green
-review and separate approval.
+If more cleanup is desired, run a fresh human-approved targeted enrich cleanup
+Red for the next clean Metric-covered rows. Do not run notification rehearsal,
+scoring dictionary edits, another Red, or scheduler/systemd work from the
+current B/2/C evidence without a fresh Green review and separate approval.
