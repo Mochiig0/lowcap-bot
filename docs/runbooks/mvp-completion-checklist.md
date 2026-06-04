@@ -174,6 +174,21 @@ First Phase 2 cleanup execution, 2026-06-03:
   improvement. The next task should be Green review / targeted enrich
   preflight, not automatic continuation.
 
+Phase 2 cleanup continuation, 2026-06-04:
+
+- A later targeted Metric cleanup for ids `7427..7378` created Metric ids
+  `2467..2516` and moved the selected rows to `metricsCount=1`.
+- The follow-up targeted enrich cleanup then moved the same ids
+  `7427..7378` from `mint_only` to `partial`.
+- The enrich run wrote Token enrich/rescore/context/reviewFlags updates for
+  `50 / 50`, attempted Metaplex for `50`, saved Metaplex context for `2`,
+  and kept Metric / Notification / HolderSnapshot counts unchanged.
+- Resulting score distribution was `C / 0 = 48`, `C / 1 = 2`, with
+  `hardRejected=0`.
+- Notification / Telegram, retry, auto-send, scheduler/systemd, and rawJson
+  full dumps stayed locked. This remains Phase 2 quality cleanup, not a new
+  MVP requirement.
+
 First Phase 2 enrich preflight, 2026-06-04:
 
 - Post-run Metric review confirmed the Metric cleanup rows are report-readable

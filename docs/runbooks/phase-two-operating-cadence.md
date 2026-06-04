@@ -241,31 +241,36 @@ pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --since
 
 ## Current Known State Snapshot
 
-Snapshot after the 2026-06-04 targeted Metric cleanup continuation:
+Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
 
-- HEAD before Red: `31dadbf docs: preflight phase two targeted cleanup`
+- HEAD before Red: `9467a6b docs: preflight phase two enrich cleanup`
 - working tree before Red: clean
 - Token / Metric / Notification / HolderSnapshot:
   `3383 / 1407 / 22 / 1`
-- metadata status: `mint_only=2551`, `partial=819`, `enriched=13`
+- metadata status: `mint_only=2501`, `partial=869`, `enriched=13`
 - Metric buckets: `0=2116`, `1=1180`, `2+=87`
-- default 24h queue: `metricPending=160`, `enrichPending=210`,
+- default 24h queue: `metricPending=0`, `enrichPending=0`,
+  `notifyCandidate=0` after time-window drift
+- rolling 168h queue: `metricPending=160`, `enrichPending=320`,
   `notifyCandidate=0`
-- rolling 168h queue: `metricPending=160`, `enrichPending=370`,
-  `notifyCandidate=0`
+- rolling 168h watchlist: `13` rows, all `B / 2`, all ready, report-only
 - disabled/enabled auto-send allowed: `0 / 0`
 - retry candidate: `0`
 - failed Notification: `0`
 - latest targeted Metric cleanup: selected ids `7427..7378`, Metric ids
   `2467..2516`, `selected=50`, `ok=50`, `written=50`, `error=0`,
   `providerErrorCount=0`, and all selected rows moved to `metricsCount=1`
-- latest targeted enrich preflight: `sinceMinutes=420` selected `0`; the
-  rolling `sinceMinutes=10080` simulation selected exactly ids `7427..7378`,
-  all `mint_only`, `metricsCount=1`, `C / 0`, non-hard-rejected, without
-  reviewFlags, and with Notification / HolderSnapshot counts `0`
-- next cadence step: targeted enrich cleanup Red for ids `7427..7378` if
-  separately approved, network-enabled / out-of-sandbox, safe alias, no
-  `--notify`
+- latest targeted enrich cleanup: selected ids `7427..7378`,
+  `selected=50`, `ok=50`, `error=0`, `enrichWriteCount=50`,
+  `rescoreWriteCount=50`, `contextWriteCount=50`,
+  `metaplexAttemptedCount=50`, `metaplexAvailableCount=2`,
+  `notifyWouldSendCount=0`, `notifySentCount=0`, and
+  `interItemDelayCount=49`
+- selected rows moved `mint_only -> partial`; all have reviewFlags,
+  scoreBreakdown, GeckoTerminal context, and one latest Metric; score
+  distribution is `C / 0 = 48`, `C / 1 = 2`, with `hardRejected=0`
+- next cadence step: Green post-run enrich/report review and lane decision
+  before another Red
 
 ## Latest Targeted Cleanup Preflight
 
@@ -300,19 +305,14 @@ because the current enrich selection would hit Metric-zero rows first.
 
 ## Next Recommended Task
 
-The next task should be a human-approved targeted Metric cleanup Red if the
-operator wants more data progress:
+The next task should be Green post-run enrich/report review for ids
+`7427..7378`.
 
-```bash
-pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
-```
+That review should confirm the selected rows are reportable, check whether the
+two `C / 1` rows add useful evidence, review watchlist and blockers, and then
+choose one next lane: more targeted Metric cleanup, more targeted enrich
+cleanup, watchlist manual review, or status/docs review.
 
-Required context is network-enabled / out-of-sandbox. Expected effects are
-external GeckoTerminal fetch up to `50`, Metric write up to `50`, and selected
-Tokens moving `metricsCount=0 -> 1`. Expected non-effects are Token write `0`,
-Notification create/update/send `0`, HolderSnapshot write `0`, Telegram send
-`0`, retry / auto-send / scheduler/systemd `0`, and rawJson full dump `0`.
-
-If no runtime data progress is needed, keep the next task as report/status
-review. Do not run notification rehearsal, scoring dictionary edits, or
-scheduler/systemd work from the current B/2 watchlist evidence.
+Do not run notification rehearsal, scoring dictionary edits, another Red, or
+scheduler/systemd work from the current B/2/C evidence without a fresh Green
+review and separate approval.

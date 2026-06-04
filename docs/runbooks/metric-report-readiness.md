@@ -105,6 +105,27 @@ drift, but selects exactly ids `7427..7378` with `sinceMinutes=10080`. This is
 a clean targeted enrich candidate for improving reportability; it should be a
 separate network-enabled / out-of-sandbox Red with no `--notify`.
 
+Targeted enrich cleanup continuation, 2026-06-04: the approved
+network-enabled / out-of-sandbox safe enrich Red processed ids `7427..7378`.
+It selected `50`, completed `ok=50` with `error=0`, and wrote Token
+enrich/rescore/context updates for all selected rows. Token / Metric /
+Notification / HolderSnapshot counts stayed `3383 / 1407 / 22 / 1`, while
+metadata status moved to `mint_only=2501`, `partial=869`, `enriched=13`.
+
+All selected rows are now `partial` with enrichment / rescore timestamps,
+reviewFlags, scoreBreakdown, and GeckoTerminal context present. Existing
+Metric ids `2467..2516` remain the latest rows and rawJson-free safe
+aggregation confirms price / FDV / reserve / top-pool presence for `50 / 50`.
+Metaplex context is present for `2 / 50`. Score distribution is
+`C / 0 = 48`, `C / 1 = 2`; `hardRejected=0`.
+
+Selected Notification total and HolderSnapshot total stayed `0`, no
+Notification or Telegram execution occurred, and `notifyCandidateCount`
+remains `0`. Rolling 168h is now `metricPending=160`, `enrichPending=320`,
+`notifyCandidate=0`; watchlist remains `13` ready `B / 2` report-only rows.
+The next report-readiness task should be Green post-run enrich/report review
+and lane decision before another write.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

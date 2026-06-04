@@ -83,6 +83,25 @@ reviewFlags, and all with Notification / HolderSnapshot counts `0`.
 approved, is targeted enrich cleanup for this same range with the safe
 token enrich/rescore alias and no `--notify`.
 
+That targeted enrich cleanup continuation succeeded. The safe enrich/rescore
+command ran exactly once in the approved network-enabled / out-of-sandbox
+context, selected ids `7427..7378`, and returned `selected=50`, `ok=50`,
+`error=0`, `enrichWriteCount=50`, `rescoreWriteCount=50`,
+`contextWriteCount=50`, `metaplexAttemptedCount=50`,
+`metaplexAvailableCount=2`, `notifyWouldSendCount=0`, `notifySentCount=0`,
+`rateLimited=false`, and `interItemDelayCount=49`. Counts stayed Token /
+Metric / Notification / HolderSnapshot `3383 / 1407 / 22 / 1`; metadata
+status moved to `mint_only=2501`, `partial=869`, `enriched=13`.
+
+The selected rows moved to `metadataStatus=partial`, now have `enrichedAt`,
+`rescoredAt`, reviewFlags, scoreBreakdown, and GeckoTerminal context for
+`50 / 50`, and retained latest Metric ids `2467..2516`. Metaplex context is
+present for `2 / 50`. Score distribution is `C / 0 = 48`, `C / 1 = 2`, with
+`hardRejected=0`. Notification / Telegram, Metric write, HolderSnapshot write,
+retry, auto-send, scheduler/systemd, and rawJson full dump stayed `0`. The
+next minimum-loop step is Green post-run enrich/report review and lane
+decision.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

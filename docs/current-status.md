@@ -118,6 +118,47 @@ Phase 2 targeted enrich cleanup preflight, 2026-06-04:
   create/update/send `0`, HolderSnapshot write `0`, Telegram send `0`, retry
   / auto-send / scheduler/systemd `0`, and rawJson full dump `0`.
 
+Phase 2 targeted enrich cleanup continuation, 2026-06-04:
+
+- The repo-local Red safety Skill was applied and the approved
+  network-enabled / out-of-sandbox safe enrich cleanup command ran exactly
+  once:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --interItemDelayMs 15000 --write`.
+- Expected HEAD `9467a6b docs: preflight phase two enrich cleanup` matched
+  and the working tree was clean before execution. Provider HEAD reached
+  GeckoTerminal from the approved network context. No second Red, retry, or
+  fallback command was run.
+- Result: selected ids `7427..7378`, `selected=50`, `ok=50`, `error=0`,
+  `enrichWriteCount=50`, `rescoreWriteCount=50`, `contextWriteCount=50`,
+  `metaplexAttemptedCount=50`, `metaplexAvailableCount=2`,
+  `metaplexWriteCount=2`, `metaplexErrorKindCounts={metadata_account_missing:48}`,
+  `rateLimited=false`, `rateLimitedCount=0`, `notifyWouldSendCount=0`,
+  `notifySentCount=0`, and `interItemDelayCount=49`.
+- Counts stayed Token / Metric / Notification / HolderSnapshot
+  `3383 / 1407 / 22 / 1`. Metadata status moved from
+  `mint_only=2551`, `partial=819`, `enriched=13` to
+  `mint_only=2501`, `partial=869`, `enriched=13`. Metric buckets stayed
+  `0=2116`, `1=1180`, `2+=87`.
+- All selected rows moved `mint_only -> partial` and now have
+  `enrichedAt`, `rescoredAt`, reviewFlags, scoreBreakdown, and
+  GeckoTerminal context present for `50 / 50`. Metaplex context is present
+  for `2 / 50`. Score distribution is `C / 0 = 48`, `C / 1 = 2`;
+  `hardRejected=0`.
+- Existing Metric ids `2467..2516` remain the latest Metrics for the selected
+  rows. RawJson-free safe summary confirms price / FDV / reserve / top-pool
+  presence for `50 / 50`. Selected Notification total and HolderSnapshot
+  total stayed `0`.
+- Queue after: default 24h and requested 6h windows are currently clear due
+  time drift, while rolling 168h has `metricPendingCount=160`,
+  `enrichPendingCount=320`, and `notifyCandidateCount=0`. Watchlist 168h has
+  `13` rows, all `B / 2`, all ready, report-only. Disabled/enabled auto-send
+  allowed stayed `0 / 0`, retry candidate stayed `0`, and failed
+  Notification stayed `0`.
+- Notification / Telegram, Metric writes, HolderSnapshot writes, retry,
+  auto-send, scheduler/systemd, `pnpm smoke`, and rawJson full dumps stayed
+  `0`. Next operating step should be Green post-run enrich/report review and
+  lane decision before any additional Red.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved
