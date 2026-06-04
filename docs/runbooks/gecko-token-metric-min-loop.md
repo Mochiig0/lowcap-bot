@@ -133,6 +133,16 @@ match the original Metric-covered enrich preflight. The next minimum-loop task
 must be Green anomaly review of the CLI selector before any further targeted
 cleanup Red.
 
+That anomaly review found the cause: `token:enrich-rescore:geckoterminal`
+batch mode does not require `metricsCount>=1`. It selects GeckoTerminal-origin
+tokens missing `name` or `symbol`, sorts newest first by
+`firstSeenSourceSnapshot.detectedAt` or `Token.createdAt`, applies
+`--pumpOnly`, and slices to `--limit`. The previous preflight selected
+`7018..6969` only because it added an extra Metric-covered condition. The
+minimum-loop cleanup should now pause targeted enrich Red until a batch-only
+Metric-covered guard such as `--onlyMetricCovered` is implemented, documented,
+and covered by selector tests.
+
 Latest 168h enrich continuation, 2026-06-03: after five successful
 network-enabled Metric backlog batches and several small enrich/rescore
 batches, the latest approved safe enrich Red selected ids `7028..7019` and

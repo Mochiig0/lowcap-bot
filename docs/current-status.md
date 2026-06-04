@@ -241,6 +241,46 @@ Phase 2 targeted enrich cleanup selector drift, 2026-06-04:
   run Metric cleanup for the mistakenly enriched Metric-zero rows. Do not run
   the intended `7018..6969` enrich Red until this selector drift is explained.
 
+Phase 2 selector drift review, 2026-06-04:
+
+- The selector drift review is complete on HEAD
+  `f7b3657 docs: record phase two enrich cleanup` with a clean working tree.
+  This pass was read-only / docs-only: no Red, no Metric write, no
+  enrich/rescore write, no bounded execute, no detect write/watch, no
+  notification send, no retry, no auto-send, no scheduler/systemd, no
+  `pnpm smoke`, and no rawJson dump.
+- Likely cause: the preflight simulation used an operational Metric-covered
+  selector, while the write CLI uses its own `recent_batch` selector. The CLI
+  selects recent GeckoTerminal-origin tokens whose `name` or `symbol` is
+  missing, optionally narrows to pump mints, and sorts by
+  `firstSeenSourceSnapshot.detectedAt` when present, otherwise
+  `Token.createdAt`, newest first. It does not require `metricsCount>=1`.
+- Source inspection confirms `needsBatchEnrich` is `name === null ||
+  symbol === null`, and the batch query does not select or filter Metric
+  counts. `--sinceMinutes` is evaluated at execution time with `Date.now()`,
+  and `--pumpOnly` only filters mint strings ending in `pump`; it does not
+  change ordering or require Metric coverage.
+- DB-only simulation confirms the mismatch. The previous Metric-covered
+  assumption still selects ids `7018..6969`, all `mint_only`,
+  `metricsCount=1`, `C / 0`, no reviewFlags, no Notification, and no
+  HolderSnapshot. The current CLI-like selector, after the drifted write,
+  selects ids `7327..7278`, all `mint_only`, `metricsCount=0`, `C / 0`, no
+  reviewFlags, no Notification, and no HolderSnapshot. The actual drifted
+  batch `7377..7328` now sits between those states as `partial=50` but
+  `metricsCount=0=50`.
+- Queue/planner state remains safe: default 24h is clear; rolling 168h has
+  `metricPendingCount=160`, `enrichPendingCount=270`,
+  `notifyCandidateCount=0`; watchlist is `14` B/2 rows with `13` ready and
+  `1` missing Metric; disabled/enabled auto-send allowed is `0 / 0`, retry
+  candidate is `0`, and failed Notification is `0`.
+- Recommendation: do not run another enrich Red with the current selector for
+  Phase 2 cleanup. The first next task should be a Yellow implementation to
+  add a batch-only Metric-covered guard, e.g. `--onlyMetricCovered` or
+  `--requireMetric`, to `token:enrich-rescore:geckoterminal:safe` and update
+  planners/docs to use it for targeted enrich cleanup. Second choice is an
+  exact id/range selector, but that is broader than needed. No Red exact
+  command is issued from this review.
+
 Phase 2 targeted enrich cleanup, 2026-06-04:
 
 - The repo-local Red safety Skill was applied and the approved

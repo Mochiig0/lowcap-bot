@@ -235,6 +235,26 @@ Red. Compare the DB-only simulation with the CLI `recent_batch` selector,
 decide whether to repair the preflight method or run Metric cleanup for
 `7377..7328`, and only then choose the next cleanup lane.
 
+That selector-drift review is now complete. Source inspection found that
+`token:enrich-rescore:geckoterminal` recent batch mode selects GeckoTerminal
+origin rows still missing `name` or `symbol`, sorts by
+`firstSeenSourceSnapshot.detectedAt` or `Token.createdAt` newest first, then
+applies `--pumpOnly` and `--limit`. It does not inspect Metric count. The
+preflight simulation that produced ids `7018..6969` added an operational
+`metricsCount>=1` condition that the CLI did not have.
+
+DB-only simulations confirm the mismatch: the Metric-covered selector still
+selects ids `7018..6969`, while the CLI-like selector now selects the next
+Metric-zero ids `7327..7278` after the drifted write. The already-updated ids
+`7377..7328` are `partial=50` with reviewFlags and GeckoTerminal context, but
+remain `metricsCount=0=50`.
+
+Recommended next slice: **Yellow add Metric-covered guard to enrich selector**.
+Add a batch-only option such as `--onlyMetricCovered` / `--requireMetric` to
+the safe enrich/rescore CLI, update planner/docs command shapes for targeted
+cleanup, and add selector tests. Do not issue another enrich Red until that
+selector can enforce Metric coverage or exact targeting.
+
 The network-enabled 6H bounded runner MVP validation is complete. The approved
 out-of-sandbox Red ran the exact `ops:run:bounded --execute` command once with
 checkpoint `/tmp/lowcap-bot-mvp-6h-20260602.json`, two Metric cycles, two

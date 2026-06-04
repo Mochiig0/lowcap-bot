@@ -161,6 +161,15 @@ show `mint_only=50`, `metricsCount=1=50`, `C / 0 = 50`, and no reviewFlags.
 This makes the next report-readiness task Green anomaly review of the selector
 drift, not another write Red.
 
+That anomaly review is complete. The report-readiness conclusion is that the
+write CLI and the preflight were answering different questions: the CLI asks
+"which recent GeckoTerminal pump tokens are still missing name or symbol?",
+while the cleanup preflight asked "which mint-only rows already have Metric
+coverage?". The latter is the desired Phase 2 cleanup policy, but it is not an
+available CLI guard today. The next report-readiness improvement should be a
+Yellow selector option for Metric-covered enrich batches, plus docs/planner
+updates, before another targeted enrich Red.
+
 Watchlist sample review, 2026-06-01: `--watchlistOnly` is suitable for
 raw-text-free human review, but the current sample does not justify scoring
 dictionary changes. The default 24h window has drifted to

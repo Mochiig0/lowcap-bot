@@ -285,6 +285,13 @@ Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
   further Red. Do not treat DB-only simulation as sufficient when the write
   CLI has its own `recent_batch` ordering; the selected ids must be confirmed
   with the same selector semantics as the exact Red command.
+- selector-drift review result: the current enrich CLI does not require
+  Metric coverage in batch mode. It selects rows missing `name` or `symbol`,
+  sorts by `firstSeenSourceSnapshot.detectedAt` or `Token.createdAt` newest
+  first, and only then applies `--pumpOnly` / `--limit`. Until a batch-only
+  `--onlyMetricCovered` or equivalent guard exists, Phase 2 targeted enrich
+  cleanup Red must not rely on a separate DB-only Metric-covered simulation.
+  Prefer Yellow implementation of that guard before more enrich cleanup Red.
 
 ## Latest Targeted Cleanup Preflight
 
