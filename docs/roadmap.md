@@ -109,6 +109,28 @@ enrich cleanup Red** for ids `8259..8210`:
 `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write`.
 Do not use the unguarded enrich command.
 
+That guarded enrich Red is now complete, with a rolling-window caveat. The
+approved command ran exactly once in network-enabled / out-of-sandbox context
+on expected HEAD `8ada526 docs: preflight guarded enrich after interrupted runner`
+and confirmed `selection.onlyMetricCovered=true`, but execution happened after
+the 720 minute cutoff had advanced to `2026-06-05T04:23:21.343Z`. As a result
+it selected ids `8259..8231` (`29` rows), not the full preflighted
+`8259..8210` cohort.
+
+The selected `29` rows completed successfully: `ok=29`, `error=0`,
+`enrichWriteCount=29`, `rescoreWriteCount=29`, `contextWriteCount=29`,
+`metaplexAttemptedCount=29`, `metaplexAvailableCount=0`,
+`rateLimited=false`, `notifyWouldSend=0`, and `notifySent=0`. Counts stayed
+Token / Metric / Notification / HolderSnapshot `4065 / 1457 / 22 / 1`; only
+metadata changed to `mint_only=3054`, `partial=998`, `enriched=13`. The
+remaining intended ids `8230..8210` stayed `mint_only` with `metricsCount=1`.
+
+Recommended next slice: **Green post-run review and fresh guarded enrich
+preflight for the remaining Metric-covered mint-only rows**. Do not run a
+second Red directly from the partial result. The review should decide whether
+a wider window is enough or whether exact id/range targeting is needed to
+avoid rolling-window drift.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

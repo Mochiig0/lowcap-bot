@@ -184,6 +184,52 @@ Interrupted-run guarded enrich preflight, 2026-06-06:
   Notification, HolderSnapshot, Telegram, retry, auto-send, scheduler/systemd,
   and rawJson dumps remain out of scope.
 
+Interrupted-run guarded enrich Red, 2026-06-06:
+
+- The repo-local Red safety Skill was applied and the approved
+  network-enabled / out-of-sandbox guarded enrich command ran exactly once:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+  Expected HEAD `8ada526 docs: preflight guarded enrich after interrupted runner`
+  matched and the working tree was clean before execution. Provider HEAD was
+  reachable without body dump.
+- Result: `selection.onlyMetricCovered=true`, `selected=29`, `ok=29`,
+  `error=0`, `enrichWriteCount=29`, `rescoreWriteCount=29`,
+  `contextWriteCount=29`, `metaplexAttemptedCount=29`,
+  `metaplexAvailableCount=0`, `metaplexSavedCount=0`,
+  `metaplexErrorKindCounts={metadata_account_missing:29}`,
+  `rateLimited=false`, `rateLimitedCount=0`, `interItemDelayCount=28`,
+  `notifyWouldSendCount=0`, and `notifySentCount=0`.
+- The command selected ids `8259..8231`, not the full preflighted
+  `8259..8210` range. Cause: the rolling 720 minute cutoff had advanced to
+  `2026-06-05T04:23:21.343Z` by execution time, excluding ids `8230..8210`.
+  No retry, second Red, fallback, or manual compensation command was run.
+- Counts confirm only Token rows changed: Token / Metric / Notification /
+  HolderSnapshot stayed `4065 / 1457 / 22 / 1`; metadata moved
+  `mint_only=3083`, `partial=969`, `enriched=13` to `mint_only=3054`,
+  `partial=998`, `enriched=13`; Metric buckets stayed `0=2748`, `1=1230`,
+  `2+=87`; Notification statuses stayed `captured=17`, `sent=5`.
+- Target aggregate for ids `8259..8210` after the Red: `partial=29`,
+  `mint_only=21`, `metricsCount=1=50`, `score=C/0=50`,
+  `hardRejectedCount=1`, `enrichedAt/rescoredAt/reviewFlags/scoreBreakdown`
+  present for `29`, Notification total `0`, and HolderSnapshot total `0`.
+  Actual selected ids `8259..8231` have GeckoTerminal context present
+  `29 / 29` and Metaplex context `0 / 29`.
+- Queue after: default 24h has `metricPending=632`, `enrichPending=653`,
+  `staleReview=653`, `notifyCandidate=0`; rolling 12h has
+  `metricPending=0`, `enrichPending=0`, `staleReview=0`,
+  `notifyCandidate=0`; rolling 168h has `metricPending=792`,
+  `enrichPending=873`, `staleReview=923`, `notifyCandidate=0`.
+- Watchlist remains report-only: rolling 168h has `15` B/2 rows,
+  `14` ready and `1` missing Metric. Notification / Telegram stayed closed:
+  disabled/enabled auto-send allowed stayed `0 / 0`, retry candidate stayed
+  `0`, failed Notification stayed `0`, and no Notification create/update/send
+  or Telegram send occurred.
+- This addressed `29` rows of the interrupted 12H detect-only backlog. The
+  remaining ids `8230..8210` are still Metric-covered but mint-only; do not
+  run another Red directly. If continuing cleanup, start with a fresh Green
+  guarded enrich preflight, likely using a wider window or an exact targeting
+  improvement.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

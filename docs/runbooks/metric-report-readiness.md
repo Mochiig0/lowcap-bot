@@ -64,6 +64,24 @@ directly. The next report-readiness write, if human-approved, should be
 guarded enrich cleanup with `--onlyMetricCovered`; do not use the unguarded
 enrich selector.
 
+Guarded enrich Red after interruption, 2026-06-06: the write completed for the
+rows still inside the rolling 720 minute window at execution time. The command
+reported `selection.onlyMetricCovered=true`, `selected=29`, `ok=29`,
+`error=0`, `enrichWriteCount=29`, `rescoreWriteCount=29`,
+`contextWriteCount=29`, `metaplexAttemptedCount=29`,
+`metaplexAvailableCount=0`, `rateLimited=false`, `notifyWouldSendCount=0`,
+and `notifySentCount=0`. Actual selected ids were `8259..8231`; ids
+`8230..8210` were outside the advanced 720 minute cutoff and remain
+`mint_only`.
+
+Report state after the Red: target ids `8259..8210` have
+`metricsCount=1=50`, `partial=29`, `mint_only=21`, `score=C / 0 = 50`,
+`hardRejectedCount=1`, reviewFlags and scoreBreakdown present for `29`,
+Notification total `0`, and HolderSnapshot total `0`. This improves
+reportability for `29` interrupted-run rows, but leaves a known remainder for
+a future Green preflight. The next report-readiness task should explicitly
+account for rolling-window drift.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

@@ -58,6 +58,17 @@ reserve / top-pool presence. A Prisma simulation matching the
 minute window selected the same ids. If approved, the next Red should be:
 `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write`.
 
+Guarded enrich Red result, 2026-06-06: that command ran exactly once and
+completed without provider failure, 429, Notification, or Telegram side
+effects, but it selected only ids `8259..8231` (`29` rows). The 720 minute
+rolling cutoff had advanced by execution time, so ids `8230..8210` fell
+outside the window and remained mint-only. The selected rows wrote
+enrich/rescore/context updates for `29`, kept `metricsCount=1`, and moved to
+`partial`; Metric, Notification, and HolderSnapshot counts stayed unchanged.
+Cadence rule update: when an intended cohort is near the edge of a rolling
+window, run the Red promptly after preflight or choose a wider window during a
+fresh Green preflight. Do not run a second Red directly to compensate.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

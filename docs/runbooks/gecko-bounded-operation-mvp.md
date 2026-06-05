@@ -110,6 +110,24 @@ guarded enrich command:
 pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write
 ```
 
+That guarded enrich cleanup Red completed with a rolling-window caveat. The
+approved command ran once in network-enabled / out-of-sandbox context and
+confirmed `selection.onlyMetricCovered=true`, but by execution time the 720
+minute cutoff had advanced to `2026-06-05T04:23:21.343Z`. It selected ids
+`8259..8231` (`29` rows), not the full `8259..8210` cohort. The selected
+rows all completed `ok`, wrote enrich/rescore/context updates, kept
+`metricsCount=1`, and moved to `partial`; `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, `notifySentCount=0`, and `rateLimited=false`.
+Token / Metric / Notification / HolderSnapshot stayed
+`4065 / 1457 / 22 / 1`; metadata moved to `mint_only=3054`,
+`partial=998`, `enriched=13`.
+
+Do not treat this as a failure of `--onlyMetricCovered`: the guard worked and
+prevented Metric-uncovered selection. Treat it as rolling-window drift. The
+remaining ids `8230..8210` need a fresh Green preflight, likely with a wider
+window or exact targeting, before any additional Red. Do not compensate with a
+second command from the same approval.
+
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but

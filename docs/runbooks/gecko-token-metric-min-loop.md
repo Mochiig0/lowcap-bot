@@ -76,6 +76,24 @@ targeted enrich Red if approved:
 pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write
 ```
 
+Guarded enrich Red after interruption, 2026-06-06: the approved command above
+ran once and completed `selected=29`, `ok=29`, `error=0`, with
+`selection.onlyMetricCovered=true`, `enrichWriteCount=29`,
+`rescoreWriteCount=29`, `contextWriteCount=29`,
+`metaplexAttemptedCount=29`, `metaplexAvailableCount=0`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`. It selected ids
+`8259..8231`, not all of `8259..8210`, because the rolling 720 minute cutoff
+had advanced to `2026-06-05T04:23:21.343Z` at execution time.
+
+Token / Metric / Notification / HolderSnapshot stayed
+`4065 / 1457 / 22 / 1`; metadata moved to `mint_only=3054`,
+`partial=998`, `enriched=13`. For the target ids `8259..8210`, `29` are now
+`partial` and `21` remain `mint_only`; all `50` still have `metricsCount=1`.
+No Metric, Notification, HolderSnapshot, Telegram, retry, auto-send,
+scheduler/systemd, or rawJson side effect occurred. The remaining ids
+`8230..8210` require a fresh Green guarded enrich preflight before any
+follow-up Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich
