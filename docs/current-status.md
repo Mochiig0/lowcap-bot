@@ -21,6 +21,43 @@ Personal MVP completion declaration, 2026-06-03:
   pending cleanup is optional; no immediate Red is required to declare the MVP
   complete enough.
 
+Phase 2 12H bounded runner trial, 2026-06-05:
+
+- The repo-local Red safety Skill was applied and the approved
+  network-enabled / out-of-sandbox 12H bounded runner command was started
+  exactly once:
+  `pnpm -s ops:run:bounded -- --hours 12 --pumpOnly --checkpointFile /tmp/lowcap-bot-12h-trial-20260605.json --metricLimit 50 --enrichLimit 50 --postRunMetricCycles 2 --postRunEnrichCycles 2 --intervalSeconds 60 --maxIterations 720 --postRunBufferMinutes 60 --interItemDelayMs 15000 --execute`.
+- Expected HEAD `03f2da8 docs: preflight twelve hour bounded runner trial`
+  matched and the working tree was clean before execution. Provider HEAD was
+  reachable without body dump. The checkpoint path was outside the repo and
+  absent before execution.
+- The runner entered `detect_write`, but did not naturally complete or reach
+  post-run Metric / guarded enrich / report / notification planner phases
+  after more than 15 hours. It was manually interrupted with Ctrl-C and exited
+  with code `1`.
+- Side effects observed before interruption: Token count moved
+  `3383 -> 4065` and metadata `mint_only` moved `2401 -> 3083`, meaning `682`
+  new mint-only GeckoTerminal pump tokens were imported. Metric,
+  Notification, and HolderSnapshot counts stayed `1407 / 22 / 1`.
+- Metric buckets moved `0=2116`, `1=1180`, `2+=87` to `0=2798`, `1=1180`,
+  `2+=87`. Notification statuses stayed `captured=17`, `sent=5`,
+  `failed=0`.
+- Queue after interruption: default/requested 12h have
+  `metricPending=682`, `enrichPending=682`, `staleReview=329`,
+  `notifyCandidate=0`; rolling 168h has `metricPending=842`,
+  `enrichPending=902`, `staleReview=599`, `notifyCandidate=0`.
+- The checkpoint exists at `/tmp/lowcap-bot-12h-trial-20260605.json`, size
+  `176` bytes, with source `geckoterminal.new_pools` and cursor
+  `poolCreatedAt=2026-06-05T04:51:00.000Z`.
+- Notification / Telegram stayed closed: disabled/enabled auto-send allowed
+  remained `0 / 0`, retry candidate remained `0`, failed Notification stayed
+  `0`, and no Notification create/update/send or Telegram send occurred.
+- Result: the 12H trial did not pass as an end-to-end bounded runner trial.
+  It proved long detect write can import data, but exposed an operating gap:
+  the runner can exceed the expected wall-clock window without progressing to
+  post-run phases. Do not run another long bounded Red until a Green/Yellow
+  timeout or bounded-runner completion review decides the next fix/preflight.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

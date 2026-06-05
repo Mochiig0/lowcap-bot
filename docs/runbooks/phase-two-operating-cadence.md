@@ -9,6 +9,15 @@
 - Telegram auto-send, retry execution, scheduler/systemd, and capture-only B
   Notifications remain locked.
 
+Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
+complete end-to-end. It imported `682` new mint-only Tokens during
+`detect_write`, then exceeded the expected 12.5-13h operating window and was
+manually interrupted after more than 15h before post-run Metric, guarded
+enrich, report, or notification planner phases. Treat this as a partial detect
+write result plus a bounded-runner timeout/completion issue. Do not run another
+long bounded Red until a Green/Yellow review decides whether to add an explicit
+wall-clock timeout, improve progress logs, or use a shorter trial.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
@@ -242,19 +251,20 @@ pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --since
 
 ## Current Known State Snapshot
 
-Snapshot after the 2026-06-04 targeted enrich cleanup continuation:
+Snapshot after the 2026-06-05 interrupted 12H bounded runner trial:
 
-- HEAD before Red: `9467a6b docs: preflight phase two enrich cleanup`
+- HEAD before Red: `03f2da8 docs: preflight twelve hour bounded runner trial`
 - working tree before Red: clean
 - Token / Metric / Notification / HolderSnapshot:
-  `3383 / 1407 / 22 / 1`
-- metadata status: `mint_only=2501`, `partial=869`, `enriched=13`
-- Metric buckets: `0=2116`, `1=1180`, `2+=87`
-- default 24h queue: `metricPending=0`, `enrichPending=0`,
-  `notifyCandidate=0` after time-window drift
-- rolling 168h queue: `metricPending=160`, `enrichPending=320`,
-  `notifyCandidate=0`
-- rolling 168h watchlist: `13` rows, all `B / 2`, all ready, report-only
+  `4065 / 1407 / 22 / 1`
+- metadata status: `mint_only=3083`, `partial=969`, `enriched=13`
+- Metric buckets: `0=2798`, `1=1180`, `2+=87`
+- default/requested 12h queue: `metricPending=682`, `enrichPending=682`,
+  `staleReview=329`, `notifyCandidate=0`
+- rolling 168h queue: `metricPending=842`, `enrichPending=902`,
+  `staleReview=599`, `notifyCandidate=0`
+- rolling 168h watchlist: `15` rows, all `B / 2`, `14` ready and `1`
+  missing Metric, report-only
 - disabled/enabled auto-send allowed: `0 / 0`
 - retry candidate: `0`
 - failed Notification: `0`

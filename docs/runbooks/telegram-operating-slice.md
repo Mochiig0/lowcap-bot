@@ -20,6 +20,14 @@ default. Run notification safety review only when `notifyCandidateCount`,
 allowed auto-send candidates, retry candidates, or a proposed send path
 appears; cadence docs are not send approval.
 
+Phase 2 12H trial note, 2026-06-05: the long bounded runner trial did not open
+the Telegram boundary. It was interrupted after detect write and before
+post-run Metric, guarded enrich, report, or notification planner phases.
+Notification count stayed `22`, statuses stayed `captured=17`, `sent=5`,
+`failed=0`, disabled/enabled auto-send allowed stayed `0 / 0`, retry
+candidate stayed `0`, and Telegram send stayed `0`. This trial does not
+justify Notification or Telegram policy changes.
+
 ## Report Slice Decision
 
 Outcome/report work is paused at Policy C:
