@@ -38,8 +38,8 @@ matched, the working tree was clean, the checkpoint path was safe and absent,
 and provider HEAD was reachable without body dump. The runner started
 `detect_write` at `2026-06-05T02:21:10+09:00`, but did not naturally complete
 or reach post-run Metric, guarded enrich, report, or notification planner
-phases. It was manually interrupted after more than 15h at
-`2026-06-05T13:53:40+09:00`.
+phases before it was manually interrupted at `2026-06-05T13:53:40+09:00`,
+about 11h32m after start and before the planned 12H plus post-run window.
 
 Observed side effects before interruption:
 
@@ -57,10 +57,10 @@ candidate remained `0`, failed Notification remained `0`, and Telegram send
 remained `0`.
 
 This is not a passing 12H end-to-end bounded runner result. It is a partial
-detect-write result and a runner timeout/completion finding. Do not run a
-second long bounded Red until a Green/Yellow review decides whether to add an
-explicit wall-clock timeout, improve progress logging, or use a shorter
-bounded trial.
+detect-write result and an operator-interrupted trial. It cannot prove runner
+completion or timeout behavior. Do not run a second long bounded Red until a
+Green/Yellow review decides whether to retry, shorten the trial, or improve
+progress/elapsed-time visibility.
 
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact

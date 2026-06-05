@@ -11,12 +11,14 @@
 
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
-`detect_write`, then exceeded the expected 12.5-13h operating window and was
-manually interrupted after more than 15h before post-run Metric, guarded
-enrich, report, or notification planner phases. Treat this as a partial detect
-write result plus a bounded-runner timeout/completion issue. Do not run another
-long bounded Red until a Green/Yellow review decides whether to add an explicit
-wall-clock timeout, improve progress logs, or use a shorter trial.
+`detect_write`, then was manually interrupted at
+`2026-06-05T13:53:40+09:00`, about 11h32m after start and before the planned
+12H plus post-run window. It never reached post-run Metric, guarded enrich,
+report, or notification planner phases. Treat this as a partial detect-write
+result and an invalid/incomplete 12H trial, not as proof of runner timeout
+behavior. Do not run another long bounded Red until a Green/Yellow review
+decides whether to retry, shorten the trial, or improve progress/elapsed-time
+visibility.
 
 ## Operating Principles
 

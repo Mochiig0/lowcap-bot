@@ -140,11 +140,12 @@ These are not MVP blockers:
   batch-only `--onlyMetricCovered` guard for Metric-first cleanup; run Green
   guarded preflight before the next Red.
 - The first Phase 2 12H bounded runner trial did not complete end-to-end. It
-  imported `682` new mint-only Tokens during detect write, but exceeded the
-  expected wall-clock window and was manually interrupted before post-run
-  Metric, guarded enrich, report, or notification planner phases. This is a
-  Phase 2 cadence/runtime finding, not a retroactive MVP blocker, because the
-  original 6H network-enabled MVP validation remains the acceptance evidence.
+  imported `682` new mint-only Tokens during detect write, but was manually
+  interrupted about 11h32m after start and before the planned 12H plus
+  post-run window. It did not reach post-run Metric, guarded enrich, report,
+  or notification planner phases. This is a Phase 2 operating finding, not a
+  retroactive MVP blocker, because the original 6H network-enabled MVP
+  validation remains the acceptance evidence.
 
 ## Next Phase
 

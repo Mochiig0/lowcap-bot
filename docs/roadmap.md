@@ -14,10 +14,12 @@ Date: 2026-06-05
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved
 network-enabled / out-of-sandbox command ran once on expected HEAD
 `03f2da8 docs: preflight twelve hour bounded runner trial`, entered
-`detect_write`, and was manually interrupted after more than 15 hours without
-reaching post-run Metric, guarded enrich, report, or notification planner
-phases. It imported `682` new mint-only Tokens (`3383 -> 4065`) and left
-Metric / Notification / HolderSnapshot unchanged at `1407 / 22 / 1`.
+`detect_write`, and was manually interrupted at
+`2026-06-05T13:53:40+09:00`, about 11h32m after start and before the planned
+12H plus post-run window. It did not reach post-run Metric, guarded enrich,
+report, or notification planner phases. It imported `682` new mint-only
+Tokens (`3383 -> 4065`) and left Metric / Notification / HolderSnapshot
+unchanged at `1407 / 22 / 1`.
 Default/requested 12h queues now have `metricPending=682`,
 `enrichPending=682`, `staleReview=329`, `notifyCandidate=0`; rolling 168h has
 `metricPending=842`, `enrichPending=902`, `staleReview=599`,
@@ -29,13 +31,12 @@ Notification create/update/send or Telegram send occurred. The checkpoint
 exists at `/tmp/lowcap-bot-12h-trial-20260605.json` with a small source/cursor
 payload.
 
-Recommended next slice: **Green/Yellow bounded runner timeout/completion
-review**. Do not run a second long bounded Red immediately. First review why
-the runner did not stop near the planned `maxIterations=720` / 12H window and
-decide whether to add an explicit wall-clock timeout, better progress logs, or
-a shorter trial. If operational cleanup is preferred instead, start from a
-fresh Green targeted Metric cleanup preflight because the new imported rows
-are Metric-zero.
+Recommended next slice: **Green/Yellow bounded runner interruption/completion
+review**. Do not run a second long bounded Red immediately. First review the
+operator interruption, elapsed-time visibility, and whether a retry should use
+a shorter trial or improved progress logs. If operational cleanup is preferred
+instead, start from a fresh Green targeted Metric cleanup preflight because the
+new imported rows are Metric-zero.
 
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.

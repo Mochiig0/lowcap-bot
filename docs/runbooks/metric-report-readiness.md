@@ -13,12 +13,12 @@ operation. Further report/dashboard polish belongs to Phase 2.
 
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during
-detect write, then exceeded the expected wall-clock window and was manually
-interrupted before Metric, guarded enrich, report review, or notification
-planner review. Current report readiness therefore shows a larger Metric-zero
-queue (`metricPending=682`, `enrichPending=682`, `staleReview=329` in the
-default/requested 12h window) rather than new Metric/enrich report evidence.
-Run a fresh Green targeted Metric cleanup preflight before any cleanup Red.
+detect write, then was manually interrupted about 11h32m after start and
+before the planned 12H plus post-run window. Current report readiness
+therefore shows a larger Metric-zero queue (`metricPending=682`,
+`enrichPending=682`, `staleReview=329` in the default/requested 12h window)
+rather than new Metric/enrich report evidence. Run a fresh Green targeted
+Metric cleanup preflight before any cleanup Red.
 
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as

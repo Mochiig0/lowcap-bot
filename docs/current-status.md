@@ -33,8 +33,10 @@ Phase 2 12H bounded runner trial, 2026-06-05:
   absent before execution.
 - The runner entered `detect_write`, but did not naturally complete or reach
   post-run Metric / guarded enrich / report / notification planner phases
-  after more than 15 hours. It was manually interrupted with Ctrl-C and exited
-  with code `1`.
+  before it was manually interrupted with Ctrl-C at
+  `2026-06-05T13:53:40+09:00`, about 11h32m after start. It exited with code
+  `1`. This was before the planned 12H plus post-run window, so the result is
+  an invalid/incomplete 12H trial, not a runner timeout proof.
 - Side effects observed before interruption: Token count moved
   `3383 -> 4065` and metadata `mint_only` moved `2401 -> 3083`, meaning `682`
   new mint-only GeckoTerminal pump tokens were imported. Metric,
@@ -53,10 +55,11 @@ Phase 2 12H bounded runner trial, 2026-06-05:
   remained `0 / 0`, retry candidate remained `0`, failed Notification stayed
   `0`, and no Notification create/update/send or Telegram send occurred.
 - Result: the 12H trial did not pass as an end-to-end bounded runner trial.
-  It proved long detect write can import data, but exposed an operating gap:
-  the runner can exceed the expected wall-clock window without progressing to
-  post-run phases. Do not run another long bounded Red until a Green/Yellow
-  timeout or bounded-runner completion review decides the next fix/preflight.
+  It proved long detect write can import data, but because it was interrupted
+  before the planned completion window, it cannot prove runner completion or
+  timeout behavior. Do not run another long bounded Red until a Green/Yellow
+  interruption/completion review decides whether to retry, shorten the trial,
+  or add better progress/elapsed-time visibility.
 
 Phase 2 operational cleanup triage, 2026-06-03:
 

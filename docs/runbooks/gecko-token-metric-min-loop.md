@@ -23,13 +23,14 @@ Remaining Metric/enrich backlog is post-MVP cleanup, not a blocker.
 
 Phase 2 12H bounded runner note, 2026-06-05: the long bounded runner trial
 imported `682` new mint-only Tokens and did not reach Metric or enrich phases
-before manual interruption after more than 15h. The immediate minimum-loop
-impact is a larger Metric-zero backlog: Token / Metric / Notification /
+before manual interruption about 11h32m after start, before the planned 12H
+plus post-run window. The immediate minimum-loop impact is a larger
+Metric-zero backlog: Token / Metric / Notification /
 HolderSnapshot is now `4065 / 1407 / 22 / 1`, Metric buckets are `0=2798`,
 `1=1180`, `2+=87`, and default/requested 12h queue has
 `metricPending=682`, `enrichPending=682`, `notifyCandidate=0`. Before more
 cleanup writes, run a fresh Green targeted Metric cleanup preflight or a
-bounded-runner timeout/completion review.
+bounded-runner interruption/completion review.
 
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
