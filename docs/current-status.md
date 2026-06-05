@@ -60,6 +60,26 @@ Phase 2 12H bounded runner trial, 2026-06-05:
   timeout behavior. Do not run another long bounded Red until a Green/Yellow
   interruption/completion review decides whether to retry, shorten the trial,
   or add better progress/elapsed-time visibility.
+- Interruption/completion review on HEAD
+  `423465b docs: correct twelve hour trial timing` confirmed no stale
+  `ops:run:bounded`, detect, Metric, or enrich process remains. The checkpoint
+  still exists outside the repo and the safe cursor is
+  `poolCreatedAt=2026-06-05T04:51:00.000Z`.
+- Classification: `interrupted_detect_only_partial_success`, `not_completed`,
+  `not_failed_provider`, and `not_timeout_proven`. Completed phases were
+  preflight only; `detect_write` was partial; post-run Metric, guarded enrich,
+  report review, notification planner review, and final summary were not
+  reached.
+- Current read-only state after the review remains Token / Metric /
+  Notification / HolderSnapshot `4065 / 1407 / 22 / 1`; metadata
+  `mint_only=3083`, `partial=969`, `enriched=13`; Metric buckets `0=2798`,
+  `1=1180`, `2+=87`; Notification statuses `captured=17`, `sent=5`.
+- Planner state points to `metric_pending_snapshot` as the next operational
+  lane. Do not issue a direct Red from the interruption review. If cleanup is
+  desired, the next task should be a fresh Green targeted Metric cleanup
+  preflight for the newly imported Metric-zero cohort. A separate Yellow
+  follow-up may improve graceful interrupt / final summary ergonomics for long
+  bounded runs.
 
 Phase 2 operational cleanup triage, 2026-06-03:
 

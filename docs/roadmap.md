@@ -31,12 +31,24 @@ Notification create/update/send or Telegram send occurred. The checkpoint
 exists at `/tmp/lowcap-bot-12h-trial-20260605.json` with a small source/cursor
 payload.
 
-Recommended next slice: **Green/Yellow bounded runner interruption/completion
-review**. Do not run a second long bounded Red immediately. First review the
-operator interruption, elapsed-time visibility, and whether a retry should use
-a shorter trial or improved progress logs. If operational cleanup is preferred
-instead, start from a fresh Green targeted Metric cleanup preflight because the
-new imported rows are Metric-zero.
+That Green/Yellow interruption/completion review is now complete on HEAD
+`423465b docs: correct twelve hour trial timing`. No stale bounded runner,
+detect, Metric, or enrich process remains. The checkpoint is still outside the
+repo at `/tmp/lowcap-bot-12h-trial-20260605.json` and its safe cursor remains
+`poolCreatedAt=2026-06-05T04:51:00.000Z`.
+
+Classification: `interrupted_detect_only_partial_success`, `not_completed`,
+`not_failed_provider`, and `not_timeout_proven`. The completed phase was
+preflight only; `detect_write` was partial; post-run Metric, guarded enrich,
+report review, notification planner review, and final summary were not
+reached. The issue is operator interruption before the intended 12H plus
+post-run window, not a provider failure.
+
+Recommended next slice: **Green targeted Metric cleanup preflight for the
+newly imported Metric-zero cohort**. Do not run a direct Red from this review
+and do not rerun 12H immediately. A Yellow graceful interrupt / final summary
+improvement is the second candidate if long-run ergonomics becomes the
+priority.
 
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.

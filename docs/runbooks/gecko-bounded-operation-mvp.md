@@ -62,6 +62,16 @@ completion or timeout behavior. Do not run a second long bounded Red until a
 Green/Yellow review decides whether to retry, shorten the trial, or improve
 progress/elapsed-time visibility.
 
+Follow-up interruption review on HEAD
+`423465b docs: correct twelve hour trial timing` confirmed no stale
+`ops:run:bounded`, detect, Metric, or enrich process remained. The correct
+classification is `interrupted_detect_only_partial_success`, `not_completed`,
+`not_failed_provider`, and `not_timeout_proven`: preflight completed,
+`detect_write` was partial, and post-run Metric, guarded enrich, report,
+notification planner, and final summary were not reached. The next safe lane
+is a fresh Green targeted Metric cleanup preflight for the imported
+Metric-zero rows. Do not rerun 12H immediately.
+
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but

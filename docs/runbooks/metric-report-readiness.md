@@ -20,6 +20,14 @@ therefore shows a larger Metric-zero queue (`metricPending=682`,
 rather than new Metric/enrich report evidence. Run a fresh Green targeted
 Metric cleanup preflight before any cleanup Red.
 
+Interruption/completion review, 2026-06-05: no stale bounded runner or
+follow-up process remained. The trial is classified as
+`interrupted_detect_only_partial_success`, `not_completed`,
+`not_failed_provider`, and `not_timeout_proven`; report/planner readiness did
+not gain new Metric or enrich evidence because post-run phases were not
+reached. The next report-readiness step is still a fresh Green targeted Metric
+cleanup preflight, not a direct Red.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

@@ -32,6 +32,13 @@ HolderSnapshot is now `4065 / 1407 / 22 / 1`, Metric buckets are `0=2798`,
 cleanup writes, run a fresh Green targeted Metric cleanup preflight or a
 bounded-runner interruption/completion review.
 
+Interruption/completion review, 2026-06-05: that review is complete. No stale
+runner or follow-up process remained, the checkpoint stayed outside the repo,
+and the trial is classified as `interrupted_detect_only_partial_success`,
+`not_completed`, `not_failed_provider`, and `not_timeout_proven`. The next
+minimum-loop action, if data cleanup is desired, is a fresh Green targeted
+Metric cleanup preflight for the imported Metric-zero cohort.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

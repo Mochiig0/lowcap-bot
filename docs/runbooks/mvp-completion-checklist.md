@@ -146,6 +146,11 @@ These are not MVP blockers:
   or notification planner phases. This is a Phase 2 operating finding, not a
   retroactive MVP blocker, because the original 6H network-enabled MVP
   validation remains the acceptance evidence.
+- The follow-up interruption review classifies that 12H trial as
+  `interrupted_detect_only_partial_success`, `not_completed`,
+  `not_failed_provider`, and `not_timeout_proven`. The next operating task
+  should be a fresh Green targeted Metric cleanup preflight, not direct Red
+  execution and not an immediate 12H rerun.
 
 ## Next Phase
 

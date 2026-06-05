@@ -20,6 +20,15 @@ behavior. Do not run another long bounded Red until a Green/Yellow review
 decides whether to retry, shorten the trial, or improve progress/elapsed-time
 visibility.
 
+Interruption review result, 2026-06-05: classify that trial as
+`interrupted_detect_only_partial_success`, `not_completed`,
+`not_failed_provider`, and `not_timeout_proven`. No stale bounded runner or
+follow-up process remained. The next operating lane is not another long runner
+and not direct Red execution; use a fresh Green targeted Metric cleanup
+preflight for the imported Metric-zero cohort. Consider a later Yellow
+graceful interrupt / final summary improvement if 12H interactive operation is
+still desired.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
