@@ -39,6 +39,14 @@ and the trial is classified as `interrupted_detect_only_partial_success`,
 minimum-loop action, if data cleanup is desired, is a fresh Green targeted
 Metric cleanup preflight for the imported Metric-zero cohort.
 
+Metric cleanup preflight, 2026-06-05: the fresh safe preview selected ids
+`8259..8210` in the 12h window and the same rows in the wider 168h window.
+They are all `geckoterminal.new_pools`, pump-only, `mint_only`, and
+`metricsCount=0`, with no selected HolderSnapshot and preview-reported
+Notification count `0`. The next approved cleanup command should be the safe
+Metric snapshot shape with `--sinceMinutes 720`, `--onlyMetricPending`, and
+`--noNotificationCapture`.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

@@ -81,6 +81,33 @@ Phase 2 12H bounded runner trial, 2026-06-05:
   follow-up may improve graceful interrupt / final summary ergonomics for long
   bounded runs.
 
+Interrupted-run Metric cleanup preflight, 2026-06-05:
+
+- Read-only preflight on HEAD
+  `8afa067 docs: review interrupted twelve hour bounded runner` confirms the
+  working tree is clean and the interrupted 12H detect cohort is still the
+  active cleanup target. Token / Metric / Notification / HolderSnapshot remain
+  `4065 / 1407 / 22 / 1`; metadata is `mint_only=3083`, `partial=969`,
+  `enriched=13`; Metric buckets are `0=2798`, `1=1180`, `2+=87`.
+- Queue state remains Metric-first: default 24h has `metricPending=682`,
+  `enrichPending=682`, `staleReview=682`, `notifyCandidate=0`; requested 12h
+  is a rolling window and had about `320` Metric/enrich/stale pending rows
+  during planner review; rolling 168h has `metricPending=842`,
+  `enrichPending=902`, `staleReview=952`, `notifyCandidate=0`.
+- Safe Metric preview with `sinceMinutes=720` selected `50` rows, ids
+  `8259..8210`. The wider `sinceMinutes=10080` preview selected the same
+  rows. Both previews stayed `dryRun=true` / `writeEnabled=false`,
+  `providerErrorCount=0`, and did not fetch provider data or write DB rows.
+- Selected-row checks: `source=geckoterminal.new_pools=50`,
+  `metadataStatus=mint_only=50`, `metricsCount=0=50`, pump-only `50`,
+  `holderSnapshotTotal=0`, and preview-reported `notificationCount=0` for each
+  selected row. Notification / Telegram planners remain blocked with
+  allowed auto-send `0 / 0`, retry candidate `0`, and failed Notification `0`.
+- Decision: the next Red can be a targeted Metric cleanup for this cohort, but
+  not from this Green task. Use human approval and network-enabled /
+  out-of-sandbox context with:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

@@ -72,6 +72,14 @@ notification planner, and final summary were not reached. The next safe lane
 is a fresh Green targeted Metric cleanup preflight for the imported
 Metric-zero rows. Do not rerun 12H immediately.
 
+That Metric cleanup preflight is now complete on HEAD
+`8afa067 docs: review interrupted twelve hour bounded runner`. The 12h safe
+Metric preview selected ids `8259..8210`; the wider 168h preview selected the
+same rows. All selected rows are `geckoterminal.new_pools`, pump-only,
+`mint_only`, and `metricsCount=0`, with selected Notification count `0` and
+HolderSnapshot total `0`. Use the short targeted Metric cleanup Red, not
+another bounded runner execute, if the operator approves cleanup.
+
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but

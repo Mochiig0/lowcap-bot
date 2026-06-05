@@ -28,6 +28,14 @@ not gain new Metric or enrich evidence because post-run phases were not
 reached. The next report-readiness step is still a fresh Green targeted Metric
 cleanup preflight, not a direct Red.
 
+Metric cleanup preflight after interruption, 2026-06-05: the safe preview
+selected ids `8259..8210` and confirmed they are clean Metric-zero candidates:
+`source=geckoterminal.new_pools=50`, `metadataStatus=mint_only=50`,
+`metricsCount=0=50`, pump-only `50`, selected HolderSnapshot total `0`, and
+preview-reported Notification count `0`. The 12h and 168h windows selected the
+same rows. This is enough to proceed to a human-approved targeted Metric Red;
+report readiness will gain new Metric evidence only after that write completes.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

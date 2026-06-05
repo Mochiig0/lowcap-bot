@@ -50,6 +50,21 @@ and do not rerun 12H immediately. A Yellow graceful interrupt / final summary
 improvement is the second candidate if long-run ergonomics becomes the
 priority.
 
+That targeted Metric cleanup preflight is complete. The safe preview selected
+ids `8259..8210` in both `sinceMinutes=720` and `sinceMinutes=10080` windows,
+with `selectedCount=50`, `dryRun=true`, `writeEnabled=false`,
+`providerErrorCount=0`, `metadataStatus=mint_only=50`, `metricsCount=0=50`,
+`source=geckoterminal.new_pools=50`, pump-only `50`, and no Notification or
+HolderSnapshot rows on the selected cohort.
+
+Recommended next slice: **human-approved network-enabled targeted Metric
+cleanup Red** for the interrupted 12H imported cohort:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+Expected side effects are external GeckoTerminal fetch and Metric writes up to
+50. Expected non-effects remain Token write 0, Notification create/update/send
+0, HolderSnapshot write 0, Telegram send 0, retry/auto-send/scheduler/systemd
+0, and rawJson full dump 0.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

@@ -29,6 +29,14 @@ preflight for the imported Metric-zero cohort. Consider a later Yellow
 graceful interrupt / final summary improvement if 12H interactive operation is
 still desired.
 
+Metric cleanup preflight result, 2026-06-05: the fresh Green preflight selected
+ids `8259..8210` with both the 12h `sinceMinutes=720` window and the wider
+168h `sinceMinutes=10080` window. The selected rows are all
+`geckoterminal.new_pools`, pump-only, `mint_only`, and `metricsCount=0`; the
+preview stayed dry-run/no-write/no-fetch with provider errors `0`. The next
+Red, if approved, should use the 12h window safe alias:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
