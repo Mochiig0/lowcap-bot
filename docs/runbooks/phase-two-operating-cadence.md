@@ -213,6 +213,14 @@ B/2 rows are useful manual evidence, but not notification-worthy by default.
 Do not tune scoring or add capture-only B Notifications unless repeated,
 high-confidence evidence appears across multiple Green reviews.
 
+Status/watchlist point, 2026-06-06: the rolling 168h watchlist remains
+`16` rows, all `B / 2`, `15` ready and `1` missing Metric. The watchlist score
+evidence is still core-only and low-strength; 168h aggregate support is
+`core=42`, `learned_pattern=1`, `trend=0`, `combo=0`, with no A/S row and
+`notifyCandidateEligibleCount=0`. Treat this as a stable report-only status
+point: keep scoring dictionaries unchanged, keep Telegram / Notification
+policy S-only, and do not issue a Red from the watchlist review itself.
+
 ### Notification Safety Review
 
 Run notification safety review when:

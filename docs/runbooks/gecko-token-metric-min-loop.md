@@ -127,6 +127,13 @@ desired, run a fresh Green targeted cleanup preflight; if robustness is the
 priority, consider a Yellow graceful interrupt / final summary improvement
 before another long bounded runner trial.
 
+Watchlist status point, 2026-06-06: the 168h watchlist review is also closed
+for now. It still has `16` rows and every row is `B / 2`; `15` are ready and
+`1` is missing Metric coverage. There is no A/S row, no notify candidate, no
+auto-send candidate, no retry candidate, and no failed Notification. B rows
+remain report-only; the minimum loop does not need scoring, Telegram, or
+Notification policy changes from this status point.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

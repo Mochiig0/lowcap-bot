@@ -1644,3 +1644,10 @@ Keep B rows report-only. Do not add capture-only B Notifications, do not
 loosen Telegram send policy, and do not enable auto-send, scheduler, systemd,
 or retry execution from this evidence. Future notification work still needs a
 dedicated Green notification safety review and separate human approval.
+
+Status/watchlist point, 2026-06-06: the follow-up read-only watchlist review
+keeps the same Telegram boundary. The 168h watchlist is still all `B / 2`,
+with no A/S row and `notifyCandidateEligibleCount=0`; disabled/enabled
+auto-send planners still allow `0 / 0`, retry candidate is `0`, and failed
+Notification count is `0`. Keep Telegram S-only and locked, and keep
+capture-only B Notifications out of scope.

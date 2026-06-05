@@ -186,6 +186,21 @@ preflight**, depending on operator intent. Do not change scoring dictionary or
 notification policy from this evidence, and do not issue a direct Red from
 this review.
 
+That status/watchlist point is complete. The 168h watchlist remains `16`
+rows, all `B / 2`, with `15` ready and `1` missing Metric. No A/S candidate
+exists, `notifyCandidateEligibleCount=0`, blockers remain below the S-only
+notification threshold, auto-send allowed remains `0 / 0`, retry candidate is
+`0`, and failed Notification count is `0`. Safe scoreBreakdown evidence is
+still low-strength and core-only for the watchlist, with no trend/combo
+support for changing the scoring dictionary.
+
+Recommended next slice: **status/watchlist point complete; pause or choose a
+fresh Green preflight by intent**. If cleanup is desired, start from a fresh
+targeted Metric or guarded enrich cleanup preflight. If long-run ergonomics is
+the priority, choose Yellow graceful interrupt / final summary improvement.
+Do not issue a direct Red from this status point, and keep B watchlist rows
+report-only.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

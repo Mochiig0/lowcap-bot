@@ -118,6 +118,17 @@ evidence is not strong enough for scoring dictionary changes or notification
 policy changes. Keep B rows report-only and keep Telegram / Notification
 execution locked unless a future Green review finds S candidates.
 
+Phase 2 watchlist status point, 2026-06-06: the current 168h watchlist is
+stable at `16` rows, all `B / 2`, `15` ready and `1` missing Metric. All
+watchlist rows are `partial`, non-hard-rejected, and have scoreBreakdown
+available. Safe scoreBreakdown evidence remains weak: watchlist rows are
+core-only score `2`, and the broader 168h aggregate shows `trend=0` and
+`combo=0`. `notifyCandidateCount=0`,
+`notifyCandidateEligibleCount=0`, auto-send allowed `0 / 0`, retry candidate
+`0`, and failed Notification `0` confirm the absence of notification action is
+expected. This status point does not justify dictionary changes, capture-only
+B Notifications, or Telegram policy changes.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

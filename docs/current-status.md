@@ -336,6 +336,34 @@ Remaining guarded enrich review, 2026-06-06:
   improvement for long-run ergonomics. No direct Red is recommended from this
   review.
 
+Phase 2 status/watchlist point, 2026-06-06:
+
+- Read-only status review on HEAD
+  `82593bb docs: review remaining guarded enrich cleanup` confirms the
+  working tree is clean and the current DB state is Token / Metric /
+  Notification / HolderSnapshot `4065 / 1457 / 22 / 1`; metadata
+  `mint_only=3033`, `partial=1019`, `enriched=13`; Metric buckets
+  `0=2748`, `1=1230`, `2+=87`.
+- The requested 12h queue is clear. Rolling 168h remains
+  `metricPending=792`, `enrichPending=852`, `staleReview=902`,
+  `notifyCandidate=0`. The default 24h queue is time-window dependent and was
+  about `295-296` pending rows during this review, also with
+  `notifyCandidate=0`.
+- Rolling 168h watchlist remains exactly `16` rows, all `B / 2`, all
+  `partial`, `hardRejected=false`, and scoreBreakdown available. Readiness is
+  `15` ready and `1` not ready because of missing Metric coverage.
+- Safe score evidence is still low-strength: watchlist rows are core-only
+  score `2`; the 168h scoreBreakdown aggregate is `core=42`,
+  `learned_pattern=1`, `trend=0`, `combo=0`, with tags dominated by
+  `animal=34` plus `meme=7`, `ai_phrase=1`, and `tech=1`.
+- Notification visibility remains closed: `notifyCandidateEligibleCount=0`,
+  blocker distribution includes `rank_not_s`, disabled/enabled auto-send
+  allowed candidates are `0 / 0`, retry candidate is `0`, and failed
+  Notification count is `0`.
+- Decision: keep B rows report-only, keep the scoring dictionary unchanged,
+  keep Notification / Telegram S-only and locked, do not add capture-only B
+  Notifications, and do not issue a Red command from this status point.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
