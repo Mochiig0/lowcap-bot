@@ -59,6 +59,23 @@ Notification / Telegram and HolderSnapshot stayed unchanged. The next
 minimum-loop step is a Green post-run Metric review and guarded enrich
 preflight for the newly Metric-covered cohort.
 
+Guarded enrich preflight after interruption, 2026-06-06: that post-run review
+is complete. Representative ids `8259`, `8235`, and `8210` map to Metric ids
+`2517`, `2541`, and `2566`, each with source
+`geckoterminal.token_snapshot`, one Metric, no Notification rows, no
+HolderSnapshot rows, and safe price / FDV / reserve / top-pool presence.
+The target aggregate remains `mint_only=50`, `metricsCount=1=50`,
+`C / 0 = 50`, `hardRejected=0`, and `reviewFlagsPresent=0`.
+
+DB-only selector simulation matching `--onlyMetricCovered` selects exactly
+ids `8259..8210` with `sinceMinutes=720`; the wider `sinceMinutes=10080`
+window selects the same rows. Use the 720 minute window for the next guarded
+targeted enrich Red if approved:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write
+```
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

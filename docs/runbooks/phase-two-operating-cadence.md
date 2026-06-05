@@ -47,6 +47,17 @@ HolderSnapshot writes, retry, auto-send, scheduler/systemd, and rawJson dumps
 stayed closed. Treat the next lane as Green post-run review plus guarded
 enrich preflight, not direct continuation.
 
+Guarded enrich preflight result, 2026-06-06: the post-Metric review confirmed
+ids `8259..8210` are still `mint_only=50`, `metricsCount=1=50`, `C/0=50`,
+non-hard-rejected, and have no reviewFlags, Notification rows, or
+HolderSnapshot rows. Representative Metric ids `2517`, `2541`, and `2566`
+all have source `geckoterminal.token_snapshot` and rawJson-free price / FDV /
+reserve / top-pool presence. A Prisma simulation matching the
+`--onlyMetricCovered` batch selector selected exactly ids `8259..8210` in the
+720 minute window, with `skippedMetricUncoveredCount=40`; the wider 10080
+minute window selected the same ids. If approved, the next Red should be:
+`pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

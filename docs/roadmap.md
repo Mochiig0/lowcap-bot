@@ -88,6 +88,27 @@ targeted enrich preflight** for ids `8259..8210`. Do not run a direct second
 Red; confirm the newly Metric-covered rows and decide whether
 `--onlyMetricCovered` enrich cleanup is the next lane.
 
+That Green post-run review is now complete. Representative checks confirmed
+Metric ids `2517`, `2541`, and `2566` for token ids `8259`, `8235`, and
+`8210`, all with source `geckoterminal.token_snapshot`, one Metric, no
+Notification or HolderSnapshot rows, and rawJson-free price / FDV / reserve /
+top-pool presence. The full target aggregate remains `mint_only=50`,
+`metricsCount=1=50`, `C/0=50`, `hardRejected=0`, and
+`reviewFlagsPresent=0`.
+
+The guarded `--onlyMetricCovered` selector simulation selected exactly ids
+`8259..8210` with both the rolling 12h `sinceMinutes=720` window and the
+wider `sinceMinutes=10080` window. The 720 minute window is preferred because
+it still fixes the intended interrupted-run cohort while avoiding a wider
+historical selection. Notification / Telegram planners remain closed with
+allowed auto-send `0 / 0`, retry candidate `0`, failed Notification `0`, and
+`notifyCandidate=0`.
+
+Recommended next slice: **human-approved network-enabled guarded targeted
+enrich cleanup Red** for ids `8259..8210`:
+`pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+Do not use the unguarded enrich command.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

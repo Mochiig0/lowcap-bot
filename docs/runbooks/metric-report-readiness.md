@@ -48,6 +48,22 @@ Notification total `0`, and HolderSnapshot total `0`. Queue after is default
 168h `metricPending=792`, with `notifyCandidate=0` everywhere. The next
 report-readiness step is Green post-run review plus guarded enrich preflight.
 
+Guarded enrich preflight after interruption, 2026-06-06: report review now
+confirms the newly Metric-covered ids `8259..8210` are safe to advance. The
+representative rows `8259`, `8235`, and `8210` have Metric ids `2517`,
+`2541`, and `2566`, source `geckoterminal.token_snapshot`, one Metric each,
+no Notification rows, no HolderSnapshot rows, and rawJson-free price / FDV /
+reserve / top-pool presence. The target aggregate is `mint_only=50`,
+`metricsCount=1=50`, `C / 0 = 50`, `hardRejected=0`,
+`reviewFlagsPresent=0`, Notification total `0`, and HolderSnapshot total `0`.
+
+The guarded batch selector simulation selected exactly ids `8259..8210` with
+`sinceMinutes=720` and again with `sinceMinutes=10080`. Prefer the 720 minute
+window for the next Red because it still targets the interrupted-run cohort
+directly. The next report-readiness write, if human-approved, should be
+guarded enrich cleanup with `--onlyMetricCovered`; do not use the unguarded
+enrich selector.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

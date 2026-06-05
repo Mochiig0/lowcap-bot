@@ -146,6 +146,44 @@ Interrupted-run Metric cleanup Red, 2026-06-05:
   targeted guarded enrich preflight for ids `8259..8210`, not a direct second
   Red.
 
+Interrupted-run guarded enrich preflight, 2026-06-06:
+
+- Read-only post-run Metric cleanup review is complete on HEAD
+  `d58ee6e docs: record metric cleanup after interrupted runner` with a clean
+  working tree. Current Token / Metric / Notification / HolderSnapshot counts
+  are `4065 / 1457 / 22 / 1`; metadata is `mint_only=3083`, `partial=969`,
+  `enriched=13`; Metric buckets are `0=2748`, `1=1230`, `2+=87`.
+- Queue state confirms the default 24h cleanup backlog is still present:
+  `metricPending=632`, `enrichPending=682`, `staleReview=682`,
+  `notifyCandidate=0`. The rolling 12h window has drifted to
+  `metricPending=43`, `enrichPending=93`, `staleReview=93`,
+  `notifyCandidate=0`; rolling 168h has `metricPending=792`,
+  `enrichPending=902`, `staleReview=952`, `notifyCandidate=0`.
+- Representative Metric checks for token ids `8259`, `8235`, and `8210`
+  confirm Metric ids `2517`, `2541`, and `2566`, source
+  `geckoterminal.token_snapshot`, one Metric per token, no Notification rows,
+  no HolderSnapshot rows, and rawJson-free price / FDV / reserve / top-pool
+  presence.
+- Target aggregate for ids `8259..8210`: `source=geckoterminal.new_pools=50`,
+  `metadataStatus=mint_only=50`, `metricsCount=1=50`, `score=C/0=50`,
+  `hardRejected=0`, `reviewFlagsPresent=0`, `notificationTotal=0`,
+  `holderSnapshotTotal=0`, pump-only `50`, Metric ids `2517..2566`, and
+  safe price / FDV / reserve / top-pool presence for `50 / 50`.
+- Prisma read-only simulation matching the `--onlyMetricCovered` batch
+  selector selected exactly ids `8259..8210` with `sinceMinutes=720` and also
+  with `sinceMinutes=10080`. The 720 minute simulation had
+  `selectedCount=50`, `metricsCount=1=50`, `metadataStatus=mint_only=50`,
+  `notificationTotal=0`, `holderSnapshotTotal=0`,
+  `skippedMetricUncoveredCount=40`, and no rawJson dump. The wider 10080
+  minute simulation selected the same rows with `skippedMetricUncoveredCount=742`.
+- Decision: the next Red can be guarded targeted enrich cleanup for this
+  cohort, but not from this Green task. Use human approval and
+  network-enabled / out-of-sandbox context with:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+  Expected writes are Token enrich/rescore/context updates up to `50`; Metric,
+  Notification, HolderSnapshot, Telegram, retry, auto-send, scheduler/systemd,
+  and rawJson dumps remain out of scope.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

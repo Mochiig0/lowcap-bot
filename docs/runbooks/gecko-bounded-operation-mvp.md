@@ -92,6 +92,24 @@ rows are now `metricsCount=1`, and Notification / Telegram / HolderSnapshot
 stayed unchanged. Continue with Green post-run review and guarded enrich
 preflight before any further write.
 
+That Green post-run review and guarded enrich preflight is now complete.
+Representative ids `8259`, `8235`, and `8210` map to Metric ids `2517`,
+`2541`, and `2566`, each with source `geckoterminal.token_snapshot`, one
+Metric, no Notification rows, no HolderSnapshot rows, and rawJson-free price /
+FDV / reserve / top-pool presence. The full selected cohort is still
+`mint_only=50`, `metricsCount=1=50`, `C / 0 = 50`, non-hard-rejected, and has
+no reviewFlags.
+
+The `--onlyMetricCovered` selector simulation selected exactly ids
+`8259..8210` in the 720 minute window, with
+`skippedMetricUncoveredCount=40`; the wider 10080 minute window selected the
+same ids. If approved, the next bounded-operation cleanup Red should be the
+guarded enrich command:
+
+```bash
+pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --interItemDelayMs 15000 --onlyMetricCovered --write
+```
+
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but
