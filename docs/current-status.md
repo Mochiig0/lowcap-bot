@@ -230,6 +230,38 @@ Interrupted-run guarded enrich Red, 2026-06-06:
   guarded enrich preflight, likely using a wider window or an exact targeting
   improvement.
 
+Remaining interrupted-run guarded enrich preflight, 2026-06-06:
+
+- Green post-run review confirmed the partial Red state: ids `8259..8231`
+  are `partial=29`, `metricsCount=1=29`, `score=C/0=29`, with
+  enrichedAt/rescoredAt/reviewFlags/scoreBreakdown present for all `29`.
+  GeckoTerminal context is present for `29 / 29`; Metaplex context,
+  Notification, and HolderSnapshot remain `0`.
+- Remaining ids `8230..8210` are clean guarded-enrich candidates:
+  `mint_only=21`, `metricsCount=1=21`, `score=C/0=21`,
+  `hardRejected=0`, enrichedAt/rescoredAt/reviewFlags/scoreBreakdown absent,
+  `source=geckoterminal.new_pools`, pump-only `21 / 21`,
+  Notification total `0`, and HolderSnapshot total `0`.
+- Fresh DB-only selector simulation matching `--onlyMetricCovered` behavior:
+  `sinceMinutes=720`, `limit=50` now selects `0` rows; `sinceMinutes=10080`,
+  `limit=21` selects exactly ids `8230..8210`; `sinceMinutes=10080`,
+  `limit=50` would select ids `8230..8210` plus older rows through `6968..6940`.
+  Therefore do not use limit `50` for this remaining cohort.
+- Queue/planner state remains safe: default 24h has `metricPending=436`,
+  `enrichPending=457`, `staleReview=457`, `notifyCandidate=0`; requested
+  12h is clear; rolling 168h has `metricPending=792`, `enrichPending=873`,
+  `staleReview=923`, `notifyCandidate=0`. Watchlist remains `15` B/2 rows,
+  `14` ready and `1` missing Metric. Auto-send allowed disabled/enabled is
+  `0 / 0`, retry candidate is `0`, and failed Notification is `0`.
+- Rolling-window drift rule: after a delayed Red or partial selection, run a
+  fresh Green preflight and set the next Red limit to the remaining intended
+  cohort size. For this case the next Red candidate, with human approval and
+  network-enabled / out-of-sandbox context, is:
+  `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 21 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+  Expected writes are Token enrich/rescore/context updates up to `21`;
+  Metric, Notification, HolderSnapshot, Telegram, retry, auto-send,
+  scheduler/systemd, and rawJson dumps remain out of scope.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

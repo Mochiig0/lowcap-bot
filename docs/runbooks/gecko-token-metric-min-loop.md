@@ -94,6 +94,17 @@ scheduler/systemd, or rawJson side effect occurred. The remaining ids
 `8230..8210` require a fresh Green guarded enrich preflight before any
 follow-up Red.
 
+Fresh guarded enrich preflight for that remainder is complete. The updated ids
+`8259..8231` are partial and Metric-covered; the remaining ids `8230..8210`
+are still mint-only, Metric-covered, pump-only, and have no Notification or
+HolderSnapshot rows. The `sinceMinutes=720` guarded selector now selects `0`
+rows, so do not reuse it. The safe follow-up selector is
+`sinceMinutes=10080` with `limit=21`, which selects exactly `8230..8210`;
+`limit=50` would include older rows outside this remainder.
+
+If approved, the next guarded enrich Red is:
+`pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 21 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

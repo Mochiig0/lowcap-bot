@@ -69,6 +69,14 @@ Cadence rule update: when an intended cohort is near the edge of a rolling
 window, run the Red promptly after preflight or choose a wider window during a
 fresh Green preflight. Do not run a second Red directly to compensate.
 
+Fresh remaining-cohort preflight, 2026-06-06: the old `sinceMinutes=720`
+guarded selector now selects `0` rows. A wider `sinceMinutes=10080` selector
+with `limit=21` selects exactly the remaining Metric-covered mint-only ids
+`8230..8210`; the same wider window with `limit=50` would include older rows
+outside the intended remainder. When correcting rolling-window drift, set the
+limit to the remaining intended cohort size and record the widened window in
+the Green preflight before any Red.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

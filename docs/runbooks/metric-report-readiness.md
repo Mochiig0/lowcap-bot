@@ -82,6 +82,15 @@ reportability for `29` interrupted-run rows, but leaves a known remainder for
 a future Green preflight. The next report-readiness task should explicitly
 account for rolling-window drift.
 
+Remaining guarded enrich preflight, 2026-06-06: ids `8230..8210` are still
+`mint_only=21`, `metricsCount=1=21`, score `C / 0`, with no Notification and
+no HolderSnapshot rows. The post-run review confirms ids `8259..8231` are
+already partial and reportable. The old rolling `sinceMinutes=720` selector
+now selects `0` rows; `sinceMinutes=10080` with `limit=21` selects exactly
+`8230..8210`; `limit=50` would include older rows outside the intended
+remaining cohort. The report-readiness recommendation is to use the narrower
+remaining limit with the wider window if a human-approved Red follows.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

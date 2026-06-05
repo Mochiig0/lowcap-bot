@@ -131,6 +131,23 @@ second Red directly from the partial result. The review should decide whether
 a wider window is enough or whether exact id/range targeting is needed to
 avoid rolling-window drift.
 
+That fresh Green preflight is complete. The partial result remains contained:
+ids `8259..8231` are `partial=29` with Metric coverage, reviewFlags,
+scoreBreakdown, and GeckoTerminal context present; ids `8230..8210` remain
+`mint_only=21`, `metricsCount=1=21`, score `C/0`, no Notification, and no
+HolderSnapshot.
+
+Selector simulation now shows why the next command must change: the old
+`sinceMinutes=720` window selects `0` rows, while `sinceMinutes=10080` with
+`limit=21` selects exactly the remaining ids `8230..8210`. A wider
+`limit=50` would include older rows outside the intended remaining cohort.
+
+Recommended next slice: **guarded enrich cleanup Red for the remaining 21
+rows**, only with human approval in network-enabled / out-of-sandbox context:
+`pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 21 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write`.
+Do not use the unguarded enrich command, and do not use limit `50` for this
+remainder.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
