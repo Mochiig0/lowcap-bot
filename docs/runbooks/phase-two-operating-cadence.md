@@ -77,6 +77,14 @@ outside the intended remainder. When correcting rolling-window drift, set the
 limit to the remaining intended cohort size and record the widened window in
 the Green preflight before any Red.
 
+Remaining-cohort Red result, 2026-06-06: the widened-window command with
+`limit=21` and `--onlyMetricCovered` selected exactly ids `8230..8210` and
+completed `ok=21`, `error=0`. It moved those rows to partial while keeping
+Metric, Notification, HolderSnapshot, and Telegram unchanged. This confirms
+the drift correction pattern: do not compensate with an immediate second Red;
+use a fresh Green preflight, widen the window if needed, and narrow the limit
+to the remaining cohort.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

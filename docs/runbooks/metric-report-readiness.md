@@ -91,6 +91,15 @@ now selects `0` rows; `sinceMinutes=10080` with `limit=21` selects exactly
 remaining cohort. The report-readiness recommendation is to use the narrower
 remaining limit with the wider window if a human-approved Red follows.
 
+That human-approved Red is complete. The guarded selector selected exactly ids
+`8230..8210` with `limit=21`, wrote enrich/rescore/context updates for `21`,
+and left Metric, Notification, HolderSnapshot, and Telegram unchanged. The
+target rows now have `partial=21`, `metricsCount=1=21`,
+reviewFlags/scoreBreakdown present `21 / 21`, GeckoTerminal context
+`21 / 21`, and Metaplex context `1 / 21`. Score distribution is
+`C / 0 = 18`, `C / 1 = 2`, `B / 2 = 1`; Notification and HolderSnapshot
+totals remain `0`. Watchlist is now `16` B/2 rows, still report-only.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

@@ -148,6 +148,23 @@ rows**, only with human approval in network-enabled / out-of-sandbox context:
 Do not use the unguarded enrich command, and do not use limit `50` for this
 remainder.
 
+That Red is complete. It ran once on expected HEAD
+`4891a3b docs: preflight remaining guarded enrich cleanup` with
+`selection.onlyMetricCovered=true`, selected exactly ids `8230..8210`, and
+reported `selected=21`, `ok=21`, `error=0`, `enrichWriteCount=21`,
+`rescoreWriteCount=21`, `contextWriteCount=21`, `metaplexAttemptedCount=21`,
+`metaplexAvailableCount=1`, `rateLimited=false`, `notifyWouldSend=0`, and
+`notifySent=0`. Token / Metric / Notification / HolderSnapshot stayed
+`4065 / 1457 / 22 / 1`; metadata moved to `mint_only=3033`,
+`partial=1019`, `enriched=13`.
+
+The target rows are now `partial=21`, Metric-covered, and reportable. Score
+distribution is `C/0=18`, `C/1=2`, `B/2=1`; Notification and HolderSnapshot
+totals remain `0`. Watchlist moved to `16` B/2 rows, still report-only, and
+`notifyCandidate=0` remains expected. Recommended next slice: **Green
+post-run guarded enrich review / watchlist status review** before any further
+cleanup Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

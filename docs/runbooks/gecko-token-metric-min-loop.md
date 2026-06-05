@@ -105,6 +105,15 @@ rows, so do not reuse it. The safe follow-up selector is
 If approved, the next guarded enrich Red is:
 `pnpm -s token:enrich-rescore:geckoterminal:safe -- --pumpOnly --limit 21 --sinceMinutes 10080 --interItemDelayMs 15000 --onlyMetricCovered --write`.
 
+That remaining guarded enrich Red is now complete. It selected exactly ids
+`8230..8210`, returned `selected=21`, `ok=21`, `error=0`, and reported
+`selection.onlyMetricCovered=true`, `enrichWriteCount=21`,
+`rescoreWriteCount=21`, `contextWriteCount=21`, `metaplexAvailableCount=1`,
+`notifyWouldSendCount=0`, and `notifySentCount=0`. The target rows moved to
+`partial=21`; Metric, Notification, and HolderSnapshot counts stayed
+unchanged. Score distribution is `C/0=18`, `C/1=2`, `B/2=1`. Do a Green
+post-run review before any further cleanup Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich
