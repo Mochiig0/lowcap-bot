@@ -221,6 +221,14 @@ evidence is still core-only and low-strength; 168h aggregate support is
 point: keep scoring dictionaries unchanged, keep Telegram / Notification
 policy S-only, and do not issue a Red from the watchlist review itself.
 
+Lane decision, 2026-06-06: choose Yellow graceful interrupt / final summary
+improvement before more data cleanup. The current queues and watchlist do not
+force a Red, while the interrupted 12H runner showed a real operating gap:
+`completed=false`, no useful final summary, post-run phases not reached, and
+manual classification required. The next task should improve
+`ops:run:bounded` interruption reporting and stop behavior; it should not
+change scoring, Notification / Telegram policy, scheduler, or systemd.
+
 ### Notification Safety Review
 
 Run notification safety review when:

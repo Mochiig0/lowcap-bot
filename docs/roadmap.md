@@ -201,6 +201,21 @@ the priority, choose Yellow graceful interrupt / final summary improvement.
 Do not issue a direct Red from this status point, and keep B watchlist rows
 report-only.
 
+That lane decision is now complete. The next Phase 2 lane is **Yellow
+graceful interrupt / final summary improvement** for `ops:run:bounded`, not a
+new cleanup Red and not a notification/scoring change. Current state still has
+requested 12h clear, rolling 168h `metricPending=792`, `enrichPending=852`,
+`notifyCandidate=0`, watchlist `16` B/2 rows, no A/S candidate, auto-send
+allowed `0 / 0`, retry candidate `0`, and failed Notification `0`.
+
+Recommended next slice: **Yellow: add graceful interrupt final summary to
+bounded runner**. Scope should cover SIGINT/SIGTERM handling, interrupted
+`final_summary`, active phase, elapsed time, completed/skipped phase summary,
+checkpoint path and safe cursor summary, expected non-effects, and available
+DB before/after counts. It must not automatically run post-run Metric/enrich
+on interrupt, and should preserve normal completion behavior with tests and
+runbook updates.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

@@ -364,6 +364,37 @@ Phase 2 status/watchlist point, 2026-06-06:
   keep Notification / Telegram S-only and locked, do not add capture-only B
   Notifications, and do not issue a Red command from this status point.
 
+Phase 2 lane decision, 2026-06-06:
+
+- Read-only lane review on HEAD
+  `d6ed615 docs: record phase two watchlist status point` confirms the
+  working tree is clean and the current DB state remains Token / Metric /
+  Notification / HolderSnapshot `4065 / 1457 / 22 / 1`; metadata
+  `mint_only=3033`, `partial=1019`, `enriched=13`; Metric buckets
+  `0=2748`, `1=1230`, `2+=87`.
+- Queue state does not force a Red lane: requested 12h is clear, rolling 168h
+  remains `metricPending=792`, `enrichPending=852`, `staleReview=902`,
+  `notifyCandidate=0`, and default 24h had drifted to about `245-246`
+  pending rows during review.
+- Watchlist and notification state do not justify policy work: 168h watchlist
+  remains `16` B/2 rows, `15` ready and `1` missing Metric, with no A/S row,
+  `notifyCandidateEligibleCount=0`, auto-send allowed `0 / 0`, retry
+  candidate `0`, and failed Notification `0`.
+- Decision: choose **Yellow graceful interrupt / final summary improvement**
+  as the next Phase 2 lane. It has higher value than more cleanup right now
+  because the interrupted 12H bounded runner required manual classification
+  and docs correction after it exited without a useful final summary.
+- Next Yellow scope should be limited to `ops:run:bounded` interruption
+  ergonomics: handle SIGINT/SIGTERM, emit `final_summary` with
+  `status=interrupted`, include active phase, elapsed time, completed and
+  skipped phases, checkpoint path and safe cursor summary when available,
+  expected non-effects, and available DB before/after counts; do not run
+  post-run Metric/enrich after interrupt; preserve normal completion behavior;
+  add tests and update runbooks.
+- No Red command is recommended from this lane decision. Scoring dictionary,
+  B-watchlist report-only status, Notification / Telegram S-only policy,
+  scheduler, and systemd remain unchanged.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

@@ -72,6 +72,16 @@ notification planner, and final summary were not reached. The next safe lane
 is a fresh Green targeted Metric cleanup preflight for the imported
 Metric-zero rows. Do not rerun 12H immediately.
 
+Phase 2 lane decision, 2026-06-06: after targeted cleanup and watchlist
+status review, the next lane is Yellow graceful interrupt / final summary
+improvement for this bounded runner. The goal is to make future 8H/12H
+operator interruptions self-explanatory: handle SIGINT/SIGTERM, emit an
+interrupted `final_summary`, include active phase, elapsed time,
+completed/skipped phases, checkpoint path and safe cursor summary when
+available, expected non-effects, and available DB before/after counts. The
+runner must not automatically enter post-run Metric/enrich phases after an
+interrupt, and normal completion behavior must remain unchanged.
+
 That Metric cleanup preflight is now complete on HEAD
 `8afa067 docs: review interrupted twelve hour bounded runner`. The 12h safe
 Metric preview selected ids `8259..8210`; the wider 168h preview selected the

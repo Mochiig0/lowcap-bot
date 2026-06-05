@@ -151,6 +151,10 @@ These are not MVP blockers:
   `not_failed_provider`, and `not_timeout_proven`. The next operating task
   should be a fresh Green targeted Metric cleanup preflight, not direct Red
   execution and not an immediate 12H rerun.
+- After the cleanup and watchlist status point, the next Phase 2 lane is
+  Yellow graceful interrupt / final summary behavior for `ops:run:bounded`.
+  This does not reopen MVP acceptance; it is an ergonomics and clarity
+  improvement for future long bounded trials.
 
 ## Next Phase
 
