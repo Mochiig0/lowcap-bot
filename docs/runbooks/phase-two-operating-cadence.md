@@ -85,6 +85,16 @@ the drift correction pattern: do not compensate with an immediate second Red;
 use a fresh Green preflight, widen the window if needed, and narrow the limit
 to the remaining cohort.
 
+Remaining-cohort review result, 2026-06-06: the post-run Green review
+confirmed the remaining fragment is closed. Target ids `8230..8210` are all
+partial and Metric-covered; the notable scores are two `C/1` rows and one
+`B/2` row, with only low-strength `meme` / `animal` scoreBreakdown tags.
+Watchlist is `16` B/2 rows, `15` ready and `1` missing Metric, and
+`notifyCandidate=0` remains expected. Cadence decision: keep B rows
+report-only, keep scoring / notification policy unchanged, and use either a
+fresh targeted cleanup preflight or a status/watchlist review as the next
+Green step. Do not issue direct Red from the review.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

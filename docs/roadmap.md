@@ -165,6 +165,27 @@ totals remain `0`. Watchlist moved to `16` B/2 rows, still report-only, and
 post-run guarded enrich review / watchlist status review** before any further
 cleanup Red.
 
+That Green review is complete. The target rows `8230..8210` are confirmed
+partial and reportable, with representative Metric ids `2546`, `2556`, and
+`2566` showing rawJson-free price / FDV / reserve / top-pool presence. The
+only new watchlist row is id `8212` at B/2; the two C/1 rows are ids `8227`
+and `8214`. Safe scoreBreakdown evidence is low-strength (`meme=1`,
+`animal=2` across the target notable rows), and no target row is A/S.
+
+Current state: Token / Metric / Notification / HolderSnapshot
+`4065 / 1457 / 22 / 1`; metadata `mint_only=3033`, `partial=1019`,
+`enriched=13`; Metric buckets `0=2748`, `1=1230`, `2+=87`; default 24h
+`metricPending=331`, `enrichPending=331`, `notifyCandidate=0`; requested 12h
+clear; rolling 168h `metricPending=792`, `enrichPending=852`,
+`notifyCandidate=0`. Watchlist is `16` B/2 rows, `15` ready and `1` missing
+Metric. Notification planners remain closed with auto-send allowed `0 / 0`,
+retry candidate `0`, and failed Notification `0`.
+
+Recommended next slice: **status/watchlist review or fresh targeted cleanup
+preflight**, depending on operator intent. Do not change scoring dictionary or
+notification policy from this evidence, and do not issue a direct Red from
+this review.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

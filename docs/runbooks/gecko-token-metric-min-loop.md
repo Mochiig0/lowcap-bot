@@ -114,6 +114,19 @@ That remaining guarded enrich Red is now complete. It selected exactly ids
 unchanged. Score distribution is `C/0=18`, `C/1=2`, `B/2=1`. Do a Green
 post-run review before any further cleanup Red.
 
+That Green review is now complete. Representative ids `8230`, `8220`, and
+`8210` are partial, Metric-covered, have reviewFlags and scoreBreakdown, and
+retain rawJson-free market-data presence on their latest Metrics. The target
+notable rows are `8227` (`C/1`), `8214` (`C/1`), and `8212` (`B/2`), with
+only low-strength `meme` / `animal` scoreBreakdown tags. Notification and
+HolderSnapshot totals are still `0`; notify blockers remain `rank_not_s`.
+
+Minimum-loop decision: the `8230..8210` cleanup fragment is closed. Do not
+change scoring or notification policy from this evidence. If more cleanup is
+desired, run a fresh Green targeted cleanup preflight; if robustness is the
+priority, consider a Yellow graceful interrupt / final summary improvement
+before another long bounded runner trial.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

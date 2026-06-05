@@ -301,6 +301,41 @@ Remaining interrupted-run guarded enrich Red, 2026-06-06:
   review / watchlist status review or a fresh targeted cleanup preflight;
   do not chain another Red from this result.
 
+Remaining guarded enrich review, 2026-06-06:
+
+- Read-only post-run review on HEAD
+  `e2f63b2 docs: record remaining guarded enrich cleanup` confirms the
+  previous Red result is reportable and did not create notification side
+  effects. Current Token / Metric / Notification / HolderSnapshot counts are
+  `4065 / 1457 / 22 / 1`; metadata is `mint_only=3033`, `partial=1019`,
+  `enriched=13`; Metric buckets are `0=2748`, `1=1230`, `2+=87`;
+  Notification statuses remain `captured=17`, `sent=5`, `failed=0`.
+- Target ids `8230..8210` are all `partial`, all `metricsCount=1`, and all
+  have enrichedAt, rescoredAt, reviewFlags, scoreBreakdown, and GeckoTerminal
+  context present. Representative ids `8230`, `8220`, and `8210` map to
+  Metric ids `2546`, `2556`, and `2566`, all with source
+  `geckoterminal.token_snapshot` and rawJson-free price / FDV / reserve /
+  top-pool presence.
+- Target score distribution is `C/0=18`, `C/1=2`, `B/2=1` with
+  `hardRejected=0`, Metaplex context `1 / 21`, selected Notification total
+  `0`, and selected HolderSnapshot total `0`. The `C/1` rows are ids `8227`
+  and `8214`; the new target B/2 row is id `8212`. Safe scoreBreakdown tags
+  are low-strength only: `meme=1`, `animal=2`.
+- Queue/planner state remains safe: default 24h has `metricPending=331`,
+  `enrichPending=331`, `staleReview=331`, `notifyCandidate=0`; requested 12h
+  is clear; rolling 168h has `metricPending=792`, `enrichPending=852`,
+  `staleReview=902`, `notifyCandidate=0`. Watchlist is now `16` B/2 rows,
+  `15` ready and `1` missing Metric, still report-only. Notification
+  planners remain closed with disabled/enabled auto-send allowed `0 / 0`,
+  retry candidate `0`, and failed Notification `0`.
+- Decision: no scoring dictionary change and no Notification / Telegram
+  policy change. The added B/2 and C/1 evidence is still weak and below the
+  S-only notification boundary (`rank_not_s`). Next work should be a Green
+  watchlist/status review, a fresh targeted cleanup preflight if more backlog
+  cleanup is desired, or a Yellow graceful interrupt / final summary
+  improvement for long-run ergonomics. No direct Red is recommended from this
+  review.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

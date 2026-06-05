@@ -100,6 +100,24 @@ reviewFlags/scoreBreakdown present `21 / 21`, GeckoTerminal context
 `C / 0 = 18`, `C / 1 = 2`, `B / 2 = 1`; Notification and HolderSnapshot
 totals remain `0`. Watchlist is now `16` B/2 rows, still report-only.
 
+Remaining guarded enrich review, 2026-06-06: read-only report review confirms
+the target rows are safely inspectable without rawJson. Representative ids
+`8230`, `8220`, and `8210` have Metric ids `2546`, `2556`, and `2566`,
+source `geckoterminal.token_snapshot`, one Metric each, no Notification rows,
+no HolderSnapshot rows, and price / FDV / reserve / top-pool presence.
+
+The target notable rows are id `8227` (`C / 1`, low-strength `meme` tag), id
+`8214` (`C / 1`, low-strength `animal` tag), and id `8212` (`B / 2`,
+low-strength `animal` tag). That adds one B/2 watchlist row, but still gives
+no A/S candidate and no notification eligibility. Rolling 168h watchlist is
+`16` B/2 rows, `15` ready and `1` missing Metric; blocker review remains
+`rank_not_s` with `notifyCandidateCount=0`.
+
+Conclusion: report readiness improved for the interrupted-run cohort, but the
+evidence is not strong enough for scoring dictionary changes or notification
+policy changes. Keep B rows report-only and keep Telegram / Notification
+execution locked unless a future Green review finds S candidates.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

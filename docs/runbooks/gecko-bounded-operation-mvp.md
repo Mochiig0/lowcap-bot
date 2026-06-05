@@ -128,6 +128,20 @@ remaining ids `8230..8210` need a fresh Green preflight, likely with a wider
 window or exact targeting, before any additional Red. Do not compensate with a
 second command from the same approval.
 
+The remaining-fragment follow-up is now complete. A fresh Green preflight used
+the wider `sinceMinutes=10080` window with `limit=21`, and the approved Red
+selected exactly ids `8230..8210` with `--onlyMetricCovered`. Post-run Green
+review confirms those rows are now partial, Metric-covered, and reportable;
+score distribution is `C/0=18`, `C/1=2`, `B/2=1`, with no Notification or
+HolderSnapshot rows. Watchlist is `16` B/2 rows, still report-only, and
+`notifyCandidate=0` remains expected.
+
+Bounded-operation decision: this closes the interrupted-run `8259..8210`
+Metric-covered enrich fragment. Before another bounded runner trial, either
+run a status/watchlist review or consider a Yellow graceful interrupt / final
+summary improvement. If backlog cleanup continues, start with a fresh Green
+targeted cleanup preflight instead of direct Red.
+
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but

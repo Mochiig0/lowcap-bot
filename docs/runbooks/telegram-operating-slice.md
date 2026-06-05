@@ -1628,3 +1628,19 @@ Recommended next lane: **detect / new-pool watch readiness**. Next task:
 accumulation / report is the second choice if the next chat should prioritize
 safe data quality instead of watch-loop readiness. Do not move to scheduler /
 systemd from here.
+
+## Phase 2 Watchlist Boundary
+
+Date: 2026-06-06
+
+The latest Phase 2 guarded enrich review did not change the Telegram boundary.
+The interrupted-run cleanup fragment `8230..8210` is now partial and
+reportable, but its notable rows are only `C / 1`, `C / 1`, and `B / 2`.
+Rolling 168h watchlist is `16` B/2 rows, `15` ready and `1` missing Metric,
+with `notifyCandidateCount=0` and blocker reason still below the S-only
+notification threshold.
+
+Keep B rows report-only. Do not add capture-only B Notifications, do not
+loosen Telegram send policy, and do not enable auto-send, scheduler, systemd,
+or retry execution from this evidence. Future notification work still needs a
+dedicated Green notification safety review and separate human approval.
