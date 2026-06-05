@@ -108,6 +108,44 @@ Interrupted-run Metric cleanup preflight, 2026-06-05:
   out-of-sandbox context with:
   `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
 
+Interrupted-run Metric cleanup Red, 2026-06-05:
+
+- The repo-local Red safety Skill was applied and the approved
+  network-enabled / out-of-sandbox targeted Metric cleanup command ran exactly
+  once:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+- Expected HEAD `361067b docs: preflight metric cleanup after interrupted runner`
+  matched and the working tree was clean before execution. Provider HEAD was
+  reachable without body dump.
+- Result: selected ids `8259..8210`, `selected=50`, `ok=50`, `written=50`,
+  `skipped=0`, `error=0`, `interItemDelayCount=49`,
+  `providerErrorCount=0`, all provider error categories `0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Metric ids `2517..2566` were created with observedAt range
+  `2026-06-05T12:04:36.579Z..2026-06-05T12:17:24.694Z`. RawJson-free safe
+  aggregation confirms price / FDV / reserve / top-pool presence for `50 / 50`.
+- Counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `4065 / 1407 / 22 / 1 -> 4065 / 1457 / 22 / 1`.
+  Metadata stayed `mint_only=3083`, `partial=969`, `enriched=13`. Metric
+  buckets moved `0=2798`, `1=1180`, `2+=87` to `0=2748`, `1=1230`,
+  `2+=87`.
+- The selected rows moved from `metricsCount=0` to `metricsCount=1`; selected
+  Notification total and HolderSnapshot total stayed `0`, and all selected
+  rows remained pump-only `geckoterminal.new_pools` mint-only Tokens.
+- Queue after: default 24h has `metricPending=632`, `enrichPending=682`,
+  `staleReview=682`, `notifyCandidate=0`; requested 12h rolling window has
+  `metricPending=220`, `enrichPending=270`, `staleReview=270`,
+  `notifyCandidate=0`; rolling 168h has `metricPending=792`,
+  `enrichPending=902`, `staleReview=952`, `notifyCandidate=0`.
+- Notification / Telegram stayed unchanged: disabled/enabled auto-send allowed
+  stayed `0 / 0`, retry candidate stayed `0`, failed Notification stayed `0`,
+  Notification count/status stayed `22` with `captured=17`, `sent=5`, and no
+  Notification create/update/send or Telegram send occurred.
+- This addressed `50` rows of the interrupted 12H detect-only Metric-zero
+  backlog. The next task should be a Green post-run Metric cleanup review and
+  targeted guarded enrich preflight for ids `8259..8210`, not a direct second
+  Red.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

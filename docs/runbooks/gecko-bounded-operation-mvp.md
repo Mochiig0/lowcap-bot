@@ -80,6 +80,18 @@ same rows. All selected rows are `geckoterminal.new_pools`, pump-only,
 HolderSnapshot total `0`. Use the short targeted Metric cleanup Red, not
 another bounded runner execute, if the operator approves cleanup.
 
+That targeted Metric cleanup Red is now complete on expected HEAD
+`361067b docs: preflight metric cleanup after interrupted runner`. The safe
+Metric command ran once in network-enabled / out-of-sandbox context, selected
+ids `8259..8210`, wrote Metric ids `2517..2566`, and returned `selected=50`,
+`ok=50`, `written=50`, `error=0`, `providerErrorCount=0`. Counts moved only
+in Metric: Token / Metric / Notification / HolderSnapshot
+`4065 / 1407 / 22 / 1 -> 4065 / 1457 / 22 / 1`; Metric buckets moved
+`0=2798`, `1=1180`, `2+=87` to `0=2748`, `1=1230`, `2+=87`. The selected
+rows are now `metricsCount=1`, and Notification / Telegram / HolderSnapshot
+stayed unchanged. Continue with Green post-run review and guarded enrich
+preflight before any further write.
+
 Phase 2 selector-drift note, 2026-06-04: a targeted enrich cleanup intended
 for ids `7018..6969` selected ids `7377..7328` at execution time. The exact
 safe alias command ran once and did not trigger Notification / Telegram, but

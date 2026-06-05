@@ -36,6 +36,18 @@ preview-reported Notification count `0`. The 12h and 168h windows selected the
 same rows. This is enough to proceed to a human-approved targeted Metric Red;
 report readiness will gain new Metric evidence only after that write completes.
 
+Metric cleanup result after interruption, 2026-06-05: that targeted Metric Red
+completed and added Metric ids `2517..2566` for ids `8259..8210`. The run
+reported `selected=50`, `ok=50`, `written=50`, `error=0`,
+`providerErrorCount=0`, and all provider error categories `0`. The new Metrics
+have observedAt range `2026-06-05T12:04:36.579Z..2026-06-05T12:17:24.694Z`;
+rawJson-free safe aggregation confirms price / FDV / reserve / top-pool
+presence for `50 / 50`. The selected rows are now `metricsCount=1=50`,
+Notification total `0`, and HolderSnapshot total `0`. Queue after is default
+`metricPending=632`, requested 12h rolling `metricPending=220`, and rolling
+168h `metricPending=792`, with `notifyCandidate=0` everywhere. The next
+report-readiness step is Green post-run review plus guarded enrich preflight.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

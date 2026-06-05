@@ -37,6 +37,16 @@ preview stayed dry-run/no-write/no-fetch with provider errors `0`. The next
 Red, if approved, should use the 12h window safe alias:
 `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 720 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
 
+Metric cleanup Red result, 2026-06-05: the approved network-enabled /
+out-of-sandbox safe Metric cleanup ran once and selected the preflighted ids
+`8259..8210`. It wrote Metric ids `2517..2566`, returned `selected=50`,
+`ok=50`, `written=50`, `error=0`, and `providerErrorCount=0`, and moved the
+selected cohort from `metricsCount=0` to `metricsCount=1`. Counts moved only
+in Metric (`1407 -> 1457`); Notification / Telegram, Token writes,
+HolderSnapshot writes, retry, auto-send, scheduler/systemd, and rawJson dumps
+stayed closed. Treat the next lane as Green post-run review plus guarded
+enrich preflight, not direct continuation.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

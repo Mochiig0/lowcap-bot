@@ -65,6 +65,29 @@ Expected side effects are external GeckoTerminal fetch and Metric writes up to
 0, HolderSnapshot write 0, Telegram send 0, retry/auto-send/scheduler/systemd
 0, and rawJson full dump 0.
 
+That targeted Metric cleanup Red is now complete. It ran exactly once in the
+approved network-enabled / out-of-sandbox context on expected HEAD
+`361067b docs: preflight metric cleanup after interrupted runner`, selected
+ids `8259..8210`, and returned `selected=50`, `ok=50`, `written=50`,
+`skipped=0`, `error=0`, `providerErrorCount=0`, and all provider error
+categories `0`. Metric ids `2517..2566` were created, with rawJson-free safe
+aggregation showing price / FDV / reserve / top-pool presence for `50 / 50`.
+
+Counts moved only in Metric: `4065 / 1407 / 22 / 1 -> 4065 / 1457 / 22 / 1`.
+Metric buckets moved to `0=2748`, `1=1230`, `2+=87`; metadata stayed
+`mint_only=3083`, `partial=969`, `enriched=13`. Notification / Telegram,
+Token writes, HolderSnapshot writes, retry, auto-send, scheduler/systemd, and
+rawJson dumps stayed unchanged. Queue after is default
+`metricPending=632`, `enrichPending=682`, `notifyCandidate=0`; requested 12h
+rolling `metricPending=220`, `enrichPending=270`, `notifyCandidate=0`;
+rolling 168h `metricPending=792`, `enrichPending=902`,
+`notifyCandidate=0`.
+
+Recommended next slice: **Green post-run Metric cleanup review and guarded
+targeted enrich preflight** for ids `8259..8210`. Do not run a direct second
+Red; confirm the newly Metric-covered rows and decide whether
+`--onlyMetricCovered` enrich cleanup is the next lane.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

@@ -47,6 +47,18 @@ Notification count `0`. The next approved cleanup command should be the safe
 Metric snapshot shape with `--sinceMinutes 720`, `--onlyMetricPending`, and
 `--noNotificationCapture`.
 
+Metric cleanup Red after interruption, 2026-06-05: the approved safe Metric
+snapshot ran once in network-enabled / out-of-sandbox context for ids
+`8259..8210`. It wrote Metric ids `2517..2566`, returned `selected=50`,
+`ok=50`, `written=50`, `skipped=0`, `error=0`, and
+`providerErrorCount=0`. RawJson-free safe aggregation confirms price / FDV /
+reserve / top-pool presence for `50 / 50`. Token / Metric / Notification /
+HolderSnapshot moved `4065 / 1407 / 22 / 1 -> 4065 / 1457 / 22 / 1`; Metric
+buckets moved `0=2798`, `1=1180`, `2+=87` to `0=2748`, `1=1230`, `2+=87`.
+Notification / Telegram and HolderSnapshot stayed unchanged. The next
+minimum-loop step is a Green post-run Metric review and guarded enrich
+preflight for the newly Metric-covered cohort.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich
