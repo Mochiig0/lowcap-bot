@@ -122,6 +122,17 @@ mutually exclusive with `--onlyMetricPending`, and still respects
 path remains a separate human-approved Red and should not be run without a
 fresh Green `--onlyMetricOnce` preflight.
 
+Metric-one resnapshot preflight, 2026-06-06: the fresh Green preview is clean
+for ids `8259..8210`. The `sinceMinutes=1440` window selected `50` rows, all
+`metricsCount=1`, with latest Metric ids present, latest Metric age safely
+above the `60` minute gap, Notification count `0`, HolderSnapshot count `0`,
+`providerErrorCount=0`, and no provider fetch or DB write. The
+`sinceMinutes=720` window is now empty; `sinceMinutes=10080` selects the same
+cohort but is broader than needed. If the operator approves a Red for growth
+sample depth, use:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+Expected effects are GeckoTerminal fetches and Metric writes up to `50` only.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

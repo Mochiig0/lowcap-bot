@@ -521,6 +521,25 @@ Metric-one preview mode, 2026-06-06:
   operator wants growth sample depth, should first be preflighted with
   `--onlyMetricOnce` and then separately approved.
 
+Metric-one resnapshot preflight, 2026-06-06:
+
+- The new fetch-free `--onlyMetricOnce` preview is clean for a second-snapshot
+  growth-detection lane. With `--pumpOnly --limit 50 --sinceMinutes 1440
+  --minGapMinutes 60 --onlyMetricOnce --noNotificationCapture`, dry-run
+  selected ids `8259..8210`; all `50` rows have `metricsCount=1`, safe latest
+  Metric ids present, Notification count `0`, HolderSnapshot count `0`,
+  `providerErrorCount=0`, and no provider fetch or DB write.
+- Window check: `sinceMinutes=720` is now empty, while `sinceMinutes=10080`
+  selects the same clean `8259..8210` cohort but is broader than needed. Use
+  `sinceMinutes=1440` for the next human-approved Red if the operator wants to
+  move these rows from Metric-one to Metric>=2.
+- Candidate Red, not executed in this Green task:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+  Expected side effects are GeckoTerminal fetches and Metric writes up to
+  `50`; expected non-effects are Token writes, Notification
+  create/update/send, HolderSnapshot writes, Telegram send, retry,
+  auto-send, scheduler/systemd, and rawJson dumps.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
