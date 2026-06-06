@@ -240,6 +240,20 @@ Recommended next slice: **status point / pause**. If the operator wants more
 work, choose a fresh Green bounded runner preflight or a fresh targeted cleanup
 preflight by intent. Do not issue a direct Red from this review.
 
+That Phase 2 status point is now recorded. Current state is stable for a
+pause: Token / Metric / Notification / HolderSnapshot
+`4065 / 1457 / 22 / 1`, metadata `mint_only=3033`, `partial=1019`,
+`enriched=13`, requested 12h queue clear, default 24h
+`metricPending=197`, `enrichPending=197`, and rolling 168h
+`metricPending=792`, `enrichPending=852`, `notifyCandidate=0`. Watchlist is
+still `16` B/2 rows, auto-send allowed remains `0 / 0`, retry candidate is
+`0`, and failed Notification is `0`.
+
+Recommended next slice remains **status point / pause** unless the operator
+chooses a concrete purpose: fresh data collection, backlog cleanup,
+watchlist/scoring review, or notification safety review. Any such work should
+start as a Green preflight, not a direct Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

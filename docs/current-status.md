@@ -445,6 +445,30 @@ Bounded runner interrupt behavior status review, 2026-06-06:
   intentionally wants a fresh bounded runner preflight or a fresh targeted
   cleanup preflight. No Red command is issued from this review.
 
+Phase 2 status point / next intent selection, 2026-06-06:
+
+- Read-only status point on HEAD
+  `e246699 docs: review bounded runner interrupt behavior` confirmed the
+  working tree was clean before review. Current Token / Metric /
+  Notification / HolderSnapshot counts are `4065 / 1457 / 22 / 1`;
+  metadata is `mint_only=3033`, `partial=1019`, `enriched=13`; Metric
+  buckets are `0=2748`, `1=1230`, `2+=87`.
+- Queue state: default 24h has `metricPending=197`, `enrichPending=197`,
+  `staleReview=197`, `notifyCandidate=0`; requested 12h is clear; rolling
+  168h remains `metricPending=792`, `enrichPending=852`,
+  `staleReview=902`, `notifyCandidate=0`.
+- Watchlist remains `16` rows, all `B / 2`, with `15` ready and `1` missing
+  Metric. `notifyCandidateEligibleCount=0`, and the max observed rank remains
+  below the S-only notification threshold.
+- Notification / Telegram planners remain closed: disabled/enabled
+  auto-send allowed is `0 / 0`, retry candidate is `0`, and failed
+  Notification is `0`.
+- Decision: with no explicit operator intent to collect new data, clean up
+  backlog, inspect watchlist rows, or review notification safety, choose
+  status point / pause. The next task should be a fresh Green preflight only
+  after the operator chooses a purpose. No Red command is issued from this
+  status point.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

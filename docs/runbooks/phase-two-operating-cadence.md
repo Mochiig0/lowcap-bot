@@ -248,6 +248,15 @@ fresh Green bounded runner preflight or targeted cleanup preflight. Long
 bounded trials still require stable PC, WSL, terminal, and network conditions;
 Notification / Telegram execution remains locked.
 
+Status point / intent selection, 2026-06-06: choose pause/status when there
+is no explicit operator intent. Current requested 12h queue is clear,
+`notifyCandidate=0`, auto-send allowed is `0 / 0`, retry candidate is `0`,
+failed Notification is `0`, and watchlist remains B/2 only. If the operator
+chooses fresh data, start with a Green bounded runner preflight. If the
+operator chooses backlog cleanup, start with a Green targeted cleanup
+preflight. If the operator chooses watchlist or notification review, keep it
+read-only first. Do not issue a direct Red from a status point.
+
 ### Notification Safety Review
 
 Run notification safety review when:
