@@ -112,6 +112,16 @@ running any Metric-one resnapshot Red, add a Yellow explicit selector / preview
 mode such as `--onlyMetricOnce`, `--metricCountEq 1`, or equivalent stale
 Metric-covered selector with tests and docs.
 
+Metric-one preview mode result, 2026-06-06: `--onlyMetricOnce` is now the
+explicit selector for Metric-one follow-up preflight. Use it when the operator
+goal is growth detection and the desired action is moving rows from
+`metricsCount=1` to `metricsCount>=2`. In dry-run without `--write`, it is
+fetch-free and returns `selection_preview` rows only. It is batch-only,
+mutually exclusive with `--onlyMetricPending`, and still respects
+`--pumpOnly`, `--limit`, `--sinceMinutes`, and `--minGapMinutes`. The write
+path remains a separate human-approved Red and should not be run without a
+fresh Green `--onlyMetricOnce` preflight.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

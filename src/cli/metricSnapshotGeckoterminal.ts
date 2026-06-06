@@ -34,6 +34,7 @@ type MetricSnapshotArgs = {
   pumpOnly: boolean;
   prioritizeRichPending: boolean;
   onlyMetricPending: boolean;
+  onlyMetricOnce: boolean;
   minGapMinutes?: number;
   interItemDelayMs: number;
   intervalSeconds: number;
@@ -56,6 +57,7 @@ type SelectedToken = {
   metricsCount: number;
   notificationCount: number;
   holderSnapshotCount: number;
+  latestMetricId: number | null;
   latestMetricObservedAt: string | null;
   selectionAnchorAt: string;
   selectionAnchorKind: "firstSeenDetectedAt" | "createdAt";
@@ -156,6 +158,7 @@ type ProcessedTokenResult = {
     metricsCount: number;
     notificationCount: number;
     holderSnapshotCount: number;
+    latestMetricId: number | null;
     latestMetricObservedAt: string | null;
   };
   metricSource: string;
@@ -186,6 +189,17 @@ type SelectedTokenSummary = {
   withReviewFlagsCount: number;
 };
 
+type SelectedMetricCountDistribution = {
+  zero: number;
+  one: number;
+  twoPlus: number;
+};
+
+type LatestMetricAgeMinutesSummary = {
+  min: number | null;
+  max: number | null;
+};
+
 type CliOutput = {
   mode: "single" | "recent_batch";
   dryRun: boolean;
@@ -200,9 +214,12 @@ type CliOutput = {
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
     onlyMetricPending: boolean;
+    onlyMetricOnce: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
     selectedSummary: SelectedTokenSummary;
+    selectedMetricCountDistribution: SelectedMetricCountDistribution;
+    latestMetricAgeMinutes: LatestMetricAgeMinutesSummary;
   };
   summary: {
     selectedCount: number;
@@ -229,9 +246,12 @@ type WatchCycleResult = {
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
     onlyMetricPending: boolean;
+    onlyMetricOnce: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
     selectedSummary: SelectedTokenSummary;
+    selectedMetricCountDistribution: SelectedMetricCountDistribution;
+    latestMetricAgeMinutes: LatestMetricAgeMinutesSummary;
   };
   summary: {
     selectedCount: number;
@@ -266,7 +286,10 @@ type WatchOutput = {
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
     onlyMetricPending: boolean;
+    onlyMetricOnce: boolean;
     selectedSummary: SelectedTokenSummary;
+    selectedMetricCountDistribution: SelectedMetricCountDistribution;
+    latestMetricAgeMinutes: LatestMetricAgeMinutesSummary;
   };
   cycleCount: number;
   failedCount: number;
@@ -479,7 +502,7 @@ function classifyProviderError(error: unknown): ClassifiedProviderError {
 function getUsageText(): string {
   return [
     "Usage:",
-    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--onlyMetricPending] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--notificationRehearsalTag <TAG>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
+    "pnpm metric:snapshot:geckoterminal -- [--mint <MINT>] [--limit <N>] [--sinceMinutes <N>] [--pumpOnly] [--prioritizeRichPending] [--onlyMetricPending] [--onlyMetricOnce] [--minGapMinutes <N>] [--interItemDelayMs <N>] [--source <SOURCE>] [--notificationRehearsalTag <TAG>] [--noNotificationCapture] [--write] [--watch] [--intervalSeconds <N>] [--maxIterations <N>]",
     "",
     "Defaults:",
     `- fetches live GeckoTerminal token snapshots from ${getTokenApiUrl()}/{mint}?include=top_pools`,
@@ -489,7 +512,8 @@ function getUsageText(): string {
     `- recent batch mode may be narrowed to mint strings ending with pump via --pumpOnly; --mint single mode still ignores that batch filter`,
     `- recent batch mode may also prefer non-mint_only and review-flagged rows via experimental --prioritizeRichPending; default selection order stays unchanged when omitted`,
     `- recent batch mode may be narrowed to Metric-zero rows via opt-in --onlyMetricPending; exact --mint mode rejects that option because the target is already explicit`,
-    `- --onlyMetricPending dry-run is a selection preview and does not fetch GeckoTerminal snapshots; --write uses the existing Metric append path`,
+    `- recent batch mode may be narrowed to Metric-one rows via opt-in --onlyMetricOnce for second-snapshot growth follow-up; exact --mint mode rejects that option because the target is already explicit`,
+    `- --onlyMetricPending and --onlyMetricOnce dry-runs are selection previews and do not fetch GeckoTerminal snapshots; --write uses the existing Metric append path`,
     `- batch mode excludes recent Metric rows before --limit when --minGapMinutes is set; exact --mint mode still skips before fetch when the latest Metric for the same token+source is still recent`,
     `- waits --interItemDelayMs between selected batch items when set; default is 0 and exact --mint mode is not delayed`,
     `- stays dry-run by default and writes Metric rows only when --write is set`,
@@ -561,6 +585,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
     pumpOnly: false,
     prioritizeRichPending: false,
     onlyMetricPending: false,
+    onlyMetricOnce: false,
     interItemDelayMs: 0,
     intervalSeconds: DEFAULT_INTERVAL_SECONDS,
     source: GECKOTERMINAL_TOKEN_SNAPSHOT_SOURCE,
@@ -578,6 +603,7 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
       key === "--watch" ||
       key === "--prioritizeRichPending" ||
       key === "--onlyMetricPending" ||
+      key === "--onlyMetricOnce" ||
       key === "--noNotificationCapture"
     ) {
       if (key === "--write") {
@@ -588,6 +614,8 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
         out.noNotificationCapture = true;
       } else if (key === "--onlyMetricPending") {
         out.onlyMetricPending = true;
+      } else if (key === "--onlyMetricOnce") {
+        out.onlyMetricOnce = true;
       } else {
         out.prioritizeRichPending = true;
       }
@@ -648,6 +676,14 @@ function parseArgs(argv: string[]): MetricSnapshotArgs {
 
   if (out.mint && out.onlyMetricPending) {
     throw new CliUsageError("--onlyMetricPending is only valid in batch mode without --mint");
+  }
+
+  if (out.mint && out.onlyMetricOnce) {
+    throw new CliUsageError("--onlyMetricOnce is only valid in batch mode without --mint");
+  }
+
+  if (out.onlyMetricPending && out.onlyMetricOnce) {
+    throw new CliUsageError("--onlyMetricPending and --onlyMetricOnce cannot be used together");
   }
 
   if (out.notificationRehearsalTag !== undefined) {
@@ -898,7 +934,7 @@ function buildSelectedToken(token: {
   entrySnapshot: unknown;
   metadataStatus: string;
   reviewFlagsJson: unknown;
-  metrics?: { observedAt: Date }[];
+  metrics?: { id: number; observedAt: Date }[];
   _count?: {
     metrics?: number;
     holderSnapshots?: number;
@@ -924,6 +960,7 @@ function buildSelectedToken(token: {
     metricsCount: token._count?.metrics ?? 0,
     notificationCount: 0,
     holderSnapshotCount: token._count?.holderSnapshots ?? 0,
+    latestMetricId: token.metrics?.[0]?.id ?? null,
     latestMetricObservedAt: token.metrics?.[0]?.observedAt.toISOString() ?? null,
     selectionAnchorAt: detectedAt ?? token.createdAt.toISOString(),
     selectionAnchorKind: detectedAt ? "firstSeenDetectedAt" : "createdAt",
@@ -995,6 +1032,52 @@ function summarizeSelectedTokens(tokens: SelectedToken[]): SelectedTokenSummary 
       withReviewFlagsCount: 0,
     },
   );
+}
+
+function summarizeSelectedMetricCounts(
+  tokens: Array<{ metricsCount: number }>,
+): SelectedMetricCountDistribution {
+  return tokens.reduce<SelectedMetricCountDistribution>(
+    (summary, token) => {
+      if (token.metricsCount === 0) {
+        summary.zero += 1;
+      } else if (token.metricsCount === 1) {
+        summary.one += 1;
+      } else {
+        summary.twoPlus += 1;
+      }
+
+      return summary;
+    },
+    {
+      zero: 0,
+      one: 0,
+      twoPlus: 0,
+    },
+  );
+}
+
+function summarizeLatestMetricAgeMinutes(
+  tokens: Array<{ latestMetricObservedAt: string | null }>,
+): LatestMetricAgeMinutesSummary {
+  const now = Date.now();
+  const ages = tokens
+    .map((token) => token.latestMetricObservedAt)
+    .filter((value): value is string => value !== null)
+    .map((value) => Math.max(0, Math.floor((now - Date.parse(value)) / 60_000)))
+    .filter((value) => Number.isFinite(value));
+
+  if (ages.length === 0) {
+    return {
+      min: null,
+      max: null,
+    };
+  }
+
+  return {
+    min: Math.min(...ages),
+    max: Math.max(...ages),
+  };
 }
 
 function prioritizeRichPendingTokens(tokens: SelectedToken[]): SelectedToken[] {
@@ -1129,6 +1212,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
           orderBy: [{ observedAt: "desc" }, { id: "desc" }],
           take: 1,
           select: {
+            id: true,
             observedAt: true,
           },
         },
@@ -1160,6 +1244,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
         gte: sinceCutoff,
       },
       ...(args.onlyMetricPending ? { metrics: { none: {} } } : {}),
+      ...(args.onlyMetricOnce ? { metrics: { some: {} } } : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
@@ -1174,6 +1259,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
         orderBy: [{ observedAt: "desc" }, { id: "desc" }],
         take: 1,
         select: {
+          id: true,
           observedAt: true,
         },
       },
@@ -1188,6 +1274,7 @@ async function selectTokens(args: MetricSnapshotArgs): Promise<{
 
   const recentGeckoTokens = tokens
     .map(buildSelectedToken)
+    .filter((token) => !args.onlyMetricOnce || token.metricsCount === 1)
     .filter(
       (token) =>
         token.isGeckoterminalOrigin &&
@@ -1396,6 +1483,7 @@ function buildProcessedTokenView(token: SelectedToken): ProcessedTokenResult["to
     metricsCount: token.metricsCount,
     notificationCount: token.notificationCount,
     holderSnapshotCount: token.holderSnapshotCount,
+    latestMetricId: token.latestMetricId,
     latestMetricObservedAt: token.latestMetricObservedAt,
   };
 }
@@ -1544,7 +1632,7 @@ async function executeSnapshotCycle(
   args: MetricSnapshotArgs,
 ): Promise<SnapshotExecutionResult> {
   const selection = await selectTokens(args);
-  if (args.onlyMetricPending && !args.write) {
+  if ((args.onlyMetricPending || args.onlyMetricOnce) && !args.write) {
     return {
       mode: selection.mode,
       sinceCutoff: selection.sinceCutoff,
@@ -1623,9 +1711,12 @@ function buildOneShotOutput(
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       onlyMetricPending: !args.mint && args.onlyMetricPending,
+      onlyMetricOnce: !args.mint && args.onlyMetricOnce,
       selectedCount: execution.selectedTokens.length,
       skippedNonPumpCount: execution.skippedNonPumpCount,
       selectedSummary: summarizeSelectedTokens(execution.selectedTokens),
+      selectedMetricCountDistribution: summarizeSelectedMetricCounts(execution.selectedTokens),
+      latestMetricAgeMinutes: summarizeLatestMetricAgeMinutes(execution.selectedTokens),
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
@@ -1659,9 +1750,12 @@ function createFailedCycleResult(
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       onlyMetricPending: !args.mint && args.onlyMetricPending,
+      onlyMetricOnce: !args.mint && args.onlyMetricOnce,
       selectedCount: 0,
       skippedNonPumpCount: 0,
       selectedSummary: summarizeSelectedTokens([]),
+      selectedMetricCountDistribution: summarizeSelectedMetricCounts([]),
+      latestMetricAgeMinutes: summarizeLatestMetricAgeMinutes([]),
     },
     summary: {
       selectedCount: 0,
@@ -1700,9 +1794,12 @@ function buildWatchCycleResult(
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       onlyMetricPending: !args.mint && args.onlyMetricPending,
+      onlyMetricOnce: !args.mint && args.onlyMetricOnce,
       selectedCount: execution.selectedTokens.length,
       skippedNonPumpCount: execution.skippedNonPumpCount,
       selectedSummary: summarizeSelectedTokens(execution.selectedTokens),
+      selectedMetricCountDistribution: summarizeSelectedMetricCounts(execution.selectedTokens),
+      latestMetricAgeMinutes: summarizeLatestMetricAgeMinutes(execution.selectedTokens),
     },
     summary: {
       selectedCount: execution.selectedTokens.length,
@@ -1770,6 +1867,7 @@ function buildWatchOutput(
       pumpOnly: !args.mint && args.pumpOnly,
       prioritizeRichPending: !args.mint && args.prioritizeRichPending,
       onlyMetricPending: !args.mint && args.onlyMetricPending,
+      onlyMetricOnce: !args.mint && args.onlyMetricOnce,
       selectedSummary: cycles.reduce<SelectedTokenSummary>(
         (summary, cycle) => {
           summary.mintOnlyCount += cycle.selection.selectedSummary.mintOnlyCount;
@@ -1785,6 +1883,12 @@ function buildWatchOutput(
           withReviewFlagsJsonCount: 0,
           withReviewFlagsCount: 0,
         },
+      ),
+      selectedMetricCountDistribution: summarizeSelectedMetricCounts(
+        flattenedItems.map((item) => item.token),
+      ),
+      latestMetricAgeMinutes: summarizeLatestMetricAgeMinutes(
+        flattenedItems.map((item) => item.token),
       ),
     },
     cycleCount: cycles.length,

@@ -54,6 +54,7 @@ type MetricSnapshotGeckoterminalOutput = {
     pumpOnly: boolean;
     prioritizeRichPending: boolean;
     onlyMetricPending: boolean;
+    onlyMetricOnce: boolean;
     selectedCount: number;
     skippedNonPumpCount: number;
     selectedSummary: {
@@ -61,6 +62,15 @@ type MetricSnapshotGeckoterminalOutput = {
       nonMintOnlyCount: number;
       withReviewFlagsJsonCount: number;
       withReviewFlagsCount: number;
+    };
+    selectedMetricCountDistribution: {
+      zero: number;
+      one: number;
+      twoPlus: number;
+    };
+    latestMetricAgeMinutes: {
+      min: number | null;
+      max: number | null;
     };
   };
   summary: {
@@ -96,6 +106,7 @@ type MetricSnapshotGeckoterminalOutput = {
       metricsCount: number;
       notificationCount: number;
       holderSnapshotCount: number;
+      latestMetricId: number | null;
       latestMetricObservedAt: string | null;
     };
     metricSource: string;
@@ -1211,6 +1222,133 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     });
   });
 
+  await t.test("onlyMetricOnce previews stale Metric-one batch candidates without provider fetch", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "only-metric-once.db")}`;
+      const now = Date.now();
+      const zeroMint = "MetricSnapshotOnceZero111111111111111111111111pump";
+      const recentOnceMint = "MetricSnapshotOnceRecent11111111111111111111pump";
+      const nonPumpOnceMint = "MetricSnapshotOnceNonPump111111111111111111";
+      const staleOutsideMint = "MetricSnapshotOnceOutside111111111111111111pump";
+      const onceMintA = "MetricSnapshotOnceA11111111111111111111111111pump";
+      const onceMintB = "MetricSnapshotOnceB11111111111111111111111111pump";
+      const onceMintC = "MetricSnapshotOnceC11111111111111111111111111pump";
+      const multiMint = "MetricSnapshotOnceMulti11111111111111111111111pump";
+
+      await runDbPush(databaseUrl);
+      for (const [index, mint] of [
+        zeroMint,
+        recentOnceMint,
+        nonPumpOnceMint,
+        onceMintA,
+        onceMintB,
+        onceMintC,
+        multiMint,
+      ].entries()) {
+        await seedMetricSelectionToken(databaseUrl, {
+          mint,
+          createdAt: new Date(now - (10 + index * 10) * 1_000),
+          metadataStatus: "partial",
+        });
+      }
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: staleOutsideMint,
+        createdAt: new Date(now - 2 * 60 * 60_000),
+        metadataStatus: "partial",
+      });
+      await seedRecentMetric(databaseUrl, {
+        mint: recentOnceMint,
+        observedAt: new Date(now - 5 * 60_000),
+      });
+      await seedRecentMetric(databaseUrl, {
+        mint: nonPumpOnceMint,
+        observedAt: new Date(now - 2 * 60 * 60_000),
+      });
+      for (const mint of [onceMintA, onceMintB, onceMintC, staleOutsideMint, multiMint]) {
+        await seedRecentMetric(databaseUrl, {
+          mint,
+          observedAt: new Date(now - 2 * 60 * 60_000),
+        });
+      }
+      await seedRecentMetric(databaseUrl, {
+        mint: multiMint,
+        observedAt: new Date(now - 3 * 60 * 60_000),
+      });
+
+      const previewResult = await runMetricSnapshotGeckoterminal(
+        [
+          "--limit",
+          "2",
+          "--sinceMinutes",
+          "10",
+          "--pumpOnly",
+          "--onlyMetricOnce",
+          "--minGapMinutes",
+          "60",
+          "--noNotificationCapture",
+        ],
+        {
+          databaseUrl,
+          geckoSnapshotErrorOnce:
+            "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+        },
+      );
+      assert.equal(previewResult.ok, true);
+
+      const parsed = JSON.parse(previewResult.stdout) as MetricSnapshotGeckoterminalOutput;
+      assert.equal(parsed.mode, "recent_batch");
+      assert.equal(parsed.dryRun, true);
+      assert.equal(parsed.writeEnabled, false);
+      assert.equal(parsed.selection.pumpOnly, true);
+      assert.equal(parsed.selection.onlyMetricPending, false);
+      assert.equal(parsed.selection.onlyMetricOnce, true);
+      assert.equal(parsed.selection.selectedCount, 2);
+      assert.deepEqual(parsed.selection.selectedMetricCountDistribution, {
+        zero: 0,
+        one: 2,
+        twoPlus: 0,
+      });
+      assert.equal(typeof parsed.selection.latestMetricAgeMinutes.min, "number");
+      assert.equal(typeof parsed.selection.latestMetricAgeMinutes.max, "number");
+      assert.ok((parsed.selection.latestMetricAgeMinutes.min ?? 0) >= 60);
+      assert.deepEqual(
+        parsed.items.map((item) => item.token.mint),
+        [onceMintA, onceMintB],
+      );
+      assert.equal(
+        parsed.items.every((item) => item.status === "selection_preview"),
+        true,
+      );
+      assert.equal(
+        parsed.items.every((item) => item.token.metricsCount === 1),
+        true,
+      );
+      assert.equal(
+        parsed.items.every((item) => typeof item.token.latestMetricId === "number"),
+        true,
+      );
+      assert.equal(
+        parsed.items.every((item) => item.token.latestMetricObservedAt !== null),
+        true,
+      );
+      assert.equal(
+        parsed.items.every((item) => item.metricCandidate === undefined),
+        true,
+      );
+      assert.equal(parsed.summary.okCount, 0);
+      assert.equal(parsed.summary.errorCount, 0);
+      assert.equal(parsed.summary.writtenCount, 0);
+      assert.equal(parsed.summary.providerErrorCount, 0);
+      assert.equal(previewResult.stdout.includes("rawJson"), false);
+      assert.equal(previewResult.stdout.includes("Metric Snapshot Token"), false);
+
+      assert.equal((await readMetrics(databaseUrl, onceMintA)).length, 1);
+      assert.deepEqual(await readMetrics(databaseUrl, zeroMint), []);
+      assert.equal((await readMetrics(databaseUrl, multiMint)).length, 2);
+      assert.deepEqual(await readNotifications(databaseUrl, onceMintA), []);
+    });
+  });
+
   await t.test("rejects onlyMetricPending in exact mint mode", async () => {
     const result = await runMetricSnapshotGeckoterminal([
       "--mint",
@@ -1224,6 +1362,37 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     assert.match(
       result.stderr,
       /--onlyMetricPending is only valid in batch mode without --mint/,
+    );
+  });
+
+  await t.test("rejects onlyMetricOnce in exact mint mode", async () => {
+    const result = await runMetricSnapshotGeckoterminal([
+      "--mint",
+      "MetricSnapshotExactOnce11111111111111111111111pump",
+      "--onlyMetricOnce",
+    ]);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /--onlyMetricOnce is only valid in batch mode without --mint/,
+    );
+  });
+
+  await t.test("rejects onlyMetricPending with onlyMetricOnce before fetch", async () => {
+    const result = await runMetricSnapshotGeckoterminal([
+      "--onlyMetricPending",
+      "--onlyMetricOnce",
+    ]);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 1);
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /--onlyMetricPending and --onlyMetricOnce cannot be used together/,
     );
   });
 
@@ -1379,7 +1548,7 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--intervalSeconds and --maxIterations require --watch/);
     assert.match(
       result.stderr,
-        /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--onlyMetricPending\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--notificationRehearsalTag <TAG>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
+        /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--pumpOnly\] \[--prioritizeRichPending\] \[--onlyMetricPending\] \[--onlyMetricOnce\] \[--minGapMinutes <N>\] \[--interItemDelayMs <N>\] \[--source <SOURCE>\] \[--notificationRehearsalTag <TAG>\] \[--noNotificationCapture\] \[--write\] \[--watch\] \[--intervalSeconds <N>\] \[--maxIterations <N>\]/,
     );
   });
 

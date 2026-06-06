@@ -271,6 +271,15 @@ not directly expand the Metric>=2 growth-analysis cohort. Do not issue a Red
 from this preflight, and keep scoring / Notification / Telegram policy
 unchanged.
 
+That Yellow slice is now implemented as `--onlyMetricOnce` on
+`metric:snapshot:geckoterminal`. Batch dry-run without `--write` now gives a
+fetch-free Metric-one `selection_preview` with safe Metric count and latest
+Metric metadata; `--write` continues to use the existing provider fetch /
+Metric append path and was not executed during the implementation task.
+Recommended next slice, if growth detection remains the operator intent:
+**Green Metric-one resnapshot preflight** using `--onlyMetricOnce`. Do not
+jump directly to Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

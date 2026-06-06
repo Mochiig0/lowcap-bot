@@ -95,6 +95,7 @@ test("index help hub boundary", async (t) => {
       result.stdout,
       /pnpm metric:snapshot:geckoterminal -- \[--mint <MINT>\]/,
     );
+    assert.match(result.stdout, /--onlyMetricOnce/);
     assert.match(
       result.stdout,
       /pnpm holder:gaps:plan -- \[--limit <N>\] \[--sinceHours <N>\] \[--pumpOnly\] \[--rank <S\|A\|B\|C>\]/,

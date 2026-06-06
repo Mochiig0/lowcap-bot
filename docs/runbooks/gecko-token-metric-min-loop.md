@@ -145,6 +145,13 @@ batch path as a Metric-one Green preview because it can fetch provider
 snapshots. Add an explicit Metric-one / stale-resnapshot preview mode before
 any Metric-one Red.
 
+Metric-one preview mode result, 2026-06-06: `--onlyMetricOnce` now provides
+that explicit Green preview path. In batch dry-run without `--write`, it
+selects only `metricsCount=1` rows and emits `selection_preview` without
+provider fetch or Metric write. It should be the starting point for a
+Metric-one -> Metric>=2 growth-detection lane. Keep `--onlyMetricPending` for
+Metric-zero first coverage; do not combine the two selectors.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

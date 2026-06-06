@@ -145,6 +145,15 @@ selector for first Metric coverage. The default batch path without
 Metric-one / stale-resnapshot preview mode before approving Metric-one
 resnapshot Red work.
 
+Metric-one preview mode, 2026-06-06: that explicit preview now exists as
+`--onlyMetricOnce`. It selects exactly Metric-one batch rows for
+second-snapshot / growth-detection preflight and, without `--write`, returns
+fetch-free `selection_preview` output. Safe preview fields include
+`metricsCount`, `latestMetricId`, `latestMetricObservedAt`,
+`selectedMetricCountDistribution`, and `latestMetricAgeMinutes`; raw provider
+payloads remain out of the report. Use this mode for the next Green
+Metric-one resnapshot preflight before any Metric-one Red.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

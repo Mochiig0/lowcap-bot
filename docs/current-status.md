@@ -501,6 +501,26 @@ Phase 2 Metric observation depth preflight, 2026-06-06:
   First-coverage Metric cleanup remains a useful separate backlog lane, but it
   is not the direct answer to the no-`2x+` growth finding.
 
+Metric-one preview mode, 2026-06-06:
+
+- `metric:snapshot:geckoterminal` now accepts `--onlyMetricOnce` in batch
+  mode. It selects rows with exactly one existing Metric, intended for
+  second-snapshot / growth-detection follow-up. The option respects
+  `--pumpOnly`, `--limit`, `--sinceMinutes`, and `--minGapMinutes`.
+- `--onlyMetricOnce` is mutually exclusive with `--onlyMetricPending` and is
+  rejected in exact `--mint` mode. Without `--write`, it follows the same
+  fetch-free `selection_preview` path as `--onlyMetricPending`; selected rows
+  include safe `metricsCount`, `latestMetricId`, and
+  `latestMetricObservedAt`, plus selection-level Metric count and latest-age
+  summaries. No raw provider payload is printed.
+- With `--write`, the existing Metric append path is preserved: selected
+  Metric-one rows may fetch GeckoTerminal and create a second Metric. That
+  write path was not executed in this Yellow task.
+- This keeps the growth-analysis decision unchanged: no scoring dictionary or
+  Notification / Telegram policy change is justified. The next Red, if the
+  operator wants growth sample depth, should first be preflighted with
+  `--onlyMetricOnce` and then separately approved.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
