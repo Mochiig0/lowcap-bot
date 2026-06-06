@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   buildBoundedOperationRunnerPlan,
@@ -9,6 +12,7 @@ import {
   type BoundedOperationRunnerProgressEvent,
   type BoundedOperationRunnerOptions,
   type BoundedOperationRunnerPhase,
+  type BoundedOperationRunnerExecutionContext,
   type PhaseCommand,
 } from "../src/ops/boundedOperationRunner.ts";
 import { parseOpsRunBoundedArgs } from "../src/cli/opsRunBounded.ts";
@@ -474,6 +478,176 @@ test("final progress summary is emitted on detect failure", async () => {
   assert.equal(finalEvent?.status, "failed");
   assert.ok(finalEvent?.stopConditionCodes?.includes("mock_detect_failed"));
   assert.equal(report.progressSummary?.overallStatus, "failed");
+});
+
+test("interrupted detect phase emits interrupted final summary and skips post-run phases", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "lowcap-bounded-interrupt-"));
+  const checkpointFile = join(dir, "checkpoint.json");
+  await writeFile(
+    checkpointFile,
+    JSON.stringify({
+      source: "geckoterminal.new_pools",
+      cursor: {
+        poolCreatedAt: "2026-06-05T04:51:00.000Z",
+        poolAddress: "123456789ABCDEFGH",
+      },
+    }),
+    "utf8",
+  );
+  const { events, logger } = captureProgressEvents();
+  const calls: string[] = [];
+
+  try {
+    const report = await runBoundedOperationRunner(
+      input({
+        dbState: {
+          tokenCount: 10,
+          metricCount: 20,
+          notificationCount: 1,
+          holderSnapshotCount: 0,
+          metricZeroTokenCount: 5,
+          metricOneTokenCount: 4,
+          metricTwoPlusTokenCount: 1,
+          notificationStatusCounts: {
+            captured: 1,
+            sent: 0,
+            failed: 0,
+          },
+        },
+      }),
+      { ...BASE_OPTIONS, checkpointFile, executeRequested: true },
+      async (
+        phase: BoundedOperationRunnerPhase,
+        _commands: PhaseCommand[],
+        context?: BoundedOperationRunnerExecutionContext,
+      ) => {
+        calls.push(phase.phase);
+        context?.requestInterrupt("SIGINT");
+        return {
+          ok: false,
+          interrupted: true,
+          summary: {
+            importedCount: 3,
+            existingCount: 1,
+            rawJson: "RAW_JSON_SHOULD_NOT_BE_LOGGED",
+          },
+          blockedBy: ["manual_interrupt"],
+          stopConditionCodes: ["manual_interrupt"],
+        };
+      },
+      logger,
+    );
+
+    const finalEvent = events.find((event) => event.event === "final_summary");
+    assert.equal(report.status, "interrupted");
+    assert.equal(report.progressSummary?.overallStatus, "interrupted");
+    assert.equal(report.progressSummary?.activePhase, "detect_write");
+    assert.equal(report.progressSummary?.partialPhase, "detect_write");
+    assert.deepEqual(report.progressSummary?.phasesCompleted, ["preflight"]);
+    assert.ok(report.progressSummary?.phasesSkipped.includes("metric_pending_snapshot"));
+    assert.ok(report.progressSummary?.phasesSkipped.includes("enrich_rescore"));
+    assert.ok(report.stopConditionCodes.includes("manual_interrupt"));
+    assert.equal(report.checkpointFile, checkpointFile);
+    assert.equal(report.checkpointExists, true);
+    assert.equal(report.checkpointSafeCursorSummary?.poolCreatedAt, "2026-06-05T04:51:00.000Z");
+    assert.equal(report.progressSummary?.notificationCreateUpdateExpected, 0);
+    assert.equal(report.progressSummary?.telegramSendExpected, 0);
+    assert.deepEqual(calls, ["detect_write"]);
+    assert.equal(finalEvent?.status, "interrupted");
+    assert.equal(finalEvent?.summary?.activePhase, "detect_write");
+    assert.equal(finalEvent?.summary?.checkpointFile, checkpointFile);
+    const rendered = events.map(formatBoundedOperationProgressEvent).join("\n");
+    assert.doesNotMatch(rendered, /RAW_JSON_SHOULD_NOT_BE_LOGGED/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("interrupted metric cycle stops remaining metric cycles and later phases", async () => {
+  const { events, logger } = captureProgressEvents();
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 3,
+      postRunEnrichCycles: 2,
+    },
+    async (phase, commands, context) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        context?.requestInterrupt("SIGTERM");
+        return {
+          ok: false,
+          interrupted: true,
+          summary: { selected: 1, written: 0 },
+          blockedBy: ["manual_interrupt"],
+          stopConditionCodes: ["manual_interrupt"],
+        };
+      }
+      return { ok: true, summary: { selected: 1, written: 1 } };
+    },
+    logger,
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+  ]);
+  assert.equal(report.status, "interrupted");
+  assert.equal(report.metricCyclesExecuted, 0);
+  assert.equal(report.metricCyclesStoppedReason, "manual_interrupt");
+  assert.equal(report.progressSummary?.activePhase, "metric_pending_snapshot");
+  assert.equal(report.progressSummary?.activeCycleIndex, 1);
+  assert.equal(report.progressSummary?.activeCycleTotal, 3);
+  assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+  assert.equal(report.phases.find((phase) => phase.phase === "report_review")?.status, "skipped");
+  assert.equal(events.find((event) => event.event === "final_summary")?.status, "interrupted");
+});
+
+test("interrupted enrich cycle stops remaining enrich cycles and review phases", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 1,
+      postRunEnrichCycles: 3,
+    },
+    async (phase, commands, context) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "enrich_rescore") {
+        context?.requestInterrupt("SIGINT");
+        return {
+          ok: false,
+          interrupted: true,
+          summary: { selected: 1, enriched: 0, rescored: 0 },
+          blockedBy: ["manual_interrupt"],
+          stopConditionCodes: ["manual_interrupt"],
+        };
+      }
+      return {
+        ok: true,
+        summary: { selected: 1, written: 1, enriched: 1, rescored: 1 },
+      };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_1",
+  ]);
+  assert.equal(report.status, "interrupted");
+  assert.equal(report.enrichCyclesExecuted, 0);
+  assert.equal(report.enrichCyclesStoppedReason, "manual_interrupt");
+  assert.equal(report.progressSummary?.activePhase, "enrich_rescore");
+  assert.equal(report.progressSummary?.activeCycleIndex, 1);
+  assert.equal(report.progressSummary?.activeCycleTotal, 3);
+  assert.equal(report.phases.find((phase) => phase.phase === "report_review")?.status, "skipped");
+  assert.equal(report.phases.find((phase) => phase.phase === "notification_plan_review")?.status, "skipped");
 });
 
 test("final progress summary is emitted on metric failure", async () => {

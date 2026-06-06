@@ -395,6 +395,28 @@ Phase 2 lane decision, 2026-06-06:
   B-watchlist report-only status, Notification / Telegram S-only policy,
   scheduler, and systemd remain unchanged.
 
+Yellow graceful interrupt / final summary improvement, 2026-06-06:
+
+- `ops:run:bounded` now has a safe interrupted status path for
+  SIGINT/SIGTERM and injected runner interruptions. Interrupted execute runs
+  produce `status=interrupted` and a progress `final_summary` instead of
+  falling through as an ambiguous incomplete run.
+- The interrupted summary records active phase, active cycle if applicable,
+  partial phase, completed/failed/skipped phases, elapsed time, started and
+  interrupted timestamps, checkpoint path, checkpoint existence, a safe
+  checkpoint cursor summary when available, blockedBy/stopConditionCodes with
+  `manual_interrupt`, and expected Notification / Telegram side effects `0`.
+- If interruption happens during `detect_write`, Metric/enrich/report/
+  notification planner phases are skipped. If it happens during a Metric or
+  enrich cycle, remaining cycles and later phases are skipped. Normal
+  completion, ordinary failure, and plan-only behavior are preserved.
+- Verification used only no-write commands: `pnpm exec tsc --noEmit`,
+  `node --import tsx --test tests/opsRunBounded.test.ts`,
+  `pnpm -s ops:run:bounded -- --help`, and a plan-only
+  `ops:run:bounded` command without `--execute`. No provider fetch, DB write,
+  Telegram send, Notification create/update, Metric write, Token write,
+  HolderSnapshot write, scheduler/systemd, or rawJson full dump was run.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

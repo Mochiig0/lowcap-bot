@@ -82,6 +82,15 @@ available, expected non-effects, and available DB before/after counts. The
 runner must not automatically enter post-run Metric/enrich phases after an
 interrupt, and normal completion behavior must remain unchanged.
 
+That improvement is now implemented. On SIGINT/SIGTERM, `ops:run:bounded`
+records `status=interrupted`, marks the active phase as interrupted, skips
+later phases, and emits a safe `final_summary` progress event. If the runner
+is interrupted during `detect_write`, it does not start Metric snapshots,
+enrich/rescore, report review, or notification planner review. If interrupted
+during Metric/enrich cycles, remaining cycles and later phases are skipped.
+The summary may include checkpoint path, checkpoint existence, and a safe
+cursor view with no provider body or rawJson dump.
+
 That Metric cleanup preflight is now complete on HEAD
 `8afa067 docs: review interrupted twelve hour bounded runner`. The 12h safe
 Metric preview selected ids `8259..8210`; the wider 168h preview selected the

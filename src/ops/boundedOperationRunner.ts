@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import type {
@@ -17,6 +18,7 @@ const DEFAULT_INTER_ITEM_DELAY_MS = 15_000;
 const DEFAULT_POST_RUN_METRIC_CYCLES = 1;
 const DEFAULT_POST_RUN_ENRICH_CYCLES = 1;
 const METRIC_MIN_GAP_MINUTES = 60;
+const MANUAL_INTERRUPT_CODE = "manual_interrupt";
 
 export type BoundedOperationRunnerOptions = {
   hours: number;
@@ -48,7 +50,15 @@ export type BoundedOperationRunnerPhaseStatus =
   | "executed"
   | "skipped"
   | "blocked"
-  | "failed";
+  | "failed"
+  | "interrupted";
+
+export type BoundedOperationRunnerStatus =
+  | "planned"
+  | "completed"
+  | "failed"
+  | "blocked"
+  | "interrupted";
 
 export type PhaseCommand = {
   label: string;
@@ -74,14 +84,32 @@ export type BoundedOperationRunnerPhase = {
 
 export type PhaseExecutionResult = {
   ok: boolean;
+  interrupted?: boolean;
   summary?: Record<string, unknown>;
   blockedBy?: string[];
   stopConditionCodes?: string[];
 };
 
+export type BoundedOperationRunnerInterruptSignal = "SIGINT" | "SIGTERM";
+
+type ActivePhaseSnapshot = {
+  phase: BoundedOperationRunnerPhaseName | null;
+  cycleIndex: number | null;
+  cycleTotal: number | null;
+};
+
+export type BoundedOperationRunnerExecutionContext = {
+  isInterrupted: () => boolean;
+  getInterruptSignal: () => BoundedOperationRunnerInterruptSignal | null;
+  requestInterrupt: (signal: BoundedOperationRunnerInterruptSignal) => void;
+  registerChildTerminator: (terminator: () => void) => () => void;
+  getActivePhase: () => ActivePhaseSnapshot;
+};
+
 export type PhaseExecutor = (
   phase: BoundedOperationRunnerPhase,
   commands: PhaseCommand[],
+  context?: BoundedOperationRunnerExecutionContext,
 ) => Promise<PhaseExecutionResult>;
 
 export type BoundedOperationRunnerProgressEvent = {
@@ -102,9 +130,19 @@ export type BoundedOperationRunnerLogger = (
 ) => void;
 
 export type BoundedOperationRunnerProgressSummary = {
-  overallStatus: "planned" | "completed" | "failed" | "blocked";
+  overallStatus: BoundedOperationRunnerStatus;
   executeRequested: boolean;
+  readOnly: boolean;
+  dryRun: boolean;
+  startedAt: string;
+  finishedAt: string;
+  interruptedAt: string | null;
   durationMs: number;
+  elapsedMs: number;
+  activePhase: BoundedOperationRunnerPhaseName | null;
+  activeCycleIndex: number | null;
+  activeCycleTotal: number | null;
+  partialPhase: BoundedOperationRunnerPhaseName | null;
   phasesCompleted: string[];
   phasesFailed: string[];
   phasesSkipped: string[];
@@ -119,12 +157,15 @@ export type BoundedOperationRunnerProgressSummary = {
   notificationCreateUpdateExpected: 0;
   telegramSendExpected: 0;
   checkpointFile: string | null;
+  checkpointExists: boolean | null;
+  checkpointSafeCursorSummary: Record<string, unknown> | null;
   blockedBy: string[];
   stopConditionCodes: string[];
 };
 
 export type BoundedOperationRunnerReport = {
   mode: "bounded_operation_runner";
+  status: BoundedOperationRunnerStatus;
   readOnly: boolean;
   dryRun: boolean;
   executeRequested: boolean;
@@ -134,6 +175,15 @@ export type BoundedOperationRunnerReport = {
   maxIterations: number;
   intervalSeconds: number;
   checkpointFile: string | null;
+  checkpointExists: boolean | null;
+  checkpointSafeCursorSummary: Record<string, unknown> | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  interruptedAt: string | null;
+  activePhase: BoundedOperationRunnerPhaseName | null;
+  activeCycleIndex: number | null;
+  activeCycleTotal: number | null;
+  partialPhase: BoundedOperationRunnerPhaseName | null;
   dbState: DbState;
   queueState: QueueState;
   notificationState: NotificationState;
@@ -198,6 +248,61 @@ function joinCommand(file: string, args: string[], env?: Record<string, string>)
     ? `${Object.entries(env).map(([key, value]) => `${key}=${value}`).join(" ")} `
     : "";
   return `${prefix}${[file, ...args].join(" ")}`;
+}
+
+function abbreviateValue(value: string): string {
+  return value.length <= 16 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`;
+}
+
+function readCheckpointSafeCursorSummary(checkpointFile: string | null): {
+  exists: boolean | null;
+  summary: Record<string, unknown> | null;
+} {
+  if (checkpointFile === null) {
+    return {
+      exists: null,
+      summary: null,
+    };
+  }
+
+  if (!existsSync(checkpointFile)) {
+    return {
+      exists: false,
+      summary: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(checkpointFile, "utf8")) as unknown;
+    const record = asRecord(parsed);
+    const cursor = asRecord(record?.cursor);
+    const poolCreatedAt = asString(cursor?.poolCreatedAt);
+    const poolAddress = asString(cursor?.poolAddress);
+    const source = asString(record?.source);
+    const summary: Record<string, unknown> = {};
+
+    if (source !== undefined) {
+      summary.source = source;
+    }
+    if (poolCreatedAt !== undefined) {
+      summary.poolCreatedAt = poolCreatedAt;
+    }
+    if (poolAddress !== undefined) {
+      summary.poolAddressAbbrev = abbreviateValue(poolAddress);
+    }
+
+    return {
+      exists: true,
+      summary: Object.keys(summary).length > 0 ? summary : null,
+    };
+  } catch {
+    return {
+      exists: true,
+      summary: {
+        unreadable: true,
+      },
+    };
+  }
 }
 
 function buildNodeTsxCliExecution(options: BoundedOperationRunnerOptions, cliPath: string, args: string[]): {
@@ -472,6 +577,7 @@ export function buildBoundedOperationRunnerPlan(
   const stop = buildStopBlockers(input, options);
   const blocked = stop.blockedBy.length > 0;
   const plannedStatus: BoundedOperationRunnerPhaseStatus = blocked ? "blocked" : "planned";
+  const checkpointState = readCheckpointSafeCursorSummary(options.checkpointFile ?? null);
 
   const detectCommand = buildDetectCommand(options);
   const metricCommands = buildMetricCycleCommands(options);
@@ -593,6 +699,7 @@ export function buildBoundedOperationRunnerPlan(
 
   return {
     mode: "bounded_operation_runner",
+    status: blocked ? "blocked" : options.executeRequested ? "planned" : "planned",
     readOnly: !options.executeRequested,
     dryRun: !options.executeRequested,
     executeRequested: options.executeRequested,
@@ -602,6 +709,15 @@ export function buildBoundedOperationRunnerPlan(
     maxIterations,
     intervalSeconds: options.intervalSeconds,
     checkpointFile: options.checkpointFile ?? null,
+    checkpointExists: checkpointState.exists,
+    checkpointSafeCursorSummary: checkpointState.summary,
+    startedAt: null,
+    finishedAt: null,
+    interruptedAt: null,
+    activePhase: null,
+    activeCycleIndex: null,
+    activeCycleTotal: null,
+    partialPhase: null,
     dbState: input.dbState,
     queueState: input.queueState,
     notificationState: input.notificationState,
@@ -821,6 +937,85 @@ function emitProgress(
   });
 }
 
+function createInterruptController(): {
+  context: BoundedOperationRunnerExecutionContext;
+  setActivePhase: (
+    phase: BoundedOperationRunnerPhaseName | null,
+    cycleIndex?: number | null,
+    cycleTotal?: number | null,
+  ) => void;
+  cleanup: () => void;
+  interruptedAt: () => string | null;
+} {
+  const active: ActivePhaseSnapshot = {
+    phase: null,
+    cycleIndex: null,
+    cycleTotal: null,
+  };
+  const state: {
+    interrupted: boolean;
+    signal: BoundedOperationRunnerInterruptSignal | null;
+    requestedAt: string | null;
+  } = {
+    interrupted: false,
+    signal: null,
+    requestedAt: null,
+  };
+  const childTerminators = new Set<() => void>();
+  const handlers = new Map<BoundedOperationRunnerInterruptSignal, () => void>();
+
+  const requestInterrupt = (signal: BoundedOperationRunnerInterruptSignal): void => {
+    if (!state.interrupted) {
+      state.interrupted = true;
+      state.signal = signal;
+      state.requestedAt = new Date().toISOString();
+    }
+
+    for (const terminate of childTerminators) {
+      try {
+        terminate();
+      } catch {
+        // Best-effort child termination only; final summary remains the source of truth.
+      }
+    }
+  };
+
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    const handler = (): void => {
+      requestInterrupt(signal);
+    };
+    handlers.set(signal, handler);
+    process.once(signal, handler);
+  }
+
+  return {
+    context: {
+      isInterrupted: () => state.interrupted,
+      getInterruptSignal: () => state.signal,
+      requestInterrupt,
+      registerChildTerminator: (terminator) => {
+        childTerminators.add(terminator);
+        return () => {
+          childTerminators.delete(terminator);
+        };
+      },
+      getActivePhase: () => ({ ...active }),
+    },
+    setActivePhase: (phase, cycleIndex = null, cycleTotal = null) => {
+      active.phase = phase;
+      active.cycleIndex = cycleIndex ?? null;
+      active.cycleTotal = cycleTotal ?? null;
+    },
+    cleanup: () => {
+      for (const [signal, handler] of handlers) {
+        process.off(signal, handler);
+      }
+      childTerminators.clear();
+    },
+    interruptedAt: () => state.requestedAt,
+  };
+}
+
 function formatProgressValue(value: unknown): string | null {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
@@ -920,12 +1115,26 @@ function mergePhaseSummary(
 export async function defaultPhaseExecutor(
   _phase: BoundedOperationRunnerPhase,
   commands: PhaseCommand[],
+  context?: BoundedOperationRunnerExecutionContext,
 ): Promise<PhaseExecutionResult> {
   const commandResults: Record<string, unknown>[] = [];
 
   for (const command of commands) {
+    if (context?.isInterrupted() === true) {
+      return {
+        ok: false,
+        interrupted: true,
+        summary: {
+          commandResults,
+        },
+        blockedBy: [MANUAL_INTERRUPT_CODE],
+        stopConditionCodes: [MANUAL_INTERRUPT_CODE],
+      };
+    }
+
     const result = await new Promise<{
       exitCode: number | null;
+      signal: NodeJS.Signals | null;
       stdout: string;
       stderr: string;
     }>((resolve) => {
@@ -939,6 +1148,11 @@ export async function defaultPhaseExecutor(
 
       let stdout = "";
       let stderr = "";
+      const unregisterChildTerminator = context?.registerChildTerminator(() => {
+        if (!child.killed) {
+          child.kill("SIGTERM");
+        }
+      });
       child.stdout.setEncoding("utf8");
       child.stderr.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => {
@@ -947,16 +1161,20 @@ export async function defaultPhaseExecutor(
       child.stderr.on("data", (chunk: string) => {
         stderr += chunk;
       });
-      child.on("close", (exitCode) => {
+      child.on("close", (exitCode, signal) => {
+        unregisterChildTerminator?.();
         resolve({
           exitCode,
+          signal,
           stdout,
           stderr,
         });
       });
       child.on("error", (error) => {
+        unregisterChildTerminator?.();
         resolve({
           exitCode: 1,
+          signal: null,
           stdout,
           stderr: String(error),
         });
@@ -964,6 +1182,25 @@ export async function defaultPhaseExecutor(
     });
 
     const parsedSummary = extractProgressSummaryFields(parseJsonObject(result.stdout));
+    if (context?.isInterrupted() === true) {
+      commandResults.push({
+        label: command.label,
+        exitCode: result.exitCode,
+        signal: result.signal,
+        interrupted: true,
+        parsedSummary,
+      });
+      return {
+        ok: false,
+        interrupted: true,
+        summary: {
+          commandResults,
+        },
+        blockedBy: [MANUAL_INTERRUPT_CODE],
+        stopConditionCodes: [MANUAL_INTERRUPT_CODE],
+      };
+    }
+
     commandResults.push({
       label: command.label,
       exitCode: result.exitCode,
@@ -995,11 +1232,38 @@ function skipLaterPhases(
   report: BoundedOperationRunnerReport,
   phaseItem: BoundedOperationRunnerPhase,
   reason: string,
+  stopConditionCode = "prior_phase_failed",
 ): void {
   for (const laterPhase of report.phases.slice(report.phases.indexOf(phaseItem) + 1)) {
     laterPhase.status = "skipped";
     laterPhase.blockedBy = [reason];
-    laterPhase.stopConditionCodes = ["prior_phase_failed"];
+    laterPhase.stopConditionCodes = [stopConditionCode];
+  }
+}
+
+function markReportInterrupted(
+  report: BoundedOperationRunnerReport,
+  context: BoundedOperationRunnerExecutionContext,
+  phaseItem: BoundedOperationRunnerPhase,
+  summary: Record<string, unknown>,
+): void {
+  const activePhase = context.getActivePhase();
+  const interruptedAt = new Date().toISOString();
+  phaseItem.status = "interrupted";
+  phaseItem.summary = mergePhaseSummary(phaseItem.summary, summary);
+  phaseItem.blockedBy = [MANUAL_INTERRUPT_CODE];
+  phaseItem.stopConditionCodes = [MANUAL_INTERRUPT_CODE];
+  report.status = "interrupted";
+  report.activePhase = activePhase.phase ?? phaseItem.phase;
+  report.activeCycleIndex = activePhase.cycleIndex;
+  report.activeCycleTotal = activePhase.cycleTotal;
+  report.partialPhase = phaseItem.phase;
+  report.interruptedAt = interruptedAt;
+  if (!report.blockedBy.includes(MANUAL_INTERRUPT_CODE)) {
+    report.blockedBy.push(MANUAL_INTERRUPT_CODE);
+  }
+  if (!report.stopConditionCodes.includes(MANUAL_INTERRUPT_CODE)) {
+    report.stopConditionCodes.push(MANUAL_INTERRUPT_CODE);
   }
 }
 
@@ -1008,6 +1272,12 @@ async function executeCyclePhase(
   phaseItem: BoundedOperationRunnerPhase,
   commands: PhaseCommand[],
   executor: PhaseExecutor,
+  context: BoundedOperationRunnerExecutionContext,
+  setActivePhase: (
+    phase: BoundedOperationRunnerPhaseName | null,
+    cycleIndex?: number | null,
+    cycleTotal?: number | null,
+  ) => void,
   logger?: BoundedOperationRunnerLogger,
 ): Promise<boolean> {
   const phaseStartedAt = Date.now();
@@ -1025,7 +1295,18 @@ async function executeCyclePhase(
   let executedCount = 0;
 
   for (const [index, command] of commands.entries()) {
+    if (context.isInterrupted()) {
+      markReportInterrupted(report, context, phaseItem, {
+        cyclesPlanned: commands.length,
+        cyclesExecuted: executedCount,
+        stoppedReason: MANUAL_INTERRUPT_CODE,
+        cycleSummaries,
+      });
+      return false;
+    }
+
     const cycleStartedAt = Date.now();
+    setActivePhase(phaseItem.phase, index + 1, commands.length);
     emitProgress(logger, {
       event: "cycle",
       phase: phaseItem.phase,
@@ -1034,11 +1315,11 @@ async function executeCyclePhase(
       cycleTotal: commands.length,
     });
 
-    const result = await executor(phaseItem, [command]);
+    const result = await executor(phaseItem, [command], context);
     const fields = extractCycleSummaryFields(result.summary ?? {});
     const cycleSummary = {
       cycleIndex: index + 1,
-      status: result.ok ? "executed" : "failed",
+      status: result.interrupted ? "interrupted" : result.ok ? "executed" : "failed",
       ...fields,
       summary: result.summary ?? {},
     };
@@ -1051,7 +1332,7 @@ async function executeCyclePhase(
     emitProgress(logger, {
       event: "cycle",
       phase: phaseItem.phase,
-      status: result.ok ? "completed" : "failed",
+      status: result.interrupted ? "interrupted" : result.ok ? "completed" : "failed",
       durationMs: Date.now() - cycleStartedAt,
       cycleIndex: index + 1,
       cycleTotal: commands.length,
@@ -1059,6 +1340,32 @@ async function executeCyclePhase(
       blockedBy: result.blockedBy ?? [],
       stopConditionCodes: result.stopConditionCodes ?? [],
     });
+
+    if (result.interrupted || context.isInterrupted()) {
+      markReportInterrupted(report, context, phaseItem, {
+        cyclesPlanned: commands.length,
+        cyclesExecuted: executedCount,
+        stoppedReason: MANUAL_INTERRUPT_CODE,
+        cycleSummaries,
+      });
+      if (phaseItem.phase === "metric_pending_snapshot") {
+        report.metricCyclesExecuted = executedCount;
+        report.metricCyclesStoppedReason = MANUAL_INTERRUPT_CODE;
+      } else if (phaseItem.phase === "enrich_rescore") {
+        report.enrichCyclesExecuted = executedCount;
+        report.enrichCyclesStoppedReason = MANUAL_INTERRUPT_CODE;
+      }
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "interrupted",
+        durationMs: Date.now() - phaseStartedAt,
+        summary: extractProgressSummaryFields(phaseItem.summary),
+        blockedBy: phaseItem.blockedBy,
+        stopConditionCodes: phaseItem.stopConditionCodes,
+      });
+      return false;
+    }
 
     if (!result.ok) {
       stoppedReason = `${command.label}_failed`;
@@ -1130,6 +1437,7 @@ async function executeCyclePhase(
     }
   }
 
+  setActivePhase(null);
   phaseItem.status = "executed";
   phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
     cyclesPlanned: commands.length,
@@ -1181,6 +1489,8 @@ function sumCycleField(
 
 function buildProgressSummary(
   report: BoundedOperationRunnerReport,
+  startedAt: string,
+  finishedAt: string,
   durationMs: number,
 ): BoundedOperationRunnerProgressSummary {
   const phasesCompleted = report.phases
@@ -1201,18 +1511,35 @@ function buildProgressSummary(
   const totalEnriched = sumCycleField(enrichPhase, "enriched");
   const totalRescored = sumCycleField(enrichPhase, "rescored");
   const hasBlockedPhase = report.phases.some((phaseItem) => phaseItem.status === "blocked");
-  const overallStatus = hasBlockedPhase
+  const hasInterruptedPhase = report.phases.some((phaseItem) => phaseItem.status === "interrupted");
+  const overallStatus = hasInterruptedPhase || report.status === "interrupted"
+    ? "interrupted"
+    : hasBlockedPhase
     ? "blocked"
     : report.blockedBy.length > 0 || report.stopConditionCodes.length > 0 || phasesFailed.length > 0
       ? "failed"
       : report.executeRequested
         ? "completed"
         : "planned";
+  const interruptedPhase = report.phases.find((phaseItem) => phaseItem.status === "interrupted");
+  const checkpointState = readCheckpointSafeCursorSummary(report.checkpointFile);
+  report.checkpointExists = checkpointState.exists;
+  report.checkpointSafeCursorSummary = checkpointState.summary;
 
   return {
     overallStatus,
     executeRequested: report.executeRequested,
+    readOnly: report.readOnly,
+    dryRun: report.dryRun,
+    startedAt,
+    finishedAt,
+    interruptedAt: report.interruptedAt,
     durationMs,
+    elapsedMs: durationMs,
+    activePhase: report.activePhase,
+    activeCycleIndex: report.activeCycleIndex,
+    activeCycleTotal: report.activeCycleTotal,
+    partialPhase: report.partialPhase ?? interruptedPhase?.phase ?? null,
     phasesCompleted,
     phasesFailed,
     phasesSkipped,
@@ -1233,6 +1560,8 @@ function buildProgressSummary(
     notificationCreateUpdateExpected: 0,
     telegramSendExpected: 0,
     checkpointFile: report.checkpointFile,
+    checkpointExists: report.checkpointExists,
+    checkpointSafeCursorSummary: report.checkpointSafeCursorSummary,
     blockedBy: report.blockedBy,
     stopConditionCodes: report.stopConditionCodes,
   };
@@ -1245,20 +1574,41 @@ export async function runBoundedOperationRunner(
   logger?: BoundedOperationRunnerLogger,
 ): Promise<BoundedOperationRunnerReport> {
   const runStartedAt = Date.now();
+  const startedAt = new Date(runStartedAt).toISOString();
   const report = buildBoundedOperationRunnerPlan(input, options);
+  report.startedAt = startedAt;
 
   if (!options.executeRequested || report.blockedBy.length > 0) {
     if (options.executeRequested) {
       const durationMs = Date.now() - runStartedAt;
-      report.progressSummary = buildProgressSummary(report, durationMs);
+      const finishedAt = new Date().toISOString();
+      report.finishedAt = finishedAt;
+      report.progressSummary = buildProgressSummary(report, startedAt, finishedAt, durationMs);
+      report.status = report.progressSummary.overallStatus;
       emitProgress(logger, {
         event: "final_summary",
         status: report.progressSummary.overallStatus,
         durationMs,
         summary: {
           executeRequested: report.progressSummary.executeRequested,
+          readOnly: report.progressSummary.readOnly,
+          dryRun: report.progressSummary.dryRun,
+          computedSinceMinutes: report.computedSinceMinutes,
+          maxIterations: report.maxIterations,
+          postRunMetricCycles: report.postRunMetricCycles,
+          postRunEnrichCycles: report.postRunEnrichCycles,
           metricCyclesExecuted: report.progressSummary.metricCyclesExecuted,
           enrichCyclesExecuted: report.progressSummary.enrichCyclesExecuted,
+          activePhase: report.progressSummary.activePhase ?? "none",
+          partialPhase: report.progressSummary.partialPhase ?? "none",
+          completedPhases: report.progressSummary.phasesCompleted,
+          failedPhases: report.progressSummary.phasesFailed,
+          skippedPhases: report.progressSummary.phasesSkipped,
+          checkpointFile: report.progressSummary.checkpointFile ?? "none",
+          checkpointExists: report.progressSummary.checkpointExists ?? false,
+          elapsedMs: report.progressSummary.elapsedMs,
+          startedAt: report.progressSummary.startedAt,
+          interruptedAt: report.progressSummary.interruptedAt ?? "none",
           totalTokenCreateReuse: report.progressSummary.totalTokenCreateReuse,
           totalMetricWrite: report.progressSummary.totalMetricWrite,
           totalTokenUpdate: report.progressSummary.totalTokenUpdate,
@@ -1272,102 +1622,175 @@ export async function runBoundedOperationRunner(
     return report;
   }
 
-  const preflightPhase = report.phases.find((phaseItem) => phaseItem.phase === "preflight");
-  if (preflightPhase !== undefined) {
-    const preflightStartedAt = Date.now();
-    emitProgress(logger, {
-      event: "phase",
-      phase: "preflight",
-      status: "started",
-    });
-    emitProgress(logger, {
-      event: "phase",
-      phase: "preflight",
-      status: preflightPhase.status === "ok" ? "completed" : preflightPhase.status,
-      durationMs: Date.now() - preflightStartedAt,
-      summary: extractProgressSummaryFields(preflightPhase.summary),
-      blockedBy: preflightPhase.blockedBy,
-      stopConditionCodes: preflightPhase.stopConditionCodes,
-    });
-  }
+  const interruptController = createInterruptController();
 
-  for (const phaseItem of report.phases) {
-    if (phaseItem.phase === "preflight") {
-      continue;
-    }
-
-    const commands = commandsForPhase(phaseItem.phase, options);
-    if (commands.length === 0) {
-      phaseItem.status = "skipped";
+  try {
+    const preflightPhase = report.phases.find((phaseItem) => phaseItem.phase === "preflight");
+    if (preflightPhase !== undefined) {
+      const preflightStartedAt = Date.now();
+      interruptController.setActivePhase("preflight");
       emitProgress(logger, {
         event: "phase",
-        phase: phaseItem.phase,
-        status: "skipped",
-        summary: extractProgressSummaryFields(phaseItem.summary),
+        phase: "preflight",
+        status: "started",
       });
-      continue;
+      emitProgress(logger, {
+        event: "phase",
+        phase: "preflight",
+        status: preflightPhase.status === "ok" ? "completed" : preflightPhase.status,
+        durationMs: Date.now() - preflightStartedAt,
+        summary: extractProgressSummaryFields(preflightPhase.summary),
+        blockedBy: preflightPhase.blockedBy,
+        stopConditionCodes: preflightPhase.stopConditionCodes,
+      });
+      interruptController.setActivePhase(null);
     }
 
-    if (phaseItem.phase === "metric_pending_snapshot" || phaseItem.phase === "enrich_rescore") {
-      const ok = await executeCyclePhase(report, phaseItem, commands, executor, logger);
-      if (!ok) {
-        skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
+    for (const phaseItem of report.phases) {
+      if (phaseItem.phase === "preflight") {
+        continue;
+      }
+
+      if (interruptController.context.isInterrupted()) {
+        markReportInterrupted(report, interruptController.context, phaseItem, {});
+        skipLaterPhases(report, phaseItem, MANUAL_INTERRUPT_CODE, MANUAL_INTERRUPT_CODE);
         break;
       }
-      continue;
-    }
 
-    const phaseStartedAt = Date.now();
-    emitProgress(logger, {
-      event: "phase",
-      phase: phaseItem.phase,
-      status: "started",
-    });
-    const result = await executor(phaseItem, commands);
-    phaseItem.status = result.ok ? "executed" : "failed";
-    phaseItem.summary = result.summary ?? {};
-    phaseItem.blockedBy = result.blockedBy ?? [];
-    phaseItem.stopConditionCodes = result.stopConditionCodes ?? [];
+      const commands = commandsForPhase(phaseItem.phase, options);
+      if (commands.length === 0) {
+        phaseItem.status = "skipped";
+        emitProgress(logger, {
+          event: "phase",
+          phase: phaseItem.phase,
+          status: "skipped",
+          summary: extractProgressSummaryFields(phaseItem.summary),
+        });
+        continue;
+      }
 
-    if (!result.ok) {
-      report.blockedBy.push(`${phaseItem.phase}_failed`);
-      report.stopConditionCodes.push(...phaseItem.stopConditionCodes);
+      if (phaseItem.phase === "metric_pending_snapshot" || phaseItem.phase === "enrich_rescore") {
+        const ok = await executeCyclePhase(
+          report,
+          phaseItem,
+          commands,
+          executor,
+          interruptController.context,
+          interruptController.setActivePhase,
+          logger,
+        );
+        interruptController.setActivePhase(null);
+        if (!ok) {
+          const interrupted = phaseItem.status === "interrupted";
+          skipLaterPhases(
+            report,
+            phaseItem,
+            interrupted ? MANUAL_INTERRUPT_CODE : `${phaseItem.phase}_failed`,
+            interrupted ? MANUAL_INTERRUPT_CODE : "prior_phase_failed",
+          );
+          break;
+        }
+        continue;
+      }
+
+      const phaseStartedAt = Date.now();
+      interruptController.setActivePhase(phaseItem.phase);
       emitProgress(logger, {
         event: "phase",
         phase: phaseItem.phase,
-        status: "failed",
+        status: "started",
+      });
+      const result = await executor(phaseItem, commands, interruptController.context);
+
+      if (result.interrupted || interruptController.context.isInterrupted()) {
+        markReportInterrupted(report, interruptController.context, phaseItem, result.summary ?? {});
+        emitProgress(logger, {
+          event: "phase",
+          phase: phaseItem.phase,
+          status: "interrupted",
+          durationMs: Date.now() - phaseStartedAt,
+          summary: extractProgressSummaryFields(phaseItem.summary),
+          blockedBy: phaseItem.blockedBy,
+          stopConditionCodes: phaseItem.stopConditionCodes,
+        });
+        skipLaterPhases(report, phaseItem, MANUAL_INTERRUPT_CODE, MANUAL_INTERRUPT_CODE);
+        interruptController.setActivePhase(null);
+        break;
+      }
+
+      phaseItem.status = result.ok ? "executed" : "failed";
+      phaseItem.summary = result.summary ?? {};
+      phaseItem.blockedBy = result.blockedBy ?? [];
+      phaseItem.stopConditionCodes = result.stopConditionCodes ?? [];
+
+      if (!result.ok) {
+        report.blockedBy.push(`${phaseItem.phase}_failed`);
+        report.stopConditionCodes.push(...phaseItem.stopConditionCodes);
+        emitProgress(logger, {
+          event: "phase",
+          phase: phaseItem.phase,
+          status: "failed",
+          durationMs: Date.now() - phaseStartedAt,
+          summary: extractProgressSummaryFields(phaseItem.summary),
+          blockedBy: phaseItem.blockedBy,
+          stopConditionCodes: phaseItem.stopConditionCodes,
+        });
+        skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
+        interruptController.setActivePhase(null);
+        break;
+      }
+
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "completed",
         durationMs: Date.now() - phaseStartedAt,
         summary: extractProgressSummaryFields(phaseItem.summary),
         blockedBy: phaseItem.blockedBy,
         stopConditionCodes: phaseItem.stopConditionCodes,
       });
-      skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
-      break;
+      interruptController.setActivePhase(null);
     }
-
-    emitProgress(logger, {
-      event: "phase",
-      phase: phaseItem.phase,
-      status: "completed",
-      durationMs: Date.now() - phaseStartedAt,
-      summary: extractProgressSummaryFields(phaseItem.summary),
-      blockedBy: phaseItem.blockedBy,
-      stopConditionCodes: phaseItem.stopConditionCodes,
-    });
+  } finally {
+    interruptController.cleanup();
   }
 
   const durationMs = Date.now() - runStartedAt;
-  report.progressSummary = buildProgressSummary(report, durationMs);
+  const finishedAt = new Date().toISOString();
+  report.finishedAt = finishedAt;
+  if (report.interruptedAt === null) {
+    report.interruptedAt = interruptController.interruptedAt();
+  }
+  report.progressSummary = buildProgressSummary(report, startedAt, finishedAt, durationMs);
+  report.status = report.progressSummary.overallStatus;
   emitProgress(logger, {
     event: "final_summary",
     status: report.progressSummary.overallStatus,
     durationMs,
     summary: {
       executeRequested: report.progressSummary.executeRequested,
+      readOnly: report.progressSummary.readOnly,
+      dryRun: report.progressSummary.dryRun,
+      computedSinceMinutes: report.computedSinceMinutes,
+      maxIterations: report.maxIterations,
+      postRunMetricCycles: report.postRunMetricCycles,
+      postRunEnrichCycles: report.postRunEnrichCycles,
       metricCyclesExecuted: report.progressSummary.metricCyclesExecuted,
       enrichCyclesExecuted: report.progressSummary.enrichCyclesExecuted,
       metricCyclesStoppedReason: report.progressSummary.metricCyclesStoppedReason ?? "none",
       enrichCyclesStoppedReason: report.progressSummary.enrichCyclesStoppedReason ?? "none",
+      activePhase: report.progressSummary.activePhase ?? "none",
+      activeCycleIndex: report.progressSummary.activeCycleIndex ?? 0,
+      activeCycleTotal: report.progressSummary.activeCycleTotal ?? 0,
+      partialPhase: report.progressSummary.partialPhase ?? "none",
+      completedPhases: report.progressSummary.phasesCompleted,
+      failedPhases: report.progressSummary.phasesFailed,
+      skippedPhases: report.progressSummary.phasesSkipped,
+      checkpointFile: report.progressSummary.checkpointFile ?? "none",
+      checkpointExists: report.progressSummary.checkpointExists ?? false,
+      elapsedMs: report.progressSummary.elapsedMs,
+      startedAt: report.progressSummary.startedAt,
+      interruptedAt: report.progressSummary.interruptedAt ?? "none",
       totalTokenCreateReuse: report.progressSummary.totalTokenCreateReuse,
       totalMetricWrite: report.progressSummary.totalMetricWrite,
       totalTokenUpdate: report.progressSummary.totalTokenUpdate,

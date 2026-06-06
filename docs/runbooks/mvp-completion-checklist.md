@@ -155,6 +155,10 @@ These are not MVP blockers:
   Yellow graceful interrupt / final summary behavior for `ops:run:bounded`.
   This does not reopen MVP acceptance; it is an ergonomics and clarity
   improvement for future long bounded trials.
+- That Yellow improvement is implemented: interrupted bounded runner trials
+  should now emit `status=interrupted` and a safe final summary. This improves
+  future Phase 2 operations but does not change the original MVP acceptance
+  evidence or unlock always-on automation.
 
 ## Next Phase
 

@@ -229,6 +229,15 @@ manual classification required. The next task should improve
 `ops:run:bounded` interruption reporting and stop behavior; it should not
 change scoring, Notification / Telegram policy, scheduler, or systemd.
 
+Yellow result, 2026-06-06: `ops:run:bounded` now emits safe interrupted
+summary state. Treat `status=interrupted` as neither a completed trial nor a
+provider failure. Review the active phase, partial phase, completed/skipped
+phases, elapsed time, checkpoint path, and safe checkpoint cursor summary. Do
+not assume post-run Metric/enrich/report/planner phases ran after an
+interrupt; the runner intentionally skips them. For interrupted detect-only
+runs, use a fresh Green targeted Metric cleanup preflight before any cleanup
+Red.
+
 ### Notification Safety Review
 
 Run notification safety review when:

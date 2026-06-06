@@ -216,6 +216,16 @@ DB before/after counts. It must not automatically run post-run Metric/enrich
 on interrupt, and should preserve normal completion behavior with tests and
 runbook updates.
 
+That Yellow is now implemented. `ops:run:bounded` distinguishes
+`status=interrupted` from completed, failed, blocked, and planned runs. It
+emits safe interrupted `final_summary` progress with active phase/cycle,
+elapsed time, completed/skipped phase summary, checkpoint path/existence,
+safe checkpoint cursor summary when available, `manual_interrupt` blockers,
+and Notification / Telegram expected counts of `0`. Interrupted runs do not
+auto-enter post-run Metric/enrich/report/planner phases. The next lane can be
+pause/status, a fresh Green cleanup preflight, or a bounded runner preflight
+only when the operator intentionally wants more data collection.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
