@@ -129,6 +129,22 @@ core-only score `2`, and the broader 168h aggregate shows `trend=0` and
 expected. This status point does not justify dictionary changes, capture-only
 B Notifications, or Telegram policy changes.
 
+Phase 2 Metric observation-depth preflight, 2026-06-06: the read-only growth
+recheck still finds no `2x+` FDV growth among the current Metric>=2 cohort.
+The result is not strong evidence that growth never occurs because the cohort
+is thin: only `87` tokens have two or more Metrics, compared with `1230`
+Metric-one tokens and `2748` Metric-zero tokens. For report readiness, the
+direct growth-detection improvement is to increase Metric-one follow-up
+coverage; first Metric coverage is still useful for pipeline hygiene but does
+not immediately add rows to the Metric>=2 growth sample.
+
+Preview boundary: `--onlyMetricPending` is the current safe fetch-free dry-run
+selector for first Metric coverage. The default batch path without
+`--onlyMetricPending` can process/fetch provider snapshots even without
+`--write`, so do not use it as a Green Metric-one preview. Add an explicit
+Metric-one / stale-resnapshot preview mode before approving Metric-one
+resnapshot Red work.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

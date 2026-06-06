@@ -95,6 +95,23 @@ report-only, keep scoring / notification policy unchanged, and use either a
 fresh targeted cleanup preflight or a status/watchlist review as the next
 Green step. Do not issue direct Red from the review.
 
+Metric observation-depth preflight, 2026-06-06: growth analysis still has no
+`2x+` FDV candidates, but the usable sample is only `87` Metric>=2 tokens.
+The larger opportunity for growth detection is the Metric-one cohort: `1230`
+tokens have exactly one Metric, all older than 60 minutes, while Metric-zero
+first coverage remains `2748` rows. Use Metric-zero cleanup when the goal is
+pipeline coverage. Use a Metric-one follow-up lane when the goal is growth
+detection.
+
+Current CLI safety note: `metric:snapshot:geckoterminal:safe
+-- --onlyMetricPending` is a fetch-free dry-run selection preview for
+Metric-zero rows. Omitting `--onlyMetricPending` uses the normal batch
+processing path and can fetch provider snapshots even without `--write`, so it
+is not a safe fetch-free preview for Metric-one resnapshot candidates. Before
+running any Metric-one resnapshot Red, add a Yellow explicit selector / preview
+mode such as `--onlyMetricOnce`, `--metricCountEq 1`, or equivalent stale
+Metric-covered selector with tests and docs.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

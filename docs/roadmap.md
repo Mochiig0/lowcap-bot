@@ -254,6 +254,23 @@ chooses a concrete purpose: fresh data collection, backlog cleanup,
 watchlist/scoring review, or notification safety review. Any such work should
 start as a Green preflight, not a direct Red.
 
+The operator then chose a Green Metric observation-depth preflight after a
+read-only growth analysis found no `2x+` FDV growth. Current DB state remains
+Token / Metric / Notification / HolderSnapshot `4065 / 1457 / 22 / 1`, with
+Metric buckets `0=2748`, `1=1230`, `2+=87`. The growth sample is too thin:
+only `87` tokens have two or more Metrics, while `1230` have exactly one
+Metric and all of those are older than 60 minutes.
+
+Recommended next slice: **Yellow explicit Metric-one resnapshot preview
+mode** if the goal is growth detection. Existing `metric:snapshot` safely
+previews Metric-zero first coverage with `--onlyMetricPending`, but source
+inspection shows the default dry-run path without `--onlyMetricPending` can
+fetch provider snapshots and is not a safe fetch-free Metric-one candidate
+preview. First Metric coverage is still useful backlog cleanup, but it does
+not directly expand the Metric>=2 growth-analysis cohort. Do not issue a Red
+from this preflight, and keep scoring / Notification / Telegram policy
+unchanged.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

@@ -469,6 +469,38 @@ Phase 2 status point / next intent selection, 2026-06-06:
   after the operator chooses a purpose. No Red command is issued from this
   status point.
 
+Phase 2 Metric observation depth preflight, 2026-06-06:
+
+- Read-only observation-depth review on HEAD
+  `c9a3d6e docs: record phase two status point` confirmed the working tree was
+  clean before review. Current Token / Metric / Notification / HolderSnapshot
+  counts remain `4065 / 1457 / 22 / 1`; metadata is `mint_only=3033`,
+  `partial=1019`, `enriched=13`; Metric buckets remain `0=2748`, `1=1230`,
+  `2+=87`.
+- The growth recheck still finds a thin outcome sample: only `87` tokens have
+  at least two Metrics (`85` pump-only). Counts at `2x`, `3x`, `5x`, `10x`,
+  and `20x` FDV growth are all `0`; the top FDV multiple is about `1.35x` and
+  is score `C / 0`. Current B/2 and C/1 rows do not show meaningful growth,
+  and hard-rejected rows do not show `2x+` growth.
+- Observation depth is the bottleneck for growth analysis. Metric-one rows are
+  much larger than the two-plus sample: `1230` tokens have exactly one Metric,
+  and all `1230` are older than 60 minutes; `1180` are older than 24 hours.
+  Adding a second snapshot for Metric-one rows would directly grow the
+  Metric>=2 sample, while first-coverage cleanup improves pipeline coverage
+  but does not immediately improve growth detection.
+- Existing safe Metric snapshot preview supports Metric-zero first coverage
+  via `--onlyMetricPending`; the preview selected `50` Metric-zero rows
+  (`8209..8160`) with `dryRun=true`, `writeEnabled=false`,
+  `providerErrorCount=0`, and no Notification / HolderSnapshot rows. Source
+  inspection confirmed that omitting `--onlyMetricPending` can process/fetch
+  provider snapshots even without `--write`, so it is not a safe fetch-free
+  preview for Metric-one resnapshot candidates.
+- Decision: do not change scoring or notification policy. If the goal is
+  growth detection, the next best lane is a Yellow task to add an explicit
+  fetch-free Metric-one / stale-resnapshot selection preview before any Red.
+  First-coverage Metric cleanup remains a useful separate backlog lane, but it
+  is not the direct answer to the no-`2x+` growth finding.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

@@ -134,6 +134,17 @@ auto-send candidate, no retry candidate, and no failed Notification. B rows
 remain report-only; the minimum loop does not need scoring, Telegram, or
 Notification policy changes from this status point.
 
+Metric observation-depth preflight, 2026-06-06: the no-`2x+` growth result is
+best explained as thin observation depth rather than a scoring or notification
+policy signal. Current Metric buckets are `0=2748`, `1=1230`, `2+=87`; only
+the `2+` bucket can support first-to-max growth analysis. If the operating
+goal is growth detection, the next useful loop is second Metric coverage for
+Metric-one rows. The current `metric:snapshot` safe preview only covers
+Metric-zero rows with `--onlyMetricPending`; do not use the default no-write
+batch path as a Metric-one Green preview because it can fetch provider
+snapshots. Add an explicit Metric-one / stale-resnapshot preview mode before
+any Metric-one Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich
