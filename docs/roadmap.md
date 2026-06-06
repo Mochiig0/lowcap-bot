@@ -226,6 +226,20 @@ auto-enter post-run Metric/enrich/report/planner phases. The next lane can be
 pause/status, a fresh Green cleanup preflight, or a bounded runner preflight
 only when the operator intentionally wants more data collection.
 
+That interrupt behavior status review is complete. The fixed 12H
+`ops:run:bounded` command in plan-only mode returned `status=planned`,
+`readOnly=true`, `executeRequested=false`, `progressSummary=null`,
+`blockedBy=[]`, `stopConditionCodes=[]`, and `checkpointExists=false`, so
+plan-only output is not treated as interrupted. Docs/runbooks now match the
+implemented behavior: interrupted runs are not completed trials, post-run
+Metric/enrich/report/planner phases are not auto-run after interrupt, and an
+interrupted detect-only run should be followed by a fresh Green targeted
+Metric cleanup preflight before any cleanup Red.
+
+Recommended next slice: **status point / pause**. If the operator wants more
+work, choose a fresh Green bounded runner preflight or a fresh targeted cleanup
+preflight by intent. Do not issue a direct Red from this review.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

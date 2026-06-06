@@ -238,6 +238,16 @@ interrupt; the runner intentionally skips them. For interrupted detect-only
 runs, use a fresh Green targeted Metric cleanup preflight before any cleanup
 Red.
 
+Interrupt behavior status review, 2026-06-06: the fixed 12H bounded runner
+command remains plan-only clean without `--execute`: `status=planned`,
+`readOnly=true`, `executeRequested=false`, `progressSummary=null`,
+`blockedBy=[]`, `stopConditionCodes=[]`, and `checkpointExists=false`.
+Plan-only review is not an interrupted run. The recommended lane after this
+review is status point / pause unless the operator intentionally chooses a
+fresh Green bounded runner preflight or targeted cleanup preflight. Long
+bounded trials still require stable PC, WSL, terminal, and network conditions;
+Notification / Telegram execution remains locked.
+
 ### Notification Safety Review
 
 Run notification safety review when:

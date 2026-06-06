@@ -417,6 +417,34 @@ Yellow graceful interrupt / final summary improvement, 2026-06-06:
   Telegram send, Notification create/update, Metric write, Token write,
   HolderSnapshot write, scheduler/systemd, or rawJson full dump was run.
 
+Bounded runner interrupt behavior status review, 2026-06-06:
+
+- Read-only review on HEAD
+  `da07860 feat: add graceful interrupt summary to bounded runner` confirmed
+  the working tree was clean before review. Current Token / Metric /
+  Notification / HolderSnapshot counts are `4065 / 1457 / 22 / 1`, Metric
+  buckets are `0=2748`, `1=1230`, `2+=87`, the requested 12h queue is clear,
+  and rolling 168h remains `metricPending=792`, `enrichPending=852`,
+  `staleReview=902`, `notifyCandidate=0`.
+- The fixed 12H `ops:run:bounded` command run without `--execute` returned
+  `status=planned`, `readOnly=true`, `executeRequested=false`,
+  `progressSummary=null`, `blockedBy=[]`, `stopConditionCodes=[]`, and
+  `checkpointExists=false`. Plan-only output is not classified as
+  interrupted.
+- Docs and runbooks are aligned: interrupted runs emit
+  `status=interrupted`, interrupted trials are not completed trials, later
+  Metric/enrich/report/planner phases are intentionally skipped after
+  interrupt, interrupted detect-only runs should start from a fresh Green
+  targeted Metric cleanup preflight, and long trials still require stable
+  PC / WSL / terminal / network conditions.
+- Notification / Telegram remains locked. Auto-send allowed stayed `0 / 0`,
+  retry candidate stayed `0`, failed Notification stayed `0`, and this review
+  ran no production `--execute`, provider fetch, DB write, send, retry,
+  scheduler/systemd, or rawJson dump.
+- Recommended next lane is status point / pause unless the operator
+  intentionally wants a fresh bounded runner preflight or a fresh targeted
+  cleanup preflight. No Red command is issued from this review.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
