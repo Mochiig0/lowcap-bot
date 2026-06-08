@@ -169,6 +169,14 @@ Metric-one resnapshot Red, 2026-06-08: the approved Red ran the 10080 minute
 Token, Notification, or HolderSnapshot side effect occurred. Do not run another
 Metric Red before a Green growth review.
 
+Metric-one resnapshot growth review, 2026-06-08: the Green review completed
+with no write/fetch/send side effects. ids `8259..8210` are all two-Metric
+rows, but none reached `1.1x` FDV/reserve growth; none reached `2x+`. Target
+latest shape was mostly flat/down (`39` near flat, `11` down). Global Metric>=2
+top FDV multiple is `1.3527x` and there are still no `2x+` rows. This keeps
+Metric-one resnapshot as an observation-depth lane, not evidence for scoring
+or notification changes.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

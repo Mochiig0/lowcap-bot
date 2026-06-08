@@ -174,6 +174,15 @@ now exactly two-Metric rows. The run returned `providerErrorCount=0`,
 Next report-readiness work should be a read-only growth review for this
 cohort, with no rawJson full dump and no raw names/symbols.
 
+Metric-one resnapshot growth review, 2026-06-08: the read-only review found no
+report-worthy growth signal in the target cohort. Target ids `8259..8210`
+have `metricsCount=2=50`, `notificationCount=0`, and `holderSnapshotCount=0`.
+The best target FDV multiple was `1.0058x`; target `>=1.1x`, `>=2x`, `>=3x`,
+`>=5x`, and `>=10x` counts were all `0`. Global Metric>=2 now has `137` rows
+but still no `2x+` FDV multiple. For report readiness, the next useful step is
+either another Green Metric-one resnapshot preflight for more sample depth or
+a Yellow growth report CLI to make the review repeatable.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

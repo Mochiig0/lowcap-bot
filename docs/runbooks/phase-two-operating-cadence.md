@@ -141,6 +141,15 @@ wrote Metric ids `2567..2616` with `selected=50`, `ok=50`, `written=50`, and
 HolderSnapshot side effects stayed `0`. Next step is a read-only post-run
 Metric/growth review, not a second Red.
 
+Metric-one resnapshot growth review, 2026-06-08: the follow-up Green review
+found no meaningful growth in ids `8259..8210`. All 50 rows are
+`metricsCount=2`, but target FDV and reserve buckets had `>=1.1x=0` and
+`>=2x=0`; latest FDV was down for `11` rows and near flat for `39`. Global
+Metric>=2 is now `137` total and `135` pumpOnly, with top FDV multiple
+`1.3527x` and `2x/3x/5x/10x=0`. Keep scoring and notification policy
+unchanged. Prefer another Green Metric-one preflight for more growth sample
+depth, or a Yellow growth report CLI if repeatability is the bottleneck.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

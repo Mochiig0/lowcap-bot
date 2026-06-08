@@ -306,6 +306,17 @@ stayed unchanged and `providerErrorCount=0`.
 Recommended next slice: **Green post-run Metric/growth review** for ids
 `8259..8210`. Keep it read-only; do not run a second Metric Red.
 
+That Green review is now complete. The target cohort remained effectively
+flat/down: no row reached `1.1x`, `2x`, `3x`, `5x`, or `10x` FDV growth. The
+best target row was the `B/2` token at `1.0058x`. Across all Metric>=2 rows,
+the top FDV multiple is `1.3527x` and the `2x/3x/5x/10x` counts are all `0`.
+This does not justify scoring dictionary, Telegram, or Notification policy
+changes.
+
+Recommended next slice: **Green Metric-one resnapshot preflight** if growth
+sample depth remains the priority. Second candidate: **Yellow growth report
+CLI** to make this analysis repeatable without ad hoc Prisma scripts.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

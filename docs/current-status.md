@@ -560,6 +560,26 @@ Metric-one resnapshot Red, 2026-06-08:
   names/symbols. Next work should be a Green post-run Metric/growth review,
   not another Red.
 
+Metric-one resnapshot growth review, 2026-06-08:
+
+- Green read-only review confirmed ids `8259..8210` are all exactly
+  `metricsCount=2`; no DB write, provider fetch, Telegram send, Notification
+  mutation, Token write, Metric write, HolderSnapshot write, or rawJson dump
+  occurred in this review.
+- Target cohort result: FDV buckets `>=1.1x=0`, `>=1.25x=0`, `>=1.5x=0`,
+  `>=2x=0`, `>=3x=0`, `>=5x=0`, `>=10x=0`; latest FDV was down for `11`
+  rows and near flat for `39`. Reserve buckets matched the same shape.
+- Best target row was the single `B/2` row (`8212`) at only `1.0058x` FDV
+  and `1.0038x` reserve. Target score shape was `C/0=47`, `C/1=2`, `B/2=1`;
+  no score group produced actionable growth.
+- Global Metric>=2 recheck: total `137`, pumpOnly `135`, top FDV multiple
+  `1.3527x`, and `2x/3x/5x/10x` counts all `0`. `B/2` max was `1.0058x`,
+  `C/1` max was `1.0049x`, and hardRejected growth count was `0`.
+- Decision: no scoring dictionary change and no Telegram / Notification
+  policy change. If growth detection remains the objective, next should be
+  another Green Metric-one resnapshot preflight; a Yellow growth report CLI is
+  useful as the second candidate to stop repeating ad hoc Prisma summaries.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
