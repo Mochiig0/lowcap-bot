@@ -177,6 +177,18 @@ top FDV multiple is `1.3527x` and there are still no `2x+` rows. This keeps
 Metric-one resnapshot as an observation-depth lane, not evidence for scoring
 or notification changes.
 
+Next Metric-one preflight, 2026-06-08: the remaining Metric-one backlog still
+has enough old rows for another second observation. The fetch-free
+`--onlyMetricOnce` preview with `sinceMinutes=10080` selected ids
+`7577..7528`; all `50` rows are Metric-one, have latest Metric ids present,
+and have latest Metric age `7372..7384` minutes. The selected rows have
+Notification and HolderSnapshot totals `0 / 0`, no overlap with ids
+`8259..8210`, and `providerErrorCount=0`. The 1440 and 720 minute windows
+selected `0`. If approved, the next minimum-loop Red is the same
+Metric-one resnapshot shape with the 10080 minute window and
+`--noNotificationCapture`; this Green preflight itself performed no fetch,
+write, send, or rawJson dump.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

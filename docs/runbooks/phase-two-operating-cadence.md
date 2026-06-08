@@ -150,6 +150,18 @@ Metric>=2 is now `137` total and `135` pumpOnly, with top FDV multiple
 unchanged. Prefer another Green Metric-one preflight for more growth sample
 depth, or a Yellow growth report CLI if repeatability is the bottleneck.
 
+Next Metric-one resnapshot preflight, 2026-06-08: the next
+`--onlyMetricOnce` preview is also clean. With `sinceMinutes=10080`, it
+selected ids `7577..7528` (`50` rows), all `metricsCount=1`, with latest
+Metric ids present and `latestMetricAgeMinutes=7372..7384`. The cohort does
+not overlap the already-resnapshotted ids `8259..8210`; Notification and
+HolderSnapshot totals are `0 / 0`; `providerErrorCount=0`; and the Green turn
+did not fetch, write, send, or dump rawJson. The 1440 and 720 minute windows
+are empty, so the next Red candidate, if separately approved, should use the
+10080 minute window:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+Run it only in network-enabled / out-of-sandbox context and only once.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

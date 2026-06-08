@@ -317,6 +317,24 @@ Recommended next slice: **Green Metric-one resnapshot preflight** if growth
 sample depth remains the priority. Second candidate: **Yellow growth report
 CLI** to make this analysis repeatable without ad hoc Prisma scripts.
 
+That next Green Metric-one resnapshot preflight is complete. The remaining
+Metric-one backlog is still large (`1180` rows), and the 10080 minute
+`--onlyMetricOnce` preview selected a clean, non-overlapping next cohort:
+ids `7577..7528`, `selectedCount=50`, `metricsCount=1=50`,
+latest Metric ids present, `latestMetricAgeMinutes=7372..7384`,
+Notification / HolderSnapshot totals `0 / 0`, and `providerErrorCount=0`.
+The preview stayed dry-run, fetch-free, and write-free; narrower 1440 and 720
+minute windows selected `0`.
+
+Recommended next slice: **human-approved network-enabled Metric-one
+resnapshot Red** for ids `7577..7528` if growth sample depth remains the
+priority:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+Expected effects are GeckoTerminal fetches and Metric writes up to `50`;
+Token writes, Notification create/update/send, HolderSnapshot writes,
+Telegram send, retry, auto-send, scheduler/systemd, and rawJson dumps remain
+out of scope. Do not run this Red without separate approval.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

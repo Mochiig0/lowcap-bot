@@ -183,6 +183,17 @@ but still no `2x+` FDV multiple. For report readiness, the next useful step is
 either another Green Metric-one resnapshot preflight for more sample depth or
 a Yellow growth report CLI to make the review repeatable.
 
+Next Metric-one resnapshot preflight, 2026-06-08: the next report-readiness
+candidate cohort is ids `7577..7528`. The 10080 minute `--onlyMetricOnce`
+preview selected `50` rows, all exactly Metric-one, with latest Metric ids
+present and latest Metric age `7372..7384` minutes. Selected Notification and
+HolderSnapshot totals are `0 / 0`; `providerErrorCount=0`; all provider error
+category counts are `0`; and the preview remained dry-run/no-fetch/no-write.
+The cohort does not overlap ids `8259..8210`. The 1440 and 720 minute windows
+are empty, so report-readiness recommendation is to use the 10080 minute
+window for the next separately approved Red, followed by another read-only
+growth review.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

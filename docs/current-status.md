@@ -580,6 +580,43 @@ Metric-one resnapshot growth review, 2026-06-08:
   another Green Metric-one resnapshot preflight; a Yellow growth report CLI is
   useful as the second candidate to stop repeating ad hoc Prisma summaries.
 
+Next Metric-one resnapshot preflight, 2026-06-08:
+
+- Read-only preflight on HEAD
+  `ad06a67 docs: review metric once growth results` confirmed the working
+  tree was clean and current Token / Metric / Notification / HolderSnapshot
+  counts are `4065 / 1507 / 22 / 1`; metadata is `mint_only=3033`,
+  `partial=1019`, `enriched=13`; Metric buckets are `0=2748`, `1=1180`,
+  `2+=137`.
+- Queue/planner state remains safe for considering a later Metric-only Red:
+  default 24h and requested 12h queues are clear with `notifyCandidate=0`;
+  rolling 168h has `gecko=1042`, `metricPending=792`,
+  `enrichPending=742`, `staleReview=792`, `notifyCandidate=0`. Watchlist is
+  `8` B/2 rows, `7` ready and `1` missing Metric. Disabled/enabled
+  auto-send allowed is `0 / 0`, retry candidate is `0`, and failed
+  Notification is `0`.
+- The fetch-free `--onlyMetricOnce` preview with `sinceMinutes=10080`
+  selected ids `7577..7528` (`50` rows), with no overlap against the already
+  resnapshotted ids `8259..8210`. Selection stayed `dryRun=true`,
+  `writeEnabled=false`, and `selection_preview`; selected Metric count
+  distribution was `zero=0`, `one=50`, `twoPlus=0`; latest Metric ids were
+  present for all rows; `latestMetricAgeMinutes=7372..7384`, well beyond
+  `minGapMinutes=60`.
+- Selected Notification and HolderSnapshot totals were `0 / 0`,
+  `providerErrorCount=0`, all provider error category counts were `0`,
+  `firstErrorCategory=null`, `firstHttpStatus=null`, provider fetch `0`, DB
+  write `0`, and no rawJson/provider body/name/symbol/normalizedText dump was
+  needed. Narrower `sinceMinutes=1440` and `sinceMinutes=720` previews both
+  selected `0` rows.
+- Decision: the next Red can be a human-approved, network-enabled /
+  out-of-sandbox Metric-one resnapshot for ids `7577..7528`, but it was not
+  run from this Green task. Use:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+  Expected effects are GeckoTerminal fetches and Metric writes up to `50`
+  only; Token writes, Notification create/update/send, HolderSnapshot writes,
+  Telegram send, retry, auto-send, scheduler/systemd, and rawJson dumps remain
+  out of scope.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
