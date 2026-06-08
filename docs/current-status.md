@@ -617,6 +617,42 @@ Next Metric-one resnapshot preflight, 2026-06-08:
   Telegram send, retry, auto-send, scheduler/systemd, and rawJson dumps remain
   out of scope.
 
+Metric-one resnapshot Red, 2026-06-08:
+
+- The repo-local Red safety Skill was applied. The approved
+  network-enabled / out-of-sandbox command ran exactly once on expected HEAD
+  `c108bbf docs: preflight next metric once resnapshot` with a clean working
+  tree:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+  Provider HEAD was reachable without body dump before execution.
+- Result: selected ids `7577..7528`, `selected=50`, `ok=50`, `written=50`,
+  `skipped=0`, `error=0`, `interItemDelayCount=49`,
+  `providerErrorCount=0`, all provider error categories `0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Metric ids `2617..2666` were created with observedAt range
+  `2026-06-08T13:12:33.125Z..2026-06-08T13:25:22.201Z`. Safe
+  rawJson-free aggregation confirms price / FDV / reserve / top-pool presence
+  for `50 / 50`.
+- Counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `4065 / 1507 / 22 / 1 -> 4065 / 1557 / 22 / 1`.
+  Metadata stayed `mint_only=3033`, `partial=1019`, `enriched=13`. Metric
+  buckets moved `0=2748`, `1=1180`, `2+=137` to `0=2748`, `1=1130`,
+  `2+=187`.
+- The selected rows moved from `metricsCount=1` to `metricsCount=2` for all
+  `50` rows. Selected Notification total and HolderSnapshot total stayed
+  `0 / 0`, Notification capture stayed disabled, and no Notification /
+  Telegram / Token / HolderSnapshot side effect occurred.
+- Queue/planner after stayed closed: default 24h and requested 12h queues are
+  clear with `notifyCandidate=0`; rolling 168h has `gecko=1042`,
+  `metricPending=792`, `enrichPending=742`, `staleReview=792`,
+  `notifyCandidate=0`; disabled/enabled auto-send allowed is `0 / 0`, retry
+  candidate is `0`, and failed Notification is `0`.
+- Lightweight selected-only growth check found Metric>=2 now `187` total.
+  The top selected safe row is token id `7577`, mint abbrev
+  `9qKaQRTW...BCpump`, at `fdvMultiple=3.8445` and
+  `reserveMultiple=3.7064` with score `C/1`; selected 2x count is `1`.
+  Defer full interpretation to the next Green post-run Metric/growth review.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

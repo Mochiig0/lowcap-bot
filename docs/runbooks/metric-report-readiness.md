@@ -194,6 +194,20 @@ are empty, so report-readiness recommendation is to use the 10080 minute
 window for the next separately approved Red, followed by another read-only
 growth review.
 
+Metric-one resnapshot Red, 2026-06-08: the separately approved Red completed
+for ids `7577..7528`. New Metric ids are `2617..2666`, observedAt range is
+`2026-06-08T13:12:33.125Z..2026-06-08T13:25:22.201Z`, and all selected rows
+are now `metricsCount=2`. The run returned `providerErrorCount=0` and
+`errorCount=0`; selected Notification and HolderSnapshot totals remained
+`0 / 0`; Notification capture stayed disabled.
+
+Metric>=2 report-readiness sample increased from `137` to `187`. A
+lightweight selected-only growth check, with abbreviated mints only and no
+raw names/symbols/rawJson, found one 2x+ row: token id `7577` at
+`fdvMultiple=3.8445` and `reserveMultiple=3.7064`, score `C/1`. Run a Green
+post-run Metric/growth review before interpreting scoring or notification
+policy implications.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

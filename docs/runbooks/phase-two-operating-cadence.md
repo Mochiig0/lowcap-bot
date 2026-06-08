@@ -162,6 +162,16 @@ are empty, so the next Red candidate, if separately approved, should use the
 `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
 Run it only in network-enabled / out-of-sandbox context and only once.
 
+Metric-one resnapshot Red, 2026-06-08: that approved command ran exactly once
+for ids `7577..7528` and completed cleanly with `selected=50`, `ok=50`,
+`written=50`, `skipped=0`, `error=0`, and `providerErrorCount=0`. It wrote
+Metric ids `2617..2666` and moved all selected rows from `metricsCount=1` to
+`metricsCount=2`, increasing Metric>=2 from `137` to `187`. Notification
+capture stayed disabled, Notification / Telegram / Token / HolderSnapshot
+side effects stayed `0`, and no rawJson full dump occurred. The lightweight
+selected-only growth check found one 2x+ row, so the cadence now returns to a
+Green post-run Metric/growth review before any further Red.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

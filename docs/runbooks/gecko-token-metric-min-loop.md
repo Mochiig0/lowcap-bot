@@ -189,6 +189,18 @@ Metric-one resnapshot shape with the 10080 minute window and
 `--noNotificationCapture`; this Green preflight itself performed no fetch,
 write, send, or rawJson dump.
 
+Metric-one resnapshot Red, 2026-06-08: the approved minimum-loop Red for ids
+`7577..7528` ran once and wrote Metric ids `2617..2666`. It returned
+`selected=50`, `ok=50`, `written=50`, `error=0`, and
+`providerErrorCount=0`; all selected rows are now `metricsCount=2`.
+Token / Metric / Notification / HolderSnapshot moved
+`4065 / 1507 / 22 / 1 -> 4065 / 1557 / 22 / 1`, so only Metric changed.
+Safe market-data presence was `50 / 50` for price, FDV, reserve, and
+top-pool. Notification capture was disabled and no Telegram, Notification,
+Token, HolderSnapshot, retry, auto-send, scheduler/systemd, or rawJson full
+dump side effect occurred. Do a Green post-run Metric/growth review before
+another Metric Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

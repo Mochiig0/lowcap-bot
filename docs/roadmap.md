@@ -335,6 +335,20 @@ Token writes, Notification create/update/send, HolderSnapshot writes,
 Telegram send, retry, auto-send, scheduler/systemd, and rawJson dumps remain
 out of scope. Do not run this Red without separate approval.
 
+That Metric-one resnapshot Red is now complete. It ran exactly once in a
+network-enabled / out-of-sandbox context on expected HEAD
+`c108bbf docs: preflight next metric once resnapshot`, selected ids
+`7577..7528`, and returned `selected=50`, `ok=50`, `written=50`,
+`error=0`, and `providerErrorCount=0`. Metric ids `2617..2666` were created;
+all selected rows are now `metricsCount=2`; Metric buckets moved to
+`0=2748`, `1=1130`, `2+=187`.
+
+Notification capture stayed disabled and Notification / Telegram / Token /
+HolderSnapshot side effects stayed `0`. Lightweight selected-only growth
+check found one 2x+ row, token id `7577` at `fdvMultiple=3.8445` and score
+`C/1`. Recommended next slice: **Green post-run Metric/growth review** for
+ids `7577..7528`, not a second Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
