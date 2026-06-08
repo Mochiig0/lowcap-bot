@@ -211,6 +211,22 @@ Notification / Telegram policy unchanged. Next minimum-loop action should be
 a read-only manual review of token id `7577` or a Yellow growth report CLI,
 not another immediate Metric Red.
 
+Manual growth-signal review, 2026-06-08: the read-only safe review confirms
+token id `7577` is not an FDV-only artifact. The latest Metric has safe price,
+FDV, reserve, and top-pool presence; the Metric gap is `7416` minutes;
+`fdvMultiple=3.8445`, `latestFdvMultiple=3.8445`, and
+`reserveMultiple=3.7064`. The row is `partial`, non-hard-rejected, and has
+reviewFlags, scoreBreakdown, entrySnapshot, and context capture present, but
+no Notification or HolderSnapshot rows.
+
+The C/1 explanation is sparse evidence: safe source aggregate `core=1`, no
+learned-pattern/trend/combo points, and no website, X/Twitter, Telegram,
+description, link, or Metaplex presence. Similarity review found no repeated
+pattern; token id `7577` is still the only `>=2x` / `>=3x` extractable
+Metric>=2 row and B/2 rows remain below `2x`. Minimum-loop policy stays
+unchanged. Prefer a Yellow safe growth report CLI next, or another Green
+Metric-one resnapshot preflight if more examples are needed first.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

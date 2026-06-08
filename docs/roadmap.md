@@ -362,6 +362,29 @@ candidate: **Yellow growth report CLI** so future Metric>=2 growth reviews do
 not require ad hoc Prisma scripts. Do not change scoring or notification
 policy from this single isolated winner.
 
+That Green manual review is now complete. Token id `7577` remains the first
+clear Metric>=2 growth signal: two Metrics (`2317 -> 2617`), `7416` minutes
+apart, `fdvMultiple=3.8445`, `latestFdvMultiple=3.8445`, and
+`reserveMultiple=3.7064`. The latest Metric has safe price / FDV / reserve /
+top-pool presence, and the review did not print raw token name, raw symbol,
+normalized text, matched keyword, rawJson, or provider body.
+
+The reason it stayed `C/1` is sparse metadata evidence, not hard rejection:
+`hardRejected=false`, `metadataStatus=partial`, reviewFlags and
+scoreBreakdown are present, but the safe score aggregate is only `core=1`
+with no learned pattern, trend, or combo contribution. ReviewFlags show no
+website, X/Twitter, Telegram, description, link, or Metaplex presence.
+Notification and HolderSnapshot counts are `0 / 0`.
+
+Similarity check did not find a repeated under-scored winner pattern. Among
+extractable Metric>=2 rows with both FDV and reserve, token id `7577` is still
+the only `>=2x` and `>=3x` row; B/2 rows remain below `2x` with max
+`1.0058x`. Recommended next slice: **Yellow safe growth report CLI** to make
+this review repeatable. Second candidate: **Green Metric-one resnapshot
+preflight** if more observation examples should come before report tooling.
+No Red command, scoring dictionary change, watchlist threshold change, or
+Notification / Telegram policy change is recommended from this single signal.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

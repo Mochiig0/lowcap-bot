@@ -690,6 +690,38 @@ Metric-one resnapshot growth review, 2026-06-08:
   `metrics:growth-report` CLI because repeated ad hoc growth review is now a
   bottleneck. No Red command is recommended from this review.
 
+Manual growth-signal review, 2026-06-08:
+
+- Green read-only/docs-only review on HEAD
+  `7881880 docs: review metric once growth results` confirmed token id
+  `7577`, mint abbrev `9qKaQRTW...BCpump`, remains the first clear
+  Metric>=2 growth signal. It has two Metrics (`2317 -> 2617`), observed
+  over `7416` minutes, with `fdvMultiple=3.8445`,
+  `latestFdvMultiple=3.8445`, and `reserveMultiple=3.7064`.
+- Safe market-data booleans on the latest Metric are all present: price,
+  FDV, reserve, and top-pool. The review printed no raw token name, raw
+  symbol, normalized text, matched keyword, rawJson, or provider body.
+- The row is still `scoreRank=C`, `scoreTotal=1`, `hardRejected=false`,
+  `metadataStatus=partial`, with reviewFlags, scoreBreakdown, entrySnapshot,
+  and context capture present. Notification count and HolderSnapshot count
+  are both `0`.
+- Safe scoreBreakdown aggregation explains C/1: source aggregate is
+  `core=1`, `learned_pattern=0`, `trend=0`, `combo=0`; safe tag aggregate is
+  a single meme-tag hit. ReviewFlags are sparse: no website, X/Twitter,
+  Telegram, description, link, or Metaplex presence. There is not enough
+  evidence for B/A/S under current rules.
+- Similarity check found this is still isolated: among extractable
+  Metric>=2 rows with both FDV and reserve, global `>=2x` and `>=3x` counts
+  are both `1`, and the max row is still token id `7577`; B/2 rows remain
+  below `2x` with max `1.0058x`. The same safe source/tag aggregate has only
+  this one high-growth row.
+- Decision: treat token id `7577` as a real manual-review signal, not a
+  scoring or notification policy unlock. Keep watchlist B rows report-only,
+  keep S-only Notification/Telegram policy, and do not issue Red from this
+  review. Next best step is Yellow safe `metrics:growth-report`; second
+  candidate is another Green Metric-one resnapshot preflight if more examples
+  are needed first.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

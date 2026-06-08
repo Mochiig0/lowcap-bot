@@ -182,6 +182,23 @@ evidence that growth detection needs more reporting, not as a policy unlock:
 do not change scoring or Notification / Telegram behavior from one isolated
 C/1 winner.
 
+Manual growth-signal review, 2026-06-08: token id `7577` remains a real
+growth signal after safe manual review. The two Metrics are `2317 -> 2617`,
+the observation gap is `7416` minutes, `fdvMultiple=3.8445`,
+`latestFdvMultiple=3.8445`, and `reserveMultiple=3.7064`; latest price, FDV,
+reserve, and top-pool booleans are present. It stayed `C/1` because the safe
+score aggregate is only `core=1` with no learned-pattern, trend, or combo
+points, and reviewFlags show no website, X/Twitter, Telegram, description,
+link, or Metaplex evidence. The similarity check found no repeated
+under-scored growth pattern: this is still the only `>=2x` / `>=3x` row in
+the extractable Metric>=2 set, while B/2 rows remain below `2x`.
+
+Cadence decision: do not tune scoring, lower watchlist thresholds, create
+capture-only B/C Notifications, or loosen the S-only Telegram path from one
+isolated C/1 winner. Prefer a Yellow safe growth report CLI next; use another
+Green Metric-one resnapshot preflight only if more observation examples are
+needed before report tooling.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

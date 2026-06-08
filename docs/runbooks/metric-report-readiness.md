@@ -222,6 +222,28 @@ and repeatable growth reporting, but one C/1 winner is not enough evidence to
 change scoring or notification policy. Prefer a Green manual review of token
 id `7577` and a Yellow safe growth report CLI before any policy work.
 
+Manual growth-signal review, 2026-06-08: the Green review of token id `7577`
+stayed read-only/docs-only and rawJson-free. It confirmed the row has two
+Metrics (`2317 -> 2617`) over `7416` minutes, `fdvMultiple=3.8445`,
+`latestFdvMultiple=3.8445`, and `reserveMultiple=3.7064`. Latest safe
+market-data booleans are present for price, FDV, reserve, and top-pool.
+
+The score explanation is safe to summarize without raw token text:
+`scoreRank=C`, `scoreTotal=1`, `hardRejected=false`, `metadataStatus=partial`,
+reviewFlags present, scoreBreakdown present, entrySnapshot/context-capture
+present, Notification count `0`, and HolderSnapshot count `0`. Source
+aggregate is `core=1`, with no learned-pattern, trend, or combo contribution;
+reviewFlags show no website, X/Twitter, Telegram, description, link, or
+Metaplex presence. This explains why the row is not B/A/S and not a
+notifyCandidate under the current S-only policy.
+
+Similarity check found no repeated under-scored growth pattern. In the
+extractable Metric>=2 set with both FDV and reserve, token id `7577` is still
+the only `>=2x` and `>=3x` row; B/2 rows remain below `2x` with max
+`1.0058x`. Report-readiness conclusion: keep scoring and Notification /
+Telegram policy unchanged, treat `7577` as a manual-review signal, and prefer
+a Yellow safe `metrics:growth-report` CLI before more ad hoc growth reviews.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates
