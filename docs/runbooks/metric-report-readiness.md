@@ -165,6 +165,15 @@ detection, run one separately approved network-enabled Red using the 10080
 minute `--onlyMetricOnce` command, then do a Green post-run Metric/growth
 review.
 
+Metric-one resnapshot Red, 2026-06-08: the approved Red completed and increased
+the Metric>=2 growth-analysis sample from `87` to `137`. Selected ids
+`8259..8210` received Metric ids `2567..2616` with observedAt range
+`2026-06-08T11:54:33.329Z..2026-06-08T12:07:21.837Z`; all selected rows are
+now exactly two-Metric rows. The run returned `providerErrorCount=0`,
+`errorCount=0`, and no Notification / Telegram / HolderSnapshot side effect.
+Next report-readiness work should be a read-only growth review for this
+cohort, with no rawJson full dump and no raw names/symbols.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

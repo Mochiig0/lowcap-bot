@@ -161,6 +161,14 @@ HolderSnapshot count `0`, `providerErrorCount=0`, and no fetch/write.
 10080 minute Red command to move up to `50` rows from Metric-one to Metric>=2
 for growth detection.
 
+Metric-one resnapshot Red, 2026-06-08: the approved Red ran the 10080 minute
+`--onlyMetricOnce --write` command exactly once. It wrote Metric ids
+`2567..2616` for ids `8259..8210`; all 50 selected rows are now
+`metricsCount=2`. Metric buckets moved `1=1230 -> 1180` and `2+=87 -> 137`.
+`providerErrorCount=0`, Notification capture stayed disabled, and no Telegram,
+Token, Notification, or HolderSnapshot side effect occurred. Do not run another
+Metric Red before a Green growth review.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

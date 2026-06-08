@@ -541,6 +541,25 @@ Metric-one resnapshot preflight refresh, 2026-06-08:
   create/update/send, HolderSnapshot writes, Telegram send, retry,
   auto-send, scheduler/systemd, and rawJson dumps.
 
+Metric-one resnapshot Red, 2026-06-08:
+
+- The human-approved network-enabled / out-of-sandbox Red ran the exact
+  `--onlyMetricOnce --write` command once for ids `8259..8210`.
+- Result: `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+  `providerErrorCount=0`, and all error category counts `0`.
+- DB moved Token / Metric / Notification / HolderSnapshot from
+  `4065 / 1457 / 22 / 1` to `4065 / 1507 / 22 / 1`. Metric buckets moved
+  from `0=2748`, `1=1230`, `2+=87` to `0=2748`, `1=1180`, `2+=137`.
+- New Metric ids are `2567..2616`; observedAt range is
+  `2026-06-08T11:54:33.329Z..2026-06-08T12:07:21.837Z`. The selected cohort
+  is now `metricsCount=2` for all 50 rows.
+- Notification capture was disabled and no Notification / Telegram /
+  HolderSnapshot side effect occurred. Safe market-data presence booleans for
+  price, FDV, reserve, and topPool were present for all 50 latest snapshots.
+- Lightweight selected-only growth aggregate printed no raw values or raw
+  names/symbols. Next work should be a Green post-run Metric/growth review,
+  not another Red.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

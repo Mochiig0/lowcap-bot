@@ -297,6 +297,15 @@ Token writes, Notification create/update/send, HolderSnapshot writes, Telegram
 send, retry, auto-send, scheduler/systemd, and rawJson dumps remain out of
 scope. Do not run this Red without separate approval.
 
+That Red is now complete. It ran once in a network-enabled / out-of-sandbox
+context and wrote Metric ids `2567..2616` for ids `8259..8210`. The selected
+rows moved from Metric-one to Metric>=2 (`50` rows), increasing the Metric>=2
+sample from `87` to `137`. Notification / Telegram / HolderSnapshot counts
+stayed unchanged and `providerErrorCount=0`.
+
+Recommended next slice: **Green post-run Metric/growth review** for ids
+`8259..8210`. Keep it read-only; do not run a second Metric Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

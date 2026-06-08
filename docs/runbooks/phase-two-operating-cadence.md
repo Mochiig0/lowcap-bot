@@ -132,6 +132,15 @@ operator approves a Red for growth sample depth:
 `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
 Expected effects are GeckoTerminal fetches and Metric writes up to `50` only.
 
+Metric-one resnapshot Red, 2026-06-08: the exact command above ran once in a
+network-enabled / out-of-sandbox context. It selected ids `8259..8210` and
+wrote Metric ids `2567..2616` with `selected=50`, `ok=50`, `written=50`, and
+`providerErrorCount=0`. DB counts moved `4065 / 1457 / 22 / 1` ->
+`4065 / 1507 / 22 / 1`; Metric buckets moved `0=2748`, `1=1230`, `2+=87` ->
+`0=2748`, `1=1180`, `2+=137`. Notification, Telegram, Token, and
+HolderSnapshot side effects stayed `0`. Next step is a read-only post-run
+Metric/growth review, not a second Red.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
