@@ -349,6 +349,19 @@ check found one 2x+ row, token id `7577` at `fdvMultiple=3.8445` and score
 `C/1`. Recommended next slice: **Green post-run Metric/growth review** for
 ids `7577..7528`, not a second Red.
 
+That Green growth review is now complete. ids `7577..7528` are all
+`metricsCount=2`; the target cohort has one 2x+ row and otherwise remains
+mostly flat/down (`39` near flat, `10` down). Token id `7577` is a meaningful
+growth signal: `fdvMultiple=3.8445`, `reserveMultiple=3.7064`, score `C/1`,
+non-hard-rejected, and no Notification or HolderSnapshot rows. Global
+Metric>=2 is now `187`, with `2x/3x/5x/10x=1/1/0/0`.
+
+Recommended next slice: **Green manual review of token id 7577** to inspect
+why a real 2x+ growth row was only `C/1`, without changing DB state. Second
+candidate: **Yellow growth report CLI** so future Metric>=2 growth reviews do
+not require ad hoc Prisma scripts. Do not change scoring or notification
+policy from this single isolated winner.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

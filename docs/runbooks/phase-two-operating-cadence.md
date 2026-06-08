@@ -172,6 +172,16 @@ side effects stayed `0`, and no rawJson full dump occurred. The lightweight
 selected-only growth check found one 2x+ row, so the cadence now returns to a
 Green post-run Metric/growth review before any further Red.
 
+Metric-one growth review, 2026-06-08: the Green review confirmed one
+meaningful growth row in ids `7577..7528`. Token id `7577` moved
+`3.8445x` by FDV and `3.7064x` by reserve over `7416` minutes, while the
+rest of the cohort was mostly flat/down. The row is `C/1`, partial,
+non-hard-rejected, with reviewFlags and scoreBreakdown present and no
+Notification or HolderSnapshot rows. Treat it as a manual-review signal and
+evidence that growth detection needs more reporting, not as a policy unlock:
+do not change scoring or Notification / Telegram behavior from one isolated
+C/1 winner.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

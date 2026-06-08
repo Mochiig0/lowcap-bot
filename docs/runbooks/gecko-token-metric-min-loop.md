@@ -201,6 +201,16 @@ Token, HolderSnapshot, retry, auto-send, scheduler/systemd, or rawJson full
 dump side effect occurred. Do a Green post-run Metric/growth review before
 another Metric Red.
 
+Metric-one growth review, 2026-06-08: the review found the first clear
+minimum-loop growth winner. Token id `7577`, mint abbrev
+`9qKaQRTW...BCpump`, has two Metrics (`2317 -> 2617`) and moved
+`3.8445x` by FDV and `3.7064x` by reserve. The rest of ids `7577..7528`
+were mostly flat/down, with only one row above `1.1x`. Because the winner is
+only `C/1` and this is a single isolated signal, keep scoring and
+Notification / Telegram policy unchanged. Next minimum-loop action should be
+a read-only manual review of token id `7577` or a Yellow growth report CLI,
+not another immediate Metric Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

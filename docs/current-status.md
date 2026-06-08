@@ -653,6 +653,43 @@ Metric-one resnapshot Red, 2026-06-08:
   `reserveMultiple=3.7064` with score `C/1`; selected 2x count is `1`.
   Defer full interpretation to the next Green post-run Metric/growth review.
 
+Metric-one resnapshot growth review, 2026-06-08:
+
+- Green read-only review on HEAD
+  `6e98448 docs: record metric once resnapshot` confirmed ids `7577..7528`
+  are all `metricsCount=2`. This review performed no DB write, provider
+  fetch, Telegram send, Notification mutation, Token write, Metric write,
+  HolderSnapshot write, or rawJson/provider-body dump.
+- Target growth buckets: `>=1.1x=1`, `>=1.25x=1`, `>=1.5x=1`,
+  `>=2x=1`, `>=3x=1`, `>=5x=0`, `>=10x=0`; latest FDV was down for `10`
+  rows and near flat for `39`. Missing first/latest FDV counts were `0 / 0`.
+- Focus row token id `7577`, mint abbrev `9qKaQRTW...BCpump`, is the first
+  clear 2x+ observed winner in the Metric>=2 sample: Metric ids
+  `2317 -> 2617`, observedAt
+  `2026-06-03T09:36:14.454Z -> 2026-06-08T13:12:33.125Z`, time gap
+  `7416` minutes, `fdvMultiple=3.8445`, `latestFdvMultiple=3.8445`, and
+  `reserveMultiple=3.7064`. Growth is supported by both FDV and reserve.
+- The focus row is still below notification/scoring action thresholds:
+  `scoreRank=C`, `scoreTotal=1`, `hardRejected=false`,
+  `metadataStatus=partial`, reviewFlags present, scoreBreakdown present,
+  entrySnapshot present with context-capture key, Notification count `0`, and
+  HolderSnapshot count `0`. Raw name, symbol, normalizedText, rawJson, and
+  provider body were not printed.
+- Target score shape: `C/1=2` with max `3.8445x` and one 2x+ row,
+  `C/0=46` with max `1.0018x`, and `B/2=2` with max `1.0x`;
+  `hardRejected=0`. The 2x+ row being `C/1` suggests possible
+  under-detection, but it is only one isolated signal, not enough to tune the
+  scoring dictionary.
+- Global Metric>=2 recheck: total `187`, pumpOnly `185`, top FDV multiple
+  `3.8445x`, and `2x/3x/5x/10x` counts `1 / 1 / 0 / 0`. `B/2` max remains
+  `1.0058x`, `C/1` max is `3.8445x`, and hardRejected 2x+ count is `0`.
+- Decision: token id `7577` is meaningful growth and should get a manual
+  safe review, but no scoring dictionary change and no Telegram /
+  Notification policy change is justified yet. Next best step is a Green
+  manual review of token id `7577`; second candidate is a Yellow
+  `metrics:growth-report` CLI because repeated ad hoc growth review is now a
+  bottleneck. No Red command is recommended from this review.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

@@ -208,6 +208,20 @@ raw names/symbols/rawJson, found one 2x+ row: token id `7577` at
 post-run Metric/growth review before interpreting scoring or notification
 policy implications.
 
+Metric-one growth review, 2026-06-08: that read-only review confirmed token
+id `7577` is a report-worthy growth row, not just an FDV-only artifact. It has
+two Metrics, `fdvMultiple=3.8445`, `latestFdvMultiple=3.8445`,
+`reserveMultiple=3.7064`, score `C/1`, `hardRejected=false`,
+`metadataStatus=partial`, reviewFlags present, scoreBreakdown present,
+entrySnapshot/context-capture present, Notification count `0`, and
+HolderSnapshot count `0`. Target buckets are `>=2x=1`, `>=3x=1`,
+`>=5x=0`, `>=10x=0`.
+
+Report-readiness decision: this validates the value of Metric-one resnapshot
+and repeatable growth reporting, but one C/1 winner is not enough evidence to
+change scoring or notification policy. Prefer a Green manual review of token
+id `7577` and a Yellow safe growth report CLI before any policy work.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates
