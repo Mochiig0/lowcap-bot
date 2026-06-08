@@ -152,14 +152,14 @@ provider fetch or Metric write. It should be the starting point for a
 Metric-one -> Metric>=2 growth-detection lane. Keep `--onlyMetricPending` for
 Metric-zero first coverage; do not combine the two selectors.
 
-Metric-one resnapshot preflight, 2026-06-06: the preview path selected a clean
-second-snapshot cohort. `sinceMinutes=1440` with `--onlyMetricOnce` selected
-ids `8259..8210`, all `metricsCount=1`, with safe latest Metric ids present,
-Notification count `0`, HolderSnapshot count `0`, `providerErrorCount=0`, and
-no fetch/write. `sinceMinutes=720` is now too narrow and selected `0`; the
-wider `sinceMinutes=10080` selected the same cohort but is not needed for the
-current Red candidate. If approved, use the 1440 minute Red command to move up
-to `50` rows from Metric-one to Metric>=2 for growth detection.
+Metric-one resnapshot preflight refresh, 2026-06-08: the preview path selected
+a clean second-snapshot cohort. `sinceMinutes=10080` with `--onlyMetricOnce`
+selected ids `8259..8210`, all `metricsCount=1`, with safe latest Metric ids
+present, `latestMetricAgeMinutes=4231..4243`, Notification count `0`,
+HolderSnapshot count `0`, `providerErrorCount=0`, and no fetch/write.
+`sinceMinutes=1440` is now too narrow and selected `0`. If approved, use the
+10080 minute Red command to move up to `50` rows from Metric-one to Metric>=2
+for growth detection.
 
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420

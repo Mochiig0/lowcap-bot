@@ -282,15 +282,16 @@ jump directly to Red.
 
 That Green Metric-one resnapshot preflight is now complete. The
 `--onlyMetricOnce` preview stayed dry-run, fetch-free, and write-free. The
-current 1440 minute window selected ids `8259..8210` (`50` rows), all with
-`metricsCount=1`, latest Metric ids present, Notification and HolderSnapshot
-counts `0`, and `providerErrorCount=0`. The 720 minute window is now empty;
-the 10080 minute window selects the same cohort but is wider than necessary.
+current 10080 minute window selected ids `8259..8210` (`50` rows), all with
+`metricsCount=1`, latest Metric ids present, latest Metric age `4231..4243`
+minutes, Notification and HolderSnapshot counts `0`, and
+`providerErrorCount=0`. The 1440 minute window is now empty, so the wider
+10080 minute window is the current Red candidate window.
 
 Recommended next slice: **human-approved network-enabled Metric-one
 resnapshot Red** only if the operator wants to expand the Metric>=2 growth
-sample. Use the 1440 minute window:
-`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 1440 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+sample. Use the 10080 minute window:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
 Expected side effects are GeckoTerminal fetches and Metric writes up to `50`;
 Token writes, Notification create/update/send, HolderSnapshot writes, Telegram
 send, retry, auto-send, scheduler/systemd, and rawJson dumps remain out of

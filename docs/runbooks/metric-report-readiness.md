@@ -154,16 +154,16 @@ fetch-free `selection_preview` output. Safe preview fields include
 payloads remain out of the report. Use this mode for the next Green
 Metric-one resnapshot preflight before any Metric-one Red.
 
-Metric-one resnapshot preflight, 2026-06-06: the next Green preflight is now
-complete. The `sinceMinutes=1440` preview selected ids `8259..8210`
+Metric-one resnapshot preflight refresh, 2026-06-08: the next Green preflight
+is now complete. The `sinceMinutes=10080` preview selected ids `8259..8210`
 (`50` rows), all exactly Metric-one, with safe latest Metric ids present and
-latest Metric ages well beyond `minGapMinutes=60`. Selected Notification and
-HolderSnapshot counts are `0`, `providerErrorCount=0`, and preview remained
-dry-run/no-fetch/no-write. `sinceMinutes=720` is empty; `sinceMinutes=10080`
-is clean but wider than necessary. Report-readiness recommendation: if the
-operator wants better growth detection, run one separately approved
-network-enabled Red using the 1440 minute `--onlyMetricOnce` command, then do
-a Green post-run Metric/growth review.
+latest Metric ages `4231..4243` minutes, well beyond `minGapMinutes=60`.
+Selected Notification and HolderSnapshot counts are `0`, `providerErrorCount=0`,
+and preview remained dry-run/no-fetch/no-write. `sinceMinutes=1440` is empty.
+Report-readiness recommendation: if the operator wants better growth
+detection, run one separately approved network-enabled Red using the 10080
+minute `--onlyMetricOnce` command, then do a Green post-run Metric/growth
+review.
 
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
