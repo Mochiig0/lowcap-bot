@@ -244,6 +244,35 @@ the only `>=2x` and `>=3x` row; B/2 rows remain below `2x` with max
 Telegram policy unchanged, treat `7577` as a manual-review signal, and prefer
 a Yellow safe `metrics:growth-report` CLI before more ad hoc growth reviews.
 
+Safe metrics growth report implementation, 2026-06-09: the Yellow report CLI
+is now available:
+
+```bash
+pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10
+pnpm -s metrics:growth-report -- --tokenId 7577
+```
+
+It is read-only and outputs `executionName=metrics_growth_report`,
+`providerFetchExecuted=false`, `dbWriteExecuted=false`,
+`telegramSendExecuted=false`, and `rawJsonIncluded=false`. Rows use
+`abbreviatedMint` only and do not include raw token names, raw symbols,
+normalizedText, raw matched keywords, rawJson, or provider bodies. It supports
+`--pumpOnly`, `--minMetricCount`, `--limit`, `--sortBy`, `--sinceHours`, and
+`--tokenId`.
+
+The current runtime report evaluates pumpOnly Metric>=2 rows without ad hoc
+Prisma scripts: `tokenCountEvaluated=185`, `topFdvMultiple=3.8445`,
+`topReserveMultiple=3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, `C/1` has the only
+2x+ row, `B/2` max is `1.0058`, and hardRejected 2x+ count is `0`. Token id
+`7577` reports safely as `fdvMultiple=3.8445`,
+`latestFdvMultiple=3.8445`, `reserveMultiple=3.7064`, score `C/1`,
+Notification `0`, and HolderSnapshot `0`. Near-flat latest FDV is explicitly
+`0.99 <= latestFdvMultiple <= 1.01`.
+
+Report-readiness decision: use `metrics:growth-report` for future Metric>=2
+growth checks. It improves repeatability but does not change scoring,
+watchlist, Notification, or Telegram policy from the single C/1 winner.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

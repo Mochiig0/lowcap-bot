@@ -722,6 +722,36 @@ Manual growth-signal review, 2026-06-08:
   candidate is another Green Metric-one resnapshot preflight if more examples
   are needed first.
 
+Safe metrics growth report CLI, 2026-06-09:
+
+- Yellow implementation added `pnpm -s metrics:growth-report` backed by
+  `src/cli/metricsGrowthReport.ts`. The command is read-only and reports
+  first-to-max/latest Metric growth with abbreviated mints only. It does not
+  print raw token name, raw token symbol, normalizedText, raw matched
+  keywords, rawJson, or provider bodies.
+- Supported options are `--pumpOnly`, `--minMetricCount`, `--limit`,
+  `--sortBy <fdvMultiple|maxFdv|reserveMultiple|metricCount>`,
+  `--sinceHours`, and `--tokenId`. The default review command is
+  `pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10`;
+  token-specific safe review is
+  `pnpm -s metrics:growth-report -- --tokenId 7577`.
+- Runtime read-only report on current DB produced pumpOnly
+  `tokenCountEvaluated=185`, `topFdvMultiple=3.8445`,
+  `topReserveMultiple=3.7064`, FDV buckets
+  `>=2x/3x/5x/10x=1/1/0/0`, and near-flat latest FDV count `148`
+  using the explicit definition `0.99 <= latestFdvMultiple <= 1.01`.
+- Score summary stayed consistent with the manual review:
+  `C/1` has the only `2x+` row, `B/2` max FDV multiple is `1.0058`,
+  and `hardRejectedFdvMultipleGte2Count=0`. Token id `7577` still reports
+  `fdvMultiple=3.8445`, `latestFdvMultiple=3.8445`,
+  `reserveMultiple=3.7064`, score `C/1`, Notification `0`, and
+  HolderSnapshot `0`.
+- Policy decision is unchanged: the CLI makes the review repeatable, but it
+  does not create evidence to change scoring, watchlist, Notification, or
+  Telegram policy. This turn performed no production DB write, external
+  provider fetch, Telegram send, Notification mutation, Token write, Metric
+  write, HolderSnapshot write, scheduler/systemd action, or rawJson dump.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

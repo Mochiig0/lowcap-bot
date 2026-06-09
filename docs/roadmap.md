@@ -385,6 +385,23 @@ preflight** if more observation examples should come before report tooling.
 No Red command, scoring dictionary change, watchlist threshold change, or
 Notification / Telegram policy change is recommended from this single signal.
 
+The Yellow safe growth report CLI is now implemented as
+`pnpm -s metrics:growth-report`. It is read-only, uses abbreviated mints, and
+does not output raw token names, raw symbols, normalizedText, raw matched
+keywords, rawJson, or provider bodies. The default repeatable review command
+is `pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10`;
+token id `7577` can be checked with
+`pnpm -s metrics:growth-report -- --tokenId 7577`.
+
+Runtime report on the current DB confirms the same policy result:
+pumpOnly Metric>=2 evaluated rows `185`, top FDV multiple `3.8445`,
+top reserve multiple `3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, `C/1` has the
+only 2x+ row, `B/2` max is `1.0058`, and hardRejected 2x+ count is `0`.
+This completes the reporting bottleneck slice but does not unlock scoring,
+watchlist, Notification, or Telegram policy changes. Next lane can be a Green
+Metric-one resnapshot preflight for more examples, or a later Yellow report
+polish only if the new command proves insufficient.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

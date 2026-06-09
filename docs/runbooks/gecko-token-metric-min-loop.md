@@ -227,6 +227,24 @@ Metric>=2 row and B/2 rows remain below `2x`. Minimum-loop policy stays
 unchanged. Prefer a Yellow safe growth report CLI next, or another Green
 Metric-one resnapshot preflight if more examples are needed first.
 
+Safe growth report CLI, 2026-06-09: the minimum loop now has the repeatable
+read-only report that the previous reviews requested:
+
+```bash
+pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10
+pnpm -s metrics:growth-report -- --tokenId 7577
+```
+
+The command summarizes first-to-max/latest Metric growth with abbreviated
+mints only and no raw token name, raw token symbol, normalizedText, raw
+matched keywords, rawJson, or provider body. Runtime report confirms token id
+`7577` remains the top growth row at `fdvMultiple=3.8445` and
+`reserveMultiple=3.7064`; pumpOnly `2x/3x/5x/10x` stays `1/1/0/0`, `C/1`
+has the only 2x+ row, `B/2` max is `1.0058`, and hardRejected 2x+ is `0`.
+No production write, fetch, send, Notification mutation, Token write, Metric
+write, HolderSnapshot write, scheduler/systemd action, or rawJson dump is part
+of this report lane.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

@@ -360,6 +360,13 @@ Inspect recent metrics with filters:
 pnpm metrics:report -- --tokenId 1 --source manual --rank B --limit 10
 ```
 
+Inspect Metric growth safely with abbreviated mints only:
+
+```bash
+pnpm metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10
+pnpm metrics:growth-report -- --tokenId 7577
+```
+
 Run the smoke test:
 
 ```bash
@@ -412,6 +419,8 @@ Report notes:
 - `tokens:compare-report` supports `--sortBy` and `--sortOrder` for `entryScoreTotal`, `currentScoreTotal`, `changedFieldsCount`, `metricsCount`, `latestPeakFdv24h`, `latestMaxMultiple15m`, and `latestTimeToPeakMinutes`; `null` sort targets are placed last
 - `metrics:report` supports `--mint`, `--tokenId`, `--source`, `--rank`, `--hasPeakFdv24h`, `--hasPeakFdv7d`, `--hasMaxMultiple15m`, `--hasTimeToPeakMinutes`, `--hasVolume24h`, `--hasVolume7d`, `--hasPeakPrice15m`, `--sortBy`, and `--sortOrder`; sortable fields include `observedAt`, `peakFdv24h`, `peakFdv7d`, `maxMultiple15m`, `volume7d`, and `timeToPeakMinutes`; items include `peakPrice15m`; `null` sort targets are placed last
 - In `metrics:report`, `mint` and `rank` filter on the related token, while `tokenId` and `source` filter on the metric rows themselves
+- `metrics:growth-report` is read-only and summarizes first-to-max/latest Metric growth without raw token names, raw symbols, normalizedText, rawJson, score keywords, or provider bodies; it supports `--pumpOnly`, `--minMetricCount`, `--limit`, `--sortBy`, `--sinceHours`, and `--tokenId`
+- In `metrics:growth-report`, near-flat latest FDV is explicitly `0.99 <= latestFdvMultiple <= 1.01`
 
 Change-screening recipes:
 
@@ -454,7 +463,7 @@ For one metric row, continue with `pnpm metric:show -- --id <ID>`. For token-lev
 - Use `pnpm detect:geckoterminal:new-pools` when you want the single-source GeckoTerminal runner to fetch or read one-source input, evaluate candidates, and optionally hand accepted items into `import:mint` with `--write`.
 - Use `pnpm compare:geckoterminal:dexscreener` when you want a read-only timing observation between the two current live sources.
 - Use `pnpm token:enrich`, `pnpm token:rescore`, `pnpm token:enrich-rescore:geckoterminal`, `pnpm metric:add`, and `pnpm metric:snapshot:geckoterminal` after mint-only intake when you want later metadata fill, score recalculation, or metric append.
-- Use the read-only lane (`pnpm token:compare`, `pnpm tokens:compare-report`, `pnpm metrics:report`, `pnpm token:show`, `pnpm metric:show`, `pnpm tokens:report`) when you only want to inspect saved data.
+- Use the read-only lane (`pnpm token:compare`, `pnpm tokens:compare-report`, `pnpm metrics:report`, `pnpm metrics:growth-report`, `pnpm token:show`, `pnpm metric:show`, `pnpm tokens:report`) when you only want to inspect saved data.
 - Use `pnpm ops:summary:geckoterminal` when you want a compact read-only operations summary for recent Gecko-origin tokens instead of token-by-token inspection.
 
 Short cautions:

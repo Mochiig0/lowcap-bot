@@ -199,6 +199,28 @@ isolated C/1 winner. Prefer a Yellow safe growth report CLI next; use another
 Green Metric-one resnapshot preflight only if more observation examples are
 needed before report tooling.
 
+Safe growth report CLI, 2026-06-09: `pnpm -s metrics:growth-report` is now the
+standard read-only command for repeated Metric>=2 growth review. Use:
+
+```bash
+pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10
+pnpm -s metrics:growth-report -- --tokenId 7577
+```
+
+The report computes first Metric to max/latest Metric growth, buckets FDV
+growth, summarizes score buckets, and keeps output safe: abbreviated mint
+only, no raw token name, raw token symbol, normalizedText, raw matched
+keywords, rawJson, or provider body. Near-flat latest FDV is explicitly
+defined as `0.99 <= latestFdvMultiple <= 1.01`.
+
+Runtime finding on the current DB: pumpOnly Metric>=2 evaluated rows `185`,
+top FDV/reserve multiples `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x=1/1/0/0`, `C/1` is the only 2x+ score bucket, `B/2` max is
+`1.0058`, and hardRejected 2x+ count is `0`. The CLI removes the ad hoc
+Prisma-review bottleneck, but the policy decision remains unchanged: no
+scoring, watchlist, Notification, or Telegram change from this single C/1
+winner.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
