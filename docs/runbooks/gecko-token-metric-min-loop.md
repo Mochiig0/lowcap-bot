@@ -245,6 +245,24 @@ No production write, fetch, send, Notification mutation, Token write, Metric
 write, HolderSnapshot write, scheduler/systemd action, or rawJson dump is part
 of this report lane.
 
+Metric-one preflight with growth report, 2026-06-09: the minimum loop used
+the new report as the baseline before selecting another second-observation
+cohort. `metrics:growth-report` confirmed the current pumpOnly Metric>=2
+sample is still `185` rows, token id `7577` remains the only `2x+` / `3x+`
+row, and no policy change is implied. The report stayed safe and read-only:
+provider fetch false, DB write false, Telegram send false, rawJson included
+false.
+
+The `--onlyMetricOnce` preview with `sinceMinutes=10080` selected ids
+`7527..7478` (`50` rows), all exactly Metric-one, with latest Metric ages
+`8504..8517` minutes. Selected Notification and HolderSnapshot totals are
+`0 / 0`, `providerErrorCount=0`, and the cohort does not overlap the already
+resnapshotted ids `8259..8210` or `7577..7528`. The 1440 and 720 minute
+windows selected `0`. If approved, use the same 10080 minute
+Metric-one resnapshot shape with `--noNotificationCapture`; expected effects
+are GeckoTerminal fetches and Metric writes up to `50` only, followed by a
+read-only `metrics:growth-report` post-check.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

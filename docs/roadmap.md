@@ -402,6 +402,24 @@ watchlist, Notification, or Telegram policy changes. Next lane can be a Green
 Metric-one resnapshot preflight for more examples, or a later Yellow report
 polish only if the new command proves insufficient.
 
+That Green Metric-one resnapshot preflight is now complete using
+`metrics:growth-report` as the baseline. The safe report stayed read-only
+with `providerFetchExecuted=false`, `dbWriteExecuted=false`,
+`telegramSendExecuted=false`, and `rawJsonIncluded=false`; current pumpOnly
+Metric>=2 evaluated rows remain `185`, top FDV/reserve multiples remain
+`3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, and `C/1` remains the only
+2x+ score bucket.
+
+The fetch-free `--onlyMetricOnce` preview with `sinceMinutes=10080` selected
+the next clean cohort: ids `7527..7478`, `selectedCount=50`, all
+`metricsCount=1`, latest Metric ages `8504..8517` minutes, Notification and
+HolderSnapshot totals `0 / 0`, `providerErrorCount=0`, and no overlap with
+previous Metric-one resnapshot cohorts `8259..8210` or `7577..7528`. The
+1440 and 720 minute windows selected `0`. Recommended next slice:
+**human-approved network-enabled Metric-one resnapshot Red** for ids
+`7527..7478`, followed by `metrics:growth-report` post-check. No scoring,
+watchlist, Notification, or Telegram policy change is recommended.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

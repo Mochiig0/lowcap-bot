@@ -273,6 +273,30 @@ Report-readiness decision: use `metrics:growth-report` for future Metric>=2
 growth checks. It improves repeatability but does not change scoring,
 watchlist, Notification, or Telegram policy from the single C/1 winner.
 
+Metric-one resnapshot preflight with growth report, 2026-06-09: report
+readiness now uses the new CLI as the baseline before proposing additional
+Metric-one Red work. The baseline command
+`pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10`
+reported `readOnly=true`, `providerFetchExecuted=false`,
+`dbWriteExecuted=false`, `telegramSendExecuted=false`, and
+`rawJsonIncluded=false`. It evaluated `185` pumpOnly Metric>=2 rows, with top
+FDV/reserve multiples `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x=1/1/0/0`, `C/1` as the only 2x+ bucket, `B/2` max `1.0058`,
+and hardRejected 2x+ count `0`. The token-specific check for id `7577`
+remained safe and confirmed score `C/1`, Notification `0`, HolderSnapshot
+`0`, and the same FDV/reserve growth multiples.
+
+The fetch-free Metric-one preview
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture`
+returned `dryRun=true`, `writeEnabled=false`, selected ids `7527..7478`,
+`selectedCount=50`, and `selectedMetricCountDistribution=0/50/0`. Latest
+Metric ages were `8504..8517` minutes, selected Notification and
+HolderSnapshot totals were `0 / 0`, provider errors were `0`, and the cohort
+does not overlap ids `8259..8210` or `7577..7528`. The 1440 and 720 minute
+windows selected `0`. Report-readiness recommendation: if more growth examples
+are desired, run one separately approved network-enabled Metric-one resnapshot
+Red for this cohort, then rerun `metrics:growth-report`.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

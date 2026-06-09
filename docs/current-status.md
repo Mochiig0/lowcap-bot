@@ -752,6 +752,45 @@ Safe metrics growth report CLI, 2026-06-09:
   provider fetch, Telegram send, Notification mutation, Token write, Metric
   write, HolderSnapshot write, scheduler/systemd action, or rawJson dump.
 
+Metric-one resnapshot preflight with growth report, 2026-06-09:
+
+- Green read-only/docs-only preflight on HEAD
+  `208a2ca feat: add safe metrics growth report` confirmed the growth-report
+  baseline first. `pnpm -s metrics:growth-report -- --pumpOnly
+  --minMetricCount 2 --limit 10` returned read-only safety flags
+  `providerFetchExecuted=false`, `dbWriteExecuted=false`,
+  `telegramSendExecuted=false`, and `rawJsonIncluded=false`.
+- Baseline remained unchanged: pumpOnly `tokenCountEvaluated=185`,
+  `topFdvMultiple=3.8445`, `topReserveMultiple=3.7064`, FDV
+  `2x/3x/5x/10x=1/1/0/0`, `C/1` has the only 2x+ row, `B/2` max is
+  `1.0058`, and hardRejected 2x+ count is `0`. Token id `7577` still reports
+  safely as `fdvMultiple=3.8445`, `latestFdvMultiple=3.8445`,
+  `reserveMultiple=3.7064`, score `C/1`, Notification `0`, and
+  HolderSnapshot `0`.
+- Fetch-free Metric-one preview used
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50
+  --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000
+  --onlyMetricOnce --noNotificationCapture`. It returned `dryRun=true`,
+  `writeEnabled=false`, `selectedCount=50`, selected ids `7527..7478`,
+  and `selectedMetricCountDistribution zero/one/twoPlus=0/50/0`.
+- The selected cohort is clean: all rows have latest Metric ids present,
+  `latestMetricAgeMinutes=8504..8517`, selected Notification and
+  HolderSnapshot counts are `0 / 0`, `providerErrorCount=0`, and there is no
+  overlap with previous Metric-one resnapshot cohorts `8259..8210` or
+  `7577..7528`. Narrower preview windows `1440` and `720` minutes selected
+  `0` rows.
+- Recommendation: Candidate A, one human-approved network-enabled Metric-one
+  resnapshot Red, is clean to propose but was not executed:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50
+  --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000
+  --onlyMetricOnce --noNotificationCapture --write`. Expected side effects
+  are external GeckoTerminal fetches up to `50` and Metric writes up to `50`;
+  expected non-effects are Token write `0`, Notification create/update/send
+  `0`, HolderSnapshot write `0`, Telegram send `0`, retry/auto-send/
+  scheduler/systemd `0`, and rawJson full dump `0`. Required post-check after
+  the Red is `pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2
+  --limit 10`.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

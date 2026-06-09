@@ -221,6 +221,27 @@ Prisma-review bottleneck, but the policy decision remains unchanged: no
 scoring, watchlist, Notification, or Telegram change from this single C/1
 winner.
 
+Metric-one preflight with growth report, 2026-06-09: the Green baseline used
+`pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10`
+and `pnpm -s metrics:growth-report -- --tokenId 7577`. Both reports stayed
+read-only with provider fetch, DB write, Telegram send, and rawJson inclusion
+all false. Current pumpOnly Metric>=2 evaluated rows remain `185`; FDV
+`2x/3x/5x/10x` remains `1/1/0/0`; `C/1` is still the only 2x+ score bucket;
+and token id `7577` remains the isolated `3.8445x` FDV / `3.7064x` reserve
+signal.
+
+The fetch-free `--onlyMetricOnce` preview then selected ids `7527..7478`
+with `sinceMinutes=10080`, `limit=50`, and `minGapMinutes=60`. The cohort is
+clean: `selectedCount=50`, `metricsCount` distribution `0/50/0`,
+`latestMetricAgeMinutes=8504..8517`, selected Notification and HolderSnapshot
+totals `0 / 0`, `providerErrorCount=0`, and no overlap with previous
+Metric-one cohorts `8259..8210` or `7577..7528`. The 1440 and 720 minute
+windows selected `0`. If the operator wants more growth examples, the next
+Red candidate is:
+`pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+Run it only with separate human approval in network-enabled / out-of-sandbox
+context, and follow it with the growth report baseline command.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
