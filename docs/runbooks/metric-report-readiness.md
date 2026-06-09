@@ -396,6 +396,26 @@ reviews are still partly ad hoc. Prefer another Green Metric-one preflight for
 more examples; consider a Yellow cohort/range mode for `metrics:growth-report`
 only if repeated manual cohort summaries become the bottleneck.
 
+Next Metric-one preflight, 2026-06-10: report readiness used
+`metrics:growth-report` as the baseline before another Metric-one Red
+candidate. The report stayed safe and read-only:
+`providerFetchExecuted=false`, `dbWriteExecuted=false`,
+`telegramSendExecuted=false`, and `rawJsonIncluded=false`. PumpOnly Metric>=2
+evaluated rows are `285`; top FDV/reserve remains `3.8445 / 3.7064`; FDV
+`2x/3x/5x/10x=1/1/0/0`; `C/1` is still the only 2x+ score bucket; and token
+id `7577` remains the isolated growth signal.
+
+The fetch-free Metric-one preview selected ids `7427..7378` with
+`sinceMinutes=10080`, `limit=50`, and `minGapMinutes=60`. It returned
+`dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+`metricsCount=1=50`, latest Metric ages `8325..8338` minutes, selected
+Notification / HolderSnapshot totals `0 / 0`, and `providerErrorCount=0`.
+The cohort does not overlap previous Metric-one resnapshot cohorts
+`8259..8210`, `7577..7528`, `7527..7478`, or `7477..7428`. The 1440 and 720
+minute windows selected `0`. If the operator wants more growth examples, run
+one separately approved network-enabled Metric-one resnapshot Red for this
+cohort, then rerun `metrics:growth-report`.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

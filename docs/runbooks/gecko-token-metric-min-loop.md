@@ -348,6 +348,17 @@ Continue to treat Metric-one resnapshot as an observation-depth lane; another
 Green preflight is reasonable, while scoring and notification policy stay
 unchanged.
 
+Next Metric-one preflight, 2026-06-10: another fetch-free `--onlyMetricOnce`
+preview is clean. The 10080 minute window selected ids `7427..7378`, all
+exactly Metric-one, with latest Metric ids present and latest Metric ages
+`8325..8338` minutes. Selected Notification and HolderSnapshot totals are
+`0 / 0`, `providerErrorCount=0`, and the cohort does not overlap previous
+Metric-one resnapshot cohorts `8259..8210`, `7577..7528`, `7527..7478`, or
+`7477..7428`. The 1440 and 720 minute windows selected `0`. If approved, use
+the same 10080 minute Metric-one resnapshot command with
+`--noNotificationCapture`; this Green preflight itself performed no fetch,
+write, send, or rawJson dump.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

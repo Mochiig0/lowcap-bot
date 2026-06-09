@@ -506,6 +506,24 @@ more examples while the Metric-one backlog remains high. Second candidate:
 **Yellow growth-report cohort/range enhancement** if ad hoc cohort review
 keeps recurring.
 
+That next Green preflight is now complete. The baseline
+`metrics:growth-report` remained safe and read-only, with pumpOnly Metric>=2
+evaluated rows `285`, top FDV/reserve `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x=1/1/0/0`, `C/1` as the only 2x+ score bucket, `B/2` max
+`1.0058`, and token id `7577` still the isolated meaningful growth signal.
+
+The fetch-free `--onlyMetricOnce` preview selected the next clean cohort:
+ids `7427..7378`, `selectedCount=50`, all `metricsCount=1`, latest Metric
+ages `8325..8338` minutes, selected Notification / HolderSnapshot totals
+`0 / 0`, and `providerErrorCount=0`. There is no overlap with previous
+Metric-one resnapshot cohorts `8259..8210`, `7577..7528`, `7527..7478`, or
+`7477..7428`; 1440 and 720 minute windows selected `0`.
+
+Recommended next slice: **human-approved network-enabled Metric-one
+resnapshot Red** for ids `7427..7378`, followed by `metrics:growth-report`
+post-check. No scoring, watchlist, Notification, or Telegram policy change is
+justified.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup

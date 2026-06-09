@@ -329,6 +329,24 @@ policy unchanged. The next operating candidate is another Green
 Metric-one resnapshot preflight for more examples; consider a Yellow cohort
 mode for `metrics:growth-report` only if this analysis stays repetitive.
 
+Next Metric-one preflight, 2026-06-10: after the non-growing `7477..7428`
+cohort, the Green baseline used `metrics:growth-report` again and stayed safe:
+read-only true, provider fetch false, DB write false, Telegram send false,
+and rawJson included false. PumpOnly Metric>=2 evaluated rows remain `285`;
+top FDV/reserve remains `3.8445 / 3.7064`; FDV
+`2x/3x/5x/10x=1/1/0/0`; `C/1` remains the only 2x+ bucket; token id `7577`
+remains the only meaningful growth signal.
+
+The fetch-free `--onlyMetricOnce` preview with `sinceMinutes=10080` selected
+ids `7427..7378`: `selectedCount=50`, all `metricsCount=1`, latest Metric
+ages `8325..8338` minutes, selected Notification and HolderSnapshot totals
+`0 / 0`, and `providerErrorCount=0`. It does not overlap previous
+Metric-one resnapshot cohorts `8259..8210`, `7577..7528`, `7527..7478`, or
+`7477..7428`. The 1440 and 720 minute windows selected `0`. If approved, the
+next cadence Red is the same 10080 minute Metric-one resnapshot shape with
+`--noNotificationCapture`, run once only, followed by `metrics:growth-report`
+post-check.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

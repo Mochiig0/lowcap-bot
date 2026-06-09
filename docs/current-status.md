@@ -967,6 +967,46 @@ Metric-one growth review for ids `7477..7428`, 2026-06-10:
   Telegram send, Notification mutation, Token write, Metric write,
   HolderSnapshot write, scheduler/systemd action, or rawJson dump.
 
+Next Metric-one resnapshot preflight after flat cohort, 2026-06-10:
+
+- Green read-only/docs-only preflight on HEAD
+  `f12ea28 docs: review metric once growth results` confirmed the current
+  baseline with `metrics:growth-report`. Safety flags stayed
+  `readOnly=true`, `providerFetchExecuted=false`, `dbWriteExecuted=false`,
+  `telegramSendExecuted=false`, and `rawJsonIncluded=false`.
+- Current DB state is Token / Metric / Notification / HolderSnapshot
+  `4065 / 1657 / 22 / 1`; metadata is `mint_only=3033`, `partial=1019`,
+  `enriched=13`; Metric buckets are `0=2748`, `1=1030`, `2+=287`.
+  Default and 12h queues are clear, rolling 168h remains
+  `gecko=1042`, `enrichPending=742`, `metricPending=792`,
+  `staleReview=792`, and `notifyCandidate=0`. Watchlist remains `8` B rows,
+  `7` ready and `1` missing Metric; auto-send allowed is `0 / 0`, retry
+  candidate is `0`, and failed Notification is `0`.
+- Growth baseline is unchanged: pumpOnly Metric>=2 evaluated rows are `285`,
+  pumpOnly buckets are `0=1820`, `1=1021`, `2+=285`, top FDV/reserve remains
+  `3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, `C/1` remains the only
+  2x+ score bucket, `B/2` max remains `1.0058`, and hardRejected 2x+ remains
+  `0`. Token id `7577` remains the isolated meaningful growth signal.
+- Fetch-free Metric-one preview with `--onlyMetricOnce`,
+  `sinceMinutes=10080`, `limit=50`, and `minGapMinutes=60` selected ids
+  `7427..7378`. The selected cohort is clean: `selectedCount=50`, all rows
+  are `metricsCount=1`, selected Metric distribution is `0/50/0`,
+  latest Metric ids are present, latest Metric ages are `8325..8338`
+  minutes, selected Notification and HolderSnapshot totals are `0 / 0`, and
+  `providerErrorCount=0`.
+- The selected ids have no overlap with previous Metric-one resnapshot
+  cohorts `8259..8210`, `7577..7528`, `7527..7478`, or `7477..7428`.
+  Narrower 1440 and 720 minute windows selected `0`.
+- Recommendation: Candidate A, one human-approved network-enabled
+  Metric-one resnapshot Red, is clean to propose but was not executed:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+  Require out-of-sandbox provider access, run it exactly once, and follow it
+  with `pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2 --limit 10`.
+- This Green turn performed no production DB write, external provider fetch,
+  Telegram send, Notification mutation, Token write, Metric write,
+  HolderSnapshot write, scheduler/systemd action, Red execution, retry,
+  auto-send, or rawJson dump.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP
