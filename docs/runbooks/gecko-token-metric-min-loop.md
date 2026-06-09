@@ -359,6 +359,22 @@ the same 10080 minute Metric-one resnapshot command with
 `--noNotificationCapture`; this Green preflight itself performed no fetch,
 write, send, or rawJson dump.
 
+Metric-one resnapshot Red, 2026-06-10: the minimum loop advanced ids
+`7427..7378` from one Metric to two Metrics. The exact approved
+`--onlyMetricOnce --write --noNotificationCapture` command ran once, selected
+`50`, completed `ok=50`, wrote `50`, skipped `0`, errored `0`, and returned
+`providerErrorCount=0`. New Metric ids are `2767..2816`; observedAt range is
+`2026-06-09T18:13:49.060Z..2026-06-09T18:26:38.261Z`; safe market-data
+presence is price / FDV / reserve / topPool `50 / 50 / 50 / 50`.
+
+Counts moved only in Metric: Token / Metric / Notification / HolderSnapshot
+`4065 / 1657 / 22 / 1 -> 4065 / 1707 / 22 / 1`; Metric buckets are now
+`0=2748`, `1=980`, `2+=337`. Selected Notification and HolderSnapshot totals
+remain `0 / 0`; Notification capture stayed disabled. The post-run growth
+report evaluates `335` pumpOnly Metric>=2 rows and found no new 2x+ row:
+token id `7577` remains the top growth signal. Do a Green post-run growth
+review before another Metric-one Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

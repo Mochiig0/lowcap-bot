@@ -416,6 +416,29 @@ minute windows selected `0`. If the operator wants more growth examples, run
 one separately approved network-enabled Metric-one resnapshot Red for this
 cohort, then rerun `metrics:growth-report`.
 
+Metric-one resnapshot Red result, 2026-06-10: the approved Red completed for
+ids `7427..7378`. It ran the exact safe command once, wrote Metric ids
+`2767..2816`, and returned `selected=50`, `ok=50`, `written=50`,
+`skipped=0`, `error=0`, `providerErrorCount=0`,
+`firstErrorCategory=null`, and `firstHttpStatus=null`. ObservedAt range is
+`2026-06-09T18:13:49.060Z..2026-06-09T18:26:38.261Z`; Red output safe
+summaries show price / FDV / reserve / topPool presence `50 / 50 / 50 / 50`.
+
+Report-readiness sample increased from `285` to `335` pumpOnly Metric>=2
+rows. The post-check report stayed read-only and rawJson-free, with provider
+fetch, DB write, and Telegram send all false. It found no new 2x+ row:
+top FDV/reserve remains `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x=1/1/0/0`, `C/1` remains the only 2x+ bucket, `B/2` max remains
+`1.0058`, hardRejected 2x+ remains `0`, and token id `7577` remains top.
+
+Notification / Telegram readiness stayed unchanged. Selected Notification and
+HolderSnapshot totals stayed `0 / 0`, Notification capture stayed disabled,
+auto-send allowed stayed `0 / 0`, retry candidate stayed `0`, and failed
+Notification stayed `0`. No second Red, retry, fallback/compensation command,
+Notification mutation, Token write, HolderSnapshot write, scheduler/systemd,
+pnpm smoke, or rawJson full dump occurred. Next report-readiness task should
+be a Green post-run growth review for this cohort.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

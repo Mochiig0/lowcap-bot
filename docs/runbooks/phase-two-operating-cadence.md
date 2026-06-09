@@ -347,6 +347,28 @@ next cadence Red is the same 10080 minute Metric-one resnapshot shape with
 `--noNotificationCapture`, run once only, followed by `metrics:growth-report`
 post-check.
 
+Metric-one resnapshot Red, 2026-06-10: the approved 10080 minute
+`--onlyMetricOnce --write` command ran exactly once for ids `7427..7378`.
+It returned `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, and all provider error categories `0`. New Metric ids
+are `2767..2816`, observedAt
+`2026-06-09T18:13:49.060Z..2026-06-09T18:26:38.261Z`, with safe
+price / FDV / reserve / topPool presence `50 / 50 / 50 / 50`.
+
+Only Metric changed: Token / Metric / Notification / HolderSnapshot moved
+`4065 / 1657 / 22 / 1 -> 4065 / 1707 / 22 / 1`, and Metric buckets moved
+`0=2748`, `1=1030`, `2+=287` to `0=2748`, `1=980`, `2+=337`.
+Notification capture stayed disabled, selected Notification / HolderSnapshot
+totals stayed `0 / 0`, and no Token, Notification, HolderSnapshot, Telegram,
+retry, auto-send, scheduler/systemd, rawJson dump, second Red, or fallback
+side effect occurred.
+
+The growth report now evaluates `335` pumpOnly Metric>=2 rows and found no new
+2x+ row: top FDV/reserve remains `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x=1/1/0/0`, and token id `7577` remains the only meaningful
+growth signal. Cadence returns to Green post-run growth review before any
+further Metric-one Red.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

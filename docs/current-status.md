@@ -1007,6 +1007,49 @@ Next Metric-one resnapshot preflight after flat cohort, 2026-06-10:
   HolderSnapshot write, scheduler/systemd action, Red execution, retry,
   auto-send, or rawJson dump.
 
+Metric-one resnapshot Red for ids `7427..7378`, 2026-06-10:
+
+- The repo-local Red safety Skill was applied and the human-approved
+  network-enabled / out-of-sandbox command ran exactly once:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricOnce --noNotificationCapture --write`.
+  Expected HEAD `ea5a56e docs: preflight next metric once resnapshot` matched
+  and the working tree was clean before execution. Provider HEAD was
+  reachable without body dump.
+- Result: selected ids `7427..7378`, `selected=50`, `ok=50`, `written=50`,
+  `skipped=0`, `error=0`, `providerErrorCount=0`, all provider error
+  categories `0`, `firstErrorCategory=null`, and `firstHttpStatus=null`.
+  Inter-item delay ran for `49` gaps.
+- New Metric ids are `2767..2816`, observedAt range
+  `2026-06-09T18:13:49.060Z..2026-06-09T18:26:38.261Z`, source
+  `geckoterminal.token_snapshot=50`. Red output safe summaries reported
+  price / FDV / reserve / topPool presence `50 / 50 / 50 / 50`.
+- Counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `4065 / 1657 / 22 / 1 -> 4065 / 1707 / 22 / 1`.
+  Metadata stayed `mint_only=3033`, `partial=1019`, `enriched=13`; Metric
+  buckets moved `0=2748`, `1=1030`, `2+=287` to `0=2748`, `1=980`,
+  `2+=337`; Notification statuses stayed `captured=17`, `sent=5`.
+- Selected rows are now Metric>=2: selected Metric distribution `0/0/50`.
+  Selected Notification and HolderSnapshot totals stayed `0 / 0`;
+  Notification capture stayed disabled.
+- Growth-report post-check stayed safe and read-only:
+  `readOnly=true`, `providerFetchExecuted=false`, `dbWriteExecuted=false`,
+  `telegramSendExecuted=false`, and `rawJsonIncluded=false`. PumpOnly
+  Metric>=2 evaluated rows moved `285 -> 335`; pumpOnly buckets are now
+  `0=1820`, `1=971`, `2+=335`. Top FDV/reserve remains
+  `3.8445 / 3.7064`; FDV `2x/3x/5x/10x` remains `1/1/0/0`; `C/1` remains
+  the only 2x+ score bucket; `B/2` max remains `1.0058`; hardRejected 2x+
+  remains `0`; token id `7577` remains the top growth row.
+- Queue/planner after stayed closed: default 24h and 12h queues are empty,
+  rolling 168h remains `gecko=1042`, `enrichPending=742`,
+  `metricPending=792`, `staleReview=792`, `notifyCandidate=0`;
+  auto-send disabled/enabled allowed stayed `0 / 0`, retry candidate stayed
+  `0`, and failed Notification stayed `0`.
+- Expected non-effects held: no Token write, Notification create/update/send,
+  HolderSnapshot write, Telegram send, retry execution, auto-send execution,
+  scheduler/systemd action, second Red, fallback/compensation command,
+  pnpm smoke, offensive text dump, or rawJson full dump occurred. Next step is
+  a Green post-run growth review for ids `7427..7378`.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

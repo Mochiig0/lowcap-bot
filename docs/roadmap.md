@@ -524,6 +524,24 @@ resnapshot Red** for ids `7427..7378`, followed by `metrics:growth-report`
 post-check. No scoring, watchlist, Notification, or Telegram policy change is
 justified.
 
+That Metric-one resnapshot Red is now complete. It ran exactly once in the
+approved network-enabled / out-of-sandbox context and selected ids
+`7427..7378`, with `selected=50`, `ok=50`, `written=50`, `skipped=0`,
+`error=0`, and `providerErrorCount=0`. New Metric ids are `2767..2816`, and
+all selected rows moved from Metric-one to Metric>=2.
+
+Counts moved only in Metric: `4065 / 1657 / 22 / 1` ->
+`4065 / 1707 / 22 / 1`; Metric buckets moved to `0=2748`, `1=980`,
+`2+=337`. Notification / Telegram, Token writes, HolderSnapshot writes,
+retry, auto-send, scheduler/systemd, second Red, fallback command, and rawJson
+dumps stayed closed.
+
+The post-run `metrics:growth-report` now evaluates `335` pumpOnly Metric>=2
+rows. Top FDV/reserve remains `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x` remains `1/1/0/0`, and token id `7577` remains the only
+meaningful growth signal. Recommended next slice: **Green post-run growth
+review for ids `7427..7378`**, not another immediate Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
