@@ -357,6 +357,29 @@ if more growth examples are desired, run one separately approved
 network-enabled Metric-one resnapshot Red for this cohort, then rerun
 `metrics:growth-report`. No write/fetch/send occurred in this Green turn.
 
+Metric-one resnapshot Red result, 2026-06-09: the approved Red completed for
+ids `7477..7428`. It ran the exact safe command once, wrote Metric ids
+`2717..2766`, and returned `selected=50`, `ok=50`, `written=50`,
+`skipped=0`, `error=0`, `providerErrorCount=0`, all error category counts
+`0`, `firstErrorCategory=null`, and `firstHttpStatus=null`. The latest
+observedAt range is `2026-06-09T11:56:23.216Z..2026-06-09T12:09:10.688Z`.
+
+Report readiness improved as expected: selected rows are now all Metric>=2,
+with safe market-data presence price / FDV / reserve / topPool
+`50 / 50 / 50 / 50`; selected Notification and HolderSnapshot totals remain
+`0 / 0`. Token / Metric / Notification / HolderSnapshot moved only in Metric,
+`4065 / 1607 / 22 / 1 -> 4065 / 1657 / 22 / 1`; global Metric buckets moved
+to `0=2748`, `1=1030`, `2+=287`.
+
+The required growth-report post-check remained rawJson/name/symbol safe and
+read-only. It now evaluates `285` pumpOnly Metric>=2 rows, with top
+FDV/reserve `3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, `C/1` as the
+only 2x+ bucket, `B/2` max `1.0058`, and hardRejected 2x+ count `0`. No new
+2x+ row appeared, so report readiness gains sample depth but still does not
+change scoring, watchlist, Notification, or Telegram policy. No retry,
+second Red, fallback command, Notification mutation, Telegram send, pnpm
+smoke, or rawJson full dump occurred.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates

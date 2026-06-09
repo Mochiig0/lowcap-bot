@@ -894,6 +894,45 @@ Next Metric-one resnapshot preflight after flat cohort, 2026-06-09:
   Telegram send, Notification mutation, Token write, Metric write,
   HolderSnapshot write, scheduler/systemd action, or rawJson dump.
 
+Metric-one resnapshot Red for ids `7477..7428`, 2026-06-09:
+
+- The repo-local Red execution safety Skill was applied. Provider HEAD was
+  reachable without body dump, expected HEAD
+  `cef16c3 docs: preflight next metric once resnapshot` matched, and the
+  working tree was clean before execution. The approved exact command ran
+  once:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50
+  --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000
+  --onlyMetricOnce --noNotificationCapture --write`.
+- Result: `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+  `providerErrorCount=0`, all provider error category counts `0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`. The selected ids
+  were exactly `7477..7428`; the pre-run distribution was
+  `zero/one/twoPlus=0/50/0`, with latest Metric ages `8455..8467` minutes.
+- New Metric ids are `2717..2766`, observedAt range
+  `2026-06-09T11:56:23.216Z..2026-06-09T12:09:10.688Z`. Safe market-data
+  presence on the new latest Metrics is price / FDV / reserve / topPool
+  `50 / 50 / 50 / 50`. Target rows after the Red are all Metric>=2, with
+  metadata `partial=50`, score buckets `C/0=48` and `B/2=2`,
+  hardRejected `0`, and selected Notification / HolderSnapshot totals
+  `0 / 0`.
+- Counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `4065 / 1607 / 22 / 1 -> 4065 / 1657 / 22 / 1`. Global
+  Metric buckets moved `0=2748`, `1=1080`, `2+=237` -> `0=2748`,
+  `1=1030`, `2+=287`; metadata stayed `mint_only=3033`, `partial=1019`,
+  `enriched=13`; Notification statuses stayed `captured=17`, `sent=5`.
+- Growth post-check via `metrics:growth-report` stayed read-only and safe:
+  pumpOnly Metric>=2 evaluated rows moved `235 -> 285`, pumpOnly buckets are
+  `0=1820`, `1=1021`, `2+=285`, top FDV/reserve remains
+  `3.8445 / 3.7064`, FDV `2x/3x/5x/10x` remains `1/1/0/0`, `C/1` remains
+  the only 2x+ bucket, `B/2` max remains `1.0058`, and hardRejected 2x+
+  remains `0`. No new 2x+ row appeared; token id `7577` remains the top
+  growth signal.
+- Notification capture stayed disabled. No Token write, Notification
+  create/update/send, HolderSnapshot write, Telegram send, retry execution,
+  auto-send execution, scheduler/systemd action, fallback command, second Red,
+  pnpm smoke, or rawJson full dump occurred.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

@@ -472,6 +472,24 @@ slice: **human-approved network-enabled Metric-one resnapshot Red** for ids
 watchlist, Notification, or Telegram policy change is recommended, and no Red
 was executed in this Green turn.
 
+That Red is now complete. The exact safe command ran once for ids
+`7477..7428` and returned `selected=50`, `ok=50`, `written=50`,
+`skipped=0`, `error=0`, and `providerErrorCount=0`. It wrote Metric ids
+`2717..2766` with observedAt range
+`2026-06-09T11:56:23.216Z..2026-06-09T12:09:10.688Z`; all selected rows
+moved from Metric-one to Metric>=2. Counts moved only in Metric:
+`4065 / 1607 / 22 / 1 -> 4065 / 1657 / 22 / 1`, and global Metric buckets
+moved to `0=2748`, `1=1030`, `2+=287`.
+
+Post-run `metrics:growth-report` now evaluates `285` pumpOnly Metric>=2 rows.
+No new 2x+ row appeared: top FDV/reserve remains `3.8445 / 3.7064`, FDV
+`2x/3x/5x/10x` remains `1/1/0/0`, `C/1` remains the only 2x+ score bucket,
+and token id `7577` remains the top growth signal. Notification / Telegram,
+Token, HolderSnapshot, retry, auto-send, scheduler/systemd, second Red,
+fallback command, pnpm smoke, and rawJson full dump all stayed closed. Next
+lane should be a Green growth review/status point if interpretation is
+needed, not another immediate Red.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
