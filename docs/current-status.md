@@ -827,6 +827,36 @@ Metric-one resnapshot Red for ids `7527..7478`, 2026-06-09:
   remains `0`. No new 2x+ row appeared; token id `7577` remains the top
   growth signal.
 
+Metric-one growth review for ids `7527..7478`, 2026-06-09:
+
+- Green read-only/docs-only review on HEAD
+  `98c2c68 docs: record metric once resnapshot` confirmed the global
+  `metrics:growth-report` post-check again. Safety flags remained
+  `readOnly=true`, `providerFetchExecuted=false`, `dbWriteExecuted=false`,
+  `telegramSendExecuted=false`, and `rawJsonIncluded=false`; pumpOnly
+  Metric>=2 evaluated rows stayed `235`, with buckets `0=1820`, `1=1071`,
+  `2+=235`.
+- Global growth interpretation is unchanged: top FDV/reserve remains
+  `3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, `C/1` remains the only
+  2x+ score bucket, `B/2` max remains `1.0058`, and hardRejected 2x+ remains
+  `0`. Token id `7577` remains the only meaningful growth signal.
+- The target cohort has `50` rows and all are `metricsCount>=2`. Missing
+  first FDV, latest FDV, and reserve counts are `0 / 0 / 0`. Cohort top
+  `fdvMultiple` is only `1.0056`; FDV buckets
+  `>=1.1/>=1.25/>=1.5/>=2/>=3/>=5/>=10` are all `0`. Latest FDV shape is
+  `down=12`, `nearFlat=38`, `upAbove1.01=0`.
+- Score summary is `C/0=48` with max FDV `1.0056`, and `B/2=2` with max FDV
+  `1.0000`; there are no C/1 rows in this cohort and no B/2 growth signal.
+  `hardRejected 2x+=0`, selected Notification / HolderSnapshot totals remain
+  `0 / 0`.
+- Interpretation: ids `7527..7478` added useful observation depth but did not
+  reveal meaningful growth. This does not change the interpretation of token
+  id `7577` and does not justify scoring dictionary, watchlist threshold,
+  Notification, or Telegram policy changes. Another Green Metric-one
+  resnapshot preflight is still worthwhile because Metric-one backlog remains
+  high and more examples are needed; a later Yellow growth-report cohort mode
+  is the second candidate if repeated cohort analysis becomes the bottleneck.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

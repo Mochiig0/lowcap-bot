@@ -438,6 +438,22 @@ fallback command, and rawJson full dump all stayed closed. Next lane should be
 a Green growth review/status point if interpretation is needed, not another
 immediate Red.
 
+That Green growth review is now complete. ids `7527..7478` are all Metric>=2
+and rawJson-safe to inspect, but the cohort did not produce a growth winner.
+Top cohort FDV multiple is `1.0056`, FDV
+`>=1.1/>=1.25/>=1.5/>=2/>=3/>=5/>=10` are all `0`, and latest FDV shape is
+`38` near flat, `12` down, `0` up above `1.01x`. Score buckets are `C/0=48`
+and `B/2=2`; the B/2 rows have max FDV `1.0000`, and there are no C/1 rows in
+this cohort.
+
+Policy remains unchanged: token id `7577` is still the only meaningful growth
+signal, one isolated C/1 winner is not enough for scoring or watchlist changes,
+and `notifyCandidate=0` keeps Notification / Telegram closed. Recommended
+next slice: **Green Metric-one resnapshot preflight** to look for more
+examples while the Metric-one backlog remains high. Second candidate:
+**Yellow growth-report cohort enhancement** if ad hoc cohort review keeps
+recurring.
+
 Personal MVP runtime validation is complete enough for personal bounded-run
 use. The acceptance record is now `docs/runbooks/mvp-completion-checklist.md`.
 The near-term roadmap moves from MVP completion to Phase 2 operational cleanup
