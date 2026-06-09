@@ -313,6 +313,22 @@ remains `3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, and `C/1` remains
 the only 2x+ bucket. Cadence returns to Green review/status before any
 further Metric-one Red.
 
+Metric-one growth review, 2026-06-10: the read-only post-run review of ids
+`7477..7428` found no meaningful growth. All `50` rows are Metric>=2 with no
+missing first FDV, latest FDV, or reserve values. Cohort top FDV multiple is
+`1.2494`, but no row reached `1.25x`; FDV
+`>=1.1/>=1.25/>=1.5/>=2/>=3/>=5/>=10` is `1/0/0/0/0/0/0`. Latest FDV shape
+is mostly flat/down: `nearFlat=40`, `down=8`, and `upAbove1.01=2`.
+
+Score buckets are `C/0=48` and `B/2=2`; the B/2 rows did not grow
+(`maxFdvMultiple=1.0000`), and this cohort has no C/1 row. Target
+Notification and HolderSnapshot totals remain `0 / 0`, and hardRejected 2x+
+is `0`. Token id `7577` remains the only 2x+ / 3x+ growth signal in the
+current reportable set. Keep scoring, watchlist, Notification, and Telegram
+policy unchanged. The next operating candidate is another Green
+Metric-one resnapshot preflight for more examples; consider a Yellow cohort
+mode for `metrics:growth-report` only if this analysis stays repetitive.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.

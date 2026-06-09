@@ -335,6 +335,19 @@ no new 2x+ signal. Token id `7577` remains the top row at
 remains `1/1/0/0`. Do a Green growth review/status point before any further
 Metric-one resnapshot Red.
 
+Metric-one growth review, 2026-06-10: the minimum-loop review confirms ids
+`7477..7428` improved observation depth but did not add a meaningful growth
+winner. All `50` target rows are Metric>=2, with missing first FDV / latest
+FDV / reserve counts `0 / 0 / 0`. The best FDV multiple is `1.2494`; only
+one row reached `>=1.1x`, and none reached `>=1.25x` or `>=2x`. Latest FDV is
+`40` near flat, `8` down, and `2` up above `1.01x`.
+
+The cohort score shape is `C/0=48` and `B/2=2`; B/2 max FDV is `1.0000`, and
+there are no C/1 rows. Token id `7577` remains the sole clear growth winner.
+Continue to treat Metric-one resnapshot as an observation-depth lane; another
+Green preflight is reasonable, while scoring and notification policy stay
+unchanged.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

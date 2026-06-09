@@ -380,6 +380,22 @@ change scoring, watchlist, Notification, or Telegram policy. No retry,
 second Red, fallback command, Notification mutation, Telegram send, pnpm
 smoke, or rawJson full dump occurred.
 
+Metric-one growth review for ids `7477..7428`, 2026-06-10: the post-run
+read-only review confirmed the new rows are reportable but not a new
+growth-winning cohort. Target count is `50`, all rows are Metric>=2, and
+missing first FDV / latest FDV / reserve counts are `0 / 0 / 0`. Cohort top
+FDV multiple is `1.2494`; FDV buckets `>=1.1`, `>=1.25`, `>=1.5`, `>=2`,
+`>=3`, `>=5`, and `>=10` are `1 / 0 / 0 / 0 / 0 / 0 / 0`. Latest FDV shape
+is `nearFlat=40`, `down=8`, `upAbove1.01=2`.
+
+Score buckets are `C/0=48` and `B/2=2`; B/2 max FDV is `1.0000`, there are
+no C/1 rows, and hardRejected 2x+ remains `0`. Selected Notification and
+HolderSnapshot totals remain `0 / 0`. Report-readiness interpretation:
+`metrics:growth-report` is sufficient for global post-check, but cohort
+reviews are still partly ad hoc. Prefer another Green Metric-one preflight for
+more examples; consider a Yellow cohort/range mode for `metrics:growth-report`
+only if repeated manual cohort summaries become the bottleneck.
+
 Phase 2 triage note, 2026-06-03: the first cleanup step should improve Metric
 coverage before additional enrich/report work. Watchlist remains useful as
 report-only evidence (`12` ready `B / 2` rows), but the next enrich candidates
