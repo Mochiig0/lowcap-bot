@@ -263,6 +263,27 @@ Metric-one resnapshot shape with `--noNotificationCapture`; expected effects
 are GeckoTerminal fetches and Metric writes up to `50` only, followed by a
 read-only `metrics:growth-report` post-check.
 
+Metric-one resnapshot Red, 2026-06-09: the minimum loop advanced ids
+`7527..7478` from one Metric to two Metrics. The exact approved
+`--onlyMetricOnce --write` command ran once and returned `selected=50`,
+`ok=50`, `written=50`, `error=0`, and `providerErrorCount=0`. New Metric ids
+are `2667..2716`, with observedAt range
+`2026-06-09T09:25:10.363Z..2026-06-09T09:37:58.148Z`; all latest Metrics
+have safe price, FDV, reserve, and top-pool presence.
+
+Only Metric changed: Token / Metric / Notification / HolderSnapshot moved
+`4065 / 1557 / 22 / 1 -> 4065 / 1607 / 22 / 1`, and global Metric buckets
+are now `0=2748`, `1=1080`, `2+=237`. Notification capture remained disabled;
+selected Notification and HolderSnapshot totals are `0 / 0`; no Telegram,
+Notification, Token, HolderSnapshot, retry, auto-send, scheduler/systemd,
+second Red, fallback command, or rawJson full dump occurred.
+
+The post-run growth report evaluates `235` pumpOnly Metric>=2 rows and found
+no new 2x+ signal. Token id `7577` remains the top row at
+`fdvMultiple=3.8445` and `reserveMultiple=3.7064`; FDV `2x/3x/5x/10x`
+remains `1/1/0/0`. Do a Green growth review/status point before any further
+Metric-one resnapshot Red.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

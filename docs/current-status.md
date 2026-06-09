@@ -791,6 +791,42 @@ Metric-one resnapshot preflight with growth report, 2026-06-09:
   the Red is `pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2
   --limit 10`.
 
+Metric-one resnapshot Red for ids `7527..7478`, 2026-06-09:
+
+- The repo-local Red execution safety Skill was applied, provider HEAD was
+  checked without body dump, and the human-approved command ran exactly once:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50
+  --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000
+  --onlyMetricOnce --noNotificationCapture --write`.
+- Result: `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+  `providerErrorCount=0`, all provider error category counts `0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`. Selection remained
+  exactly ids `7527..7478`, with pre-run `metricsCount=1=50` and no overlap
+  with prior Metric-one cohorts `8259..8210` or `7577..7528`.
+- New Metric ids are `2667..2716`, observedAt range
+  `2026-06-09T09:25:10.363Z..2026-06-09T09:37:58.148Z`. Safe post-run
+  target summary confirms all `50` rows are now `metricsCount=2+`, metadata
+  `partial=50`, score buckets `C/0=48` and `B/2=2`, hardRejected `0`, and
+  safe market-data presence price / FDV / reserve / topPool is `50 / 50 /
+  50 / 50`.
+- Counts moved only in Metric: Token / Metric / Notification /
+  HolderSnapshot `4065 / 1557 / 22 / 1 -> 4065 / 1607 / 22 / 1`. Global
+  Metric buckets moved `0=2748`, `1=1130`, `2+=187` -> `0=2748`,
+  `1=1080`, `2+=237`; metadata stayed `mint_only=3033`, `partial=1019`,
+  `enriched=13`; Notification statuses stayed `captured=17`, `sent=5`.
+- Notification capture stayed disabled and selected Notification /
+  HolderSnapshot totals remained `0 / 0`. No Token write, Notification
+  create/update/send, HolderSnapshot write, Telegram send, retry execution,
+  auto-send execution, scheduler/systemd action, fallback command, second Red,
+  or rawJson full dump occurred.
+- Growth post-check via `metrics:growth-report` is safe and read-only:
+  pumpOnly Metric>=2 evaluated rows moved `185 -> 235`, pumpOnly buckets are
+  `0=1820`, `1=1071`, `2+=235`, top FDV/reserve remains
+  `3.8445 / 3.7064`, FDV `2x/3x/5x/10x` remains `1/1/0/0`, `C/1` remains
+  the only 2x+ bucket, `B/2` max remains `1.0058`, and hardRejected 2x+
+  remains `0`. No new 2x+ row appeared; token id `7577` remains the top
+  growth signal.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

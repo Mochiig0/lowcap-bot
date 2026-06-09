@@ -242,6 +242,28 @@ Red candidate is:
 Run it only with separate human approval in network-enabled / out-of-sandbox
 context, and follow it with the growth report baseline command.
 
+Metric-one resnapshot Red, 2026-06-09: the approved command above ran exactly
+once in the required network-enabled / out-of-sandbox context. It selected ids
+`7527..7478`, wrote Metric ids `2667..2716`, and completed with
+`selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, `firstErrorCategory=null`, and
+`firstHttpStatus=null`. All selected rows are now Metric>=2, with safe
+market-data presence price / FDV / reserve / topPool `50 / 50 / 50 / 50`.
+
+Counts moved only in Metric: `4065 / 1557 / 22 / 1` ->
+`4065 / 1607 / 22 / 1`; global Metric buckets moved from `0=2748`,
+`1=1130`, `2+=187` to `0=2748`, `1=1080`, `2+=237`. Notification capture
+was disabled, selected Notification and HolderSnapshot totals stayed `0 / 0`,
+and no Token write, Notification create/update/send, HolderSnapshot write,
+Telegram send, retry, auto-send, scheduler/systemd, second Red, fallback
+command, or rawJson full dump occurred.
+
+Growth post-check: `metrics:growth-report` now evaluates `235` pumpOnly
+Metric>=2 rows. It found no new 2x+ row; top FDV/reserve remains
+`3.8445 / 3.7064`, FDV `2x/3x/5x/10x` remains `1/1/0/0`, and `C/1` remains
+the only 2x+ score bucket. Cadence returns to Green review/status before any
+further Metric-one Red.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
