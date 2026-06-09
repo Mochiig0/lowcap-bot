@@ -297,6 +297,23 @@ growth winner. Continue to treat Metric-one resnapshot as an observation-depth
 lane; another Green preflight is reasonable, while scoring and notification
 policy stay unchanged.
 
+Next Metric-one preflight, 2026-06-09: another fetch-free `--onlyMetricOnce`
+preview is clean. The `metrics:growth-report` baseline stayed read-only and
+unchanged: `235` pumpOnly Metric>=2 rows, top FDV/reserve
+`3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, and token id `7577` still the
+only 2x+ / 3x+ signal. The preview with `sinceMinutes=10080` selected ids
+`7477..7428`, all exactly Metric-one, with latest Metric ages `8410..8422`
+minutes, selected Notification and HolderSnapshot totals `0 / 0`, and
+`providerErrorCount=0`.
+
+This cohort does not overlap the previous Metric-one resnapshot cohorts
+`8259..8210`, `7577..7528`, or `7527..7478`. The 1440 and 720 minute windows
+selected `0`. If approved, use the same 10080 minute Metric-one resnapshot
+shape with `--noNotificationCapture`; expected effects are GeckoTerminal
+fetches and Metric writes up to `50` only, followed by a read-only
+`metrics:growth-report` post-check. This Green preflight itself performed no
+fetch, write, send, or rawJson dump.
+
 Phase 2 triage update, 2026-06-03: start cleanup with Metric, not enrich.
 Safe Metric preview found clean Metric-zero rows (`7477..7466` in the 420
 minute window and `7477..7428` in the 10080 minute window). Read-only enrich

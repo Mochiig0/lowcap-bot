@@ -857,6 +857,43 @@ Metric-one growth review for ids `7527..7478`, 2026-06-09:
   high and more examples are needed; a later Yellow growth-report cohort mode
   is the second candidate if repeated cohort analysis becomes the bottleneck.
 
+Next Metric-one resnapshot preflight after flat cohort, 2026-06-09:
+
+- Green read-only/docs-only preflight on HEAD
+  `05c92c6 docs: review metric once growth results` rechecked the
+  `metrics:growth-report` baseline. The report stayed safe with
+  `readOnly=true`, `providerFetchExecuted=false`, `dbWriteExecuted=false`,
+  `telegramSendExecuted=false`, and `rawJsonIncluded=false`.
+- Baseline now evaluates `235` pumpOnly Metric>=2 rows. Pump-only Metric
+  buckets are `0=1820`, `1=1071`, `2+=235`; top FDV/reserve multiples remain
+  `3.8445 / 3.7064`; FDV `2x/3x/5x/10x` remains `1/1/0/0`; `C/1` remains
+  the only 2x+ score bucket; `B/2` max remains `1.0058`; and hardRejected
+  2x+ count remains `0`. Token id `7577` remains the isolated meaningful
+  growth signal.
+- Fetch-free Metric-one preview with `--onlyMetricOnce`,
+  `sinceMinutes=10080`, `limit=50`, and `minGapMinutes=60` selected ids
+  `7477..7428`. The selected cohort is clean: `selectedCount=50`, all rows
+  are `metricsCount=1`, distribution `zero/one/twoPlus=0/50/0`, latest Metric
+  ids are present, `latestMetricAgeMinutes=8410..8422`, Notification and
+  HolderSnapshot totals are `0 / 0`, and `providerErrorCount=0`.
+- The selected ids have no overlap with previous Metric-one resnapshot cohorts
+  `8259..8210`, `7577..7528`, or `7527..7478`. Narrower preview windows
+  `1440` and `720` minutes selected `0` rows.
+- Recommendation: Candidate A, a separately approved network-enabled
+  Metric-one resnapshot Red, is clean to propose but was not executed:
+  `pnpm -s metric:snapshot:geckoterminal:safe -- --pumpOnly --limit 50
+  --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000
+  --onlyMetricOnce --noNotificationCapture --write`. Expected side effects
+  are external GeckoTerminal fetches up to `50` and Metric writes up to `50`;
+  expected non-effects are Token write `0`, Notification create/update/send
+  `0`, HolderSnapshot write `0`, Telegram send `0`, retry/auto-send/
+  scheduler/systemd `0`, and rawJson full dump `0`. Required post-check after
+  the Red is `pnpm -s metrics:growth-report -- --pumpOnly --minMetricCount 2
+  --limit 10`.
+- This Green turn performed no production DB write, external provider fetch,
+  Telegram send, Notification mutation, Token write, Metric write,
+  HolderSnapshot write, scheduler/systemd action, or rawJson dump.
+
 Phase 2 operational cleanup triage, 2026-06-03:
 
 - First Phase 2 task: targeted Metric pending cleanup. This is post-MVP

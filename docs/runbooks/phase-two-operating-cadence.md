@@ -280,6 +280,24 @@ policy unchanged. The next operating candidate is another Green
 Metric-one resnapshot preflight for more examples; consider a Yellow cohort
 mode for `metrics:growth-report` only if this analysis stays repetitive.
 
+Next Metric-one preflight, 2026-06-09: after the flat/down `7527..7478`
+cohort, the next Green preflight rechecked `metrics:growth-report` and then
+previewed another Metric-one cohort without fetch or write. The safe baseline
+still evaluates `235` pumpOnly Metric>=2 rows, with top FDV/reserve
+`3.8445 / 3.7064`, FDV `2x/3x/5x/10x=1/1/0/0`, `C/1` as the only 2x+
+bucket, `B/2` max `1.0058`, and token id `7577` as the only meaningful
+growth signal.
+
+The `--onlyMetricOnce` preview with `sinceMinutes=10080` selected ids
+`7477..7428`: `selectedCount=50`, all `metricsCount=1`,
+`latestMetricAgeMinutes=8410..8422`, selected Notification and HolderSnapshot
+totals `0 / 0`, and `providerErrorCount=0`. The cohort does not overlap
+previous Metric-one resnapshot cohorts `8259..8210`, `7577..7528`, or
+`7527..7478`. The 1440 and 720 minute windows selected `0`. If approved, the
+next cadence Red is the same 10080 minute Metric-one resnapshot shape with
+`--noNotificationCapture`; execute it once only in network-enabled /
+out-of-sandbox context, and post-check with `metrics:growth-report`.
+
 ## Operating Principles
 
 - Use network-enabled / out-of-sandbox context for provider-fetch Red tasks.
