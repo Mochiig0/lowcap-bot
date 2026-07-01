@@ -3769,6 +3769,13 @@ async function run(): Promise<void> {
             skippedCount: number;
             errorCount: number;
             writtenCount: number;
+            providerErrorCount: number;
+            errorCategoryCounts: {
+              http_429: number;
+            };
+            http429Count: number;
+            firstErrorCategory: string | null;
+            firstHttpStatus: number | null;
             rateLimited: boolean;
             rateLimitedCount: number;
             abortedDueToRateLimit: boolean;
@@ -3776,8 +3783,17 @@ async function run(): Promise<void> {
             items: Array<{
               status: string;
               error?: string;
+              errorCategory?: string;
+              httpStatus?: number | null;
               metricCandidate?: {
                 volume24h: number | null;
+              };
+              writeSummary: {
+                dryRun: boolean;
+                wouldCreateMetric: boolean;
+                metricId: number | null;
+                notificationCreated: boolean;
+                notificationId: number | null;
               };
             }>;
             cycles: Array<{
@@ -3789,6 +3805,13 @@ async function run(): Promise<void> {
                 skippedCount: number;
                 errorCount: number;
                 writtenCount: number;
+                providerErrorCount: number;
+                errorCategoryCounts: {
+                  http_429: number;
+                };
+                http429Count: number;
+                firstErrorCategory: string | null;
+                firstHttpStatus: number | null;
                 rateLimited: boolean;
                 rateLimitedCount: number;
                 abortedDueToRateLimit: boolean;
@@ -3797,8 +3820,17 @@ async function run(): Promise<void> {
               items: Array<{
                 status: string;
                 error?: string;
+                errorCategory?: string;
+                httpStatus?: number | null;
                 metricCandidate?: {
                   volume24h: number | null;
+                };
+                writeSummary: {
+                  dryRun: boolean;
+                  wouldCreateMetric: boolean;
+                  metricId: number | null;
+                  notificationCreated: boolean;
+                  notificationId: number | null;
                 };
               }>;
             }>;
@@ -3829,6 +3861,11 @@ async function run(): Promise<void> {
             rateLimitedWatchJson.skippedCount !== 0 ||
             rateLimitedWatchJson.errorCount !== 1 ||
             rateLimitedWatchJson.writtenCount !== 0 ||
+            rateLimitedWatchJson.providerErrorCount !== 1 ||
+            rateLimitedWatchJson.errorCategoryCounts.http_429 !== 1 ||
+            rateLimitedWatchJson.http429Count !== 1 ||
+            rateLimitedWatchJson.firstErrorCategory !== "http_429" ||
+            rateLimitedWatchJson.firstHttpStatus !== 429 ||
             rateLimitedWatchJson.rateLimited !== true ||
             rateLimitedWatchJson.rateLimitedCount !== 1 ||
             rateLimitedWatchJson.abortedDueToRateLimit !== true ||
@@ -3840,25 +3877,49 @@ async function run(): Promise<void> {
             rateLimitedWatchJson.cycles[0]?.summary.selectedCount !== 2 ||
             rateLimitedWatchJson.cycles[0]?.summary.okCount !== 0 ||
             rateLimitedWatchJson.cycles[0]?.summary.errorCount !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.summary.providerErrorCount !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.summary.errorCategoryCounts.http_429 !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.summary.http429Count !== 1 ||
+            rateLimitedWatchJson.cycles[0]?.summary.firstErrorCategory !== "http_429" ||
+            rateLimitedWatchJson.cycles[0]?.summary.firstHttpStatus !== 429 ||
             rateLimitedWatchJson.cycles[0]?.summary.rateLimited !== true ||
             rateLimitedWatchJson.cycles[0]?.summary.rateLimitedCount !== 1 ||
             rateLimitedWatchJson.cycles[0]?.summary.abortedDueToRateLimit !== true ||
             rateLimitedWatchJson.cycles[0]?.summary.skippedAfterRateLimit !== 1 ||
             rateLimitedWatchJson.cycles[0]?.items.length !== 1 ||
             rateLimitedWatchJson.cycles[0]?.items[0]?.status !== "error" ||
-            !rateLimitedWatchJson.cycles[0]?.items[0]?.error?.includes("429 Too Many Requests") ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.errorCategory !== "http_429" ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.httpStatus !== 429 ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.writeSummary.dryRun !== true ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.writeSummary.wouldCreateMetric !== false ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.writeSummary.metricId !== null ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.writeSummary.notificationCreated !== false ||
+            rateLimitedWatchJson.cycles[0]?.items[0]?.writeSummary.notificationId !== null ||
             rateLimitedWatchJson.cycles[1]?.cycle !== 2 ||
             rateLimitedWatchJson.cycles[1]?.failed !== false ||
             rateLimitedWatchJson.cycles[1]?.summary.selectedCount !== 2 ||
             rateLimitedWatchJson.cycles[1]?.summary.okCount !== 2 ||
             rateLimitedWatchJson.cycles[1]?.summary.errorCount !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.summary.providerErrorCount !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.summary.errorCategoryCounts.http_429 !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.summary.http429Count !== 0 ||
+            rateLimitedWatchJson.cycles[1]?.summary.firstErrorCategory !== null ||
+            rateLimitedWatchJson.cycles[1]?.summary.firstHttpStatus !== null ||
             rateLimitedWatchJson.cycles[1]?.summary.rateLimited !== false ||
             rateLimitedWatchJson.cycles[1]?.summary.rateLimitedCount !== 0 ||
             rateLimitedWatchJson.cycles[1]?.summary.abortedDueToRateLimit !== false ||
             rateLimitedWatchJson.cycles[1]?.summary.skippedAfterRateLimit !== 0 ||
             rateLimitedWatchJson.cycles[1]?.items.length !== 2 ||
             rateLimitedWatchJson.cycles[1]?.items[0]?.metricCandidate?.volume24h !== 1234 ||
-            rateLimitedWatchJson.cycles[1]?.items[1]?.metricCandidate?.volume24h !== 1234
+            rateLimitedWatchJson.cycles[1]?.items[1]?.metricCandidate?.volume24h !== 1234 ||
+            rateLimitedWatchJson.cycles[1]?.items.some(
+              (item) =>
+                item.writeSummary.dryRun !== true ||
+                item.writeSummary.wouldCreateMetric !== true ||
+                item.writeSummary.metricId !== null ||
+                item.writeSummary.notificationCreated !== false ||
+                item.writeSummary.notificationId !== null,
+            ) === true
           ) {
             throw new Error(
               "metric snapshot geckoterminal watch rate limit short circuit returned unexpected summary",
@@ -3867,9 +3928,13 @@ async function run(): Promise<void> {
 
           if (
             !rateLimitedWatch.stderr.includes("cycle=1") ||
+            !rateLimitedWatch.stderr.includes("providerErrorCount=1") ||
+            !rateLimitedWatch.stderr.includes("firstErrorCategory=http_429") ||
+            !rateLimitedWatch.stderr.includes("firstHttpStatus=429") ||
             !rateLimitedWatch.stderr.includes("rateLimited=true") ||
             !rateLimitedWatch.stderr.includes("skippedAfterRateLimit=1") ||
             !rateLimitedWatch.stderr.includes("cycle=2") ||
+            !rateLimitedWatch.stderr.includes("providerErrorCount=0") ||
             !rateLimitedWatch.stderr.includes("rateLimited=false")
           ) {
             throw new Error(

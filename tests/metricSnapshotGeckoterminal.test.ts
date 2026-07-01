@@ -146,6 +146,40 @@ type MetricSnapshotGeckoterminalOutput = {
   }>;
 };
 
+type MetricSnapshotGeckoterminalWatchOutput = Omit<
+  MetricSnapshotGeckoterminalOutput,
+  "selection" | "summary"
+> & {
+  watchEnabled: boolean;
+  cycleCount: number;
+  failedCount: number;
+  selectedCount: number;
+  okCount: number;
+  skippedCount: number;
+  errorCount: number;
+  writtenCount: number;
+  providerErrorCount: number;
+  errorCategoryCounts: Record<ProviderErrorCategory, number>;
+  http429Count: number;
+  firstErrorCategory: ProviderErrorCategory | null;
+  firstHttpStatus: number | null;
+  rateLimited: boolean;
+  rateLimitedCount: number;
+  abortedDueToRateLimit: boolean;
+  skippedAfterRateLimit: number;
+  cycles: Array<{
+    cycle: number;
+    failed: boolean;
+    summary: MetricSnapshotGeckoterminalOutput["summary"] & {
+      rateLimited: boolean;
+      rateLimitedCount: number;
+      abortedDueToRateLimit: boolean;
+      skippedAfterRateLimit: number;
+    };
+    items: MetricSnapshotGeckoterminalOutput["items"];
+  }>;
+};
+
 function readRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -1716,6 +1750,134 @@ test("metricSnapshotGeckoterminal boundary", async (t) => {
         assert.deepEqual(await readNotifications(databaseUrl, mint), []);
       });
     }
+  });
+
+  await t.test("short-circuits a watch cycle on 429 while preserving structured summary fields", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "watch-rate-limit.db")}`;
+      const geckoSnapshotFile = join(dir, "watch-rate-limit-snapshot.json");
+      const now = Date.now();
+      const firstMint = "MetricSnapshotWatchRateLimitA111111111111111pump";
+      const secondMint = "MetricSnapshotWatchRateLimitB111111111111111pump";
+
+      await runDbPush(databaseUrl);
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: firstMint,
+        createdAt: new Date(now),
+        metadataStatus: "mint_only",
+      });
+      await seedMetricSelectionToken(databaseUrl, {
+        mint: secondMint,
+        createdAt: new Date(now - 1_000),
+        metadataStatus: "mint_only",
+      });
+      await writeSnapshotFixture(geckoSnapshotFile, secondMint);
+
+      const result = await runMetricSnapshotGeckoterminal(
+        [
+          "--watch",
+          "--intervalSeconds",
+          "1",
+          "--maxIterations",
+          "2",
+          "--limit",
+          "2",
+          "--sinceMinutes",
+          "10",
+        ],
+        {
+          databaseUrl,
+          geckoSnapshotFile,
+          geckoSnapshotErrorOnce:
+            "GeckoTerminal token snapshot request failed: 429 Too Many Requests",
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as MetricSnapshotGeckoterminalWatchOutput;
+      assert.equal(parsed.dryRun, true);
+      assert.equal(parsed.writeEnabled, false);
+      assert.equal(parsed.watchEnabled, true);
+      assert.equal(parsed.cycleCount, 2);
+      assert.equal(parsed.failedCount, 0);
+      assert.equal(parsed.selectedCount, 4);
+      assert.equal(parsed.okCount, 2);
+      assert.equal(parsed.skippedCount, 0);
+      assert.equal(parsed.errorCount, 1);
+      assert.equal(parsed.writtenCount, 0);
+      assert.equal(parsed.providerErrorCount, 1);
+      assert.equal(parsed.errorCategoryCounts.http_429, 1);
+      assert.equal(parsed.http429Count, 1);
+      assert.equal(parsed.firstErrorCategory, "http_429");
+      assert.equal(parsed.firstHttpStatus, 429);
+      assert.equal(parsed.rateLimited, true);
+      assert.equal(parsed.rateLimitedCount, 1);
+      assert.equal(parsed.abortedDueToRateLimit, true);
+      assert.equal(parsed.skippedAfterRateLimit, 1);
+      assert.equal(parsed.items.length, 3);
+      assert.equal(parsed.cycles.length, 2);
+
+      const firstCycle = parsed.cycles[0];
+      assert.equal(firstCycle?.summary.selectedCount, 2);
+      assert.equal(firstCycle?.summary.okCount, 0);
+      assert.equal(firstCycle?.summary.errorCount, 1);
+      assert.equal(firstCycle?.summary.writtenCount, 0);
+      assert.equal(firstCycle?.summary.providerErrorCount, 1);
+      assert.equal(firstCycle?.summary.errorCategoryCounts.http_429, 1);
+      assert.equal(firstCycle?.summary.http429Count, 1);
+      assert.equal(firstCycle?.summary.firstErrorCategory, "http_429");
+      assert.equal(firstCycle?.summary.firstHttpStatus, 429);
+      assert.equal(firstCycle?.summary.rateLimited, true);
+      assert.equal(firstCycle?.summary.abortedDueToRateLimit, true);
+      assert.equal(firstCycle?.summary.skippedAfterRateLimit, 1);
+      assert.equal(firstCycle?.items.length, 1);
+      assert.equal(firstCycle?.items[0]?.status, "error");
+      assert.equal(firstCycle?.items[0]?.errorCategory, "http_429");
+      assert.equal(firstCycle?.items[0]?.httpStatus, 429);
+      assert.equal(firstCycle?.items[0]?.writeSummary.metricId, null);
+      assert.equal(firstCycle?.items[0]?.writeSummary.notificationCreated, false);
+
+      const secondCycle = parsed.cycles[1];
+      assert.equal(secondCycle?.summary.selectedCount, 2);
+      assert.equal(secondCycle?.summary.okCount, 2);
+      assert.equal(secondCycle?.summary.errorCount, 0);
+      assert.equal(secondCycle?.summary.writtenCount, 0);
+      assert.equal(secondCycle?.summary.providerErrorCount, 0);
+      assert.equal(secondCycle?.summary.errorCategoryCounts.http_429, 0);
+      assert.equal(secondCycle?.summary.firstErrorCategory, null);
+      assert.equal(secondCycle?.summary.firstHttpStatus, null);
+      assert.equal(secondCycle?.summary.rateLimited, false);
+      assert.equal(secondCycle?.items.length, 2);
+      assert.equal(secondCycle?.items[0]?.metricCandidate?.volume24h, 1234);
+      assert.equal(secondCycle?.items[1]?.metricCandidate?.volume24h, 1234);
+      assert.equal(
+        secondCycle?.items.every(
+          (item) =>
+            item.writeSummary.dryRun === true &&
+            item.writeSummary.wouldCreateMetric === true &&
+            item.writeSummary.metricId === null &&
+            item.writeSummary.notificationCreated === false &&
+            item.writeSummary.notificationId === null,
+        ),
+        true,
+      );
+
+      assert.match(result.stderr, /cycle=1/);
+      assert.match(result.stderr, /providerErrorCount=1/);
+      assert.match(result.stderr, /firstErrorCategory=http_429/);
+      assert.match(result.stderr, /firstHttpStatus=429/);
+      assert.match(result.stderr, /rateLimited=true/);
+      assert.match(result.stderr, /skippedAfterRateLimit=1/);
+      assert.match(result.stderr, /cycle=2/);
+      assert.match(result.stderr, /providerErrorCount=0/);
+      assert.match(result.stderr, /rateLimited=false/);
+      assert.equal(result.stdout.includes("rawJson"), false);
+      assert.equal(result.stdout.includes("Metric Snapshot Token"), false);
+      assert.deepEqual(await readMetrics(databaseUrl, firstMint), []);
+      assert.deepEqual(await readMetrics(databaseUrl, secondMint), []);
+      assert.deepEqual(await readNotifications(databaseUrl, firstMint), []);
+      assert.deepEqual(await readNotifications(databaseUrl, secondMint), []);
+    });
   });
 
   await t.test("aggregates mixed provider error categories without changing success handling", async () => {

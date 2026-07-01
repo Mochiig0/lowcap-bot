@@ -4,6 +4,24 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Smoke stabilization note, 2026-06-30:
+
+- Yellow smoke failure at `metric snapshot geckoterminal watch rate limit
+  short circuit returned unexpected summary` is fixed. The failure was a stale
+  smoke expectation that matched the old provider error message text
+  `429 Too Many Requests` instead of the current structured contract:
+  `errorCategory=http_429`, `httpStatus=429`, `providerErrorCount=1`, and
+  `firstErrorCategory=http_429`.
+- `pnpm smoke` now passes with the fixture/injected-error path. No external
+  provider fetch, Telegram send, Notification send, manual
+  `metric:snapshot --write`, detect watch/write, bounded execute, retry
+  execution, scheduler/systemd, rawJson full dump, or provider body dump was
+  used for the fix.
+- Local dev DB smoke side effect from the passing run was Token / Metric /
+  Notification / HolderSnapshot `4071 / 1707 / 28 / 1 -> 4086 / 1707 / 32 /
+  1`. These were smoke fixture side effects, not production/provider
+  operation.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough
