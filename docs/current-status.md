@@ -22,6 +22,46 @@ Smoke stabilization note, 2026-06-30:
   1`. These were smoke fixture side effects, not production/provider
   operation.
 
+Bounded 3H dry-run preflight, 2026-07-01:
+
+- Green read-only / docs-only preflight is complete on expected HEAD
+  `411c7b2 fix: stabilize gecko metric smoke summary` with a clean working
+  tree. Current DB state is Token / Metric / Notification / HolderSnapshot
+  `4086 / 1707 / 32 / 1`; migrations still match the repo.
+- `bounded:watch:readiness` remains read-only and reports
+  `nextRecommendedSlice=three_hour_dry_run`. It also reports
+  `threeHourRunReady=false`, `checkpointReady=false` in `mvp:status`, and
+  `checkpoint.activeOnlyWithWatchAndWrite=true`. Therefore checkpoint
+  readiness does not block a dry-run, but checkpoint updates are not expected
+  unless a future command includes both `--watch --write`.
+- Exact 3H dry-run candidate from readiness/planner:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60`.
+  It does not require `--execute`, does not include `--write`, does not write
+  a checkpoint, does not create/update Notification rows, does not send
+  Telegram, and does not touch scheduler/systemd. However, because it omits
+  `--file`, code inspection confirms it calls the live GeckoTerminal
+  `new_pools` fetch once per cycle. Risk classification for executing it is
+  therefore **Yellow**, not Green.
+- Read-only planners are clear: `ops:plan:bounded -- --hours 3 --pumpOnly
+  --postRunPlan` reports `nextRecommendedStep=detect_watch_dry_run`,
+  `blockedBy=[]`, `stopConditionCodes=[]`, and expected non-effects of DB /
+  Token / Metric / Notification / HolderSnapshot / Telegram /
+  scheduler-systemd writes all `0`. Notification auto-send planners show
+  `allowedCandidateCount=0` with auto-send disabled and enabled; retry planner
+  shows `candidateCount=0`; failed Notification count is `0`.
+- Future 3H dry-run DB non-effect verification should record before/after
+  Token, Metric, Notification, and HolderSnapshot counts plus Notification
+  statuses. Acceptable deltas are all `0`; any DB count/status change,
+  checkpoint file creation/update, Notification create/update, Telegram send,
+  rawJson/provider body dump, unexpected network requirement beyond the known
+  GeckoTerminal fetch, dirty working tree, HEAD mismatch, retry candidate,
+  auto-send allowed candidate, or failed Notification is a stop condition.
+- No provider fetch, external network call, DB write, 3H dry-run body,
+  bounded execute, detect watch/write, metric write, token enrich/rescore
+  write, notification send, retry execution, scheduler/systemd, rawJson full
+  dump, provider body dump, schema/migration change, or app code change was
+  performed during this preflight.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

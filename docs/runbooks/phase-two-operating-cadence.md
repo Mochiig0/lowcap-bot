@@ -9,6 +9,31 @@
 - Telegram auto-send, retry execution, scheduler/systemd, and capture-only B
   Notifications remain locked.
 
+Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
+read-only readiness path was rechecked without provider fetch or DB writes.
+`bounded:watch:readiness` recommends `three_hour_dry_run`, and the exact
+candidate is:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60
+```
+
+This is dry-run for persistence because it omits `--write` and does not use
+`--execute`; it should not write Token / Metric / Notification /
+HolderSnapshot rows, should not write a checkpoint, should not send Telegram,
+and should not touch scheduler/systemd. It is not no-fetch: without `--file`,
+`detect:geckoterminal:new-pools` calls the live GeckoTerminal `new_pools`
+endpoint each cycle. Classify the next execution as Yellow, not Green.
+
+Before a 3H dry-run execution, record Token / Metric / Notification /
+HolderSnapshot counts and Notification statuses. Accept only zero deltas after
+the run. Stop before execution if the working tree is dirty, HEAD is
+unexpected, the exact command changes, failed Notification is non-zero, retry
+candidate is non-zero, auto-send allowed candidate is non-zero, checkpoint
+write appears possible, DB write appears possible, rawJson/provider body dump
+is needed, or the command requires network-enabled/out-of-sandbox handling
+that was not explicitly approved for the Yellow run.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at

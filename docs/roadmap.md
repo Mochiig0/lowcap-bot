@@ -9,6 +9,29 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
+Update, 2026-07-01:
+
+The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green
+read-only / docs-only preflight checked the bounded watch readiness path on
+HEAD `411c7b2 fix: stabilize gecko metric smoke summary`. Current DB state is
+Token / Metric / Notification / HolderSnapshot `4086 / 1707 / 32 / 1`.
+
+`bounded:watch:readiness` and `ops:plan:bounded -- --hours 3 --pumpOnly
+--postRunPlan` identify the next candidate as:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60
+```
+
+This command is a dry-run for DB effects: no `--write`, no checkpoint update,
+no Notification create/update, no Telegram send, no scheduler/systemd, and no
+`--execute`. It still fetches live GeckoTerminal `new_pools` because it has no
+`--file` fixture override. Therefore the next execution task is **Yellow 3H
+provider-fetch dry-run**, not Green. Before running it, require a clean working
+tree, expected HEAD, before/after DB counts, no retry candidate, no auto-send
+allowed candidate, failed Notification `0`, and an explicit stop rule that any
+DB count/status delta or checkpoint write is unacceptable.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved
