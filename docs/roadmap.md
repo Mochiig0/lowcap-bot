@@ -32,6 +32,30 @@ tree, expected HEAD, before/after DB counts, no retry candidate, no auto-send
 allowed candidate, failed Notification `0`, and an explicit stop rule that any
 DB count/status delta or checkpoint write is unacceptable.
 
+Update, 2026-07-05:
+
+The Yellow 3H provider-fetch dry-run ran exactly once with the command above.
+It performed live GeckoTerminal `new_pools` fetches but no persistence flags
+were present. DB non-effect held: Token / Metric / Notification /
+HolderSnapshot stayed `4086 / 1707 / 32 / 1`, Notification statuses stayed
+`captured=27`, `sent=5`, `failed=0`, and checkpoint files were unchanged.
+Observed cycle logs through cycle `177` showed `selected=1`, `accepted=1`,
+`imported=0`, `failed=false`, and `checkpointAfter=none`; the final process
+was gone on follow-up process check, but its final summary line was not
+recoverable after tool-output truncation.
+
+Recommended next slice: **Green write-rehearsal preflight**, not immediate
+Red execution. The candidate surfaced by `ops:plan:bounded -- --hours 3
+--pumpOnly --postRunPlan` is:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json
+```
+
+That future command is not dry-run: it is expected to fetch GeckoTerminal,
+create/reuse Token rows, and write the out-of-repo checkpoint file. It needs a
+fresh preflight and human approval before any execution.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved

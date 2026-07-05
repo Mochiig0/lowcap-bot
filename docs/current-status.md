@@ -62,6 +62,36 @@ Bounded 3H dry-run preflight, 2026-07-01:
   dump, provider body dump, schema/migration change, or app code change was
   performed during this preflight.
 
+Bounded 3H provider-fetch dry-run, 2026-07-05:
+
+- Yellow execution ran the exact dry-run command once with human-approved
+  provider fetch:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60`.
+  No `--write`, `--execute`, retry command, second command, Telegram send,
+  scheduler/systemd, rawJson full dump, or provider body dump was used.
+- The command performed live GeckoTerminal `new_pools` fetches and remained
+  dry-run for persistence. Observed cycle logs through cycle `177` were
+  healthy: `processed=1`, `selected=1`, `accepted=1`, `imported=0`,
+  `existing=0`, `failed=false`, `rateLimitRetried=false`, and
+  `checkpointBefore=none` / `checkpointAfter=none`. The final process was no
+  longer running when checked, but the final summary line was not recoverable
+  from the tool output after truncation.
+- DB non-effect verification passed. Token / Metric / Notification /
+  HolderSnapshot stayed `4086 / 1707 / 32 / 1`, and Notification statuses
+  stayed `captured=27`, `sent=5`, `failed=0`.
+- Checkpoint non-effect verification passed. The repo default
+  `data/checkpoints/geckoterminal-new-pools.json` stayed absent; the
+  pre-existing `/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json` stayed
+  size `176` with unchanged mtime; `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`
+  stayed absent.
+- Post-run planners stayed closed for Notification/Telegram: disabled and
+  enabled auto-send both had `allowedCandidateCount=0`, retry had
+  `candidateCount=0`, failed Notification remained `0`, and review queue had
+  no gecko-origin pending work. `ops:plan:bounded -- --hours 3 --pumpOnly
+  --postRunPlan` still recommends `detect_watch_dry_run`; its post-run plan
+  exposes a separate human-approved write rehearsal candidate with expected
+  Token/checkpoint writes and no Metric/Notification/Telegram writes.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

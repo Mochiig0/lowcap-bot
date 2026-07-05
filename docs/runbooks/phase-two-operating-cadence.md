@@ -34,6 +34,26 @@ write appears possible, DB write appears possible, rawJson/provider body dump
 is needed, or the command requires network-enabled/out-of-sandbox handling
 that was not explicitly approved for the Yellow run.
 
+Bounded 3H dry-run execution, 2026-07-05: the Yellow provider-fetch dry-run
+ran exactly once with the command above. It fetched live GeckoTerminal
+`new_pools` data but kept persistence closed: no `--write`, no `--execute`,
+no retry command, no second command, no Notification create/update/send, no
+Telegram send, no scheduler/systemd, no rawJson full dump, and no provider
+body dump. Observed cycle logs through cycle `177` showed one processed
+pump-only item per cycle, `selected=1`, `accepted=1`, `imported=0`,
+`failed=false`, and `checkpointAfter=none`; the final summary line was not
+recoverable after output truncation, but the process was no longer running.
+After verification confirmed Token / Metric / Notification / HolderSnapshot
+remained `4086 / 1707 / 32 / 1`, Notification statuses remained
+`captured=27`, `sent=5`, `failed=0`, and checkpoint files were unchanged.
+
+Cadence decision: this validates the provider-fetch dry-run non-effect
+boundary, but it does not authorize direct write execution. The next operating
+step should be a Green write-rehearsal preflight for the planner candidate
+using `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`, followed only by a
+separate human-approved Yellow/Red execution if the expected Token and
+checkpoint writes are accepted.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at
