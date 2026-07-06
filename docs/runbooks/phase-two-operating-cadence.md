@@ -54,6 +54,37 @@ using `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`, followed only by a
 separate human-approved Yellow/Red execution if the expected Token and
 checkpoint writes are accepted.
 
+Bounded write-rehearsal preflight, 2026-07-06: the Green preflight confirms
+the next executable candidate is the post-run planner command:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json
+```
+
+This is Red. It will fetch live GeckoTerminal `new_pools`, write through the
+mint-only `importMint` path for accepted pump candidates, and write the
+checkpoint only because `--watch --write --checkpointFile` are all present.
+The checkpoint path is currently absent, outside the repo, and under existing
+`/tmp`. Expected non-effects are Metric write `0`, Notification
+create/update/send `0`, HolderSnapshot write `0`, Telegram send `0`,
+scheduler/systemd `0`, rawJson full dump `0`, and provider body dump `0`.
+
+For the Red, capture before/after Token / Metric / Notification /
+HolderSnapshot counts, Notification statuses, latest Token safe summary,
+checkpoint existence/size/mtime, and safe checkpoint cursor summary. Accept
+Token delta `>=0` bounded by observed `importedCount`; Metric / Notification /
+HolderSnapshot deltas must be `0`; checkpoint may be created or updated only
+with source `geckoterminal.new_pools` and a safe cursor. Stop on dirty working
+tree, HEAD mismatch, missing human approval, missing network-enabled context,
+failed Notification, retry candidate, auto-send allowed candidate, unsafe
+checkpoint path/content, ambiguous DB delta, prior detect/watch process, or
+any need to dump raw provider data.
+
+Final summary capture rule: write full stdout/stderr to
+`/tmp/lowcap-bot-gecko-write-rehearsal.log`, preserve the command exit code,
+and report from `tail -n 80` plus parsed final summary fields. Do not rely on
+the interactive transcript alone for long watch commands.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at

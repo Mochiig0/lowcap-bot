@@ -92,6 +92,44 @@ Bounded 3H provider-fetch dry-run, 2026-07-05:
   exposes a separate human-approved write rehearsal candidate with expected
   Token/checkpoint writes and no Metric/Notification/Telegram writes.
 
+Bounded GeckoTerminal write-rehearsal preflight, 2026-07-06:
+
+- Green read-only / docs-only preflight is complete on HEAD
+  `a9160f8 docs: record bounded three hour dry run` with a clean working
+  tree. Current DB state remains Token / Metric / Notification /
+  HolderSnapshot `4086 / 1707 / 32 / 1`, and Notification statuses remain
+  `captured=27`, `sent=5`, `failed=0`.
+- The future write rehearsal candidate is derived from
+  `ops:plan:bounded -- --hours 3 --pumpOnly --postRunPlan`, not guessed:
+  `pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`.
+  The older `bounded:watch:readiness` suggestion still points at
+  `/tmp/lowcap-gecko-detect-watch-pump-checkpoint.json`, but the post-run
+  planner candidate is preferred for the next task because it uses the
+  absent, dedicated rehearsal checkpoint path.
+- Future execution risk is **Red**: the command fetches live GeckoTerminal
+  `new_pools`, requires `--write`, can create/reuse mint-only Token rows via
+  `importMint`, and can create/update the checkpoint file. It does not require
+  `--execute`. Planner/source inspection confirms expected non-effects are
+  Metric write `0`, Notification create/update/send `0`, HolderSnapshot write
+  `0`, Telegram send `0`, scheduler/systemd `0`, rawJson full dump `0`, and
+  provider body dump `0`.
+- Checkpoint path safety is clear for preflight: `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`
+  is outside the repo, parent `/tmp` exists, and the file is currently absent.
+  Future Red should stop if the path exists with unexpected content, points
+  inside the repo, cannot be stat/read safely, or cannot be summarized without
+  raw provider body.
+- Future Red must capture final output to avoid the previous dry-run truncation
+  issue. Recommended log path:
+  `/tmp/lowcap-bot-gecko-write-rehearsal.log`. Use a wrapper that preserves
+  stdout/stderr and exit code, for example a shell with `tee`, then report only
+  `tail -n 80` plus parsed final summary fields. Do not dump rawJson,
+  provider bodies, secrets, or full item payloads.
+- No provider fetch, external network call, DB write, detect `--write`,
+  bounded execute, Notification create/update/send, Telegram send, retry
+  execution, auto live send, scheduler/systemd, checkpoint update, rawJson
+  dump, provider body dump, schema/migration change, or app code change was
+  performed during this preflight.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

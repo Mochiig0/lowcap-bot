@@ -56,6 +56,28 @@ That future command is not dry-run: it is expected to fetch GeckoTerminal,
 create/reuse Token rows, and write the out-of-repo checkpoint file. It needs a
 fresh preflight and human approval before any execution.
 
+Update, 2026-07-06:
+
+The Green write-rehearsal preflight is complete. The exact future candidate
+from `ops:plan:bounded -- --hours 3 --pumpOnly --postRunPlan` is:
+
+```bash
+pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json
+```
+
+Classify execution as **Red** because it combines live GeckoTerminal provider
+fetch, `--write`, possible production DB Token create/reuse, and checkpoint
+file create/update. It does not require `--execute`; Metric, Notification,
+HolderSnapshot, Telegram, scheduler/systemd, rawJson full dump, and provider
+body dump are expected to stay `0`.
+
+Before any Red, require human approval, network-enabled/out-of-sandbox
+context, run-once-only execution, clean expected HEAD, auto-send allowed `0`,
+retry candidate `0`, failed Notification `0`, no prior detect/watch process,
+and before/after DB plus checkpoint snapshots. Capture the full run to
+`/tmp/lowcap-bot-gecko-write-rehearsal.log` with stdout/stderr and exit code
+preserved, then use only the final summary/tail for reporting.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved
