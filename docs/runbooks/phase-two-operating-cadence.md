@@ -118,6 +118,47 @@ candidate `0`, and auto-send allowed `0`. The next lane should be a Green
 post-run review / Metric-pending cleanup preflight before any Metric write
 Red is considered.
 
+Post-run write rehearsal review / Metric-pending preflight, 2026-07-08: the
+Green review verified the Red-created ids `8360..8539` without provider fetch
+or DB writes. The cohort has `180` rows, all `geckoterminal.new_pools`, all
+`mint_only`, all pump suffix, all `C/0`, and Metric / Notification /
+HolderSnapshot rows `0`; created/updated range is
+`2026-07-06T12:58:33.816Z..2026-07-06T15:59:50.424Z`. The checkpoint
+`/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json` exists outside the repo
+with source `geckoterminal.new_pools` and cursor
+`poolCreatedAt=2026-07-06T15:58:37.000Z`; the full log remains at
+`/tmp/lowcap-bot-gecko-write-rehearsal.log` and its final summary is
+recoverable.
+
+Time-window rule: do not assume the old 3h post-run planner result remains
+valid after time has passed. On 2026-07-08 the requested/default 3h/24h
+windows are clear, while rolling 168h still has `metricPending=180`,
+`enrichPending=180`, `staleReview=180`, and `notifyCandidate=0`. The next Red
+candidate comes from the explicit 168h post-run planner:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+This is Red because it fetches GeckoTerminal token snapshots and can write up
+to `50` Metric rows. Expected non-effects are Token write `0`, Notification
+create/update/send `0` because `--noNotificationCapture` is present,
+HolderSnapshot write `0`, Telegram send `0`, retry/auto-send/scheduler/systemd
+`0`, checkpoint write `0`, rawJson full dump `0`, and provider body dump `0`.
+The fetch-free no-write preview selected ids `8490..8539`, all within the
+new cohort, with `selectedCount=50`, `providerErrorCount=0`, and Metric count
+distribution `zero=50`, `one=0`, `twoPlus=0`.
+
+Before that Red, capture Token / Metric / Notification / HolderSnapshot
+counts, Notification statuses, selected ids, selected metric-count
+distribution, failed Notification, retry planner, auto-send planners, and git
+status. After it, capture count deltas, `selected/ok/written/skipped/error`,
+provider error fields, new Metric ids, observedAt range, selected rows'
+Metric counts, safe market-data booleans, and Notification/HolderSnapshot
+totals. Accept external fetch plus Metric writes up to selected count only;
+stop on any Token, Notification, HolderSnapshot, Telegram, scheduler/systemd,
+checkpoint, raw provider body, retry, or second-Red side effect.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at

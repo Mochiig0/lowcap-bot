@@ -47,6 +47,30 @@ Notification count `0`. The next approved cleanup command should be the safe
 Metric snapshot shape with `--sinceMinutes 720`, `--onlyMetricPending`, and
 `--noNotificationCapture`.
 
+Bounded write rehearsal Metric-pending preflight, 2026-07-08: a later
+bounded write rehearsal imported ids `8360..8539` as `180` new mint-only
+GeckoTerminal pump tokens. The post-run review confirmed all `180` still have
+Metric / Notification / HolderSnapshot counts `0`, score `C/0`, and
+`metadataStatus=mint_only`. Because the review happened about two days after
+the write rehearsal, a 3h Metric cleanup window is now empty; use the 168h
+window for this cohort.
+
+The fetch-free `--onlyMetricPending` preview selected the newest `50` rows,
+ids `8490..8539`, with `dryRun=true`, `writeEnabled=false`,
+`providerErrorCount=0`, and Metric count distribution `zero=50`, `one=0`,
+`twoPlus=0`. If approved, the next Metric cleanup Red for this bounded
+rehearsal cohort is:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Run it only once with human approval, network-enabled/out-of-sandbox context,
+and before/after DB snapshots. Expected side effects are GeckoTerminal fetch
+and Metric writes up to `50`; Token, Notification, HolderSnapshot, Telegram,
+checkpoint, retry, auto-send, scheduler/systemd, rawJson full dump, and
+provider body dump must remain `0`.
+
 Metric cleanup Red after interruption, 2026-06-05: the approved safe Metric
 snapshot ran once in network-enabled / out-of-sandbox context for ids
 `8259..8210`. It wrote Metric ids `2517..2566`, returned `selected=50`,

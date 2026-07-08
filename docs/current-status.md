@@ -166,6 +166,60 @@ Bounded GeckoTerminal write rehearsal Red, 2026-07-06:
   auto-send allowed candidate `0`. The next task should be a Green post-run
   review / Metric-pending cleanup preflight, not a direct second Red.
 
+Bounded write rehearsal review / Metric-pending preflight, 2026-07-08:
+
+- Green read-only / docs-only review is complete on HEAD
+  `c0bd2a8 docs: record bounded write rehearsal` with a clean working tree.
+  Current DB state remains Token / Metric / Notification / HolderSnapshot
+  `4266 / 1707 / 32 / 1`; `mvp:status` still reports
+  `boundedWatchReady=false`, `checkpointReady=false`, and scheduler/systemd
+  disabled.
+- The Red-created cohort ids `8360..8539` was verified by DB-only safe
+  summary: `180` rows, all `source=geckoterminal.new_pools`, all
+  `metadataStatus=mint_only`, all pump suffix, `hardRejected=0`, score
+  `C/0=180`, Metric rows `0`, Notification rows `0`, and HolderSnapshot rows
+  `0`. Created/updated range is
+  `2026-07-06T12:58:33.816Z..2026-07-06T15:59:50.424Z`.
+- The approved checkpoint/log remain outside the repo. Checkpoint
+  `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json` exists, size `176`,
+  source `geckoterminal.new_pools`, cursor
+  `poolCreatedAt=2026-07-06T15:58:37.000Z`. Log
+  `/tmp/lowcap-bot-gecko-write-rehearsal.log` exists, size `698779`, and its
+  final summary is still recoverable. No raw provider body, rawJson full
+  dump, raw token name/symbol, normalizedText, or matched keyword output is
+  needed for review.
+- Because the review ran on 2026-07-08, the cohort has aged out of the 3h and
+  24h planner windows. `ops:plan:bounded -- --hours 3 --pumpOnly
+  --postRunPlan` now reports requested/default pending `0` and recommends
+  `detect_watch_dry_run` again, while `rolling168h` still shows
+  `metricPending=180`, `enrichPending=180`, `staleReview=180`, and
+  `notifyCandidate=0`. Use an explicit 168h cleanup window for the next
+  Metric-pending Red if approved.
+- Authoritative post-run planner candidate from
+  `ops:plan:bounded -- --hours 168 --pumpOnly --postRunPlan`:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  Future execution is **Red** because it fetches GeckoTerminal token snapshots
+  and can write up to `50` Metric rows. Expected non-effects are Token write
+  `0`, Notification create/update/send `0`, HolderSnapshot write `0`,
+  Telegram send `0`, retry/auto-send/scheduler/systemd `0`, checkpoint write
+  `0`, rawJson full dump `0`, and provider body dump `0`.
+- A fetch-free no-write preview was also run through the safe alias after
+  confirming source help/implementation says `--onlyMetricPending` dry-runs
+  are selection previews and do not fetch. It returned `dryRun=true`,
+  `writeEnabled=false`, `selectedCount=50`, `providerErrorCount=0`,
+  Metric count distribution `zero=50`, `one=0`, `twoPlus=0`, and selected ids
+  `8490..8539`, all within the new cohort. DB counts stayed
+  `4266 / 1707 / 32 / 1`.
+- Future Red stop conditions: dirty working tree, HEAD mismatch, ambiguous
+  command/window, missing human approval or network-enabled/out-of-sandbox
+  context, failed Notification `>0`, retry candidate `>0`, auto-send allowed
+  `>0`, selected rows outside the expected new cohort/current
+  metric-pending equivalent, selected rows already having Metrics,
+  Notification capture not suppressed, Token/HolderSnapshot/Telegram or
+  scheduler/systemd side effects possible, provider auth/rate-limit ambiguity,
+  raw provider/body dump requirement, missing before DB snapshot, command
+  modification, retry, or second Red.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

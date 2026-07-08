@@ -102,6 +102,38 @@ planner now points to `metric_pending_snapshot` with Metric/enrich pending
 work on the newly imported cohort and `notifyCandidate=0`; do not run a
 second write rehearsal directly.
 
+Update, 2026-07-08:
+
+The Green post-run review / Metric-pending preflight is complete. The new
+cohort ids `8360..8539` is intact: `180` rows, all
+`geckoterminal.new_pools`, all `mint_only`, all pump suffix, all `C/0`, and
+Metric / Notification / HolderSnapshot rows `0`. Checkpoint
+`/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json` and log
+`/tmp/lowcap-bot-gecko-write-rehearsal.log` remain outside the repo; the log
+final summary is recoverable without dumping raw provider body or rawJson.
+
+The important planner caveat is time-window drift. On 2026-07-08 the cohort
+has aged out of 3h and 24h windows, so `ops:plan:bounded -- --hours 3
+--pumpOnly --postRunPlan` no longer returns `metric_pending_snapshot`. The
+same planner with an explicit 168h window does:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Classify that future task as **Red**: it fetches GeckoTerminal token snapshots
+and can write up to `50` Metric rows. A fetch-free no-write
+`--onlyMetricPending` preview selected ids `8490..8539`, all within the new
+cohort, with `dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+`providerErrorCount=0`, and Metric count distribution `zero=50`, `one=0`,
+`twoPlus=0`.
+
+Recommended next slice: **human-approved network-enabled Metric-pending
+snapshot Red for ids `8490..8539`**, using the exact 168h planner command
+above, one command only, no retry, no second Red. Keep Notification /
+Telegram policy unchanged and stop if selected rows drift outside the expected
+new-cohort/current Metric-zero queue.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved
