@@ -130,6 +130,42 @@ Bounded GeckoTerminal write-rehearsal preflight, 2026-07-06:
   dump, provider body dump, schema/migration change, or app code change was
   performed during this preflight.
 
+Bounded GeckoTerminal write rehearsal Red, 2026-07-06:
+
+- The repo-local Red execution Skill was applied, and the human-approved
+  bounded write rehearsal ran exactly once with full log capture:
+  `bash -lc 'set -o pipefail; pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json 2>&1 | tee /tmp/lowcap-bot-gecko-write-rehearsal.log; exit ${PIPESTATUS[0]}'`.
+  It exited `0`; no retry, second Red, fallback command, scheduler/systemd,
+  Notification send, Telegram send, rawJson full dump, or provider body dump
+  was performed.
+- The run completed `180` iterations over about three hours
+  (`elapsedMs=10876858`) with `status=ok`, `stopReason=completed`,
+  `failedCount=0`, `inputCount=3600`, `processedCount=180`,
+  `selectedCount=180`, `acceptedCount=180`, `importedCount=180`,
+  `existingCount=0`, `skippedNonPumpCount=1392`, and
+  `rateLimitRetryCount=0`. Final summary fields were recovered from
+  `/tmp/lowcap-bot-gecko-write-rehearsal.log`; reporting used sanitized
+  summaries only, not raw provider bodies or full item payloads.
+- Expected side effects stayed bounded. Token / Metric / Notification /
+  HolderSnapshot moved `4086 / 1707 / 32 / 1 -> 4266 / 1707 / 32 / 1`, so
+  Token delta was `+180` and Metric / Notification / HolderSnapshot deltas
+  were all `0`. Notification statuses stayed `captured=27`, `sent=5`,
+  `failed=0`. The new Token cohort is ids `8360..8539`, all
+  `geckoterminal.new_pools` / `mint_only`, with related Metric,
+  Notification, and HolderSnapshot rows `0`.
+- The checkpoint was created outside the repo at
+  `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`, size `176`, with
+  source `geckoterminal.new_pools` and safe cursor
+  `poolCreatedAt=2026-07-06T15:58:37.000Z`. The default repo checkpoint
+  `data/checkpoints/geckoterminal-new-pools.json` stayed absent.
+- Post-run planners now point away from another write rehearsal and toward
+  Metric-first cleanup for the new mint-only cohort. `ops:plan:bounded --
+  --hours 3 --pumpOnly --postRunPlan` reports `metric_pending_snapshot` with
+  default/rolling-168h `metricPending=180`, requested-3h `metricPending=177`,
+  `notifyCandidate=0`, failed Notification `0`, retry candidate `0`, and
+  auto-send allowed candidate `0`. The next task should be a Green post-run
+  review / Metric-pending cleanup preflight, not a direct second Red.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

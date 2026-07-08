@@ -78,6 +78,30 @@ and before/after DB plus checkpoint snapshots. Capture the full run to
 `/tmp/lowcap-bot-gecko-write-rehearsal.log` with stdout/stderr and exit code
 preserved, then use only the final summary/tail for reporting.
 
+Update, 2026-07-06:
+
+The Red bounded write rehearsal completed exactly once with the approved
+wrapper/log capture path:
+
+```bash
+bash -lc 'set -o pipefail; pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json 2>&1 | tee /tmp/lowcap-bot-gecko-write-rehearsal.log; exit ${PIPESTATUS[0]}'
+```
+
+The run exited `0`, completed `180` iterations, fetched live GeckoTerminal
+`new_pools`, imported `180` mint-only Token rows, and created/updated only
+the `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json` checkpoint. Counts
+moved `4086 / 1707 / 32 / 1 -> 4266 / 1707 / 32 / 1`; Metric,
+Notification, HolderSnapshot, Notification statuses, Telegram,
+scheduler/systemd, retry, auto-send, rawJson full dump, and provider body
+dump stayed unchanged. The final summary was recovered from
+`/tmp/lowcap-bot-gecko-write-rehearsal.log` with sanitized reporting only.
+
+Recommended next slice: **Green post-run bounded write rehearsal review and
+Metric-pending cleanup preflight** for the new ids `8360..8539`. The post-run
+planner now points to `metric_pending_snapshot` with Metric/enrich pending
+work on the newly imported cohort and `notifyCandidate=0`; do not run a
+second write rehearsal directly.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved

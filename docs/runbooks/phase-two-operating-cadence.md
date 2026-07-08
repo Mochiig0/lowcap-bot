@@ -85,6 +85,39 @@ Final summary capture rule: write full stdout/stderr to
 and report from `tail -n 80` plus parsed final summary fields. Do not rely on
 the interactive transcript alone for long watch commands.
 
+Bounded write-rehearsal Red result, 2026-07-06: the repo-local Red execution
+Skill was applied and the approved wrapper ran exactly once:
+
+```bash
+bash -lc 'set -o pipefail; pnpm -s detect:geckoterminal:new-pools -- --watch --write --pumpOnly --limit 1 --maxIterations 180 --intervalSeconds 60 --checkpointFile /tmp/lowcap-bot-gecko-bounded-write-rehearsal.json 2>&1 | tee /tmp/lowcap-bot-gecko-write-rehearsal.log; exit ${PIPESTATUS[0]}'
+```
+
+The process exited `0` and the final summary was recovered from
+`/tmp/lowcap-bot-gecko-write-rehearsal.log`. It completed `180` iterations
+over about three hours with `failedCount=0`, `processedCount=180`,
+`selectedCount=180`, `acceptedCount=180`, `importedCount=180`,
+`existingCount=0`, and `rateLimitRetryCount=0`. The run fetched live
+GeckoTerminal `new_pools`, wrote Token rows through the mint-only import path,
+and wrote only the approved out-of-repo checkpoint file.
+
+Side effects matched the Red plan. Token / Metric / Notification /
+HolderSnapshot moved `4086 / 1707 / 32 / 1 -> 4266 / 1707 / 32 / 1`; Token
+delta was `+180`, while Metric, Notification, and HolderSnapshot deltas were
+`0`. Notification statuses stayed `captured=27`, `sent=5`, `failed=0`.
+Checkpoint `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json` now exists
+with source `geckoterminal.new_pools` and safe cursor
+`poolCreatedAt=2026-07-06T15:58:37.000Z`; the repo checkpoint stayed absent.
+No retry, second Red, fallback/compensation command, Notification send,
+Telegram send, scheduler/systemd action, rawJson full dump, or provider body
+dump occurred.
+
+Cadence decision: do not immediately run another write rehearsal. The
+post-run planner moved to `metric_pending_snapshot` for the newly imported
+mint-only cohort, with `notifyCandidate=0`, failed Notification `0`, retry
+candidate `0`, and auto-send allowed `0`. The next lane should be a Green
+post-run review / Metric-pending cleanup preflight before any Metric write
+Red is considered.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at
