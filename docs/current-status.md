@@ -251,6 +251,29 @@ Bounded write rehearsal Metric-pending snapshot Red, 2026-07-08:
   Metric snapshot review plus remaining Metric-pending preflight, not a
   direct second Red.
 
+Post-run Metric snapshot review / remaining Metric-pending preflight,
+2026-07-09:
+
+- Read-only review after Metric ids `2832..2881` confirmed the bounded write
+  rehearsal cohort remains `180` rows, all `source=geckoterminal.new_pools`,
+  `metadataStatus=mint_only`, score bucket `C/0`, and hardRejected `0`.
+  Cohort Metric distribution is now `zero=130`, `one=50`, `twoPlus=0`.
+- The completed Red target ids `8490..8539` have `metricsCount=1`; the
+  remaining ids `8360..8489` still have `metricsCount=0`. Token / Metric /
+  Notification / HolderSnapshot stayed `4266 / 1757 / 32 / 1`, Notification
+  statuses stayed `captured=27`, `sent=5`, and no provider fetch or DB write
+  occurred in this review.
+- Fetch-free `--onlyMetricPending` preview with the same 168h window returned
+  `dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+  `providerErrorCount=0`, Metric count distribution `zero=50`, `one=0`,
+  `twoPlus=0`, and selected ids `8440..8489`. Selected-row Notification and
+  HolderSnapshot totals are `0 / 0`.
+- 168h planner remains on `metric_pending_snapshot` with `metricPending=130`,
+  `enrichPending=180`, `staleReview=180`, and `notifyCandidate=0`; retry and
+  auto-send candidates are still `0`. Next executable candidate is another
+  human-approved Red Metric-pending snapshot using the same 168h command, now
+  targeting the preview-equivalent ids `8440..8489`.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

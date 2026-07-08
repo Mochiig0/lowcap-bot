@@ -158,6 +158,31 @@ Post-run 168h planner still has `metricPending=130`, `enrichPending=180`,
 preflight** for the bounded write rehearsal cohort. Do not run a direct
 second Red from this result.
 
+Update, 2026-07-09:
+
+The Green post-run review confirmed the previous Red left only the intended
+Metric side effect. The bounded write rehearsal cohort is still `180` rows;
+ids `8490..8539` have `metricsCount=1`, while ids `8360..8489` remain
+Metric-zero. Current counts stayed `4266 / 1757 / 32 / 1`, Notification
+statuses stayed `captured=27`, `sent=5`, and this review performed no
+provider fetch or DB write.
+
+Fetch-free preview with the 168h `--onlyMetricPending` command selected ids
+`8440..8489` with `dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+`providerErrorCount=0`, and Metric distribution `zero=50`, `one=0`,
+`twoPlus=0`. The next executable candidate is Red:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+Use human approval, network-enabled/out-of-sandbox context, one command only,
+no retry, and no second Red. Stop if preview-equivalent selection drifts away
+from ids `8440..8489` or current Metric-zero bounded rehearsal rows, if failed
+Notification / retry / auto-send candidates become nonzero, or if
+Notification / Telegram / Token / HolderSnapshot / checkpoint /
+scheduler-systemd side effects appear possible.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved

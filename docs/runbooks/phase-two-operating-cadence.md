@@ -189,6 +189,28 @@ post-run Metric snapshot review plus remaining Metric-pending preflight. Use
 that review to decide whether to continue Metric coverage on the remaining
 bounded rehearsal rows or pause for report/readiness cleanup.
 
+Post-run Metric review, 2026-07-09: the Green review confirmed no further
+side effects after the Red. Counts remained Token / Metric / Notification /
+HolderSnapshot `4266 / 1757 / 32 / 1`, Notification statuses remained
+`captured=27`, `sent=5`, and no provider fetch or DB write occurred. The
+bounded write rehearsal cohort is still `180` rows: ids `8490..8539` have
+`metricsCount=1`, and ids `8360..8489` remain Metric-zero.
+
+The fetch-free 168h preview selected ids `8440..8489` with
+`dryRun=true`, `writeEnabled=false`, `selectedCount=50`,
+`providerErrorCount=0`, and selected Metric distribution `zero=50`, `one=0`,
+`twoPlus=0`. Notification and HolderSnapshot totals on that selection are
+`0 / 0`.
+
+Next executable candidate is a fresh Red Metric-pending snapshot using the
+same 168h command. Require human approval, network-enabled/out-of-sandbox
+context, one command only, no retry, and no second Red. Stop on dirty worktree,
+HEAD mismatch, selection drift away from ids `8440..8489` or current
+Metric-zero bounded rehearsal rows, failed Notification `>0`, retry candidate
+`>0`, auto-send allowed candidate `>0`, Notification capture not suppressed,
+or any possible Token / Notification / HolderSnapshot / Telegram /
+checkpoint / scheduler-systemd side effect.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at

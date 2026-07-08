@@ -89,6 +89,20 @@ remaining bounded rehearsal queue is still Metric-first: 168h
 Green post-run review and remaining Metric-pending preflight, not direct
 continuation.
 
+Post-run review, 2026-07-09: the follow-up Green check was read-only. The
+bounded write rehearsal cohort remains `180` rows; Metric distribution is
+`zero=130`, `one=50`, `twoPlus=0`. The completed ids `8490..8539` have
+`metricsCount=1`; remaining ids `8360..8489` have `metricsCount=0`.
+
+The fetch-free preview for the same 168h `--onlyMetricPending` lane selected
+ids `8440..8489` with `dryRun=true`, `writeEnabled=false`,
+`selectedCount=50`, `providerErrorCount=0`, and selected-row Metric /
+Notification / HolderSnapshot totals `zero=50, one=0, twoPlus=0` / `0` / `0`.
+Token / Metric / Notification / HolderSnapshot stayed `4266 / 1757 / 32 / 1`,
+and no provider fetch, DB write, Telegram send, checkpoint write, rawJson full
+dump, or provider body dump occurred. Next Metric cleanup execution remains
+Red and should use the same 168h command only with fresh human approval.
+
 Metric cleanup Red after interruption, 2026-06-05: the approved safe Metric
 snapshot ran once in network-enabled / out-of-sandbox context for ids
 `8259..8210`. It wrote Metric ids `2517..2566`, returned `selected=50`,
