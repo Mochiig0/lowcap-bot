@@ -220,6 +220,37 @@ Bounded write rehearsal review / Metric-pending preflight, 2026-07-08:
   raw provider/body dump requirement, missing before DB snapshot, command
   modification, retry, or second Red.
 
+Bounded write rehearsal Metric-pending snapshot Red, 2026-07-08:
+
+- The repo-local Red execution Skill was applied, and the human-approved
+  Metric-pending snapshot ran exactly once with the explicit 168h window:
+  `pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write`.
+  No retry, second Red, fallback/compensation command, Notification send,
+  Telegram send, scheduler/systemd action, checkpoint write, rawJson full
+  dump, or provider body dump was performed.
+- The command selected ids `8490..8539` from the bounded write rehearsal
+  cohort and completed cleanly: `selectedCount=50`, `okCount=50`,
+  `writtenCount=50`, `skippedCount=0`, `errorCount=0`,
+  `providerErrorCount=0`, all provider error category counts `0`,
+  `firstErrorCategory=null`, and `firstHttpStatus=null`.
+- Expected side effects were bounded to Metric writes. Token / Metric /
+  Notification / HolderSnapshot moved `4266 / 1707 / 32 / 1 -> 4266 / 1757 /
+  32 / 1`, so Metric delta was `+50` and Token / Notification /
+  HolderSnapshot deltas were all `0`. Notification statuses stayed
+  `captured=27`, `sent=5`, `failed=0`.
+- Target rows ids `8490..8539` moved from `metricsCount=0` to
+  `metricsCount=1`. New Metric ids are `2832..2881`, source
+  `geckoterminal.token_snapshot`, observedAt range
+  `2026-07-08T13:27:12.449Z..2026-07-08T13:40:03.010Z`, and safe
+  market-data presence is price / FDV / reserve / topPool `50 / 50 / 50 /
+  50`. Selected-row Notification and HolderSnapshot totals stayed `0 / 0`.
+- Post-run 168h planner still has more bounded rehearsal cleanup work:
+  `metricPending=130`, `enrichPending=180`, `staleReview=180`,
+  `notifyCandidate=0`, failed Notification `0`, retry candidate `0`, and
+  auto-send allowed candidate `0`. The next task should be a Green post-run
+  Metric snapshot review plus remaining Metric-pending preflight, not a
+  direct second Red.
+
 Personal MVP completion declaration, 2026-06-03:
 
 - Personal MVP runtime validation is passed and the repo is now complete enough

@@ -71,6 +71,24 @@ and Metric writes up to `50`; Token, Notification, HolderSnapshot, Telegram,
 checkpoint, retry, auto-send, scheduler/systemd, rawJson full dump, and
 provider body dump must remain `0`.
 
+Bounded write rehearsal Metric-pending Red, 2026-07-08: the approved 168h
+`--onlyMetricPending --noNotificationCapture --write` command ran once for
+ids `8490..8539`. It returned `selected=50`, `ok=50`, `written=50`,
+`skipped=0`, `error=0`, and `providerErrorCount=0`. Metric ids `2832..2881`
+were created, all selected rows moved to `metricsCount=1`, and safe
+market-data presence was price / FDV / reserve / topPool `50 / 50 / 50 /
+50`.
+
+Token / Metric / Notification / HolderSnapshot moved `4266 / 1707 / 32 / 1
+-> 4266 / 1757 / 32 / 1`; only Metric changed. Notification statuses stayed
+`captured=27`, `sent=5`, `failed=0`, selected-row Notification /
+HolderSnapshot totals stayed `0 / 0`, and Telegram / checkpoint /
+scheduler-systemd / rawJson / provider body side effects stayed `0`. The
+remaining bounded rehearsal queue is still Metric-first: 168h
+`metricPending=130`, `enrichPending=180`, `notifyCandidate=0`. Next step is a
+Green post-run review and remaining Metric-pending preflight, not direct
+continuation.
+
 Metric cleanup Red after interruption, 2026-06-05: the approved safe Metric
 snapshot ran once in network-enabled / out-of-sandbox context for ids
 `8259..8210`. It wrote Metric ids `2517..2566`, returned `selected=50`,

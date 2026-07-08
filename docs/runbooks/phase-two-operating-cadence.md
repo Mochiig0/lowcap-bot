@@ -159,6 +159,36 @@ totals. Accept external fetch plus Metric writes up to selected count only;
 stop on any Token, Notification, HolderSnapshot, Telegram, scheduler/systemd,
 checkpoint, raw provider body, retry, or second-Red side effect.
 
+Metric-pending snapshot Red result, 2026-07-08: the approved Red command ran
+exactly once for ids `8490..8539`:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It completed `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, `firstErrorCategory=null`, and
+`firstHttpStatus=null`. Metric ids `2832..2881` were created with source
+`geckoterminal.token_snapshot`; observedAt range was
+`2026-07-08T13:27:12.449Z..2026-07-08T13:40:03.010Z`. All selected rows now
+have `metricsCount=1`; safe market-data presence is price / FDV / reserve /
+topPool `50 / 50 / 50 / 50`.
+
+Counts moved only in Metric: Token / Metric / Notification / HolderSnapshot
+`4266 / 1707 / 32 / 1 -> 4266 / 1757 / 32 / 1`. Notification statuses stayed
+`captured=27`, `sent=5`, `failed=0`; selected-row Notification /
+HolderSnapshot totals stayed `0 / 0`. No retry, second Red,
+fallback/compensation command, Token write, Notification create/update/send,
+Telegram send, HolderSnapshot write, checkpoint write, scheduler/systemd
+action, rawJson full dump, or provider body dump occurred.
+
+Cadence decision: do not immediately run the next Metric Red. The 168h
+planner still reports `metricPending=130`, `enrichPending=180`,
+`staleReview=180`, and `notifyCandidate=0`, so the next lane is a Green
+post-run Metric snapshot review plus remaining Metric-pending preflight. Use
+that review to decide whether to continue Metric coverage on the remaining
+bounded rehearsal rows or pause for report/readiness cleanup.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at

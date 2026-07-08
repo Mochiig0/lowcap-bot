@@ -134,6 +134,30 @@ above, one command only, no retry, no second Red. Keep Notification /
 Telegram policy unchanged and stop if selected rows drift outside the expected
 new-cohort/current Metric-zero queue.
 
+Update, 2026-07-08:
+
+The human-approved Red Metric-pending snapshot for ids `8490..8539` completed
+exactly once:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It returned `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, and provider error categories all `0`. Metric ids
+`2832..2881` were created for ids `8490..8539`, moving those rows from
+`metricsCount=0` to `metricsCount=1`. Counts moved only in Metric:
+`4266 / 1707 / 32 / 1 -> 4266 / 1757 / 32 / 1`. Notification statuses stayed
+`captured=27`, `sent=5`, `failed=0`, and Token / Notification /
+HolderSnapshot / Telegram / checkpoint / scheduler-systemd side effects
+stayed `0`.
+
+Post-run 168h planner still has `metricPending=130`, `enrichPending=180`,
+`staleReview=180`, and `notifyCandidate=0`. Recommended next slice:
+**Green post-run Metric snapshot review and remaining Metric-pending
+preflight** for the bounded write rehearsal cohort. Do not run a direct
+second Red from this result.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved
