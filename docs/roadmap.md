@@ -183,6 +183,23 @@ Notification / retry / auto-send candidates become nonzero, or if
 Notification / Telegram / Token / HolderSnapshot / checkpoint /
 scheduler-systemd side effects appear possible.
 
+Update, 2026-07-09:
+
+The human-approved Red Metric-pending snapshot for ids `8440..8489` completed
+exactly once with the same 168h command. It returned `selected=50`, `ok=50`,
+`written=50`, `skipped=0`, `error=0`, `providerErrorCount=0`, and provider
+error categories all `0`. Metric ids `2882..2931` were created, moving ids
+`8440..8489` from `metricsCount=0` to `metricsCount=1`.
+
+Counts moved only in Metric: `4266 / 1757 / 32 / 1 -> 4266 / 1807 / 32 / 1`.
+Notification statuses stayed `captured=27`, `sent=5`, and Token /
+Notification / HolderSnapshot / Telegram / checkpoint / scheduler-systemd
+side effects stayed `0`. Post-run 168h planner still has
+`metricPending=80`, `enrichPending=180`, `staleReview=180`, and
+`notifyCandidate=0`. Recommended next slice: **Green post-run Metric snapshot
+review and remaining Metric-pending preflight**. Do not run a direct second
+Red from this result.
+
 Date: 2026-06-05
 
 The Phase 2 12H bounded runner trial did not complete end-to-end. The approved

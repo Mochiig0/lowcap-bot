@@ -211,6 +211,33 @@ Metric-zero bounded rehearsal rows, failed Notification `>0`, retry candidate
 or any possible Token / Notification / HolderSnapshot / Telegram /
 checkpoint / scheduler-systemd side effect.
 
+Remaining Metric-pending snapshot Red result, 2026-07-09: the approved Red
+command ran exactly once for ids `8440..8489`:
+
+```bash
+pnpm -s metric:snapshot:geckoterminal -- --pumpOnly --limit 50 --sinceMinutes 10080 --minGapMinutes 60 --interItemDelayMs 15000 --onlyMetricPending --noNotificationCapture --write
+```
+
+It completed `selected=50`, `ok=50`, `written=50`, `skipped=0`, `error=0`,
+`providerErrorCount=0`, `firstErrorCategory=null`, and
+`firstHttpStatus=null`. Metric ids `2882..2931` were created with source
+`geckoterminal.token_snapshot`; observedAt range was
+`2026-07-08T22:14:57.078Z..2026-07-08T22:27:44.736Z`. All selected rows now
+have `metricsCount=1`.
+
+Counts moved only in Metric: Token / Metric / Notification / HolderSnapshot
+`4266 / 1757 / 32 / 1 -> 4266 / 1807 / 32 / 1`. Notification statuses stayed
+`captured=27`, `sent=5`; selected-row Notification / HolderSnapshot totals
+stayed `0 / 0`. No retry, second Red, fallback/compensation command, Token
+write, Notification create/update/send, Telegram send, HolderSnapshot write,
+checkpoint write, scheduler/systemd action, rawJson full dump, or provider
+body dump occurred.
+
+Cadence decision: do not immediately run the next Metric Red. The 168h
+planner still reports `metricPending=80`, `enrichPending=180`,
+`staleReview=180`, and `notifyCandidate=0`, so the next lane is another Green
+post-run Metric snapshot review plus remaining Metric-pending preflight.
+
 Phase 2 12H trial note, 2026-06-05: the first 12H bounded runner trial did not
 complete end-to-end. It imported `682` new mint-only Tokens during
 `detect_write`, then was manually interrupted at
