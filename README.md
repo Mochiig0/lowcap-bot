@@ -29,6 +29,8 @@ Formal phased implementation roadmap: `docs/implementation-roadmap.md`
 - Compare one live GeckoTerminal candidate against bounded DexScreener polling with `pnpm compare:geckoterminal:dexscreener`
 - Batch-fetch GeckoTerminal token snapshots to enrich and rescore recent Gecko-origin tokens with `pnpm token:enrich-rescore:geckoterminal`
 - Batch-fetch GeckoTerminal token snapshots to append metric rows with `pnpm metric:snapshot:geckoterminal`
+- Run the bounded 3H operator cycle plan with `pnpm -s ops:run:bounded -- --operatorCycle --plan`
+- Run the bounded 3H operator cycle, after human Red approval, with `pnpm -s ops:run:bounded -- --operatorCycle --execute`
 - Inspect recent Gecko-origin operations coverage with `pnpm ops:summary:geckoterminal`
 - Start the GeckoTerminal detect runner through `bash ./scripts/run-geckoterminal-detect-watch.sh`
 - Start the GeckoTerminal enrich-rescore-notify runner through `bash ./scripts/run-geckoterminal-enrich-rescore-notify.sh`
@@ -57,6 +59,7 @@ Formal phased implementation roadmap: `docs/implementation-roadmap.md`
 - Generic always-on bot runtime
 - Generic scheduler / worker / queue orchestration
 - Generic or multi-source adapter runtime
+- Telegram live send from the bounded operator cycle
 - Full test framework
 - Review UI or broader operational UI
 - Trading automation
@@ -116,6 +119,25 @@ Show the CLI help hub:
 ```bash
 pnpm dev
 ```
+
+Plan the normal Phase 2 bounded operator cycle without provider fetches or DB
+writes:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --plan
+```
+
+After a separate human-approved Red trial, execute the same bounded cycle:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --execute
+```
+
+The operator preset is a 3H pump-only GeckoTerminal cycle with an out-of-repo
+checkpoint, detect limit `1` per watch cycle, four bounded Metric pending
+cycles, four bounded enrich/rescore cycles, safe report review, auto-send/retry
+planner review only, and Telegram send `0`. Individual Metric/enrich CLIs are
+diagnostic or recovery tools, not the normal operating path.
 
 Import one token candidate:
 

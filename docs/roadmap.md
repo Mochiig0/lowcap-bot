@@ -9,6 +9,32 @@ Keep the current CLI-first, mint-driven accumulation MVP aligned with the live r
 
 ## Current Next Slice
 
+Update, 2026-07-15:
+
+The next milestone is no longer another individual 50-row Metric/enrich loop.
+The normal Phase 2 operating path is now the bounded operator cycle on the
+existing runner:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --plan
+```
+
+After separate human Red approval, the next live operational trial candidate
+is:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --execute
+```
+
+The preset runs a 3H pump-only GeckoTerminal new-pools watch with checkpoint
+`/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`, then bounded Metric
+pending snapshots, Metric-covered enrich/rescore, queue/growth/readiness
+reports, and Notification auto-send/retry planners. Telegram remains
+plan-only: no live send, no retry execution, no auto-send execution, no
+scheduler/systemd, no automatic retry, and no rawJson/provider body dump.
+Individual Metric/enrich commands remain available for diagnostic or recovery
+use only.
+
 Update, 2026-07-01:
 
 The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green

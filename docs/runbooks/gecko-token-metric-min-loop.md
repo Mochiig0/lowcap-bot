@@ -10,11 +10,19 @@ This runbook documents the smallest manual GeckoTerminal loop that has been prov
 
 It is intentionally not a scheduler, worker, queue, retry system, or generic source runtime.
 
-For day-to-day bounded Gecko operation across detect, enrich/rescore, Metric
-append, and rawJson-free report confirmation, use
-`docs/runbooks/gecko-bounded-operation-mvp.md` as the temporary MVP entrypoint.
-This minimum-loop document remains the evidence log for individual mint
-progression and Metric time-series confirmation.
+For day-to-day bounded Gecko operation across detect, Metric append,
+enrich/rescore, rawJson-free report confirmation, and Notification planning,
+use the one-command operator cycle:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --plan
+pnpm -s ops:run:bounded -- --operatorCycle --execute
+```
+
+The first command is plan-only; the second is the next Red operational trial
+candidate after explicit human approval. Individual Metric/enrich commands in
+this document are now diagnostic or recovery tools, not the normal operating
+cadence. Telegram remains planner-only in the bounded operator cycle.
 
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for

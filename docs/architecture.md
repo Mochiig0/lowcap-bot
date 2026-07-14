@@ -93,6 +93,11 @@ Boundary rules:
 - keep Telegram notify out of detect/source adapters and mint-only ingest; the current exception is the bounded one-shot `pnpm token:enrich-rescore:geckoterminal --write --notify` path after post-rescore eligibility is recomputed
 - keep detect-to-mint-only handoff narrow: produce mint-first inputs, then delegate into the existing mint-only entrypoints
 - avoid mixing review/report logic into ingest wrappers, and avoid mixing ingest-side mutation into read-only inspection CLIs
+- keep the bounded operator cycle in `ops:run:bounded` as explicit CLI
+  orchestration over the existing detect, Metric, enrich/rescore, report, and
+  planner commands. It is the normal Phase 2 operating entrypoint, but it is
+  not a generic queue, worker, scheduler, retry runtime, or Telegram
+  auto-send executor.
 
 Minimal handoff payload:
 

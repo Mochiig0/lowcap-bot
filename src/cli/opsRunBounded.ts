@@ -13,6 +13,7 @@ import {
 
 type CliArgs = Omit<BoundedOperationRunnerOptions, "repoRoot"> & {
   json: boolean;
+  planRequested: boolean;
 };
 
 class CliUsageError extends Error {
@@ -25,11 +26,14 @@ class CliUsageError extends Error {
 function usage(): string {
   return [
     "Usage:",
-    "pnpm ops:run:bounded -- [--hours <N>] [--pumpOnly] [--checkpointFile <PATH>] [--metricLimit <N>] [--enrichLimit <N>] [--postRunMetricCycles <N>] [--postRunEnrichCycles <N>] [--intervalSeconds <N>] [--maxIterations <N>] [--postRunBufferMinutes <N>] [--interItemDelayMs <N>] [--execute] [--json]",
+    "pnpm ops:run:bounded -- [--operatorCycle] [--plan] [--hours <N>] [--pumpOnly] [--checkpointFile <PATH>] [--metricLimit <N>] [--enrichLimit <N>] [--postRunMetricCycles <N>] [--postRunEnrichCycles <N>] [--intervalSeconds <N>] [--maxIterations <N>] [--postRunBufferMinutes <N>] [--interItemDelayMs <N>] [--execute] [--json]",
     "",
-    "Default-safe bounded 6H pipeline runner. Without --execute it only plans:",
+    "Default-safe bounded pipeline runner. Without --execute, or with --plan, it only plans:",
     "detect write -> metric pending snapshot -> enrich/rescore -> report review -> notification planner review.",
     "Post-run metric/enrich cycles default to 1 each; set a cycle count to 0 to skip that phase.",
+    "--operatorCycle selects the current 3H operator preset: pumpOnly, checkpoint in /tmp,",
+    "detect limit 1 per cycle, Metric/enrich limit 50, four Metric cycles, four enrich cycles,",
+    "60s detect interval, 15s post-run item delay, and notification planner-only review.",
     "",
     "--execute is required before any production fetch/write can run. Notification send, retry execution,",
     "auto live send, scheduler, systemd, rawJson full dump, and pnpm smoke are not part of this runner.",
@@ -70,6 +74,20 @@ function parseNonNegativeInteger(value: string, key: string): number {
   return parsed;
 }
 
+function applyOperatorCyclePreset(out: Partial<CliArgs>): void {
+  out.hours = 3;
+  out.pumpOnly = true;
+  out.checkpointFile = "/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json";
+  out.metricLimit = 50;
+  out.enrichLimit = 50;
+  out.intervalSeconds = 60;
+  out.postRunBufferMinutes = 60;
+  out.interItemDelayMs = 15_000;
+  out.postRunMetricCycles = 4;
+  out.postRunEnrichCycles = 4;
+  out.maxIterations = undefined;
+}
+
 export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
   const normalized = argv.filter((arg) => arg !== "--");
   const out: Partial<CliArgs> = {
@@ -87,7 +105,10 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
       DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunEnrichCycles,
     executeRequested: false,
     json: false,
+    planRequested: false,
   };
+  let executeSeen = false;
+  let planSeen = false;
 
   for (let index = 0; index < normalized.length; index += 1) {
     const key = normalized[index];
@@ -106,7 +127,20 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
       continue;
     }
 
+    if (key === "--operatorCycle") {
+      applyOperatorCyclePreset(out);
+      continue;
+    }
+
+    if (key === "--plan") {
+      planSeen = true;
+      out.planRequested = true;
+      out.executeRequested = false;
+      continue;
+    }
+
     if (key === "--execute") {
+      executeSeen = true;
       out.executeRequested = true;
       continue;
     }
@@ -159,6 +193,10 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
     index += 1;
   }
 
+  if (planSeen && executeSeen) {
+    throw new CliUsageError("--execute cannot be combined with --plan");
+  }
+
   return out as CliArgs;
 }
 
@@ -181,6 +219,18 @@ export async function runOpsRunBoundedCli(argv = process.argv.slice(2)): Promise
     },
     undefined,
     args.executeRequested ? createConsoleBoundedOperationProgressLogger() : undefined,
+    args.executeRequested
+      ? () =>
+        readBoundedOperationPlannerInput(db, {
+          hours: args.hours,
+          sinceHours: args.hours,
+          limit: args.metricLimit,
+          pumpOnly: args.pumpOnly,
+          postRunPlan: true,
+          metricLimit: args.metricLimit,
+          enrichLimit: args.enrichLimit,
+        })
+      : undefined,
   );
   console.log(JSON.stringify(report, null, 2));
 }

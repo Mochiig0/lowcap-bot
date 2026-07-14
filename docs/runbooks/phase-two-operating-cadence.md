@@ -9,6 +9,46 @@
 - Telegram auto-send, retry execution, scheduler/systemd, and capture-only B
   Notifications remain locked.
 
+## Normal Operator Cycle
+
+As of 2026-07-15, normal Phase 2 operation should use the bounded operator
+cycle instead of splitting routine work into separate Metric pending preflight,
+Metric Red, post-run Metric review, enrich preflight, enrich Red, queue
+review, and Notification planner tasks.
+
+Plan-only, with provider fetch `0` and DB write `0`:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --plan
+```
+
+Next one-command Red operational trial candidate, after explicit human
+approval and network-enabled execution context:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --execute
+```
+
+Preset details:
+
+- 3H GeckoTerminal `new_pools` watch, pump-only, detect limit `1` per cycle,
+  `maxIterations=180`, `intervalSeconds=60`
+- checkpoint file
+  `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`
+- Metric pending snapshot: `--onlyMetricPending`, `--noNotificationCapture`,
+  limit `50`, four cycles, `--write`
+- enrich/rescore: `--onlyMetricCovered`, limit `50`, four cycles, `--write`
+- safe reports: review queue, rolling 168h queue, `metrics:growth-report`,
+  `bounded:watch:readiness`, and `ops:plan:bounded --postRunPlan`
+- Notification review is planner-only: `notification:auto-send:plan` and
+  `notification:retry:plan`
+
+Hard boundaries remain: Telegram live send `0`, Notification auto-send execute
+`0`, retry execute `0`, scheduler/systemd `0`, automatic retry/second
+execution `0`, rawJson full dump `0`, and provider body dump `0`. Individual
+Metric/enrich commands are diagnostic or recovery commands, not the normal
+operating cadence.
+
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.
 `bounded:watch:readiness` recommends `three_hour_dry_run`, and the exact

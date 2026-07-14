@@ -128,6 +128,32 @@ test("default post-run cycles are one metric cycle and one enrich cycle", () => 
   assert.equal(parsed.postRunEnrichCycles, 1);
 });
 
+test("operator cycle preset selects the one-command 3h bounded shape", () => {
+  const parsed = parseOpsRunBoundedArgs(["--operatorCycle", "--plan"]);
+  assert.equal(parsed.hours, 3);
+  assert.equal(parsed.pumpOnly, true);
+  assert.equal(parsed.checkpointFile, "/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json");
+  assert.equal(parsed.metricLimit, 50);
+  assert.equal(parsed.enrichLimit, 50);
+  assert.equal(parsed.postRunMetricCycles, 4);
+  assert.equal(parsed.postRunEnrichCycles, 4);
+  assert.equal(parsed.intervalSeconds, 60);
+  assert.equal(parsed.interItemDelayMs, 15_000);
+  assert.equal(parsed.executeRequested, false);
+  assert.equal(parsed.planRequested, true);
+});
+
+test("plan and execute flags are mutually exclusive regardless of order", () => {
+  assert.throws(
+    () => parseOpsRunBoundedArgs(["--plan", "--execute"]),
+    /cannot be combined/,
+  );
+  assert.throws(
+    () => parseOpsRunBoundedArgs(["--execute", "--plan"]),
+    /cannot be combined/,
+  );
+});
+
 test("post-run cycle options parse non-negative integers", () => {
   const parsed = parseOpsRunBoundedArgs([
     "--postRunMetricCycles",
@@ -165,6 +191,9 @@ test("command candidates include bounded pipeline safety flags", () => {
   assert.match(text, /--interItemDelayMs 15000/);
   assert.match(text, /token:enrich-rescore:geckoterminal/);
   assert.match(text, /--onlyMetricCovered/);
+  assert.match(text, /metrics:growth-report/);
+  assert.match(text, /bounded:watch:readiness/);
+  assert.match(text, /ops:plan:bounded/);
   assert.doesNotMatch(text, /--notify/);
   assert.doesNotMatch(text, /notification:send/);
   assert.doesNotMatch(text, /--live/);
@@ -177,7 +206,13 @@ test("execute mode uses node import tsx for write phase execution commands", asy
     { ...BASE_OPTIONS, executeRequested: true },
     async (phase, commands) => {
       commandsByPhase[phase.phase] = commands;
-      return { ok: true, summary: { selected: 1, written: 1, enriched: 1, rescored: 1 } };
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 1, written: 1 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return { ok: true, summary: { selected: 1, enriched: 1, rescored: 1 } };
+      }
+      return { ok: true, summary: { selected: 1 } };
     },
   );
 
@@ -364,6 +399,45 @@ test("execute mode calls phases in order with mocks", async () => {
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "executed");
 });
 
+test("report phase runs queue growth readiness planner and notification plans only", async () => {
+  const commandsByPhase: Record<string, PhaseCommand[]> = {};
+  await runBoundedOperationRunner(
+    input(),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase, commands) => {
+      commandsByPhase[phase.phase] = commands;
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 1, written: 1 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return { ok: true, summary: { selected: 1, enriched: 1, rescored: 1 } };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  const reportLabels = commandsByPhase.report_review?.map((command) => command.label);
+  const notificationLabels = commandsByPhase.notification_plan_review?.map((command) => command.label);
+
+  assert.deepEqual(reportLabels, [
+    "review_queue_default",
+    "review_queue_168h",
+    "metrics_growth_report",
+    "bounded_watch_readiness",
+    "bounded_next_step_planner",
+  ]);
+  assert.deepEqual(notificationLabels, [
+    "notification_auto_send_plan",
+    "notification_auto_send_plan_enabled",
+    "notification_retry_plan",
+  ]);
+  assert.equal(
+    [...(commandsByPhase.report_review ?? []), ...(commandsByPhase.notification_plan_review ?? [])]
+      .some((command) => command.commandCandidate.includes("notification:auto-send:execute")),
+    false,
+  );
+});
+
 test("execute mode calls metric and enrich cycles the requested number of times", async () => {
   const calls: string[] = [];
   const report = await runBoundedOperationRunner(
@@ -376,7 +450,13 @@ test("execute mode calls metric and enrich cycles the requested number of times"
     },
     async (phase: BoundedOperationRunnerPhase, commands: PhaseCommand[]) => {
       calls.push(`${phase.phase}:${commands[0]?.label}`);
-      return { ok: true, summary: { selected: 1, written: 1, enriched: 1, rescored: 1 } };
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 1, written: 1 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return { ok: true, summary: { selected: 1, enriched: 1, rescored: 1 } };
+      }
+      return { ok: true, summary: { selected: 1 } };
     },
   );
 
@@ -448,11 +528,17 @@ test("execute mode emits phase cycle and final progress events", async () => {
   assert.equal(report.progressSummary?.overallStatus, "completed");
   assert.equal(report.progressSummary?.metricCyclesExecuted, 2);
   assert.equal(report.progressSummary?.enrichCyclesExecuted, 2);
+  assert.equal(report.operatorSummary?.overallStatus, "completed");
+  assert.equal(report.operatorSummary?.detect.imported, 3);
+  assert.equal(report.operatorSummary?.detect.existing, 1);
+  assert.equal(report.operatorSummary?.metric.written, 2);
+  assert.equal(report.operatorSummary?.enrich.updated, 2);
+  assert.equal(report.operatorSummary?.telegramSendCount, 0);
 });
 
 test("plan-only mode does not emit progress events", async () => {
   const { events, logger } = captureProgressEvents();
-  await runBoundedOperationRunner(
+  const report = await runBoundedOperationRunner(
     input(),
     BASE_OPTIONS,
     async () => ({ ok: true }),
@@ -460,6 +546,10 @@ test("plan-only mode does not emit progress events", async () => {
   );
 
   assert.deepEqual(events, []);
+  assert.equal(report.operatorSummary?.overallStatus, "planned");
+  assert.equal(report.operatorSummary?.deltas.token, 0);
+  assert.equal(report.operatorSummary?.deltas.metric, 0);
+  assert.equal(report.operatorSummary?.telegramSendCount, 0);
 });
 
 test("final progress summary is emitted on detect failure", async () => {
@@ -630,7 +720,10 @@ test("interrupted enrich cycle stops remaining enrich cycles and review phases",
       }
       return {
         ok: true,
-        summary: { selected: 1, written: 1, enriched: 1, rescored: 1 },
+        summary:
+          phase.phase === "metric_pending_snapshot"
+            ? { selected: 1, written: 1 }
+            : { selected: 1, enriched: 1, rescored: 1 },
       };
     },
   );
@@ -773,6 +866,37 @@ test("metric failure stops enrich", async () => {
 
   assert.deepEqual(calls, ["detect_write", "metric_pending_snapshot"]);
   assert.equal(report.phases.find((phase) => phase.phase === "metric_pending_snapshot")?.status, "failed");
+  assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+});
+
+test("unexpected Token write signal in metric phase fails and skips enrich", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 2,
+      postRunEnrichCycles: 1,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return {
+          ok: true,
+          summary: { selectedCount: 1, okCount: 1, writtenCount: 1, tokenWriteCount: 1 },
+        };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+  ]);
+  assert.equal(report.metricCyclesStoppedReason, "unexpected_metric_phase_side_effect");
+  assert.ok(report.stopConditionCodes.includes("unexpected_metric_phase_side_effect"));
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
 });
 

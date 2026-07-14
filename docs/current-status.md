@@ -4,6 +4,32 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Bounded operator cycle integration, 2026-07-15:
+
+- Yellow implementation completed the normal Phase 2 operating entrypoint on
+  the existing `ops:run:bounded` runner. Use plan-only first:
+  `pnpm -s ops:run:bounded -- --operatorCycle --plan`.
+- The next human-approved Red candidate is the same one-command operator
+  cycle with execution enabled:
+  `pnpm -s ops:run:bounded -- --operatorCycle --execute`.
+- The preset is 3H, pump-only, checkpoint
+  `/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json`, detect limit `1` per
+  cycle, `maxIterations=180`, `intervalSeconds=60`, Metric limit `50` with
+  four cycles, enrich limit `50` with four cycles, `interItemDelayMs=15000`,
+  report review including queue/growth/readiness/next-step planner, and
+  Notification auto-send/retry plan review only.
+- Telegram live send, Notification auto-send execute, retry execute,
+  scheduler/systemd, automatic retry/second execution, rawJson full dump, and
+  provider body dump remain locked. Individual Metric/enrich commands should
+  now be diagnostic/recovery tools rather than the normal cadence.
+- Plan-only verification on the local DB returned `status=planned`,
+  `readOnly=true`, `dryRun=true`, provider fetch `0`, DB write `0`,
+  Telegram send `0`, and deltas `0`. After the fixture smoke run, local DB
+  state at the final plan-only check was Token / Metric / Notification /
+  HolderSnapshot `4281 / 1807 / 36 / 1`, which is newer than the earlier
+  `4266 / 1707 / 32 / 1` write-rehearsal baseline because smoke adds local
+  fixture rows.
+
 Smoke stabilization note, 2026-06-30:
 
 - Yellow smoke failure at `metric snapshot geckoterminal watch rate limit

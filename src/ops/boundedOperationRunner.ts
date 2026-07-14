@@ -20,6 +20,13 @@ const DEFAULT_POST_RUN_ENRICH_CYCLES = 1;
 const METRIC_MIN_GAP_MINUTES = 60;
 const MANUAL_INTERRUPT_CODE = "manual_interrupt";
 
+type CoreDbCounts = {
+  tokenCount: number;
+  metricCount: number;
+  notificationCount: number;
+  holderSnapshotCount: number;
+};
+
 export type BoundedOperationRunnerOptions = {
   hours: number;
   pumpOnly: boolean;
@@ -163,6 +170,62 @@ export type BoundedOperationRunnerProgressSummary = {
   stopConditionCodes: string[];
 };
 
+export type BoundedOperatorCycleSummary = {
+  overallStatus: BoundedOperationRunnerStatus;
+  completedPhases: string[];
+  skippedPhases: string[];
+  failedPhases: string[];
+  stopReason: string | null;
+  elapsedMs: number;
+  checkpointBefore: {
+    file: string | null;
+    exists: boolean | null;
+    safeCursorSummary: Record<string, unknown> | null;
+  };
+  checkpointAfter: {
+    file: string | null;
+    exists: boolean | null;
+    safeCursorSummary: Record<string, unknown> | null;
+  };
+  dbCountsBefore: CoreDbCounts;
+  dbCountsAfter: CoreDbCounts;
+  deltas: {
+    token: number;
+    metric: number;
+    notification: number;
+    holderSnapshot: number;
+  };
+  detect: {
+    selected: number | null;
+    imported: number | null;
+    existing: number | null;
+    failed: number | null;
+  };
+  metric: {
+    selected: number | null;
+    ok: number | null;
+    written: number | null;
+    skipped: number | null;
+    error: number | null;
+  };
+  enrich: {
+    selected: number | null;
+    updated: number | null;
+    skipped: number | null;
+    error: number | null;
+  };
+  providerErrorCountByPhase: Record<string, number>;
+  firstErrorCategory: string | null;
+  firstHttpStatus: number | null;
+  queueAfter: QueueState;
+  growthAfter: Record<string, unknown> | null;
+  notifyCandidateCount: number;
+  autoSendAllowedCount: number;
+  retryCandidateCount: number;
+  telegramSendCount: 0;
+  nextRecommendedStep: string;
+};
+
 export type BoundedOperationRunnerReport = {
   mode: "bounded_operation_runner";
   status: BoundedOperationRunnerStatus;
@@ -175,6 +238,8 @@ export type BoundedOperationRunnerReport = {
   maxIterations: number;
   intervalSeconds: number;
   checkpointFile: string | null;
+  checkpointBeforeExists: boolean | null;
+  checkpointBeforeSafeCursorSummary: Record<string, unknown> | null;
   checkpointExists: boolean | null;
   checkpointSafeCursorSummary: Record<string, unknown> | null;
   startedAt: string | null;
@@ -185,8 +250,10 @@ export type BoundedOperationRunnerReport = {
   activeCycleTotal: number | null;
   partialPhase: BoundedOperationRunnerPhaseName | null;
   dbState: DbState;
+  finalDbState: DbState;
   queueState: QueueState;
   notificationState: NotificationState;
+  finalNotificationState: NotificationState;
   operationReadiness: {
     schedulerUnlocked: false;
     systemdUnlocked: false;
@@ -207,6 +274,7 @@ export type BoundedOperationRunnerReport = {
   expectedSideEffects: string[];
   expectedNonEffects: string[];
   progressSummary?: BoundedOperationRunnerProgressSummary;
+  operatorSummary?: BoundedOperatorCycleSummary;
 };
 
 export const DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS = {
@@ -448,6 +516,66 @@ function buildReviewQueueCommand(options: BoundedOperationRunnerOptions, sinceHo
   };
 }
 
+function buildGrowthReportCommand(options: BoundedOperationRunnerOptions): PhaseCommand {
+  const args = [
+    "-s",
+    "metrics:growth-report",
+    "--",
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    "--minMetricCount",
+    "2",
+    "--limit",
+    "10",
+    "--sortBy",
+    "fdvMultiple",
+  ];
+
+  return {
+    label: "metrics_growth_report",
+    commandCandidate: joinCommand("pnpm", args),
+    file: "pnpm",
+    args,
+  };
+}
+
+function buildBoundedReadinessCommand(): PhaseCommand {
+  const args = ["-s", "bounded:watch:readiness"];
+
+  return {
+    label: "bounded_watch_readiness",
+    commandCandidate: joinCommand("pnpm", args),
+    file: "pnpm",
+    args,
+  };
+}
+
+function buildBoundedPlannerCommand(options: BoundedOperationRunnerOptions): PhaseCommand {
+  const args = [
+    "-s",
+    "ops:plan:bounded",
+    "--",
+    "--hours",
+    String(options.hours),
+    "--sinceHours",
+    String(options.hours),
+    "--limit",
+    String(options.metricLimit),
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    "--postRunPlan",
+    "--metricLimit",
+    String(options.metricLimit),
+    "--enrichLimit",
+    String(options.enrichLimit),
+  ];
+
+  return {
+    label: "bounded_next_step_planner",
+    commandCandidate: joinCommand("pnpm", args),
+    file: "pnpm",
+    args,
+  };
+}
+
 function buildNotificationPlanCommands(): PhaseCommand[] {
   const autoSendArgs = ["-s", "notification:auto-send:plan"];
   const retryArgs = ["-s", "notification:retry:plan"];
@@ -585,6 +713,9 @@ export function buildBoundedOperationRunnerPlan(
   const reportCommands = [
     buildReviewQueueCommand(options),
     buildReviewQueueCommand(options, 168),
+    buildGrowthReportCommand(options),
+    buildBoundedReadinessCommand(),
+    buildBoundedPlannerCommand(options),
   ];
   const notificationCommands = buildNotificationPlanCommands();
 
@@ -709,6 +840,8 @@ export function buildBoundedOperationRunnerPlan(
     maxIterations,
     intervalSeconds: options.intervalSeconds,
     checkpointFile: options.checkpointFile ?? null,
+    checkpointBeforeExists: checkpointState.exists,
+    checkpointBeforeSafeCursorSummary: checkpointState.summary,
     checkpointExists: checkpointState.exists,
     checkpointSafeCursorSummary: checkpointState.summary,
     startedAt: null,
@@ -719,8 +852,10 @@ export function buildBoundedOperationRunnerPlan(
     activeCycleTotal: null,
     partialPhase: null,
     dbState: input.dbState,
+    finalDbState: input.dbState,
     queueState: input.queueState,
     notificationState: input.notificationState,
+    finalNotificationState: input.notificationState,
     operationReadiness: {
       schedulerUnlocked: false,
       systemdUnlocked: false,
@@ -775,7 +910,13 @@ function commandsForPhase(
     case "enrich_rescore":
       return buildEnrichCycleCommands(options);
     case "report_review":
-      return [buildReviewQueueCommand(options), buildReviewQueueCommand(options, 168)];
+      return [
+        buildReviewQueueCommand(options),
+        buildReviewQueueCommand(options, 168),
+        buildGrowthReportCommand(options),
+        buildBoundedReadinessCommand(),
+        buildBoundedPlannerCommand(options),
+      ];
     case "notification_plan_review":
       return buildNotificationPlanCommands();
     case "preflight":
@@ -799,6 +940,26 @@ function asBoolean(value: unknown): boolean | undefined {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function numberFromAny(source: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = asNumber(source[key]);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function stringFromAny(source: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = asString(source[key]);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 function parseJsonObject(output: string): Record<string, unknown> | null {
@@ -829,33 +990,45 @@ function extractProgressSummaryFields(value: unknown): Record<string, unknown> {
   const source = parsedCommandSummary(value);
   const fields: Record<string, unknown> = {};
 
-  for (const key of [
-    "cycleCount",
-    "completedIterations",
-    "failedCount",
-    "rateLimitRetryCount",
-    "importedCount",
-    "existingCount",
-    "selected",
-    "written",
-    "enriched",
-    "rescored",
-    "skipped",
-    "error",
-    "contextWritten",
-    "metaplexAttempted",
-    "metaplexAvailable",
-    "notifyWouldSend",
-    "notifySent",
-    "interItemDelayMs",
-    "interItemDelayCount",
-    "skippedAfterRateLimit",
-    "cyclesPlanned",
-    "cyclesExecuted",
-  ]) {
-    const numericValue = asNumber(source[key]);
+  const numericAliases: Record<string, string[]> = {
+    cycleCount: ["cycleCount"],
+    completedIterations: ["completedIterations"],
+    failedCount: ["failedCount"],
+    rateLimitRetryCount: ["rateLimitRetryCount"],
+    importedCount: ["importedCount"],
+    existingCount: ["existingCount"],
+    acceptedCount: ["acceptedCount"],
+    rejectedCount: ["rejectedCount"],
+    selected: ["selected", "selectedCount"],
+    ok: ["ok", "okCount"],
+    written: ["written", "writtenCount"],
+    enriched: ["enriched", "enrichWritten", "enrichWriteCount"],
+    rescored: ["rescored", "rescoreWritten", "rescoreWriteCount"],
+    skipped: ["skipped", "skippedCount"],
+    error: ["error", "errorCount"],
+    providerErrorCount: ["providerErrorCount"],
+    firstHttpStatus: ["firstHttpStatus"],
+    contextWritten: ["contextWritten", "contextWriteCount"],
+    tokenWriteCount: ["tokenWriteCount"],
+    tokenUpdateCount: ["tokenUpdateCount"],
+    notificationWriteCount: ["notificationWriteCount", "notificationCreateCount"],
+    holderSnapshotWriteCount: ["holderSnapshotWriteCount"],
+    metaplexAttempted: ["metaplexAttempted", "metaplexAttemptedCount"],
+    metaplexAvailable: ["metaplexAvailable", "metaplexAvailableCount"],
+    notifyWouldSend: ["notifyWouldSend", "notifyWouldSendCount"],
+    notifySent: ["notifySent", "notifySentCount"],
+    interItemDelayMs: ["interItemDelayMs"],
+    interItemDelayCount: ["interItemDelayCount"],
+    skippedAfterRateLimit: ["skippedAfterRateLimit"],
+    rateLimitedCount: ["rateLimitedCount"],
+    cyclesPlanned: ["cyclesPlanned"],
+    cyclesExecuted: ["cyclesExecuted"],
+  };
+
+  for (const [field, keys] of Object.entries(numericAliases)) {
+    const numericValue = numberFromAny(source, keys);
     if (numericValue !== undefined) {
-      fields[key] = numericValue;
+      fields[field] = numericValue;
     }
   }
 
@@ -874,9 +1047,13 @@ function extractProgressSummaryFields(value: unknown): Record<string, unknown> {
     }
   }
 
-  const stoppedReason = asString(source.stoppedReason);
+  const stoppedReason = stringFromAny(source, ["stoppedReason"]);
   if (stoppedReason !== undefined) {
     fields.stoppedReason = stoppedReason;
+  }
+  const firstErrorCategory = stringFromAny(source, ["firstErrorCategory"]);
+  if (firstErrorCategory !== undefined) {
+    fields.firstErrorCategory = firstErrorCategory;
   }
 
   return fields;
@@ -886,25 +1063,35 @@ function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
   const source = parsedCommandSummary(value);
   const fields: Record<string, unknown> = {};
 
-  for (const key of [
-    "selected",
-    "written",
-    "enriched",
-    "rescored",
-    "skipped",
-    "error",
-    "contextWritten",
-    "metaplexAttempted",
-    "metaplexAvailable",
-    "notifyWouldSend",
-    "notifySent",
-    "interItemDelayMs",
-    "interItemDelayCount",
-    "skippedAfterRateLimit",
-  ]) {
-    const numericValue = asNumber(source[key]);
+  const numericAliases: Record<string, string[]> = {
+    selected: ["selected", "selectedCount"],
+    ok: ["ok", "okCount"],
+    written: ["written", "writtenCount"],
+    enriched: ["enriched", "enrichWritten", "enrichWriteCount"],
+    rescored: ["rescored", "rescoreWritten", "rescoreWriteCount"],
+    skipped: ["skipped", "skippedCount"],
+    error: ["error", "errorCount"],
+    providerErrorCount: ["providerErrorCount"],
+    firstHttpStatus: ["firstHttpStatus"],
+    contextWritten: ["contextWritten", "contextWriteCount"],
+    tokenWriteCount: ["tokenWriteCount"],
+    tokenUpdateCount: ["tokenUpdateCount"],
+    notificationWriteCount: ["notificationWriteCount", "notificationCreateCount"],
+    holderSnapshotWriteCount: ["holderSnapshotWriteCount"],
+    metaplexAttempted: ["metaplexAttempted", "metaplexAttemptedCount"],
+    metaplexAvailable: ["metaplexAvailable", "metaplexAvailableCount"],
+    notifyWouldSend: ["notifyWouldSend", "notifyWouldSendCount"],
+    notifySent: ["notifySent", "notifySentCount"],
+    interItemDelayMs: ["interItemDelayMs"],
+    interItemDelayCount: ["interItemDelayCount"],
+    skippedAfterRateLimit: ["skippedAfterRateLimit"],
+    rateLimitedCount: ["rateLimitedCount"],
+  };
+
+  for (const [field, keys] of Object.entries(numericAliases)) {
+    const numericValue = numberFromAny(source, keys);
     if (numericValue !== undefined) {
-      fields[key] = numericValue;
+      fields[field] = numericValue;
     }
   }
 
@@ -918,6 +1105,11 @@ function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
     if (booleanValue !== undefined) {
       fields[key] = booleanValue;
     }
+  }
+
+  const firstErrorCategory = stringFromAny(source, ["firstErrorCategory"]);
+  if (firstErrorCategory !== undefined) {
+    fields.firstErrorCategory = firstErrorCategory;
   }
 
   return fields;
@@ -1077,6 +1269,17 @@ function cycleHasProviderError(fields: Record<string, unknown>): boolean {
     || fields.rateLimited === true
     || fields.abortedDueToRateLimit === true
     || (asNumber(fields.error) ?? 0) > 0;
+}
+
+function metricCycleHasUnexpectedWrite(fields: Record<string, unknown>): boolean {
+  return (asNumber(fields.tokenWriteCount) ?? 0) > 0
+    || (asNumber(fields.tokenUpdateCount) ?? 0) > 0
+    || (asNumber(fields.enriched) ?? 0) > 0
+    || (asNumber(fields.rescored) ?? 0) > 0
+    || (asNumber(fields.contextWritten) ?? 0) > 0
+    || (asNumber(fields.notificationWriteCount) ?? 0) > 0
+    || (asNumber(fields.holderSnapshotWriteCount) ?? 0) > 0
+    || (asNumber(fields.notifySent) ?? 0) > 0;
 }
 
 function cycleNoWorkReason(
@@ -1430,6 +1633,32 @@ async function executeCyclePhase(
       return false;
     }
 
+    if (phaseItem.phase === "metric_pending_snapshot" && metricCycleHasUnexpectedWrite(fields)) {
+      stoppedReason = "unexpected_metric_phase_side_effect";
+      phaseItem.status = "failed";
+      phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
+        cyclesPlanned: commands.length,
+        cyclesExecuted: executedCount,
+        stoppedReason,
+        cycleSummaries,
+      });
+      phaseItem.stopConditionCodes = [stoppedReason];
+      report.blockedBy.push(`${phaseItem.phase}_failed`);
+      report.stopConditionCodes.push(stoppedReason);
+      report.metricCyclesExecuted = executedCount;
+      report.metricCyclesStoppedReason = stoppedReason;
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "failed",
+        durationMs: Date.now() - phaseStartedAt,
+        summary: extractProgressSummaryFields(phaseItem.summary),
+        blockedBy: phaseItem.blockedBy,
+        stopConditionCodes: phaseItem.stopConditionCodes,
+      });
+      return false;
+    }
+
     const noWorkReason = cycleNoWorkReason(phaseItem.phase, fields);
     if (noWorkReason !== null) {
       stoppedReason = noWorkReason;
@@ -1485,6 +1714,153 @@ function sumCycleField(
   }
 
   return found ? total : null;
+}
+
+function firstCycleStringField(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+  key: string,
+): string | null {
+  const cycleSummaries = Array.isArray(phaseItem?.summary.cycleSummaries)
+    ? phaseItem.summary.cycleSummaries
+    : [];
+
+  for (const cycleSummary of cycleSummaries) {
+    const record = asRecord(cycleSummary);
+    const value = asString(record?.[key]);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function firstCycleNumberField(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+  key: string,
+): number | null {
+  const cycleSummaries = Array.isArray(phaseItem?.summary.cycleSummaries)
+    ? phaseItem.summary.cycleSummaries
+    : [];
+
+  for (const cycleSummary of cycleSummaries) {
+    const record = asRecord(cycleSummary);
+    const value = asNumber(record?.[key]);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function coreDbCounts(state: DbState): CoreDbCounts {
+  return {
+    tokenCount: state.tokenCount,
+    metricCount: state.metricCount,
+    notificationCount: state.notificationCount,
+    holderSnapshotCount: state.holderSnapshotCount,
+  };
+}
+
+function buildOperatorSummary(
+  report: BoundedOperationRunnerReport,
+  progressSummary: BoundedOperationRunnerProgressSummary,
+): BoundedOperatorCycleSummary {
+  const detectPhase = report.phases.find((phaseItem) => phaseItem.phase === "detect_write");
+  const metricPhase = report.phases.find((phaseItem) => phaseItem.phase === "metric_pending_snapshot");
+  const enrichPhase = report.phases.find((phaseItem) => phaseItem.phase === "enrich_rescore");
+  const detectSummary = extractProgressSummaryFields(detectPhase?.summary);
+  const metricProviderErrors = sumCycleField(metricPhase, "providerErrorCount") ?? 0;
+  const enrichProviderErrors = sumCycleField(enrichPhase, "providerErrorCount") ?? 0;
+  const firstErrorCategory =
+    firstCycleStringField(metricPhase, "firstErrorCategory")
+    ?? firstCycleStringField(enrichPhase, "firstErrorCategory");
+  const firstHttpStatus =
+    firstCycleNumberField(metricPhase, "firstHttpStatus")
+    ?? firstCycleNumberField(enrichPhase, "firstHttpStatus");
+  const dbCountsBefore = coreDbCounts(report.dbState);
+  const dbCountsAfter = coreDbCounts(report.finalDbState);
+  const tokenDelta = dbCountsAfter.tokenCount - dbCountsBefore.tokenCount;
+  const metricDelta = dbCountsAfter.metricCount - dbCountsBefore.metricCount;
+  const notificationDelta = dbCountsAfter.notificationCount - dbCountsBefore.notificationCount;
+  const holderSnapshotDelta = dbCountsAfter.holderSnapshotCount - dbCountsBefore.holderSnapshotCount;
+  const enrichUpdated = (() => {
+    const enriched = sumCycleField(enrichPhase, "enriched");
+    const rescored = sumCycleField(enrichPhase, "rescored");
+    if (enriched === null && rescored === null) {
+      return null;
+    }
+    return Math.max(enriched ?? 0, rescored ?? 0);
+  })();
+  const stopReason =
+    report.stopConditionCodes[0]
+    ?? report.metricCyclesStoppedReason
+    ?? report.enrichCyclesStoppedReason
+    ?? null;
+
+  return {
+    overallStatus: progressSummary.overallStatus,
+    completedPhases: progressSummary.phasesCompleted,
+    skippedPhases: progressSummary.phasesSkipped,
+    failedPhases: progressSummary.phasesFailed,
+    stopReason,
+    elapsedMs: progressSummary.elapsedMs,
+    checkpointBefore: {
+      file: report.checkpointFile,
+      exists: report.checkpointBeforeExists,
+      safeCursorSummary: report.checkpointBeforeSafeCursorSummary,
+    },
+    checkpointAfter: {
+      file: report.checkpointFile,
+      exists: report.checkpointExists,
+      safeCursorSummary: report.checkpointSafeCursorSummary,
+    },
+    dbCountsBefore,
+    dbCountsAfter,
+    deltas: {
+      token: tokenDelta,
+      metric: metricDelta,
+      notification: notificationDelta,
+      holderSnapshot: holderSnapshotDelta,
+    },
+    detect: {
+      selected: asNumber(detectSummary.selected) ?? null,
+      imported: asNumber(detectSummary.importedCount) ?? null,
+      existing: asNumber(detectSummary.existingCount) ?? null,
+      failed: asNumber(detectSummary.failedCount) ?? null,
+    },
+    metric: {
+      selected: sumCycleField(metricPhase, "selected"),
+      ok: sumCycleField(metricPhase, "ok"),
+      written: sumCycleField(metricPhase, "written"),
+      skipped: sumCycleField(metricPhase, "skipped"),
+      error: sumCycleField(metricPhase, "error"),
+    },
+    enrich: {
+      selected: sumCycleField(enrichPhase, "selected"),
+      updated: enrichUpdated,
+      skipped: sumCycleField(enrichPhase, "skipped"),
+      error: sumCycleField(enrichPhase, "error"),
+    },
+    providerErrorCountByPhase: {
+      detect_write: asNumber(detectSummary.providerErrorCount) ?? 0,
+      metric_pending_snapshot: metricProviderErrors,
+      enrich_rescore: enrichProviderErrors,
+    },
+    firstErrorCategory,
+    firstHttpStatus,
+    queueAfter: report.finalQueueState,
+    growthAfter: null,
+    notifyCandidateCount: report.finalQueueState.rolling168h.notifyCandidateCount,
+    autoSendAllowedCount: report.finalNotificationState.allowedAutoSendCandidateCount,
+    retryCandidateCount: report.finalNotificationState.retryCandidateCount,
+    telegramSendCount: 0,
+    nextRecommendedStep:
+      stopReason === null
+        ? "review_final_summary_then_run_next_operator_cycle_or_hold_for_telegram_gate"
+        : "review_failure_summary_no_automatic_retry",
+  };
 }
 
 function buildProgressSummary(
@@ -1572,6 +1948,7 @@ export async function runBoundedOperationRunner(
   options: BoundedOperationRunnerOptions,
   executor: PhaseExecutor = defaultPhaseExecutor,
   logger?: BoundedOperationRunnerLogger,
+  readFinalInput?: () => Promise<BoundedOperationPlannerInput>,
 ): Promise<BoundedOperationRunnerReport> {
   const runStartedAt = Date.now();
   const startedAt = new Date(runStartedAt).toISOString();
@@ -1579,12 +1956,13 @@ export async function runBoundedOperationRunner(
   report.startedAt = startedAt;
 
   if (!options.executeRequested || report.blockedBy.length > 0) {
+    const durationMs = Date.now() - runStartedAt;
+    const finishedAt = new Date().toISOString();
+    report.finishedAt = finishedAt;
+    report.progressSummary = buildProgressSummary(report, startedAt, finishedAt, durationMs);
+    report.operatorSummary = buildOperatorSummary(report, report.progressSummary);
+    report.status = report.progressSummary.overallStatus;
     if (options.executeRequested) {
-      const durationMs = Date.now() - runStartedAt;
-      const finishedAt = new Date().toISOString();
-      report.finishedAt = finishedAt;
-      report.progressSummary = buildProgressSummary(report, startedAt, finishedAt, durationMs);
-      report.status = report.progressSummary.overallStatus;
       emitProgress(logger, {
         event: "final_summary",
         status: report.progressSummary.overallStatus,
@@ -1761,7 +2139,18 @@ export async function runBoundedOperationRunner(
   if (report.interruptedAt === null) {
     report.interruptedAt = interruptController.interruptedAt();
   }
+  if (readFinalInput !== undefined) {
+    try {
+      const finalInput = await readFinalInput();
+      report.finalDbState = finalInput.dbState;
+      report.finalQueueState = finalInput.queueState;
+      report.finalNotificationState = finalInput.notificationState;
+    } catch {
+      report.stopConditionCodes.push("final_state_read_failed");
+    }
+  }
   report.progressSummary = buildProgressSummary(report, startedAt, finishedAt, durationMs);
+  report.operatorSummary = buildOperatorSummary(report, report.progressSummary);
   report.status = report.progressSummary.overallStatus;
   emitProgress(logger, {
     event: "final_summary",

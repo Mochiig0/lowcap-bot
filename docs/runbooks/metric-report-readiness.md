@@ -11,6 +11,21 @@ bounded-run MVP completion. The queue, blocker, watchlist, Metric, and
 notification planner views are available and rawJson-free enough for manual
 operation. Further report/dashboard polish belongs to Phase 2.
 
+Operator cycle note, 2026-07-15: normal Phase 2 operation now reaches report
+readiness through `ops:run:bounded -- --operatorCycle`. The plan-only command
+is:
+
+```bash
+pnpm -s ops:run:bounded -- --operatorCycle --plan
+```
+
+The next Red candidate is the same command with `--execute`. Its report phase
+runs/reuses review queue, rolling 168h queue, `metrics:growth-report`,
+`bounded:watch:readiness`, `ops:plan:bounded --postRunPlan`, and Notification
+auto-send/retry planners. Notification remains plan-only; individual
+Metric/enrich/report CLIs should be used for diagnostic or recovery work after
+a bounded operator cycle failure, not as the normal loop.
+
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during
 detect write, then was manually interrupted about 11h32m after start and
