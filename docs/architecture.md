@@ -98,6 +98,16 @@ Boundary rules:
   planner commands. It is the normal Phase 2 operating entrypoint, but it is
   not a generic queue, worker, scheduler, retry runtime, or Telegram
   auto-send executor.
+- `ops:plan:bounded --postRunPlan` remains read-only command-string planning;
+  it does not execute post-run phases. `ops:run:bounded --execute` owns the
+  ordered orchestration and reuses the existing source-specific CLIs.
+- the runner validates the Gecko checkpoint before starting detect, treats a
+  non-zero detect watch `failedCount` as failure even when the child exit code
+  is zero, snapshots DB counts after each phase, and stops on a phase boundary
+  violation. Metric failure does not continue into enrich automatically.
+- child stdout/stderr and provider bodies are not retained in the runner
+  report. Only allowlisted command aggregates needed by the final operator
+  summary, such as growth and next-step planner fields, cross that boundary.
 
 Minimal handoff payload:
 

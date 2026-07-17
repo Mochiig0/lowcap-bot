@@ -24,6 +24,15 @@ candidate after explicit human approval. Individual Metric/enrich commands in
 this document are now diagnostic or recovery tools, not the normal operating
 cadence. Telegram remains planner-only in the bounded operator cycle.
 
+The operator preset keeps `limit=50` per Metric/enrich batch and performs up to
+four batches internally, so the old operator-driven 50-row repetition is no
+longer the normal loop. It stops early on an empty selector and stops all later
+phases on provider/rate-limit failure. Do not manually continue enrich after a
+failed Metric phase unless a separate diagnostic/recovery review establishes a
+new exact command. The final summary provides per-phase DB count deltas and
+safe queue/growth/Notification aggregates without subprocess output tails or
+provider bodies.
+
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for
 the acceptance decision, included scope, out-of-MVP items, and Phase 2 tasks.

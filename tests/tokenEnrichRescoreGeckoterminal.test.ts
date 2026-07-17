@@ -2312,7 +2312,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
     assert.match(result.stderr, /--notify requires --write/);
     assert.match(
       result.stderr,
-      /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
+      /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--onlyMetricCovered\] \[--write\] \[--notify\]/,
     );
   });
 
@@ -2329,7 +2329,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.match(result.stderr, /Invalid integer for --interItemDelayMs:/);
       assert.match(
         result.stderr,
-        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
+        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--onlyMetricCovered\] \[--write\] \[--notify\]/,
       );
     }
   });
@@ -2351,7 +2351,7 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.match(result.stderr, /Token not found for mint: missing-token-mint/);
       assert.match(
         result.stderr,
-        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--write\] \[--notify\]/,
+        /pnpm token:enrich-rescore:geckoterminal -- \[--mint <MINT>\] \[--limit <N>\] \[--sinceMinutes <N>\] \[--interItemDelayMs <MS>\] \[--pumpOnly\] \[--onlyMetricCovered\] \[--write\] \[--notify\]/,
       );
     });
   });

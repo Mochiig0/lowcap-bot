@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 import type {
   BoundedOperationPlannerInput,
   DbState,
@@ -25,6 +26,20 @@ type CoreDbCounts = {
   metricCount: number;
   notificationCount: number;
   holderSnapshotCount: number;
+};
+
+type CoreDbDeltas = {
+  token: number;
+  metric: number;
+  notification: number;
+  holderSnapshot: number;
+};
+
+type CheckpointState = {
+  exists: boolean | null;
+  valid: boolean | null;
+  summary: Record<string, unknown> | null;
+  errorCode: string | null;
 };
 
 export type BoundedOperationRunnerOptions = {
@@ -165,6 +180,7 @@ export type BoundedOperationRunnerProgressSummary = {
   telegramSendExpected: 0;
   checkpointFile: string | null;
   checkpointExists: boolean | null;
+  checkpointValid: boolean | null;
   checkpointSafeCursorSummary: Record<string, unknown> | null;
   blockedBy: string[];
   stopConditionCodes: string[];
@@ -180,21 +196,19 @@ export type BoundedOperatorCycleSummary = {
   checkpointBefore: {
     file: string | null;
     exists: boolean | null;
+    valid: boolean | null;
     safeCursorSummary: Record<string, unknown> | null;
   };
   checkpointAfter: {
     file: string | null;
     exists: boolean | null;
+    valid: boolean | null;
     safeCursorSummary: Record<string, unknown> | null;
   };
   dbCountsBefore: CoreDbCounts;
   dbCountsAfter: CoreDbCounts;
-  deltas: {
-    token: number;
-    metric: number;
-    notification: number;
-    holderSnapshot: number;
-  };
+  deltas: CoreDbDeltas;
+  phaseDeltas: Record<BoundedOperationRunnerPhaseName, CoreDbDeltas | null>;
   detect: {
     selected: number | null;
     imported: number | null;
@@ -224,6 +238,7 @@ export type BoundedOperatorCycleSummary = {
   retryCandidateCount: number;
   telegramSendCount: 0;
   nextRecommendedStep: string;
+  nextCommand: string | null;
 };
 
 export type BoundedOperationRunnerReport = {
@@ -237,10 +252,19 @@ export type BoundedOperationRunnerReport = {
   computedSinceMinutes: number;
   maxIterations: number;
   intervalSeconds: number;
+  detectLimitPerCycle: 1;
+  metricLimit: number;
+  enrichLimit: number;
+  postRunBufferMinutes: number;
+  interItemDelayMs: number;
+  estimatedMinimumDurationMs: number;
+  nextCommand: string | null;
   checkpointFile: string | null;
   checkpointBeforeExists: boolean | null;
+  checkpointBeforeValid: boolean | null;
   checkpointBeforeSafeCursorSummary: Record<string, unknown> | null;
   checkpointExists: boolean | null;
+  checkpointValid: boolean | null;
   checkpointSafeCursorSummary: Record<string, unknown> | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -311,6 +335,61 @@ export function computeSinceMinutes(input: {
   return Math.max(1, Math.ceil(input.hours * 60 + input.postRunBufferMinutes));
 }
 
+export function computeEstimatedMinimumDurationMs(
+  options: BoundedOperationRunnerOptions,
+): number {
+  const detectIntervalWaits = Math.max(0, computeMaxIterations(options) - 1);
+  const metricInterItemWaits =
+    Math.max(0, options.metricLimit - 1) * options.postRunMetricCycles;
+  const enrichInterItemWaits =
+    Math.max(0, options.enrichLimit - 1) * options.postRunEnrichCycles;
+
+  return detectIntervalWaits * options.intervalSeconds * 1_000
+    + (metricInterItemWaits + enrichInterItemWaits) * options.interItemDelayMs;
+}
+
+function isCurrentOperatorPreset(options: BoundedOperationRunnerOptions): boolean {
+  return options.hours === 3
+    && options.pumpOnly
+    && options.checkpointFile === "/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json"
+    && options.metricLimit === 50
+    && options.enrichLimit === 50
+    && options.intervalSeconds === 60
+    && computeMaxIterations(options) === 180
+    && options.postRunBufferMinutes === 60
+    && options.interItemDelayMs === 15_000
+    && options.postRunMetricCycles === 4
+    && options.postRunEnrichCycles === 4;
+}
+
+function buildNextExecutionCommand(
+  options: BoundedOperationRunnerOptions,
+): string | null {
+  if (options.executeRequested || options.checkpointFile === undefined) {
+    return null;
+  }
+
+  if (isCurrentOperatorPreset(options)) {
+    return "pnpm -s ops:run:bounded -- --operatorCycle --execute";
+  }
+
+  return [
+    "pnpm -s ops:run:bounded --",
+    `--hours ${options.hours}`,
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    `--checkpointFile ${options.checkpointFile}`,
+    `--metricLimit ${options.metricLimit}`,
+    `--enrichLimit ${options.enrichLimit}`,
+    `--postRunMetricCycles ${options.postRunMetricCycles}`,
+    `--postRunEnrichCycles ${options.postRunEnrichCycles}`,
+    `--intervalSeconds ${options.intervalSeconds}`,
+    `--maxIterations ${computeMaxIterations(options)}`,
+    `--postRunBufferMinutes ${options.postRunBufferMinutes}`,
+    `--interItemDelayMs ${options.interItemDelayMs}`,
+    "--execute",
+  ].join(" ");
+}
+
 function joinCommand(file: string, args: string[], env?: Record<string, string>): string {
   const prefix = env && Object.keys(env).length > 0
     ? `${Object.entries(env).map(([key, value]) => `${key}=${value}`).join(" ")} `
@@ -322,21 +401,22 @@ function abbreviateValue(value: string): string {
   return value.length <= 16 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
-function readCheckpointSafeCursorSummary(checkpointFile: string | null): {
-  exists: boolean | null;
-  summary: Record<string, unknown> | null;
-} {
+function readCheckpointSafeCursorSummary(checkpointFile: string | null): CheckpointState {
   if (checkpointFile === null) {
     return {
       exists: null,
+      valid: null,
       summary: null,
+      errorCode: null,
     };
   }
 
   if (!existsSync(checkpointFile)) {
     return {
       exists: false,
+      valid: true,
       summary: null,
+      errorCode: null,
     };
   }
 
@@ -347,6 +427,20 @@ function readCheckpointSafeCursorSummary(checkpointFile: string | null): {
     const poolCreatedAt = asString(cursor?.poolCreatedAt);
     const poolAddress = asString(cursor?.poolAddress);
     const source = asString(record?.source);
+    if (
+      source !== GECKOTERMINAL_NEW_POOLS_SOURCE
+      || poolCreatedAt === undefined
+      || Number.isNaN(Date.parse(poolCreatedAt))
+      || poolAddress === undefined
+      || poolAddress.trim().length === 0
+    ) {
+      return {
+        exists: true,
+        valid: false,
+        summary: { invalid: true },
+        errorCode: "checkpoint_file_invalid",
+      };
+    }
     const summary: Record<string, unknown> = {};
 
     if (source !== undefined) {
@@ -361,14 +455,16 @@ function readCheckpointSafeCursorSummary(checkpointFile: string | null): {
 
     return {
       exists: true,
+      valid: true,
       summary: Object.keys(summary).length > 0 ? summary : null,
+      errorCode: null,
     };
   } catch {
     return {
       exists: true,
-      summary: {
-        unreadable: true,
-      },
+      valid: false,
+      summary: { invalid: true },
+      errorCode: "checkpoint_file_invalid",
     };
   }
 }
@@ -615,6 +711,7 @@ function isPathInside(childPath: string, parentPath: string): boolean {
 function buildStopBlockers(
   input: BoundedOperationPlannerInput,
   options: BoundedOperationRunnerOptions,
+  checkpointState: CheckpointState,
 ): {
   blockedBy: string[];
   stopConditionCodes: string[];
@@ -645,6 +742,11 @@ function buildStopBlockers(
   if (options.checkpointFile && isPathInside(options.checkpointFile, options.repoRoot)) {
     blockedBy.push("checkpoint_file_inside_repo");
     stopConditionCodes.push("checkpoint_file_inside_repo");
+  }
+
+  if (checkpointState.exists === true && checkpointState.valid === false) {
+    blockedBy.push(checkpointState.errorCode ?? "checkpoint_file_invalid");
+    stopConditionCodes.push(checkpointState.errorCode ?? "checkpoint_file_invalid");
   }
 
   return {
@@ -702,10 +804,10 @@ export function buildBoundedOperationRunnerPlan(
 ): BoundedOperationRunnerReport {
   const computedSinceMinutes = computeSinceMinutes(options);
   const maxIterations = computeMaxIterations(options);
-  const stop = buildStopBlockers(input, options);
+  const checkpointState = readCheckpointSafeCursorSummary(options.checkpointFile ?? null);
+  const stop = buildStopBlockers(input, options, checkpointState);
   const blocked = stop.blockedBy.length > 0;
   const plannedStatus: BoundedOperationRunnerPhaseStatus = blocked ? "blocked" : "planned";
-  const checkpointState = readCheckpointSafeCursorSummary(options.checkpointFile ?? null);
 
   const detectCommand = buildDetectCommand(options);
   const metricCommands = buildMetricCycleCommands(options);
@@ -727,6 +829,8 @@ export function buildBoundedOperationRunnerPlan(
         systemdUnlocked: false,
         alwaysOnAutoSendUnlocked: false,
         checkpointFile: options.checkpointFile ?? null,
+        checkpointExists: checkpointState.exists,
+        checkpointValid: checkpointState.valid,
         checkpointOutsideRepo:
           options.checkpointFile === undefined
             ? null
@@ -839,10 +943,19 @@ export function buildBoundedOperationRunnerPlan(
     computedSinceMinutes,
     maxIterations,
     intervalSeconds: options.intervalSeconds,
+    detectLimitPerCycle: 1,
+    metricLimit: options.metricLimit,
+    enrichLimit: options.enrichLimit,
+    postRunBufferMinutes: options.postRunBufferMinutes,
+    interItemDelayMs: options.interItemDelayMs,
+    estimatedMinimumDurationMs: computeEstimatedMinimumDurationMs(options),
+    nextCommand: buildNextExecutionCommand(options),
     checkpointFile: options.checkpointFile ?? null,
     checkpointBeforeExists: checkpointState.exists,
+    checkpointBeforeValid: checkpointState.valid,
     checkpointBeforeSafeCursorSummary: checkpointState.summary,
     checkpointExists: checkpointState.exists,
+    checkpointValid: checkpointState.valid,
     checkpointSafeCursorSummary: checkpointState.summary,
     startedAt: null,
     finishedAt: null,
@@ -1282,6 +1395,13 @@ function metricCycleHasUnexpectedWrite(fields: Record<string, unknown>): boolean
     || (asNumber(fields.notifySent) ?? 0) > 0;
 }
 
+function detectFailureCode(summary: Record<string, unknown>): string | null {
+  const fields = extractProgressSummaryFields(summary);
+  return (asNumber(fields.failedCount) ?? 0) > 0
+    ? "detect_cycle_failed"
+    : null;
+}
+
 function cycleNoWorkReason(
   phaseName: BoundedOperationRunnerPhaseName,
   fields: Record<string, unknown>,
@@ -1313,6 +1433,92 @@ function mergePhaseSummary(
     ...existing,
     ...updates,
   };
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function safeGrowthOutput(output: Record<string, unknown>): Record<string, unknown> | null {
+  const summary = asRecord(output.summary);
+  const buckets = asRecord(output.buckets);
+  if (summary === null) {
+    return null;
+  }
+
+  return {
+    summary: {
+      tokenCountEvaluated: asNumber(summary.tokenCountEvaluated) ?? null,
+      sourceTokenCount: asNumber(summary.sourceTokenCount) ?? null,
+      pumpOnly: asBoolean(summary.pumpOnly) ?? null,
+      minMetricCount: asNumber(summary.minMetricCount) ?? null,
+      topFdvMultiple: asNumber(summary.topFdvMultiple) ?? null,
+      topReserveMultiple: asNumber(summary.topReserveMultiple) ?? null,
+      generatedAt: asString(summary.generatedAt) ?? null,
+    },
+    buckets: {
+      fdvMultipleGte1_1: asNumber(buckets?.fdvMultipleGte1_1) ?? null,
+      fdvMultipleGte1_25: asNumber(buckets?.fdvMultipleGte1_25) ?? null,
+      fdvMultipleGte1_5: asNumber(buckets?.fdvMultipleGte1_5) ?? null,
+      fdvMultipleGte2: asNumber(buckets?.fdvMultipleGte2) ?? null,
+      fdvMultipleGte3: asNumber(buckets?.fdvMultipleGte3) ?? null,
+      fdvMultipleGte5: asNumber(buckets?.fdvMultipleGte5) ?? null,
+      fdvMultipleGte10: asNumber(buckets?.fdvMultipleGte10) ?? null,
+    },
+  };
+}
+
+export function sanitizeBoundedOperationCommandOutput(
+  label: string,
+  output: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (output === null) {
+    return null;
+  }
+
+  if (label === "metrics_growth_report") {
+    return safeGrowthOutput(output);
+  }
+
+  if (label === "bounded_next_step_planner") {
+    return {
+      nextRecommendedStep: asString(output.nextRecommendedStep) ?? null,
+      blockedBy: stringArray(output.blockedBy),
+      stopConditionCodes: stringArray(output.stopConditionCodes),
+    };
+  }
+
+  if (label === "bounded_watch_readiness") {
+    return {
+      status: asString(output.status) ?? null,
+      nextRecommendedSlice: asString(output.nextRecommendedSlice) ?? null,
+    };
+  }
+
+  if (label.startsWith("notification_auto_send_plan")) {
+    return {
+      autoSendEnabled: asBoolean(output.autoSendEnabled) ?? null,
+      candidateCount: asNumber(output.candidateCount) ?? null,
+      allowedCandidateCount: asNumber(output.allowedCandidateCount) ?? null,
+      wouldSend: asBoolean(output.wouldSend) ?? null,
+      wouldUpdateNotification: asBoolean(output.wouldUpdateNotification) ?? null,
+      stopConditionCodes: stringArray(output.stopConditionCodes),
+    };
+  }
+
+  if (label === "notification_retry_plan") {
+    return {
+      status: asString(output.status) ?? null,
+      candidateCount: asNumber(output.candidateCount) ?? null,
+      selectedCount: asNumber(output.selectedCount) ?? null,
+      willExecute: asBoolean(output.willExecute) ?? null,
+      stopConditionCodes: stringArray(output.stopConditionCodes),
+    };
+  }
+
+  return null;
 }
 
 export async function defaultPhaseExecutor(
@@ -1384,7 +1590,9 @@ export async function defaultPhaseExecutor(
       });
     });
 
-    const parsedSummary = extractProgressSummaryFields(parseJsonObject(result.stdout));
+    const parsedOutput = parseJsonObject(result.stdout);
+    const parsedSummary = extractProgressSummaryFields(parsedOutput);
+    const safeOutput = sanitizeBoundedOperationCommandOutput(command.label, parsedOutput);
     if (context?.isInterrupted() === true) {
       commandResults.push({
         label: command.label,
@@ -1392,6 +1600,7 @@ export async function defaultPhaseExecutor(
         signal: result.signal,
         interrupted: true,
         parsedSummary,
+        ...(safeOutput === null ? {} : { safeOutput }),
       });
       return {
         ok: false,
@@ -1407,9 +1616,10 @@ export async function defaultPhaseExecutor(
     commandResults.push({
       label: command.label,
       exitCode: result.exitCode,
-      stdoutTail: result.stdout.slice(-4_000),
-      stderrTail: result.stderr.slice(-4_000),
+      stdoutParsed: parsedOutput !== null,
+      stderrPresent: result.stderr.trim().length > 0,
       parsedSummary,
+      ...(safeOutput === null ? {} : { safeOutput }),
     });
 
     if (result.exitCode !== 0) {
@@ -1754,6 +1964,59 @@ function firstCycleNumberField(
   return null;
 }
 
+function commandResultSafeOutput(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+  label: string,
+): Record<string, unknown> | null {
+  const commandResults = Array.isArray(phaseItem?.summary.commandResults)
+    ? phaseItem.summary.commandResults
+    : [];
+
+  for (const commandResult of commandResults) {
+    const record = asRecord(commandResult);
+    if (record?.label !== label) {
+      continue;
+    }
+
+    return asRecord(record.safeOutput);
+  }
+
+  return null;
+}
+
+function growthSummaryFromReportPhase(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+): Record<string, unknown> | null {
+  const growthOutput = commandResultSafeOutput(phaseItem, "metrics_growth_report");
+  const summary = asRecord(growthOutput?.summary);
+  const buckets = asRecord(growthOutput?.buckets);
+  if (summary === null) {
+    return null;
+  }
+
+  return {
+    tokenCountEvaluated: asNumber(summary.tokenCountEvaluated) ?? null,
+    sourceTokenCount: asNumber(summary.sourceTokenCount) ?? null,
+    pumpOnly: asBoolean(summary.pumpOnly) ?? null,
+    minMetricCount: asNumber(summary.minMetricCount) ?? null,
+    topFdvMultiple: asNumber(summary.topFdvMultiple) ?? null,
+    topReserveMultiple: asNumber(summary.topReserveMultiple) ?? null,
+    fdvMultipleGte2Count: asNumber(buckets?.fdvMultipleGte2) ?? null,
+    fdvMultipleGte3Count: asNumber(buckets?.fdvMultipleGte3) ?? null,
+    generatedAt: asString(summary.generatedAt) ?? null,
+  };
+}
+
+function nextStepFromReportPhase(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+): string | null {
+  const plannerOutput = commandResultSafeOutput(
+    phaseItem,
+    "bounded_next_step_planner",
+  );
+  return asString(plannerOutput?.nextRecommendedStep) ?? null;
+}
+
 function coreDbCounts(state: DbState): CoreDbCounts {
   return {
     tokenCount: state.tokenCount,
@@ -1763,6 +2026,139 @@ function coreDbCounts(state: DbState): CoreDbCounts {
   };
 }
 
+function coreDbDeltas(before: CoreDbCounts, after: CoreDbCounts): CoreDbDeltas {
+  return {
+    token: after.tokenCount - before.tokenCount,
+    metric: after.metricCount - before.metricCount,
+    notification: after.notificationCount - before.notificationCount,
+    holderSnapshot: after.holderSnapshotCount - before.holderSnapshotCount,
+  };
+}
+
+function readPhaseDeltas(
+  phaseItem: BoundedOperationRunnerPhase | undefined,
+): CoreDbDeltas | null {
+  const deltas = asRecord(phaseItem?.summary.dbDeltas);
+  if (deltas === null) {
+    return null;
+  }
+
+  const token = asNumber(deltas.token);
+  const metric = asNumber(deltas.metric);
+  const notification = asNumber(deltas.notification);
+  const holderSnapshot = asNumber(deltas.holderSnapshot);
+  if (
+    token === undefined
+    || metric === undefined
+    || notification === undefined
+    || holderSnapshot === undefined
+  ) {
+    return null;
+  }
+
+  return { token, metric, notification, holderSnapshot };
+}
+
+function unexpectedPhaseDbDeltaCode(
+  phaseItem: BoundedOperationRunnerPhase,
+  deltas: CoreDbDeltas,
+  options: BoundedOperationRunnerOptions,
+): string | null {
+  const phaseName = phaseItem.phase;
+  const noOtherWrites =
+    deltas.notification === 0
+    && deltas.holderSnapshot === 0;
+
+  switch (phaseName) {
+    case "detect_write": {
+      const importedCount = asNumber(
+        extractProgressSummaryFields(phaseItem.summary).importedCount,
+      );
+      return deltas.token >= 0
+        && deltas.token <= computeMaxIterations(options)
+        && (importedCount === undefined || deltas.token === importedCount)
+        && deltas.metric === 0
+        && noOtherWrites
+        ? null
+        : "unexpected_detect_write_db_delta";
+    }
+    case "metric_pending_snapshot": {
+      const writtenCount = sumCycleField(phaseItem, "written");
+      return deltas.token === 0
+        && deltas.metric >= 0
+        && deltas.metric <= options.metricLimit * options.postRunMetricCycles
+        && (writtenCount === null || deltas.metric === writtenCount)
+        && noOtherWrites
+        ? null
+        : "unexpected_metric_pending_snapshot_db_delta";
+    }
+    case "enrich_rescore":
+    case "report_review":
+    case "notification_plan_review":
+      return deltas.token === 0
+        && deltas.metric === 0
+        && noOtherWrites
+        ? null
+        : `unexpected_${phaseName}_db_delta`;
+    case "preflight":
+      return null;
+  }
+}
+
+async function capturePhaseState(
+  report: BoundedOperationRunnerReport,
+  phaseItem: BoundedOperationRunnerPhase,
+  options: BoundedOperationRunnerOptions,
+  readCurrentInput: (() => Promise<BoundedOperationPlannerInput>) | undefined,
+  validateSideEffects: boolean,
+): Promise<boolean> {
+  if (readCurrentInput === undefined) {
+    return true;
+  }
+
+  const before = coreDbCounts(report.finalDbState);
+  let currentInput: BoundedOperationPlannerInput;
+  try {
+    currentInput = await readCurrentInput();
+  } catch {
+    const stopCode = `${phaseItem.phase}_state_read_failed`;
+    phaseItem.status = "failed";
+    phaseItem.stopConditionCodes = [stopCode];
+    report.blockedBy.push(`${phaseItem.phase}_failed`);
+    report.stopConditionCodes.push(stopCode);
+    return false;
+  }
+
+  const after = coreDbCounts(currentInput.dbState);
+  const deltas = coreDbDeltas(before, after);
+  phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
+    dbCountsBefore: before,
+    dbCountsAfter: after,
+    dbDeltas: deltas,
+  });
+  phaseItem.sideEffects = Object.entries(deltas)
+    .filter(([, value]) => value !== 0)
+    .map(([key, value]) => `${key} delta ${value}`);
+  report.finalDbState = currentInput.dbState;
+  report.finalQueueState = currentInput.queueState;
+  report.finalNotificationState = currentInput.notificationState;
+
+  if (!validateSideEffects) {
+    return true;
+  }
+
+  const stopCode = unexpectedPhaseDbDeltaCode(phaseItem, deltas, options);
+  if (stopCode === null) {
+    return true;
+  }
+
+  phaseItem.status = "failed";
+  phaseItem.stopConditionCodes = [stopCode];
+  report.blockedBy.push(`${phaseItem.phase}_failed`);
+  report.stopConditionCodes.push(stopCode);
+  return false;
+}
+
 function buildOperatorSummary(
   report: BoundedOperationRunnerReport,
   progressSummary: BoundedOperationRunnerProgressSummary,
@@ -1770,21 +2166,37 @@ function buildOperatorSummary(
   const detectPhase = report.phases.find((phaseItem) => phaseItem.phase === "detect_write");
   const metricPhase = report.phases.find((phaseItem) => phaseItem.phase === "metric_pending_snapshot");
   const enrichPhase = report.phases.find((phaseItem) => phaseItem.phase === "enrich_rescore");
+  const reportPhase = report.phases.find((phaseItem) => phaseItem.phase === "report_review");
   const detectSummary = extractProgressSummaryFields(detectPhase?.summary);
+  const detectProviderErrors =
+    asNumber(detectSummary.providerErrorCount)
+    ?? asNumber(detectSummary.failedCount)
+    ?? 0;
   const metricProviderErrors = sumCycleField(metricPhase, "providerErrorCount") ?? 0;
-  const enrichProviderErrors = sumCycleField(enrichPhase, "providerErrorCount") ?? 0;
+  const enrichProviderErrors =
+    sumCycleField(enrichPhase, "providerErrorCount")
+    ?? sumCycleField(enrichPhase, "error")
+    ?? 0;
+  const enrichRateLimitCount = sumCycleField(enrichPhase, "rateLimitedCount") ?? 0;
   const firstErrorCategory =
-    firstCycleStringField(metricPhase, "firstErrorCategory")
-    ?? firstCycleStringField(enrichPhase, "firstErrorCategory");
+    (detectProviderErrors > 0 ? "detect_cycle_failed" : null)
+    ?? firstCycleStringField(metricPhase, "firstErrorCategory")
+    ?? firstCycleStringField(enrichPhase, "firstErrorCategory")
+    ?? (enrichRateLimitCount > 0 ? "http_429" : null)
+    ?? (enrichProviderErrors > 0 ? "enrich_error" : null);
   const firstHttpStatus =
     firstCycleNumberField(metricPhase, "firstHttpStatus")
-    ?? firstCycleNumberField(enrichPhase, "firstHttpStatus");
+    ?? firstCycleNumberField(enrichPhase, "firstHttpStatus")
+    ?? (enrichRateLimitCount > 0 ? 429 : null);
   const dbCountsBefore = coreDbCounts(report.dbState);
   const dbCountsAfter = coreDbCounts(report.finalDbState);
   const tokenDelta = dbCountsAfter.tokenCount - dbCountsBefore.tokenCount;
   const metricDelta = dbCountsAfter.metricCount - dbCountsBefore.metricCount;
   const notificationDelta = dbCountsAfter.notificationCount - dbCountsBefore.notificationCount;
   const holderSnapshotDelta = dbCountsAfter.holderSnapshotCount - dbCountsBefore.holderSnapshotCount;
+  const phaseDeltas = Object.fromEntries(
+    report.phases.map((phaseItem) => [phaseItem.phase, readPhaseDeltas(phaseItem)]),
+  ) as Record<BoundedOperationRunnerPhaseName, CoreDbDeltas | null>;
   const enrichUpdated = (() => {
     const enriched = sumCycleField(enrichPhase, "enriched");
     const rescored = sumCycleField(enrichPhase, "rescored");
@@ -1809,11 +2221,13 @@ function buildOperatorSummary(
     checkpointBefore: {
       file: report.checkpointFile,
       exists: report.checkpointBeforeExists,
+      valid: report.checkpointBeforeValid,
       safeCursorSummary: report.checkpointBeforeSafeCursorSummary,
     },
     checkpointAfter: {
       file: report.checkpointFile,
       exists: report.checkpointExists,
+      valid: report.checkpointValid,
       safeCursorSummary: report.checkpointSafeCursorSummary,
     },
     dbCountsBefore,
@@ -1824,6 +2238,7 @@ function buildOperatorSummary(
       notification: notificationDelta,
       holderSnapshot: holderSnapshotDelta,
     },
+    phaseDeltas,
     detect: {
       selected: asNumber(detectSummary.selected) ?? null,
       imported: asNumber(detectSummary.importedCount) ?? null,
@@ -1844,22 +2259,27 @@ function buildOperatorSummary(
       error: sumCycleField(enrichPhase, "error"),
     },
     providerErrorCountByPhase: {
-      detect_write: asNumber(detectSummary.providerErrorCount) ?? 0,
+      preflight: 0,
+      detect_write: detectProviderErrors,
       metric_pending_snapshot: metricProviderErrors,
       enrich_rescore: enrichProviderErrors,
+      report_review: 0,
+      notification_plan_review: 0,
     },
     firstErrorCategory,
     firstHttpStatus,
     queueAfter: report.finalQueueState,
-    growthAfter: null,
+    growthAfter: growthSummaryFromReportPhase(reportPhase),
     notifyCandidateCount: report.finalQueueState.rolling168h.notifyCandidateCount,
     autoSendAllowedCount: report.finalNotificationState.allowedAutoSendCandidateCount,
     retryCandidateCount: report.finalNotificationState.retryCandidateCount,
     telegramSendCount: 0,
     nextRecommendedStep:
-      stopReason === null
-        ? "review_final_summary_then_run_next_operator_cycle_or_hold_for_telegram_gate"
+      report.stopConditionCodes.length === 0
+        ? nextStepFromReportPhase(reportPhase)
+          ?? "review_final_summary_then_run_next_operator_cycle_or_hold_for_telegram_gate"
         : "review_failure_summary_no_automatic_retry",
+    nextCommand: report.nextCommand,
   };
 }
 
@@ -1900,6 +2320,7 @@ function buildProgressSummary(
   const interruptedPhase = report.phases.find((phaseItem) => phaseItem.status === "interrupted");
   const checkpointState = readCheckpointSafeCursorSummary(report.checkpointFile);
   report.checkpointExists = checkpointState.exists;
+  report.checkpointValid = checkpointState.valid;
   report.checkpointSafeCursorSummary = checkpointState.summary;
 
   return {
@@ -1937,6 +2358,7 @@ function buildProgressSummary(
     telegramSendExpected: 0,
     checkpointFile: report.checkpointFile,
     checkpointExists: report.checkpointExists,
+    checkpointValid: report.checkpointValid,
     checkpointSafeCursorSummary: report.checkpointSafeCursorSummary,
     blockedBy: report.blockedBy,
     stopConditionCodes: report.stopConditionCodes,
@@ -1948,7 +2370,7 @@ export async function runBoundedOperationRunner(
   options: BoundedOperationRunnerOptions,
   executor: PhaseExecutor = defaultPhaseExecutor,
   logger?: BoundedOperationRunnerLogger,
-  readFinalInput?: () => Promise<BoundedOperationPlannerInput>,
+  readCurrentInput?: () => Promise<BoundedOperationPlannerInput>,
 ): Promise<BoundedOperationRunnerReport> {
   const runStartedAt = Date.now();
   const startedAt = new Date(runStartedAt).toISOString();
@@ -2058,7 +2480,24 @@ export async function runBoundedOperationRunner(
           logger,
         );
         interruptController.setActivePhase(null);
-        if (!ok) {
+        const stateOk = await capturePhaseState(
+          report,
+          phaseItem,
+          options,
+          readCurrentInput,
+          ok,
+        );
+        if (!ok || !stateOk) {
+          if (ok && !stateOk) {
+            emitProgress(logger, {
+              event: "phase",
+              phase: phaseItem.phase,
+              status: "failed",
+              summary: extractProgressSummaryFields(phaseItem.summary),
+              blockedBy: phaseItem.blockedBy,
+              stopConditionCodes: phaseItem.stopConditionCodes,
+            });
+          }
           const interrupted = phaseItem.status === "interrupted";
           skipLaterPhases(
             report,
@@ -2082,6 +2521,13 @@ export async function runBoundedOperationRunner(
 
       if (result.interrupted || interruptController.context.isInterrupted()) {
         markReportInterrupted(report, interruptController.context, phaseItem, result.summary ?? {});
+        await capturePhaseState(
+          report,
+          phaseItem,
+          options,
+          readCurrentInput,
+          false,
+        );
         emitProgress(logger, {
           event: "phase",
           phase: phaseItem.phase,
@@ -2102,8 +2548,66 @@ export async function runBoundedOperationRunner(
       phaseItem.stopConditionCodes = result.stopConditionCodes ?? [];
 
       if (!result.ok) {
+        await capturePhaseState(
+          report,
+          phaseItem,
+          options,
+          readCurrentInput,
+          false,
+        );
         report.blockedBy.push(`${phaseItem.phase}_failed`);
         report.stopConditionCodes.push(...phaseItem.stopConditionCodes);
+        emitProgress(logger, {
+          event: "phase",
+          phase: phaseItem.phase,
+          status: "failed",
+          durationMs: Date.now() - phaseStartedAt,
+          summary: extractProgressSummaryFields(phaseItem.summary),
+          blockedBy: phaseItem.blockedBy,
+          stopConditionCodes: phaseItem.stopConditionCodes,
+        });
+        skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
+        interruptController.setActivePhase(null);
+        break;
+      }
+
+      const detectStopCode = phaseItem.phase === "detect_write"
+        ? detectFailureCode(phaseItem.summary)
+        : null;
+      if (detectStopCode !== null) {
+        phaseItem.status = "failed";
+        phaseItem.stopConditionCodes = [detectStopCode];
+        await capturePhaseState(
+          report,
+          phaseItem,
+          options,
+          readCurrentInput,
+          false,
+        );
+        report.blockedBy.push(`${phaseItem.phase}_failed`);
+        report.stopConditionCodes.push(detectStopCode);
+        emitProgress(logger, {
+          event: "phase",
+          phase: phaseItem.phase,
+          status: "failed",
+          durationMs: Date.now() - phaseStartedAt,
+          summary: extractProgressSummaryFields(phaseItem.summary),
+          blockedBy: phaseItem.blockedBy,
+          stopConditionCodes: phaseItem.stopConditionCodes,
+        });
+        skipLaterPhases(report, phaseItem, `${phaseItem.phase}_failed`);
+        interruptController.setActivePhase(null);
+        break;
+      }
+
+      const stateOk = await capturePhaseState(
+        report,
+        phaseItem,
+        options,
+        readCurrentInput,
+        true,
+      );
+      if (!stateOk) {
         emitProgress(logger, {
           event: "phase",
           phase: phaseItem.phase,
@@ -2139,15 +2643,24 @@ export async function runBoundedOperationRunner(
   if (report.interruptedAt === null) {
     report.interruptedAt = interruptController.interruptedAt();
   }
-  if (readFinalInput !== undefined) {
+  if (readCurrentInput !== undefined) {
     try {
-      const finalInput = await readFinalInput();
+      const finalInput = await readCurrentInput();
       report.finalDbState = finalInput.dbState;
       report.finalQueueState = finalInput.queueState;
       report.finalNotificationState = finalInput.notificationState;
     } catch {
       report.stopConditionCodes.push("final_state_read_failed");
     }
+  }
+  const finalCheckpointState = readCheckpointSafeCursorSummary(report.checkpointFile);
+  if (
+    finalCheckpointState.exists === true
+    && finalCheckpointState.valid === false
+    && !report.stopConditionCodes.includes("checkpoint_after_invalid")
+  ) {
+    report.blockedBy.push("checkpoint_after_invalid");
+    report.stopConditionCodes.push("checkpoint_after_invalid");
   }
   report.progressSummary = buildProgressSummary(report, startedAt, finishedAt, durationMs);
   report.operatorSummary = buildOperatorSummary(report, report.progressSummary);

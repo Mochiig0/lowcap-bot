@@ -6,9 +6,11 @@ import { join } from "node:path";
 
 import {
   buildBoundedOperationRunnerPlan,
+  computeEstimatedMinimumDurationMs,
   computeSinceMinutes,
   formatBoundedOperationProgressEvent,
   runBoundedOperationRunner,
+  sanitizeBoundedOperationCommandOutput,
   type BoundedOperationRunnerProgressEvent,
   type BoundedOperationRunnerOptions,
   type BoundedOperationRunnerPhase,
@@ -83,6 +85,30 @@ function input(overrides: Partial<BoundedOperationPlannerInput> = {}): BoundedOp
   };
 }
 
+function inputWithCounts(
+  tokenCount: number,
+  metricCount: number,
+  notificationCount = 0,
+  holderSnapshotCount = 0,
+): BoundedOperationPlannerInput {
+  return input({
+    dbState: {
+      tokenCount,
+      metricCount,
+      notificationCount,
+      holderSnapshotCount,
+      metricZeroTokenCount: 0,
+      metricOneTokenCount: 0,
+      metricTwoPlusTokenCount: 0,
+      notificationStatusCounts: {
+        captured: notificationCount,
+        sent: 0,
+        failed: 0,
+      },
+    },
+  });
+}
+
 function allCommandText(report: ReturnType<typeof buildBoundedOperationRunnerPlan>): string {
   return report.phases.flatMap((phase) => phase.commandCandidates ?? []).join("\n");
 }
@@ -120,6 +146,28 @@ test("plan-only mode marks phases planned and does not require execution", async
 test("computed sinceMinutes includes post-run buffer", () => {
   assert.equal(computeSinceMinutes({ hours: 6, postRunBufferMinutes: 60 }), 420);
   assert.equal(computeSinceMinutes({ hours: 1.5, postRunBufferMinutes: 30 }), 120);
+});
+
+test("operator preset exposes bounded limits and minimum duration estimate", () => {
+  const parsed = parseOpsRunBoundedArgs(["--operatorCycle", "--plan"]);
+  const report = buildBoundedOperationRunnerPlan(input(), {
+    ...parsed,
+    repoRoot: BASE_OPTIONS.repoRoot,
+  });
+
+  assert.equal(report.detectLimitPerCycle, 1);
+  assert.equal(report.metricLimit, 50);
+  assert.equal(report.enrichLimit, 50);
+  assert.equal(report.estimatedMinimumDurationMs, 16_620_000);
+  assert.equal(
+    report.nextCommand,
+    "pnpm -s ops:run:bounded -- --operatorCycle --execute",
+  );
+  assert.equal(report.operatorSummary, undefined);
+  assert.equal(computeEstimatedMinimumDurationMs({
+    ...parsed,
+    repoRoot: BASE_OPTIONS.repoRoot,
+  }), 16_620_000);
 });
 
 test("default post-run cycles are one metric cycle and one enrich cycle", () => {
@@ -376,6 +424,57 @@ test("checkpoint under repo is rejected", () => {
   assert.ok(report.blockedBy.includes("checkpoint_file_inside_repo"));
 });
 
+test("invalid checkpoint is blocked during runner preflight", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "lowcap-invalid-checkpoint-"));
+  const checkpointFile = join(dir, "checkpoint.json");
+
+  try {
+    await writeFile(checkpointFile, "{not-json", "utf8");
+    const malformed = buildBoundedOperationRunnerPlan(input(), {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      checkpointFile,
+    });
+    assert.equal(malformed.checkpointBeforeExists, true);
+    assert.equal(malformed.checkpointBeforeValid, false);
+    assert.ok(malformed.blockedBy.includes("checkpoint_file_invalid"));
+    assert.equal(
+      malformed.phases.find((phase) => phase.phase === "detect_write")?.status,
+      "blocked",
+    );
+    let executeCalls = 0;
+    const blockedRun = await runBoundedOperationRunner(
+      input(),
+      { ...BASE_OPTIONS, executeRequested: true, checkpointFile },
+      async () => {
+        executeCalls += 1;
+        return { ok: true };
+      },
+    );
+    assert.equal(executeCalls, 0);
+    assert.equal(blockedRun.status, "blocked");
+
+    await writeFile(
+      checkpointFile,
+      JSON.stringify({
+        source: "wrong.source",
+        cursor: {
+          poolCreatedAt: "2026-07-15T00:00:00.000Z",
+          poolAddress: "pool-address",
+        },
+      }),
+      "utf8",
+    );
+    const wrongSource = buildBoundedOperationRunnerPlan(input(), {
+      ...BASE_OPTIONS,
+      checkpointFile,
+    });
+    assert.ok(wrongSource.stopConditionCodes.includes("checkpoint_file_invalid"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("execute mode calls phases in order with mocks", async () => {
   const calls: string[] = [];
   const report = await runBoundedOperationRunner(
@@ -397,6 +496,66 @@ test("execute mode calls phases in order with mocks", async () => {
     "notification_plan_review",
   ]);
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "executed");
+});
+
+test("final summary records DB count deltas for every executed phase", async () => {
+  const states = [
+    inputWithCounts(1, 0),
+    inputWithCounts(1, 1),
+    inputWithCounts(1, 1),
+    inputWithCounts(1, 1),
+    inputWithCounts(1, 1),
+    inputWithCounts(1, 1),
+  ];
+  let stateIndex = 0;
+  const report = await runBoundedOperationRunner(
+    inputWithCounts(0, 0),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase) => {
+      if (phase.phase === "detect_write") {
+        return { ok: true, summary: { selectedCount: 1, importedCount: 1 } };
+      }
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selectedCount: 1, okCount: 1, writtenCount: 1 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: true,
+          summary: { selectedCount: 1, enrichWriteCount: 1, rescoreWriteCount: 1 },
+        };
+      }
+      return { ok: true, summary: {} };
+    },
+    undefined,
+    async () => states[Math.min(stateIndex++, states.length - 1)]!,
+  );
+
+  assert.deepEqual(report.operatorSummary?.phaseDeltas.detect_write, {
+    token: 1,
+    metric: 0,
+    notification: 0,
+    holderSnapshot: 0,
+  });
+  assert.deepEqual(report.operatorSummary?.phaseDeltas.metric_pending_snapshot, {
+    token: 0,
+    metric: 1,
+    notification: 0,
+    holderSnapshot: 0,
+  });
+  assert.deepEqual(report.operatorSummary?.phaseDeltas.enrich_rescore, {
+    token: 0,
+    metric: 0,
+    notification: 0,
+    holderSnapshot: 0,
+  });
+  assert.deepEqual(report.operatorSummary?.phaseDeltas.notification_plan_review, {
+    token: 0,
+    metric: 0,
+    notification: 0,
+    holderSnapshot: 0,
+  });
+  assert.equal(report.operatorSummary?.deltas.token, 1);
+  assert.equal(report.operatorSummary?.deltas.metric, 1);
 });
 
 test("report phase runs queue growth readiness planner and notification plans only", async () => {
@@ -436,6 +595,71 @@ test("report phase runs queue growth readiness planner and notification plans on
       .some((command) => command.commandCandidate.includes("notification:auto-send:execute")),
     false,
   );
+});
+
+test("operator summary includes safe growth report summary when report phase runs", async () => {
+  const report = await runBoundedOperationRunner(
+    input(),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase) => {
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 1, written: 1 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return { ok: true, summary: { selected: 1, enriched: 1, rescored: 1 } };
+      }
+      if (phase.phase === "report_review") {
+        return {
+          ok: true,
+          summary: {
+            commandResults: [
+              {
+                label: "metrics_growth_report",
+                safeOutput: {
+                  summary: {
+                    tokenCountEvaluated: 335,
+                    sourceTokenCount: 335,
+                    pumpOnly: true,
+                    minMetricCount: 2,
+                    topFdvMultiple: 3.8445,
+                    topReserveMultiple: 2.1,
+                    generatedAt: "2026-07-15T00:00:00.000Z",
+                  },
+                  buckets: {
+                    fdvMultipleGte2: 1,
+                    fdvMultipleGte3: 1,
+                  },
+                },
+              },
+              {
+                label: "bounded_next_step_planner",
+                safeOutput: {
+                  nextRecommendedStep: "no_action_queue_clear",
+                  blockedBy: [],
+                  stopConditionCodes: [],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  assert.deepEqual(report.operatorSummary?.growthAfter, {
+    tokenCountEvaluated: 335,
+    sourceTokenCount: 335,
+    pumpOnly: true,
+    minMetricCount: 2,
+    topFdvMultiple: 3.8445,
+    topReserveMultiple: 2.1,
+    fdvMultipleGte2Count: 1,
+    fdvMultipleGte3Count: 1,
+    generatedAt: "2026-07-15T00:00:00.000Z",
+  });
+  assert.doesNotMatch(JSON.stringify(report.operatorSummary?.growthAfter), /rawJson/);
+  assert.equal(report.operatorSummary?.nextRecommendedStep, "no_action_queue_clear");
 });
 
 test("execute mode calls metric and enrich cycles the requested number of times", async () => {
@@ -550,6 +774,7 @@ test("plan-only mode does not emit progress events", async () => {
   assert.equal(report.operatorSummary?.deltas.token, 0);
   assert.equal(report.operatorSummary?.deltas.metric, 0);
   assert.equal(report.operatorSummary?.telegramSendCount, 0);
+  assert.equal(report.operatorSummary?.nextCommand, report.nextCommand);
 });
 
 test("final progress summary is emitted on detect failure", async () => {
@@ -829,6 +1054,36 @@ test("progress logs avoid raw payload fields", async () => {
   assert.doesNotMatch(rendered, /stdoutTail/);
 });
 
+test("report output sanitizer retains only safe aggregate fields", () => {
+  const payload = {
+    summary: {
+      tokenCountEvaluated: 335,
+      sourceTokenCount: 335,
+      pumpOnly: true,
+      minMetricCount: 2,
+      topFdvMultiple: 3.8445,
+      topReserveMultiple: 2.1,
+      generatedAt: "2026-07-15T00:00:00.000Z",
+    },
+    buckets: {
+      fdvMultipleGte2: 1,
+      fdvMultipleGte3: 1,
+    },
+    topRows: [{ rawJson: "PROVIDER_BODY_MUST_NOT_SURVIVE" }],
+  };
+  const safeOutput = sanitizeBoundedOperationCommandOutput(
+    "metrics_growth_report",
+    payload,
+  );
+  const serialized = JSON.stringify(safeOutput);
+
+  assert.doesNotMatch(serialized, /PROVIDER_BODY_MUST_NOT_SURVIVE/);
+  assert.doesNotMatch(serialized, /rawJson/);
+  assert.doesNotMatch(serialized, /stdoutTail|stderrTail/);
+  assert.match(serialized, /topFdvMultiple/);
+  assert.match(serialized, /fdvMultipleGte2/);
+});
+
 test("detect failure stops metric and enrich", async () => {
   const calls: string[] = [];
   const report = await runBoundedOperationRunner(
@@ -847,6 +1102,29 @@ test("detect failure stops metric and enrich", async () => {
   assert.equal(report.phases.find((phase) => phase.phase === "detect_write")?.status, "failed");
   assert.equal(report.phases.find((phase) => phase.phase === "metric_pending_snapshot")?.status, "skipped");
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+});
+
+test("detect watch failedCount stops later writes even when subprocess exit is zero", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase) => {
+      calls.push(phase.phase);
+      return {
+        ok: true,
+        summary: phase.phase === "detect_write"
+          ? { failedCount: 1, selectedCount: 0, importedCount: 0, existingCount: 0 }
+          : { selectedCount: 1 },
+      };
+    },
+  );
+
+  assert.deepEqual(calls, ["detect_write"]);
+  assert.equal(report.status, "failed");
+  assert.ok(report.stopConditionCodes.includes("detect_cycle_failed"));
+  assert.equal(report.operatorSummary?.providerErrorCountByPhase.detect_write, 1);
+  assert.equal(report.operatorSummary?.firstErrorCategory, "detect_cycle_failed");
 });
 
 test("metric failure stops enrich", async () => {
@@ -897,6 +1175,33 @@ test("unexpected Token write signal in metric phase fails and skips enrich", asy
   ]);
   assert.equal(report.metricCyclesStoppedReason, "unexpected_metric_phase_side_effect");
   assert.ok(report.stopConditionCodes.includes("unexpected_metric_phase_side_effect"));
+  assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+});
+
+test("unexpected Token count delta in metric phase fails the operational cycle", async () => {
+  const states = [
+    inputWithCounts(0, 0),
+    inputWithCounts(1, 1),
+    inputWithCounts(1, 1),
+  ];
+  let stateIndex = 0;
+  const report = await runBoundedOperationRunner(
+    inputWithCounts(0, 0),
+    { ...BASE_OPTIONS, executeRequested: true },
+    async (phase) => ({
+      ok: true,
+      summary: phase.phase === "metric_pending_snapshot"
+        ? { selectedCount: 1, okCount: 1, writtenCount: 1 }
+        : {},
+    }),
+    undefined,
+    async () => states[Math.min(stateIndex++, states.length - 1)]!,
+  );
+
+  assert.equal(report.status, "failed");
+  assert.ok(
+    report.stopConditionCodes.includes("unexpected_metric_pending_snapshot_db_delta"),
+  );
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
 });
 

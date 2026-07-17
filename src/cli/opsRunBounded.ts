@@ -34,10 +34,12 @@ function usage(): string {
     "--operatorCycle selects the current 3H operator preset: pumpOnly, checkpoint in /tmp,",
     "detect limit 1 per cycle, Metric/enrich limit 50, four Metric cycles, four enrich cycles,",
     "60s detect interval, 15s post-run item delay, and notification planner-only review.",
+    "Its configured minimum is about 4h37m before provider/report runtime.",
     "",
     "--execute is required before any production fetch/write can run. Notification send, retry execution,",
     "auto live send, scheduler, systemd, rawJson full dump, and pnpm smoke are not part of this runner.",
     "When --execute is used, --checkpointFile is required and must be outside the repo.",
+    "An existing checkpoint must contain the Gecko new_pools source and a valid cursor.",
   ].join("\n");
 }
 

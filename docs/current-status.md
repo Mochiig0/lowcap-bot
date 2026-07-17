@@ -26,9 +26,28 @@ Bounded operator cycle integration, 2026-07-15:
   `readOnly=true`, `dryRun=true`, provider fetch `0`, DB write `0`,
   Telegram send `0`, and deltas `0`. After the fixture smoke run, local DB
   state at the final plan-only check was Token / Metric / Notification /
-  HolderSnapshot `4281 / 1807 / 36 / 1`, which is newer than the earlier
+  HolderSnapshot `4296 / 1807 / 40 / 1`, which is newer than the earlier
   `4266 / 1707 / 32 / 1` write-rehearsal baseline because smoke adds local
   fixture rows.
+- Safety completion on 2026-07-17 added strict checkpoint preflight, detection
+  of watch `failedCount` even when the child exits `0`, phase-by-phase DB count
+  deltas and side-effect checks, safe growth/next-step extraction, and removal
+  of subprocess stdout/stderr tails from the result. The same plan-only command
+  remained `planned` with the checkpoint valid and all DB deltas `0`.
+- The four internal Metric/enrich cycles retain the proven per-batch limit
+  `50`; they provide a maximum capacity of `200` without raising the provider
+  batch size and stop early on empty work or the first provider/rate-limit
+  error. A Metric failure conservatively skips enrich and all later phases;
+  existing Metric-covered rows are not continued automatically because the
+  operator cycle does not freeze a selector snapshot across a failed phase.
+- The plan reports `estimatedMinimumDurationMs=16620000` (about 4h37m): 3H
+  detect cadence plus configured Metric/enrich waits, excluding provider and
+  report runtime.
+- The 2026-07-17 required smoke verification was green and changed only local
+  fixture state relative to the pre-smoke plan: Token `+15`, Metric `+0`,
+  Notification `+4`, HolderSnapshot `+0`. The post-smoke plan stayed
+  `status=planned`, returned the exact next command, and performed no provider
+  fetch, DB write, or Telegram send itself.
 
 Smoke stabilization note, 2026-06-30:
 

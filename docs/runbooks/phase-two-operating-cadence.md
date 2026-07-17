@@ -42,12 +42,39 @@ Preset details:
   `bounded:watch:readiness`, and `ops:plan:bounded --postRunPlan`
 - Notification review is planner-only: `notification:auto-send:plan` and
   `notification:retry:plan`
+- theoretical configured minimum duration is about 4h37m
+  (`estimatedMinimumDurationMs=16620000`): 3H detect cadence plus Metric and
+  enrich inter-item waits; provider and report runtime add to this
 
 Hard boundaries remain: Telegram live send `0`, Notification auto-send execute
 `0`, retry execute `0`, scheduler/systemd `0`, automatic retry/second
 execution `0`, rawJson full dump `0`, and provider body dump `0`. Individual
 Metric/enrich commands are diagnostic or recovery commands, not the normal
 operating cadence.
+
+The per-cycle Metric/enrich limit remains `50`, matching the existing bounded
+provider cadence. Four internal cycles give a maximum of `200` rows, enough for
+the known 180-row rehearsal backlog without increasing the request batch size.
+Each phase stops early when no work remains. A provider/rate-limit error stops
+the current phase and all later phases; enrich is intentionally skipped after
+a Metric failure even though some older Metric-covered rows may exist, because
+the cycle does not hold a frozen selector snapshot that would make partial
+continuation unambiguous. Retry and compensation remain manual recovery work.
+
+Before detect, runner preflight requires an out-of-repo checkpoint whose
+source and cursor shape are valid. A detect watch `failedCount > 0` is failure
+even if the child process exits `0`. After each executed phase, the runner
+captures Token / Metric / Notification / HolderSnapshot counts, emits the
+phase delta in `operatorSummary.phaseDeltas`, and stops on an unexpected
+boundary change. The final report keeps allowlisted growth and planner
+aggregates only; it does not retain subprocess stdout/stderr tails, rawJson, or
+provider bodies.
+
+`ops:plan:bounded --postRunPlan` is different from the operator runner: it only
+returns ordered command candidates as strings. It never executes them. The
+`--operatorCycle --plan` command plans the full runner preset, and only the
+separately approved `--operatorCycle --execute` command starts provider/write
+phases.
 
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.

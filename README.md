@@ -139,6 +139,18 @@ cycles, four bounded enrich/rescore cycles, safe report review, auto-send/retry
 planner review only, and Telegram send `0`. Individual Metric/enrich CLIs are
 diagnostic or recovery tools, not the normal operating path.
 
+The preset keeps the proven per-batch limit at `50` and repeats it up to four
+times internally, stopping early when the selector is empty or at the first
+provider/rate-limit error. Its configured minimum is about 4h37m: the 3H
+detect window plus Metric/enrich inter-item waits, before provider and report
+runtime. `ops:plan:bounded --postRunPlan` only prints post-run command strings;
+`ops:run:bounded -- --operatorCycle --execute` is the command that executes the
+ordered phases. A malformed or source-mismatched checkpoint is blocked in
+runner preflight, and the final summary includes safe checkpoint views, phase
+DB-count deltas, growth aggregates, queue/Notification state, and the next
+recommended step without retaining subprocess stdout/stderr or provider
+bodies.
+
 Import one token candidate:
 
 ```bash

@@ -35,6 +35,16 @@ scheduler/systemd, no automatic retry, and no rawJson/provider body dump.
 Individual Metric/enrich commands remain available for diagnostic or recovery
 use only.
 
+Safety completion, 2026-07-17: the runner now blocks malformed or
+source-mismatched checkpoints before detect, fails on detect watch
+`failedCount`, records phase DB-count deltas, rejects unexpected phase writes,
+and retains only allowlisted report aggregates. The four `limit=50` internal
+Metric/enrich cycles stop early on empty selection and stop the whole remaining
+workflow on provider/rate-limit failure; there is no automatic retry,
+compensation, or fallback enrich. The next slice remains one human-approved
+Red run of the exact one-command operator cycle, not another manual 50-row
+loop.
+
 Update, 2026-07-01:
 
 The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green

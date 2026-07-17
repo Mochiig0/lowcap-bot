@@ -26,6 +26,14 @@ auto-send/retry planners. Notification remains plan-only; individual
 Metric/enrich/report CLIs should be used for diagnostic or recovery work after
 a bounded operator cycle failure, not as the normal loop.
 
+The operator summary now includes the allowlisted growth aggregate (evaluated
+count, top FDV/reserve multiples, and >=2x/>=3x counts), queue-after state,
+Notification candidate counts, next-step planner result, and phase DB-count
+deltas. The runner does not retain child stdout/stderr tails, top-row payloads,
+rawJson, or provider bodies. If Metric fails or rate-limits, report readiness is
+not claimed: enrich and both review phases are skipped and the final summary
+returns a manual-review/no-automatic-retry next step.
+
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during
 detect write, then was manually interrupted about 11h32m after start and
