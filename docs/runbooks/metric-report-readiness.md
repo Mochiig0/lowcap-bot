@@ -34,6 +34,27 @@ rawJson, or provider bodies. If Metric fails or rate-limits, report readiness is
 not claimed: enrich and both review phases are skipped and the final summary
 returns a manual-review/no-automatic-retry next step.
 
+First operator-cycle report-readiness result, 2026-07-18: detect and Metric
+completed, but enrich stopped after its first cycle with one `enrich_error`.
+The runner correctly skipped `report_review` and `notification_plan_review`,
+so `growthAfter=null` in the in-run final summary is expected and report-phase
+completion is not claimed. The final summary remained recoverable and recorded
+total DB movement `4296 / 1807 / 40 / 1 -> 4475 / 1986 / 40 / 1`, Metric phase
+delta `0 / +179 / 0 / 0`, enrich `selected=50`, `updated=49`, `error=1`,
+Notification/Telegram `0`, rolling 168h `metricPending=0`,
+`enrichPending=130`, and
+`nextRecommendedStep=review_failure_summary_no_automatic_retry`.
+
+Required post-run read-only reports were then run separately, without recovery
+writes. Queue was `metricPending=0`, `enrichPending=130`, `staleReview=36`,
+and `notifyCandidate=0`. Growth remained evaluated `335`, top FDV multiple
+`3.8445`, top token id `7577`, and 2x/3x/5x/10x counts `1 / 1 / 0 / 0`.
+Disabled and explicitly enabled auto-send plans both had allowed count `0`,
+and retry candidate count was `0`. These checks show reports remain readable;
+they do not convert the skipped in-run report phase to success and do not
+authorize a retry. Next work is a Yellow failure-path review using read-only
+and fixture evidence.
+
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during
 detect write, then was manually interrupted about 11h32m after start and

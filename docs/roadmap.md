@@ -45,6 +45,27 @@ compensation, or fallback enrich. The next slice remains one human-approved
 Red run of the exact one-command operator cycle, not another manual 50-row
 loop.
 
+Operational trial update, 2026-07-18: that exact Red command ran once. Detect
+completed `180` iterations and imported `179` Tokens; Metric completed all four
+cycles and wrote `179` rows with its Token / Notification / HolderSnapshot
+deltas at `0`. Enrich used the Metric-covered selector, updated `49` of its
+first `50` rows, then returned one `enrich_error` (`firstHttpStatus=null`, not
+rate-limited). The runner conservatively stopped with structured
+`status=failed`, skipped reports/planners, performed no retry, and returned
+`review_failure_summary_no_automatic_retry`. Total DB counts moved
+`4296 / 1807 / 40 / 1 -> 4475 / 1986 / 40 / 1`; Notification and Telegram
+effects stayed `0`. The 168h read-only queue now has `metricPending=0` and
+`enrichPending=130`.
+
+The next slice is **Yellow operator-cycle enrich failure review**, using only
+the captured final summary, read-only DB/report evidence, and fixtures. It
+must determine the error category safely and check whether the 3h planner
+window hiding the older 168h enrich remainder needs a planner/docs correction.
+Do not run a second operator Red, an individual enrich write, retry, or
+compensation command from this result. Individual Metric/enrich loops remain
+diagnostic/recovery-only and require a fresh approval if a later recovery Red
+is proposed.
+
 Update, 2026-07-01:
 
 The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green

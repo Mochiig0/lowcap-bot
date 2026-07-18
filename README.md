@@ -151,6 +151,18 @@ DB-count deltas, growth aggregates, queue/Notification state, and the next
 recommended step without retaining subprocess stdout/stderr or provider
 bodies.
 
+The first live one-command trial completed on 2026-07-18 with a conservative
+partial failure. Detect completed all `180` iterations and imported `179`
+Tokens, and Metric completed four cycles with `179` successful writes. Enrich
+then updated `49` of its first `50` Metric-covered rows and stopped on one
+provider-classified error; the runner skipped report and Notification planner
+phases, emitted `nextRecommendedStep=review_failure_summary_no_automatic_retry`,
+and did not retry. Notification / HolderSnapshot deltas and Telegram sends were
+all `0`. Keep the operator cycle as the normal entry point, but do not run a
+second Red to clear the remaining `130` enrich-pending rows. Review the failure
+in a separate Yellow diagnostic task first; individual write CLIs remain
+recovery-only and require a new approval.
+
 Import one token candidate:
 
 ```bash

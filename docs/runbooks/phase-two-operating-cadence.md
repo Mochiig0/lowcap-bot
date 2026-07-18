@@ -76,6 +76,41 @@ returns ordered command candidates as strings. It never executes them. The
 separately approved `--operatorCycle --execute` command starts provider/write
 phases.
 
+First one-command Red result, 2026-07-18: the approved command ran exactly
+once and produced a recoverable final summary in
+`/tmp/lowcap-bot-operator-cycle.log`. The shell exit code was `0`, while the
+structured runner status was `failed` after 3h59m13s with
+`stopReason=provider_or_rate_limit_error`.
+
+- detect: `180 / 180` iterations, `selected=180`, `accepted=180`,
+  `imported=179`, `existing=1`, `failed=0`, provider/rate-limit error `0`;
+  checkpoint source stayed `geckoterminal.new_pools` and its cursor advanced
+- Metric: four cycles, `selected=179`, `ok=179`, `written=179`, `skipped=0`,
+  `error=0`, provider errors `0`; phase delta Token / Metric / Notification /
+  HolderSnapshot was `0 / +179 / 0 / 0`
+- enrich: Metric-covered selector confirmed, cycle `1 / 4` only,
+  `selected=50`, `updated=49`, `error=1`, `providerErrorCount=1`,
+  `rateLimited=false`,
+  `firstErrorCategory=enrich_error`, `firstHttpStatus=null`, and Notification /
+  Telegram send `0`
+- reports/planners: skipped by the hardened prior-phase-failure stop; the
+  required post-run read-only checks were run separately and were not used to
+  compensate for the failed write phase
+- total DB: `4296 / 1807 / 40 / 1 -> 4475 / 1986 / 40 / 1`; Notification
+  statuses stayed `captured=35`, `sent=5`, `failed=0`
+- after state: rolling 168h `metricPending=0`, `enrichPending=130`,
+  `notifyCandidate=0`; auto-send allowed `0`, retry candidate `0`; growth
+  evaluated `335`, top FDV multiple `3.8445`, and 2x/3x/5x/10x
+  `1 / 1 / 0 / 0`
+
+The runner returned
+`nextRecommendedStep=review_failure_summary_no_automatic_retry`. Do not run a
+second operator cycle, targeted enrich write, retry, fallback, or compensation
+command from this result. The next cadence task is a Yellow read-only/fixture
+failure review. The operator cycle remains the normal operating entry point;
+individual Metric/enrich commands remain diagnostic/recovery-only and any
+future recovery execution needs a separate Red approval.
+
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.
 `bounded:watch:readiness` recommends `three_hour_dry_run`, and the exact

@@ -49,6 +49,47 @@ Bounded operator cycle integration, 2026-07-15:
   `status=planned`, returned the exact next command, and performed no provider
   fetch, DB write, or Telegram send itself.
 
+Bounded operator cycle Red result, 2026-07-18:
+
+- The repo-local Red safety Skill was applied and the approved command ran
+  exactly once through `/tmp/lowcap-bot-operator-cycle.log`:
+  `pnpm -s ops:run:bounded -- --operatorCycle --execute`. The shell process
+  exited `0`; the runner's structured final status was `failed` with
+  `stopReason=provider_or_rate_limit_error` and elapsed time `14353386ms`
+  (3h59m13s).
+- Detect completed `180 / 180` iterations with `selected=180`, `accepted=180`,
+  `imported=179`, `existing=1`, `failed=0`, and provider/rate-limit errors `0`.
+  The checkpoint stayed valid and moved from pool time
+  `2026-07-06T15:58:37.000Z` to `2026-07-17T16:26:12.000Z` with source
+  `geckoterminal.new_pools`.
+- Metric completed four cycles: `50 + 50 + 50 + 29 = 179` selected, ok, and
+  written; skipped/error/provider errors were all `0`. Its phase DB delta was
+  Token `0`, Metric `+179`, Notification `0`, HolderSnapshot `0`, confirming
+  `--onlyMetricPending --noNotificationCapture` held.
+- Enrich used `--onlyMetricCovered` and completed only cycle `1 / 4`:
+  `selected=50`, `updated=49`, `error=1`, `providerErrorCount=1`,
+  `rateLimited=false`,
+  `firstErrorCategory=enrich_error`, and `firstHttpStatus=null`. It attempted
+  no Notification send (`notifyWouldSend=0`, `notifySent=0`). The runner then
+  stopped without retry and skipped both report phases.
+- DB counts moved Token / Metric / Notification / HolderSnapshot
+  `4296 / 1807 / 40 / 1 -> 4475 / 1986 / 40 / 1`. Notification statuses stayed
+  `captured=35`, `sent=5`, `failed=0`; Telegram send, Notification create/update,
+  HolderSnapshot write, retry execute, auto-send execute, second Red,
+  fallback/compensation, scheduler/systemd, rawJson dump, and provider-body
+  dump were all `0`.
+- The final summary was recovered from the log. Its queue snapshot had rolling
+  168h `metricPending=0`, `enrichPending=130`, `notifyCandidate=0`; the later
+  read-only queue check had `staleReview=36`. Auto-send allowed and retry
+  candidate counts remained `0`. A separate read-only growth check remained
+  evaluated `335`, top FDV multiple `3.8445`, and 2x/3x/5x/10x counts
+  `1 / 1 / 0 / 0` because the in-run report phase was correctly skipped.
+- `nextRecommendedStep=review_failure_summary_no_automatic_retry`. Normal
+  operation still starts with the operator cycle, and individual Metric/enrich
+  commands remain diagnostic/recovery-only. Do not run another Red or a manual
+  enrich recovery from this result; the next task is a Yellow read-only/fixture
+  review of the enrich error and the remaining queue.
+
 Smoke stabilization note, 2026-06-30:
 
 - Yellow smoke failure at `metric snapshot geckoterminal watch rate limit

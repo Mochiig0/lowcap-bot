@@ -33,6 +33,22 @@ new exact command. The final summary provides per-phase DB count deltas and
 safe queue/growth/Notification aggregates without subprocess output tails or
 provider bodies.
 
+One-command trial result, 2026-07-18: the operator cycle proved the integrated
+detect-to-Metric handoff but stopped conservatively during enrich. Detect
+imported `179` Tokens across `180` iterations, Metric wrote `179 / 179` rows
+over four cycles, and the Metric phase changed no Token, Notification, or
+HolderSnapshot counts. Enrich selected only Metric-covered rows and updated
+`49 / 50`, then one `enrich_error` stopped the remaining three cycles and
+skipped report/planner phases. DB moved `4296 / 1807 / 40 / 1 ->
+4475 / 1986 / 40 / 1`; Notification/Telegram effects were `0`, the 168h queue
+ended with `metricPending=0` and `enrichPending=130`, and no retry or second
+execution occurred.
+
+This result does not reinstate the old manual 50-row loop as normal operation.
+Keep individual commands in this runbook diagnostic/recovery-only. The next
+step is Yellow analysis of the captured enrich failure and fixture coverage;
+any later recovery write needs a new exact command and separate Red approval.
+
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for
 the acceptance decision, included scope, out-of-MVP items, and Phase 2 tasks.
