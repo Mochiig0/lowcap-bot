@@ -43,8 +43,32 @@ const DEFAULT_SINCE_MINUTES = 180;
 const LOG_PREFIX = "[token:enrich-rescore:geckoterminal]";
 
 let injectedSnapshotErrorConsumed = false;
+let injectedSnapshotFixtureConsumed = false;
 
 type JsonObject = Record<string, unknown>;
+
+type EnrichErrorCategory =
+  | "rate_limit"
+  | "provider_error"
+  | "data_validation_error"
+  | "application_error";
+
+type EnrichFailureStage =
+  | "provider_fetch"
+  | "snapshot_parse"
+  | "enrich_rescore"
+  | "write"
+  | "notification";
+
+class GeckoSnapshotHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, statusText: string) {
+    super(`GeckoTerminal token snapshot request failed: ${status} ${statusText}`);
+    this.name = "GeckoSnapshotHttpError";
+    this.status = status;
+  }
+}
 
 type Args = {
   write: boolean;
@@ -213,6 +237,9 @@ type ProcessedItem = {
     contextUpdated: boolean;
     metaplexContextUpdated: boolean;
   };
+  errorCategory?: EnrichErrorCategory;
+  httpStatus?: number | null;
+  errorClass?: string;
   error?: string;
 };
 
@@ -243,6 +270,13 @@ type Output = {
     skippedNonPumpCount: number;
     okCount: number;
     errorCount: number;
+    providerErrorCount: number;
+    itemErrorCount: number;
+    errorCategoryCounts: Record<string, number>;
+    firstErrorCategory: EnrichErrorCategory | null;
+    firstHttpStatus: number | null;
+    firstErrorClass: string | null;
+    firstErrorTokenId: number | null;
     enrichWriteCount: number;
     rescoreWriteCount: number;
     contextAvailableCount: number;
@@ -1707,6 +1741,13 @@ async function selectTokens(args: Args): Promise<{
 }
 
 async function fetchTokenSnapshotRaw(mint: string): Promise<unknown> {
+  const oneShotFixtureFilePath = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_FILE_ONCE;
+  if (oneShotFixtureFilePath && !injectedSnapshotFixtureConsumed) {
+    injectedSnapshotFixtureConsumed = true;
+    const content = await readFile(oneShotFixtureFilePath, "utf-8");
+    return JSON.parse(content) as unknown;
+  }
+
   const injectedErrorMessage = process.env.GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE;
   if (injectedErrorMessage && !injectedSnapshotErrorConsumed) {
     injectedSnapshotErrorConsumed = true;
@@ -1728,9 +1769,7 @@ async function fetchTokenSnapshotRaw(mint: string): Promise<unknown> {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `GeckoTerminal token snapshot request failed: ${response.status} ${response.statusText}`,
-    );
+    throw new GeckoSnapshotHttpError(response.status, response.statusText);
   }
 
   return (await response.json()) as unknown;
@@ -1772,6 +1811,59 @@ function isRateLimitErrorMessage(message: string | undefined): boolean {
   }
 
   return message.includes("429 Too Many Requests");
+}
+
+function classifyEnrichError(
+  error: unknown,
+  stage: EnrichFailureStage,
+): {
+  category: EnrichErrorCategory;
+  httpStatus: number | null;
+  errorClass: string;
+} {
+  const errorClass = error instanceof Error ? error.constructor.name : typeof error;
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (error instanceof GeckoSnapshotHttpError) {
+    return {
+      category: error.status === 429 ? "rate_limit" : "provider_error",
+      httpStatus: error.status,
+      errorClass,
+    };
+  }
+
+  if (stage === "provider_fetch" && message.includes("429 Too Many Requests")) {
+    return {
+      category: "rate_limit",
+      httpStatus: 429,
+      errorClass,
+    };
+  }
+
+  if (
+    stage === "provider_fetch"
+    && error instanceof Error
+    && (error instanceof TypeError
+      || error instanceof SyntaxError
+      || error.name === "AbortError"
+      || error.name === "TimeoutError")
+  ) {
+    return {
+      category: "provider_error",
+      httpStatus: null,
+      errorClass,
+    };
+  }
+
+  return {
+    category: stage === "snapshot_parse" ? "data_validation_error" : "application_error",
+    httpStatus: null,
+    errorClass,
+  };
+}
+
+function isProviderErrorCategory(category: EnrichErrorCategory | undefined): boolean {
+  return category === "provider_error" || category === "rate_limit";
 }
 
 async function delayBetweenBatchItems(ms: number): Promise<void> {
@@ -2229,6 +2321,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
   let metaplexErrorKind: string | null = null;
   let geckoSnapshotReplay: ShadowFetchReplay | null = null;
   let metaplexReplay: ShadowFetchReplay | null = null;
+  let failureStage: EnrichFailureStage = "provider_fetch";
 
   try {
     let raw: unknown;
@@ -2240,8 +2333,10 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       throw error;
     }
 
+    failureStage = "snapshot_parse";
     snapshot = parseSnapshotMetadata(raw);
     const collectedContext = parseCollectedContext(raw);
+    failureStage = "enrich_rescore";
     contextAvailable = hasUsefulCollectedContext(collectedContext);
     const sameAsSaved =
       savedContext !== null &&
@@ -2342,6 +2437,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       JSON.stringify(savedReviewFlags) !== JSON.stringify(reviewFlagsJson);
 
     if (args.write) {
+      failureStage = "write";
       const helperResult = await runGeckoTokenWriteForMint(
         {
           mint: token.mint,
@@ -2376,6 +2472,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       }
 
       if (args.notify && notifyWouldSend) {
+        failureStage = "notification";
         notifySent = await notifyTelegram(
           buildScoreNotifyMessage({
             title: "S-rank token enriched and rescored",
@@ -2437,6 +2534,7 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
       throw error;
     }
 
+    const classifiedError = classifyEnrichError(error, failureStage);
     const item: ProcessedItem = {
       token: baseToken,
       selectedReason,
@@ -2464,6 +2562,9 @@ async function processToken(token: SelectedToken, args: Args): Promise<Processed
         contextUpdated,
         metaplexContextUpdated,
       },
+      errorCategory: classifiedError.category,
+      httpStatus: classifiedError.httpStatus,
+      errorClass: classifiedError.errorClass,
       error: error instanceof Error ? error.message : String(error),
     };
     const adapterItem = await buildDryRunHelperAdapterItem({
@@ -2517,7 +2618,7 @@ async function executeBatch(args: Args): Promise<BatchExecutionResult> {
     if (
       selection.mode === "recent_batch" &&
       item.status === "error" &&
-      isRateLimitErrorMessage(item.error)
+      (item.errorCategory === "rate_limit" || isRateLimitErrorMessage(item.error))
     ) {
       rateLimited = true;
       rateLimitedCount += 1;
@@ -2564,6 +2665,12 @@ function logBatchSummary(output: Output): void {
       `skippedNonPump=${output.summary.skippedNonPumpCount}`,
       `ok=${output.summary.okCount}`,
       `error=${output.summary.errorCount}`,
+      `providerErrorCount=${output.summary.providerErrorCount}`,
+      `itemErrorCount=${output.summary.itemErrorCount}`,
+      `firstErrorCategory=${output.summary.firstErrorCategory ?? "none"}`,
+      `firstHttpStatus=${output.summary.firstHttpStatus ?? "none"}`,
+      `firstErrorClass=${output.summary.firstErrorClass ?? "none"}`,
+      `firstErrorTokenId=${output.summary.firstErrorTokenId ?? "none"}`,
       `enrichWritten=${output.summary.enrichWriteCount}`,
       `rescoreWritten=${output.summary.rescoreWriteCount}`,
       `contextWritten=${output.summary.contextWriteCount}`,
@@ -2595,6 +2702,15 @@ async function main(): Promise<void> {
   const metaplexErrorKindCounts = buildCountMap(
     execution.items.map((item) => item.metaplexErrorKind),
   );
+  const errorItems = execution.items.filter((item) => item.status === "error");
+  const providerErrorCount = errorItems.filter((item) =>
+    isProviderErrorCategory(item.errorCategory)
+  ).length;
+  const itemErrorCount = errorItems.length - providerErrorCount;
+  const firstError = errorItems[0];
+  const errorCategoryCounts = buildCountMap(
+    errorItems.map((item) => item.errorCategory ?? null),
+  );
 
   const output: Output = {
     mode: execution.mode,
@@ -2622,7 +2738,14 @@ async function main(): Promise<void> {
       skippedMetricUncoveredCount: execution.skippedMetricUncoveredCount,
       skippedNonPumpCount: execution.skippedNonPumpCount,
       okCount: execution.items.filter((item) => item.status === "ok").length,
-      errorCount: execution.items.filter((item) => item.status === "error").length,
+      errorCount: errorItems.length,
+      providerErrorCount,
+      itemErrorCount,
+      errorCategoryCounts,
+      firstErrorCategory: firstError?.errorCategory ?? null,
+      firstHttpStatus: firstError?.httpStatus ?? null,
+      firstErrorClass: firstError?.errorClass ?? null,
+      firstErrorTokenId: firstError?.token.id ?? null,
       enrichWriteCount: execution.items.filter((item) => item.writeSummary.enrichUpdated).length,
       rescoreWriteCount: execution.items.filter((item) => item.writeSummary.rescoreUpdated).length,
       contextAvailableCount: execution.items.filter((item) => item.contextAvailable).length,

@@ -55,6 +55,13 @@ export type QueueState = {
   rolling168h: QueueSummary;
 };
 
+export type CleanupWindowSource = "requested_window" | "rolling_168h_backlog";
+
+export type CleanupWindowSelection = {
+  source: CleanupWindowSource;
+  queue: QueueSummary;
+};
+
 export type NotificationState = {
   failedCount: number;
   retryCandidateCount: number;
@@ -99,6 +106,11 @@ export type BoundedOperationPlan = {
   mode: "bounded_operation_planner";
   hours: number;
   sinceHours: number;
+  detectHorizonHours: number;
+  requestedQueueHorizonHours: number;
+  cleanupHorizonHours: number;
+  cleanupWindowSource: CleanupWindowSource;
+  cleanupWindow: QueueSummary;
   limit: number;
   pumpOnly: boolean;
   dbState: DbState;
@@ -144,10 +156,35 @@ export type PostRunWorkflowStep = {
 export type PostRunWorkflowPlan = {
   enabled: true;
   operationWindowHours: number;
+  detectHorizonHours: number;
+  cleanupHorizonHours: number;
+  cleanupWindowSource: CleanupWindowSource;
   steps: PostRunWorkflowStep[];
   recommendedFirstStep: PostRunWorkflowStepName | NextRecommendedStep;
   workflowComplete: boolean;
 };
+
+function actionableCount(queue: QueueSummary): number {
+  return queue.metricPendingCount
+    + queue.enrichPendingCount
+    + queue.staleReviewCount
+    + queue.notifyCandidateCount;
+}
+
+export function resolveCleanupWindow(queueState: QueueState): CleanupWindowSelection {
+  const requested = queueState.requestedWindow;
+  const rolling = queueState.rolling168h;
+  const rollingHasOlderActionableWork =
+    rolling.metricPendingCount > requested.metricPendingCount
+    || rolling.enrichPendingCount > requested.enrichPendingCount
+    || rolling.staleReviewCount > requested.staleReviewCount
+    || rolling.notifyCandidateCount > requested.notifyCandidateCount
+    || (actionableCount(requested) === 0 && actionableCount(rolling) > 0);
+
+  return rollingHasOlderActionableWork
+    ? { source: "rolling_168h_backlog", queue: rolling }
+    : { source: "requested_window", queue: requested };
+}
 
 type FirstSeenSourceSnapshot = {
   source?: unknown;
@@ -415,7 +452,12 @@ function buildPostRunWorkflowPlan(
   options: BoundedOperationPlannerOptions,
   stop: ReturnType<typeof getStopBlockers>,
 ): PostRunWorkflowPlan {
-  const queue = input.queueState.requestedWindow;
+  const cleanupWindow = resolveCleanupWindow(input.queueState);
+  const queue = cleanupWindow.queue;
+  const cleanupOptions = {
+    ...options,
+    sinceHours: queue.sinceHours,
+  };
   const metricLimit = options.metricLimit ?? DEFAULT_POST_RUN_METRIC_LIMIT;
   const enrichLimit = options.enrichLimit ?? DEFAULT_POST_RUN_ENRICH_LIMIT;
 
@@ -437,6 +479,9 @@ function buildPostRunWorkflowPlan(
     return {
       enabled: true,
       operationWindowHours: options.hours,
+      detectHorizonHours: options.hours,
+      cleanupHorizonHours: queue.sinceHours,
+      cleanupWindowSource: cleanupWindow.source,
       steps,
       recommendedFirstStep: stop.nextRecommendedStep ?? "stop_due_to_ambiguous_state",
       workflowComplete: false,
@@ -454,6 +499,9 @@ function buildPostRunWorkflowPlan(
     return {
       enabled: true,
       operationWindowHours: options.hours,
+      detectHorizonHours: options.hours,
+      cleanupHorizonHours: queue.sinceHours,
+      cleanupWindowSource: cleanupWindow.source,
       steps: [
         {
           stepName: "no_action_queue_clear",
@@ -490,7 +538,7 @@ function buildPostRunWorkflowPlan(
     stepName: "metric_pending_snapshot",
     status: metricPending ? "ready" : "not_needed",
     reason: metricPending ? "metricPendingCount > 0" : "metricPendingCount = 0",
-    commandCandidate: metricPending ? buildPostRunMetricPendingCommand(options) : null,
+    commandCandidate: metricPending ? buildPostRunMetricPendingCommand(cleanupOptions) : null,
     humanApprovalRequired: metricPending,
     expectedSideEffects: metricPending ? metricEffects.expectedSideEffects : [],
     expectedNonEffects: metricPending ? metricEffects.expectedNonEffects : noWriteNonEffects(),
@@ -506,7 +554,9 @@ function buildPostRunWorkflowPlan(
       : enrichPending
         ? "metricPendingCount = 0 and enrichPendingCount > 0"
         : "enrichPendingCount = 0",
-    commandCandidate: !metricPending && enrichPending ? buildPostRunEnrichPendingCommand(options) : null,
+    commandCandidate: !metricPending && enrichPending
+      ? buildPostRunEnrichPendingCommand(cleanupOptions)
+      : null,
     humanApprovalRequired: !metricPending && enrichPending,
     expectedSideEffects: !metricPending && enrichPending ? enrichEffects.expectedSideEffects : [],
     expectedNonEffects: !metricPending && enrichPending ? enrichEffects.expectedNonEffects : noWriteNonEffects(),
@@ -567,6 +617,9 @@ function buildPostRunWorkflowPlan(
   return {
     enabled: true,
     operationWindowHours: options.hours,
+    detectHorizonHours: options.hours,
+    cleanupHorizonHours: queue.sinceHours,
+    cleanupWindowSource: cleanupWindow.source,
     steps,
     recommendedFirstStep: firstReady?.stepName ?? "no_action_queue_clear",
     workflowComplete: false,
@@ -578,7 +631,12 @@ export function buildBoundedOperationPlan(
   options: BoundedOperationPlannerOptions,
 ): BoundedOperationPlan {
   const queueStateAvailable = input.queueStateAvailable ?? true;
-  const queue = input.queueState.requestedWindow;
+  const cleanupWindow = resolveCleanupWindow(input.queueState);
+  const queue = cleanupWindow.queue;
+  const cleanupOptions = {
+    ...options,
+    sinceHours: queue.sinceHours,
+  };
   const stop = getStopBlockers(input.notificationState, queueStateAvailable);
   const hasStopBlocker = stop.blockedBy.length > 0;
   const operationReadiness = buildOperationReadiness({
@@ -597,7 +655,7 @@ export function buildBoundedOperationPlan(
     nextRecommendedStep = stop.nextRecommendedStep;
   } else if (queue.metricPendingCount > 0) {
     nextRecommendedStep = "metric_pending_snapshot";
-    redCommandCandidate = buildMetricPendingCommand(options);
+    redCommandCandidate = buildMetricPendingCommand(cleanupOptions);
     humanApprovalRequired = true;
     expectedSideEffects = [
       "external GeckoTerminal fetch on approved Red execution",
@@ -614,7 +672,7 @@ export function buildBoundedOperationPlan(
     ];
   } else if (queue.enrichPendingCount > 0) {
     nextRecommendedStep = "enrich_pending_rescore";
-    redCommandCandidate = buildEnrichPendingCommand(options);
+    redCommandCandidate = buildEnrichPendingCommand(cleanupOptions);
     humanApprovalRequired = true;
     expectedSideEffects = [
       "external GeckoTerminal token snapshot fetch on approved Red execution",
@@ -659,6 +717,11 @@ export function buildBoundedOperationPlan(
     mode: "bounded_operation_planner",
     hours: options.hours,
     sinceHours: options.sinceHours,
+    detectHorizonHours: options.hours,
+    requestedQueueHorizonHours: input.queueState.requestedWindow.sinceHours,
+    cleanupHorizonHours: queue.sinceHours,
+    cleanupWindowSource: cleanupWindow.source,
+    cleanupWindow: queue,
     limit: options.limit,
     pumpOnly: options.pumpOnly,
     dbState: input.dbState,

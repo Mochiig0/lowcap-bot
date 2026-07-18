@@ -55,6 +55,31 @@ they do not convert the skipped in-run report phase to success and do not
 authorize a retry. Next work is a Yellow failure-path review using read-only
 and fixture evidence.
 
+Yellow failure-path review, 2026-07-18: safe selector reconstruction identified
+token id `8809` as the only still-pending member of the first 50-row enrich
+batch. Its Metric has price/FDV/reserve/top-pool presence, and neighboring
+selected rows with the same safe shape completed. Because the bounded log did
+not retain the original item error class/message, the historical provider vs
+validation vs application cause is not recoverable without an unsafe/live
+retry. The confirmed issue was summary classification: `errorCount=1` was
+treated as provider failure despite `rateLimited=false` and successful
+continuation inside the batch.
+
+New summaries distinguish provider/rate-limit and item errors. A provider or
+rate-limit still skips later phases. A lone item error yields partial success,
+stops later enrich cycles without immediate retry, and allows `report_review`
+and `notification_plan_review` to run. Safe category, status, exception class,
+and token id are retained; provider bodies, full item payloads, rawJson, and
+text scoring details are not.
+
+Planner readiness now separates a 3H detect horizon from cleanup. With current
+requested 3H `enrichPending=0` and rolling 168H `enrichPending=130`, both
+operator plan-only and the 3H post-run planner select the rolling cleanup
+horizon (`10080` minutes) and recommend Metric-covered enrich work. The
+remaining backlog is actionable through the next separately approved normal
+operator cycle; no individual recovery write or second Red occurred in this
+Yellow review.
+
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during
 detect write, then was manually interrupted about 11h32m after start and

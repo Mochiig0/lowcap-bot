@@ -56,7 +56,10 @@ The per-cycle Metric/enrich limit remains `50`, matching the existing bounded
 provider cadence. Four internal cycles give a maximum of `200` rows, enough for
 the known 180-row rehearsal backlog without increasing the request batch size.
 Each phase stops early when no work remains. A provider/rate-limit error stops
-the current phase and all later phases; enrich is intentionally skipped after
+the current phase and all later phases. An isolated enrich item error preserves
+successful writes, stops later enrich cycles to prevent immediate reselection,
+marks the result partial, and continues read-only reports/plans. Enrich is
+intentionally skipped after
 a Metric failure even though some older Metric-covered rows may exist, because
 the cycle does not hold a frozen selector snapshot that would make partial
 continuation unambiguous. Retry and compensation remain manual recovery work.
@@ -110,6 +113,32 @@ command from this result. The next cadence task is a Yellow read-only/fixture
 failure review. The operator cycle remains the normal operating entry point;
 individual Metric/enrich commands remain diagnostic/recovery-only and any
 future recovery execution needs a separate Red approval.
+
+Yellow failure review, 2026-07-18: the historical runner classification was
+too broad. The enrich CLI had completed `49` rows and continued past one
+non-rate-limited item error, but the runner converted any `errorCount > 0` to
+`provider_or_rate_limit_error`. Safe selector reconstruction identified token
+id `8809` (`8A5371rW...MKpump`) as the only still-pending row in that batch.
+The log did not retain its original error class/message, so historical
+provider/data/application cause remains unknown; no live retry was used to
+infer it.
+
+The current contract distinguishes provider/rate-limit errors from validation
+or application item errors. It reports safe category, HTTP status, exception
+class, and token id; it never includes provider bodies or full item payloads.
+Provider/rate-limit remains fail-conservative. Item errors produce
+`status=partial`, `stopReason=item_error_no_automatic_retry`, preserve prior
+success, stop further enrich cycles, and allow read-only reports and
+Notification plans. A future normal operator cycle may select the failed row
+once; no same-run retry or compensation is introduced.
+
+The cleanup window is also explicit. `hours=3` remains the detect horizon.
+When requested 3H work is clear but rolling 168H has older actionable work,
+plan and execute use `cleanupSinceMinutes=10080`. Current plan-only state is
+requested 3H `enrichPending=0`, rolling 168H `enrichPending=130`, with
+`cleanupWindowSource=rolling_168h_backlog`; the remaining rows are therefore
+visible and selectable by the normal operator cycle. This Yellow review made
+no provider fetch, current-DB write, retry, or Red execution.
 
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.

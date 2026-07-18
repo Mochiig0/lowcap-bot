@@ -90,6 +90,40 @@ Bounded operator cycle Red result, 2026-07-18:
   enrich recovery from this result; the next task is a Yellow read-only/fixture
   review of the enrich error and the remaining queue.
 
+Operator enrich failure Yellow review, 2026-07-18:
+
+- The review used targeted sanitized-log searches, read-only Prisma queries,
+  and temp-SQLite/provider fixtures only. It made no live provider call and no
+  change to the current `4475 / 1986 / 40 / 1` DB.
+- The bounded log retained only cycle aggregates, so it could not identify the
+  failed row or preserve its original error class/message. Reconstructing the
+  exact Metric-covered selector order identified token id `8809`
+  (`8A5371rW...MKpump`) at position `14 / 50` as the only row still
+  enrich-pending. It has one Metric with price/FDV/reserve/top-pool presence;
+  four adjacent selected rows have the same safe Metric shape and completed
+  enrich/rescore. There is no DB-shape evidence that distinguishes provider,
+  validation, or application cause for the historical item.
+- The confirmed root cause is a summary/category bug: the runner treated every
+  `errorCount > 0` as `provider_or_rate_limit_error` even though the child CLI
+  had continued safely through the non-rate-limited batch and completed `49`
+  rows. New CLI summaries preserve safe `providerErrorCount`,
+  `itemErrorCount`, category, HTTP status, exception class, and token id.
+- A provider/rate-limit error remains fail-conservative and skips later phases.
+  An isolated item error now keeps successful updates, stops additional enrich
+  cycles with `item_error_no_automatic_retry`, reports overall `partial`, and
+  continues read-only report/Notification-plan phases. The failed row stays
+  actionable for a later normal operator cycle; there is still no immediate
+  retry, compensation, or individual recovery execution.
+- The planner mismatch was real: requested 3H had no pending rows while rolling
+  168H had `enrichPending=130`. Detect horizon remains 3H, but cleanup now
+  selects the rolling backlog (`cleanupHorizonHours=168`,
+  `cleanupSinceMinutes=10080`, source `rolling_168h_backlog`). Both
+  `ops:run:bounded -- --operatorCycle --plan` and the 3H post-run planner now
+  recommend Metric-covered enrich cleanup instead of reporting a clear queue.
+- Focused planner/runner/enrich fixture tests and TypeScript verification pass.
+  The next live candidate is a newly approved one-command operator cycle, not
+  an individual 50-row enrich loop. This Yellow review did not execute it.
+
 Smoke stabilization note, 2026-06-30:
 
 - Yellow smoke failure at `metric snapshot geckoterminal watch rate limit

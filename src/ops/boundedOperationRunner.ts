@@ -5,10 +5,12 @@ import path from "node:path";
 import { GECKOTERMINAL_NEW_POOLS_SOURCE } from "../scoring/buildGeckoterminalNewPoolsDetectorCandidate.js";
 import type {
   BoundedOperationPlannerInput,
+  CleanupWindowSource,
   DbState,
   NotificationState,
   QueueState,
 } from "./boundedOperationPlanner.js";
+import { resolveCleanupWindow } from "./boundedOperationPlanner.js";
 
 const DEFAULT_HOURS = 6;
 const DEFAULT_METRIC_LIMIT = 50;
@@ -54,6 +56,7 @@ export type BoundedOperationRunnerOptions = {
   interItemDelayMs: number;
   postRunMetricCycles: number;
   postRunEnrichCycles: number;
+  cleanupSinceMinutes?: number;
   executeRequested: boolean;
   repoRoot: string;
 };
@@ -78,6 +81,7 @@ export type BoundedOperationRunnerPhaseStatus =
 export type BoundedOperationRunnerStatus =
   | "planned"
   | "completed"
+  | "partial"
   | "failed"
   | "blocked"
   | "interrupted";
@@ -192,6 +196,11 @@ export type BoundedOperatorCycleSummary = {
   skippedPhases: string[];
   failedPhases: string[];
   stopReason: string | null;
+  partialPhase: BoundedOperationRunnerPhaseName | null;
+  detectHorizonHours: number;
+  cleanupHorizonHours: number;
+  cleanupSinceMinutes: number;
+  cleanupWindowSource: CleanupWindowSource;
   elapsedMs: number;
   checkpointBefore: {
     file: string | null;
@@ -229,8 +238,11 @@ export type BoundedOperatorCycleSummary = {
     error: number | null;
   };
   providerErrorCountByPhase: Record<string, number>;
+  itemErrorCountByPhase: Record<string, number>;
   firstErrorCategory: string | null;
   firstHttpStatus: number | null;
+  firstErrorClass: string | null;
+  firstErrorTokenId: number | null;
   queueAfter: QueueState;
   growthAfter: Record<string, unknown> | null;
   notifyCandidateCount: number;
@@ -250,6 +262,10 @@ export type BoundedOperationRunnerReport = {
   hours: number;
   pumpOnly: boolean;
   computedSinceMinutes: number;
+  detectHorizonHours: number;
+  cleanupHorizonHours: number;
+  cleanupSinceMinutes: number;
+  cleanupWindowSource: CleanupWindowSource;
   maxIterations: number;
   intervalSeconds: number;
   detectLimitPerCycle: 1;
@@ -520,7 +536,7 @@ function buildMetricCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
     "--limit",
     String(options.metricLimit),
     "--sinceMinutes",
-    String(computeSinceMinutes(options)),
+    String(options.cleanupSinceMinutes ?? computeSinceMinutes(options)),
     "--minGapMinutes",
     String(METRIC_MIN_GAP_MINUTES),
     "--interItemDelayMs",
@@ -555,7 +571,7 @@ function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
     "--limit",
     String(options.enrichLimit),
     "--sinceMinutes",
-    String(computeSinceMinutes(options)),
+    String(options.cleanupSinceMinutes ?? computeSinceMinutes(options)),
     "--interItemDelayMs",
     String(options.interItemDelayMs),
     "--onlyMetricCovered",
@@ -646,6 +662,7 @@ function buildBoundedReadinessCommand(): PhaseCommand {
 }
 
 function buildBoundedPlannerCommand(options: BoundedOperationRunnerOptions): PhaseCommand {
+  const cleanupSinceHours = (options.cleanupSinceMinutes ?? computeSinceMinutes(options)) / 60;
   const args = [
     "-s",
     "ops:plan:bounded",
@@ -653,7 +670,7 @@ function buildBoundedPlannerCommand(options: BoundedOperationRunnerOptions): Pha
     "--hours",
     String(options.hours),
     "--sinceHours",
-    String(options.hours),
+    String(cleanupSinceHours),
     "--limit",
     String(options.metricLimit),
     ...optionalPumpOnlyArg(options.pumpOnly),
@@ -803,6 +820,15 @@ export function buildBoundedOperationRunnerPlan(
   options: BoundedOperationRunnerOptions,
 ): BoundedOperationRunnerReport {
   const computedSinceMinutes = computeSinceMinutes(options);
+  const cleanupWindow = resolveCleanupWindow(input.queueState);
+  const cleanupSinceMinutes = options.cleanupSinceMinutes
+    ?? (cleanupWindow.source === "rolling_168h_backlog"
+      ? Math.max(1, Math.ceil(cleanupWindow.queue.sinceHours * 60))
+      : computedSinceMinutes);
+  const commandOptions = {
+    ...options,
+    cleanupSinceMinutes,
+  };
   const maxIterations = computeMaxIterations(options);
   const checkpointState = readCheckpointSafeCursorSummary(options.checkpointFile ?? null);
   const stop = buildStopBlockers(input, options, checkpointState);
@@ -810,14 +836,14 @@ export function buildBoundedOperationRunnerPlan(
   const plannedStatus: BoundedOperationRunnerPhaseStatus = blocked ? "blocked" : "planned";
 
   const detectCommand = buildDetectCommand(options);
-  const metricCommands = buildMetricCycleCommands(options);
-  const enrichCommands = buildEnrichCycleCommands(options);
+  const metricCommands = buildMetricCycleCommands(commandOptions);
+  const enrichCommands = buildEnrichCycleCommands(commandOptions);
   const reportCommands = [
     buildReviewQueueCommand(options),
     buildReviewQueueCommand(options, 168),
     buildGrowthReportCommand(options),
     buildBoundedReadinessCommand(),
-    buildBoundedPlannerCommand(options),
+    buildBoundedPlannerCommand(commandOptions),
   ];
   const notificationCommands = buildNotificationPlanCommands();
 
@@ -836,6 +862,10 @@ export function buildBoundedOperationRunnerPlan(
             ? null
             : !isPathInside(options.checkpointFile, options.repoRoot),
         smokeUsed: false,
+        detectHorizonHours: options.hours,
+        cleanupHorizonHours: cleanupSinceMinutes / 60,
+        cleanupSinceMinutes,
+        cleanupWindowSource: cleanupWindow.source,
       },
       blockedBy: stop.blockedBy,
       stopConditionCodes: stop.stopConditionCodes,
@@ -864,6 +894,7 @@ export function buildBoundedOperationRunnerPlan(
       summary: {
         cyclesPlanned: options.postRunMetricCycles,
         cyclesExecuted: 0,
+        cleanupSinceMinutes,
         stoppedReason: options.postRunMetricCycles === 0 ? "cycles_zero" : null,
         cycleCommandCandidates: metricCommands.map((command) => command.commandCandidate),
       },
@@ -888,6 +919,7 @@ export function buildBoundedOperationRunnerPlan(
       summary: {
         cyclesPlanned: options.postRunEnrichCycles,
         cyclesExecuted: 0,
+        cleanupSinceMinutes,
         stoppedReason: options.postRunEnrichCycles === 0 ? "cycles_zero" : null,
         cycleCommandCandidates: enrichCommands.map((command) => command.commandCandidate),
       },
@@ -941,6 +973,10 @@ export function buildBoundedOperationRunnerPlan(
     hours: options.hours,
     pumpOnly: options.pumpOnly,
     computedSinceMinutes,
+    detectHorizonHours: options.hours,
+    cleanupHorizonHours: cleanupSinceMinutes / 60,
+    cleanupSinceMinutes,
+    cleanupWindowSource: cleanupWindow.source,
     maxIterations,
     intervalSeconds: options.intervalSeconds,
     detectLimitPerCycle: 1,
@@ -1120,6 +1156,8 @@ function extractProgressSummaryFields(value: unknown): Record<string, unknown> {
     skipped: ["skipped", "skippedCount"],
     error: ["error", "errorCount"],
     providerErrorCount: ["providerErrorCount"],
+    itemErrorCount: ["itemErrorCount"],
+    firstErrorTokenId: ["firstErrorTokenId"],
     firstHttpStatus: ["firstHttpStatus"],
     contextWritten: ["contextWritten", "contextWriteCount"],
     tokenWriteCount: ["tokenWriteCount"],
@@ -1168,6 +1206,10 @@ function extractProgressSummaryFields(value: unknown): Record<string, unknown> {
   if (firstErrorCategory !== undefined) {
     fields.firstErrorCategory = firstErrorCategory;
   }
+  const firstErrorClass = stringFromAny(source, ["firstErrorClass"]);
+  if (firstErrorClass !== undefined) {
+    fields.firstErrorClass = firstErrorClass;
+  }
 
   return fields;
 }
@@ -1185,6 +1227,8 @@ function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
     skipped: ["skipped", "skippedCount"],
     error: ["error", "errorCount"],
     providerErrorCount: ["providerErrorCount"],
+    itemErrorCount: ["itemErrorCount"],
+    firstErrorTokenId: ["firstErrorTokenId"],
     firstHttpStatus: ["firstHttpStatus"],
     contextWritten: ["contextWritten", "contextWriteCount"],
     tokenWriteCount: ["tokenWriteCount"],
@@ -1223,6 +1267,10 @@ function extractCycleSummaryFields(value: unknown): Record<string, unknown> {
   const firstErrorCategory = stringFromAny(source, ["firstErrorCategory"]);
   if (firstErrorCategory !== undefined) {
     fields.firstErrorCategory = firstErrorCategory;
+  }
+  const firstErrorClass = stringFromAny(source, ["firstErrorClass"]);
+  if (firstErrorClass !== undefined) {
+    fields.firstErrorClass = firstErrorClass;
   }
 
   return fields;
@@ -1381,7 +1429,16 @@ function cycleHasProviderError(fields: Record<string, unknown>): boolean {
     || fields.http429Present === true
     || fields.rateLimited === true
     || fields.abortedDueToRateLimit === true
-    || (asNumber(fields.error) ?? 0) > 0;
+    || (asNumber(fields.providerErrorCount) ?? 0) > 0;
+}
+
+function cycleHasItemError(fields: Record<string, unknown>): boolean {
+  const explicitCount = asNumber(fields.itemErrorCount);
+  if (explicitCount !== undefined) {
+    return explicitCount > 0;
+  }
+
+  return (asNumber(fields.error) ?? 0) > 0 && !cycleHasProviderError(fields);
 }
 
 function metricCycleHasUnexpectedWrite(fields: Record<string, unknown>): boolean {
@@ -1843,6 +1900,12 @@ async function executeCyclePhase(
       return false;
     }
 
+    if (phaseItem.phase === "enrich_rescore" && cycleHasItemError(fields)) {
+      stoppedReason = "item_error_no_automatic_retry";
+      report.partialPhase = phaseItem.phase;
+      break;
+    }
+
     if (phaseItem.phase === "metric_pending_snapshot" && metricCycleHasUnexpectedWrite(fields)) {
       stoppedReason = "unexpected_metric_phase_side_effect";
       phaseItem.status = "failed";
@@ -1896,7 +1959,7 @@ async function executeCyclePhase(
   emitProgress(logger, {
     event: "phase",
     phase: phaseItem.phase,
-    status: "completed",
+    status: stoppedReason === "item_error_no_automatic_retry" ? "partial" : "completed",
     durationMs: Date.now() - phaseStartedAt,
     summary: extractProgressSummaryFields(phaseItem.summary),
   });
@@ -2173,21 +2236,28 @@ function buildOperatorSummary(
     ?? asNumber(detectSummary.failedCount)
     ?? 0;
   const metricProviderErrors = sumCycleField(metricPhase, "providerErrorCount") ?? 0;
-  const enrichProviderErrors =
-    sumCycleField(enrichPhase, "providerErrorCount")
-    ?? sumCycleField(enrichPhase, "error")
-    ?? 0;
+  const enrichProviderErrors = sumCycleField(enrichPhase, "providerErrorCount") ?? 0;
+  const enrichItemErrors =
+    sumCycleField(enrichPhase, "itemErrorCount")
+    ?? Math.max(0, (sumCycleField(enrichPhase, "error") ?? 0) - enrichProviderErrors);
   const enrichRateLimitCount = sumCycleField(enrichPhase, "rateLimitedCount") ?? 0;
   const firstErrorCategory =
     (detectProviderErrors > 0 ? "detect_cycle_failed" : null)
     ?? firstCycleStringField(metricPhase, "firstErrorCategory")
     ?? firstCycleStringField(enrichPhase, "firstErrorCategory")
     ?? (enrichRateLimitCount > 0 ? "http_429" : null)
-    ?? (enrichProviderErrors > 0 ? "enrich_error" : null);
+    ?? (enrichProviderErrors > 0 ? "provider_error" : null)
+    ?? (enrichItemErrors > 0 ? "item_error" : null);
   const firstHttpStatus =
     firstCycleNumberField(metricPhase, "firstHttpStatus")
     ?? firstCycleNumberField(enrichPhase, "firstHttpStatus")
     ?? (enrichRateLimitCount > 0 ? 429 : null);
+  const firstErrorClass =
+    firstCycleStringField(metricPhase, "firstErrorClass")
+    ?? firstCycleStringField(enrichPhase, "firstErrorClass");
+  const firstErrorTokenId =
+    firstCycleNumberField(metricPhase, "firstErrorTokenId")
+    ?? firstCycleNumberField(enrichPhase, "firstErrorTokenId");
   const dbCountsBefore = coreDbCounts(report.dbState);
   const dbCountsAfter = coreDbCounts(report.finalDbState);
   const tokenDelta = dbCountsAfter.tokenCount - dbCountsBefore.tokenCount;
@@ -2205,11 +2275,12 @@ function buildOperatorSummary(
     }
     return Math.max(enriched ?? 0, rescored ?? 0);
   })();
-  const stopReason =
-    report.stopConditionCodes[0]
-    ?? report.metricCyclesStoppedReason
-    ?? report.enrichCyclesStoppedReason
-    ?? null;
+  const stopReason = report.partialPhase === "enrich_rescore"
+    ? report.enrichCyclesStoppedReason
+    : report.stopConditionCodes[0]
+      ?? report.metricCyclesStoppedReason
+      ?? report.enrichCyclesStoppedReason
+      ?? null;
 
   return {
     overallStatus: progressSummary.overallStatus,
@@ -2217,6 +2288,11 @@ function buildOperatorSummary(
     skippedPhases: progressSummary.phasesSkipped,
     failedPhases: progressSummary.phasesFailed,
     stopReason,
+    partialPhase: report.partialPhase,
+    detectHorizonHours: report.detectHorizonHours,
+    cleanupHorizonHours: report.cleanupHorizonHours,
+    cleanupSinceMinutes: report.cleanupSinceMinutes,
+    cleanupWindowSource: report.cleanupWindowSource,
     elapsedMs: progressSummary.elapsedMs,
     checkpointBefore: {
       file: report.checkpointFile,
@@ -2266,8 +2342,18 @@ function buildOperatorSummary(
       report_review: 0,
       notification_plan_review: 0,
     },
+    itemErrorCountByPhase: {
+      preflight: 0,
+      detect_write: 0,
+      metric_pending_snapshot: 0,
+      enrich_rescore: enrichItemErrors,
+      report_review: 0,
+      notification_plan_review: 0,
+    },
     firstErrorCategory,
     firstHttpStatus,
+    firstErrorClass,
+    firstErrorTokenId,
     queueAfter: report.finalQueueState,
     growthAfter: growthSummaryFromReportPhase(reportPhase),
     notifyCandidateCount: report.finalQueueState.rolling168h.notifyCandidateCount,
@@ -2275,7 +2361,9 @@ function buildOperatorSummary(
     retryCandidateCount: report.finalNotificationState.retryCandidateCount,
     telegramSendCount: 0,
     nextRecommendedStep:
-      report.stopConditionCodes.length === 0
+      report.partialPhase === "enrich_rescore"
+        ? "review_enrich_item_error_before_next_operator_cycle"
+        : report.stopConditionCodes.length === 0
         ? nextStepFromReportPhase(reportPhase)
           ?? "review_final_summary_then_run_next_operator_cycle_or_hold_for_telegram_gate"
         : "review_failure_summary_no_automatic_retry",
@@ -2314,6 +2402,8 @@ function buildProgressSummary(
     ? "blocked"
     : report.blockedBy.length > 0 || report.stopConditionCodes.length > 0 || phasesFailed.length > 0
       ? "failed"
+      : report.partialPhase !== null
+        ? "partial"
       : report.executeRequested
         ? "completed"
         : "planned";
@@ -2375,6 +2465,10 @@ export async function runBoundedOperationRunner(
   const runStartedAt = Date.now();
   const startedAt = new Date(runStartedAt).toISOString();
   const report = buildBoundedOperationRunnerPlan(input, options);
+  const commandOptions = {
+    ...options,
+    cleanupSinceMinutes: report.cleanupSinceMinutes,
+  };
   report.startedAt = startedAt;
 
   if (!options.executeRequested || report.blockedBy.length > 0) {
@@ -2394,6 +2488,10 @@ export async function runBoundedOperationRunner(
           readOnly: report.progressSummary.readOnly,
           dryRun: report.progressSummary.dryRun,
           computedSinceMinutes: report.computedSinceMinutes,
+          detectHorizonHours: report.detectHorizonHours,
+          cleanupHorizonHours: report.cleanupHorizonHours,
+          cleanupSinceMinutes: report.cleanupSinceMinutes,
+          cleanupWindowSource: report.cleanupWindowSource,
           maxIterations: report.maxIterations,
           postRunMetricCycles: report.postRunMetricCycles,
           postRunEnrichCycles: report.postRunEnrichCycles,
@@ -2457,7 +2555,7 @@ export async function runBoundedOperationRunner(
         break;
       }
 
-      const commands = commandsForPhase(phaseItem.phase, options);
+      const commands = commandsForPhase(phaseItem.phase, commandOptions);
       if (commands.length === 0) {
         phaseItem.status = "skipped";
         emitProgress(logger, {
@@ -2674,6 +2772,10 @@ export async function runBoundedOperationRunner(
       readOnly: report.progressSummary.readOnly,
       dryRun: report.progressSummary.dryRun,
       computedSinceMinutes: report.computedSinceMinutes,
+      detectHorizonHours: report.detectHorizonHours,
+      cleanupHorizonHours: report.cleanupHorizonHours,
+      cleanupSinceMinutes: report.cleanupSinceMinutes,
+      cleanupWindowSource: report.cleanupWindowSource,
       maxIterations: report.maxIterations,
       postRunMetricCycles: report.postRunMetricCycles,
       postRunEnrichCycles: report.postRunEnrichCycles,

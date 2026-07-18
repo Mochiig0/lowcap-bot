@@ -105,9 +105,19 @@ Boundary rules:
   non-zero detect watch `failedCount` as failure even when the child exit code
   is zero, snapshots DB counts after each phase, and stops on a phase boundary
   violation. Metric failure does not continue into enrich automatically.
+- detect and cleanup horizons are separate. The operator preset keeps a 3H
+  detect watch, while planner/runner cleanup selects rolling 168H when that
+  view contains older actionable Metric/enrich/report work. Plans and final
+  summaries expose both horizons and the cleanup selection source.
+- enrich failures are classified at the child boundary. Provider/rate-limit
+  failures stop the operation conservatively. A non-provider item error keeps
+  successful writes as partial success, stops later enrich cycles to avoid
+  immediate reselection, and permits read-only report/planner phases. It does
+  not add retry or recovery execution.
 - child stdout/stderr and provider bodies are not retained in the runner
   report. Only allowlisted command aggregates needed by the final operator
-  summary, such as growth and next-step planner fields, cross that boundary.
+  summary, such as growth, next-step planner fields, and safe error category /
+  HTTP status / exception class / token id, cross that boundary.
 
 Minimal handoff payload:
 

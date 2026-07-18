@@ -40,10 +40,11 @@ source-mismatched checkpoints before detect, fails on detect watch
 `failedCount`, records phase DB-count deltas, rejects unexpected phase writes,
 and retains only allowlisted report aggregates. The four `limit=50` internal
 Metric/enrich cycles stop early on empty selection and stop the whole remaining
-workflow on provider/rate-limit failure; there is no automatic retry,
-compensation, or fallback enrich. The next slice remains one human-approved
-Red run of the exact one-command operator cycle, not another manual 50-row
-loop.
+workflow on provider/rate-limit failure. Isolated item errors are recorded as
+partial, stop further enrich cycles without immediate reselection, and allow
+read-only reports/plans to run; there is no automatic retry, compensation, or
+fallback enrich. The planner also separates the 3H detect horizon from a
+rolling 168H cleanup horizon when older actionable backlog exists.
 
 Operational trial update, 2026-07-18: that exact Red command ran once. Detect
 completed `180` iterations and imported `179` Tokens; Metric completed all four
@@ -57,14 +58,22 @@ rate-limited). The runner conservatively stopped with structured
 effects stayed `0`. The 168h read-only queue now has `metricPending=0` and
 `enrichPending=130`.
 
-The next slice is **Yellow operator-cycle enrich failure review**, using only
-the captured final summary, read-only DB/report evidence, and fixtures. It
-must determine the error category safely and check whether the 3h planner
-window hiding the older 168h enrich remainder needs a planner/docs correction.
-Do not run a second operator Red, an individual enrich write, retry, or
-compensation command from this result. Individual Metric/enrich loops remain
-diagnostic/recovery-only and require a fresh approval if a later recovery Red
-is proposed.
+The Yellow operator-cycle enrich failure review is complete. Safe selector
+reconstruction identified token id `8809` as the one remaining failed row, but
+the historical sanitized log did not retain enough row-level classification to
+decide whether its original cause was provider, validation, or application.
+The actionable defect was the runner's summary classification: every item
+error was treated as a provider failure. Fixture coverage now distinguishes
+provider/rate-limit from item validation/application errors and preserves
+partial success without automatic retry.
+
+The 3H planner visibility defect is also fixed. Current requested 3H pending is
+`0`, rolling 168H `enrichPending=130`, and plan-only selects
+`cleanupSinceMinutes=10080` while leaving detect at 3H. The next candidate is a
+freshly approved **Red one-command operator cycle** using
+`pnpm -s ops:run:bounded -- --operatorCycle --execute`; it is not an individual
+enrich recovery and must still pass normal Red preflight. Individual
+Metric/enrich loops remain diagnostic/recovery-only.
 
 Update, 2026-07-01:
 

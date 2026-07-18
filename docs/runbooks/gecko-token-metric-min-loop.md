@@ -27,7 +27,10 @@ cadence. Telegram remains planner-only in the bounded operator cycle.
 The operator preset keeps `limit=50` per Metric/enrich batch and performs up to
 four batches internally, so the old operator-driven 50-row repetition is no
 longer the normal loop. It stops early on an empty selector and stops all later
-phases on provider/rate-limit failure. Do not manually continue enrich after a
+phases on provider/rate-limit failure. A non-provider item error stops later
+enrich batches without reselecting the failed row in the same run, preserves
+completed updates as partial success, and continues read-only reports/plans.
+Do not manually continue enrich after a
 failed Metric phase unless a separate diagnostic/recovery review establishes a
 new exact command. The final summary provides per-phase DB count deltas and
 safe queue/growth/Notification aggregates without subprocess output tails or
@@ -48,6 +51,20 @@ This result does not reinstate the old manual 50-row loop as normal operation.
 Keep individual commands in this runbook diagnostic/recovery-only. The next
 step is Yellow analysis of the captured enrich failure and fixture coverage;
 any later recovery write needs a new exact command and separate Red approval.
+
+Yellow follow-up, 2026-07-18: safe DB reconstruction found token id `8809` as
+the only still-pending row from the first enrich batch. The old bounded summary
+did not retain enough error detail to classify that historical item itself;
+the confirmed defect was that the runner labeled every item error as provider
+failure. The CLI/runner now distinguish provider/rate-limit from validation or
+application item errors and keep immediate retry disabled.
+
+The remaining `enrichPending=130` is no longer hidden by an empty requested 3H
+window. The operator cycle keeps detect at 3H but chooses rolling 168H cleanup
+(`cleanupSinceMinutes=10080`) when older actionable rows exist. Plan-only now
+shows that cleanup horizon and selects `--onlyMetricCovered`; individual
+50-row commands remain diagnostic/recovery-only. No live recovery or write was
+run during the Yellow review.
 
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for

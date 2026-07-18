@@ -55,6 +55,13 @@ type TokenEnrichRescoreGeckoterminalOutput = {
     skippedNonPumpCount: number;
     okCount: number;
     errorCount: number;
+    providerErrorCount: number;
+    itemErrorCount: number;
+    errorCategoryCounts: Record<string, number>;
+    firstErrorCategory: string | null;
+    firstHttpStatus: number | null;
+    firstErrorClass: string | null;
+    firstErrorTokenId: number | null;
     enrichWriteCount: number;
     rescoreWriteCount: number;
     contextAvailableCount: number;
@@ -76,6 +83,7 @@ type TokenEnrichRescoreGeckoterminalOutput = {
   };
   items: Array<{
     token: {
+      id: number;
       mint: string;
       metadataStatus: string;
       currentSource: string | null;
@@ -123,6 +131,9 @@ type TokenEnrichRescoreGeckoterminalOutput = {
       metaplexContextUpdated: boolean;
     };
     error?: string;
+    errorCategory?: string;
+    httpStatus?: number | null;
+    errorClass?: string;
   }>;
 };
 
@@ -159,6 +170,7 @@ async function runTokenEnrichRescoreGeckoterminal(
   options?: {
     databaseUrl?: string;
     geckoSnapshotFile?: string;
+    geckoSnapshotFileOnce?: string;
     geckoSnapshotErrorOnce?: string;
     metaplexFixtureFile?: string;
     helperShadow?: boolean;
@@ -193,6 +205,9 @@ async function runTokenEnrichRescoreGeckoterminal(
           ...(options?.databaseUrl ? { DATABASE_URL: options.databaseUrl } : {}),
           ...(options?.geckoSnapshotFile
             ? { GECKOTERMINAL_TOKEN_SNAPSHOT_FILE: options.geckoSnapshotFile }
+            : {}),
+          ...(options?.geckoSnapshotFileOnce
+            ? { GECKOTERMINAL_TOKEN_SNAPSHOT_FILE_ONCE: options.geckoSnapshotFileOnce }
             : {}),
           ...(options?.geckoSnapshotErrorOnce
             ? { GECKOTERMINAL_TOKEN_SNAPSHOT_ERROR_ONCE: options.geckoSnapshotErrorOnce }
@@ -321,6 +336,16 @@ function assertSummaryMatchesItems(
     parsed.summary.notifySentCount,
     items.filter((item) => item.notifySent).length,
   );
+  assert.equal(
+    parsed.summary.providerErrorCount,
+    items.filter(
+      (item) => item.errorCategory === "provider_error" || item.errorCategory === "rate_limit",
+    ).length,
+  );
+  assert.equal(
+    parsed.summary.itemErrorCount,
+    parsed.summary.errorCount - parsed.summary.providerErrorCount,
+  );
   assert.equal(parsed.summary.rateLimited, parsed.summary.rateLimitedCount > 0);
   if (parsed.summary.abortedDueToRateLimit) {
     assert.equal(parsed.summary.rateLimited, true);
@@ -366,6 +391,7 @@ async function seedBatchToken(
     name?: string | null;
     symbol?: string | null;
     metadataStatus?: string;
+    metricCovered?: boolean;
   },
 ): Promise<void> {
   const db = new PrismaClient({
@@ -377,7 +403,7 @@ async function seedBatchToken(
   });
 
   try {
-    await db.token.create({
+    const token = await db.token.create({
       data: {
         mint: input.mint,
         source: GECKO_SOURCE,
@@ -388,6 +414,15 @@ async function seedBatchToken(
         importedAt: input.createdAt,
       },
     });
+    if (input.metricCovered) {
+      await db.metric.create({
+        data: {
+          tokenId: token.id,
+          source: "fixture.metric",
+          observedAt: input.createdAt,
+        },
+      });
+    }
   } finally {
     await db.$disconnect();
   }
@@ -1805,6 +1840,10 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.equal(parsed.summary.selectedCount, 3);
       assert.equal(parsed.summary.okCount, 0);
       assert.equal(parsed.summary.errorCount, 1);
+      assert.equal(parsed.summary.providerErrorCount, 1);
+      assert.equal(parsed.summary.itemErrorCount, 0);
+      assert.equal(parsed.summary.firstErrorCategory, "rate_limit");
+      assert.equal(parsed.summary.firstHttpStatus, 429);
       assert.equal(parsed.summary.rateLimited, true);
       assert.equal(parsed.summary.rateLimitedCount, 1);
       assert.equal(parsed.summary.abortedDueToRateLimit, true);
@@ -1819,6 +1858,112 @@ test("tokenEnrichRescoreGeckoterminal boundary", async (t) => {
       assert.match(result.stderr, /abortedDueToRateLimit=true/);
       assert.match(result.stderr, /skippedAfterRateLimit=2/);
       assert.match(result.stderr, /interItemDelayCount=0/);
+    });
+  });
+
+  await t.test("keeps an isolated validation failure pending without selecting Metric-zero rows", async () => {
+    await withTempDir(async (dir) => {
+      const databaseUrl = `file:${join(dir, "isolated-validation-error.db")}`;
+      const newestMint = "GeckoValidationNewest11111111111111111111pump";
+      const coveredMint = "GeckoValidationCovered1111111111111111111pump";
+      const uncoveredMint = "GeckoValidationUncovered11111111111111111pump";
+      const validSnapshotFile = join(dir, "valid-gecko-snapshot.json");
+      const invalidSnapshotFile = join(dir, "invalid-gecko-snapshot.json");
+      const metaplexFixtureFile = join(dir, "metaplex-not-found.json");
+      const now = Date.now();
+
+      await runDbPush(databaseUrl);
+      await seedBatchToken(databaseUrl, {
+        mint: uncoveredMint,
+        createdAt: new Date(now - 3 * 60_000),
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: coveredMint,
+        createdAt: new Date(now - 2 * 60_000),
+        metricCovered: true,
+      });
+      await seedBatchToken(databaseUrl, {
+        mint: newestMint,
+        createdAt: new Date(now - 60_000),
+        metricCovered: true,
+      });
+      await writeFile(
+        validSnapshotFile,
+        JSON.stringify({
+          data: {
+            type: "token",
+            attributes: {
+              address: coveredMint,
+              name: "Fixture Covered",
+              symbol: "FCV",
+            },
+          },
+        }),
+        "utf8",
+      );
+      await writeFile(
+        invalidSnapshotFile,
+        JSON.stringify({ data: { type: "token" } }),
+        "utf8",
+      );
+      await writeFile(
+        metaplexFixtureFile,
+        JSON.stringify({ status: "not_found", reason: "metadata_account_missing" }),
+        "utf8",
+      );
+
+      const result = await runTokenEnrichRescoreGeckoterminal(
+        [
+          "--limit",
+          "3",
+          "--sinceMinutes",
+          "10",
+          "--pumpOnly",
+          "--onlyMetricCovered",
+          "--write",
+          "--interItemDelayMs",
+          "15000",
+        ],
+        {
+          databaseUrl,
+          geckoSnapshotFile: validSnapshotFile,
+          geckoSnapshotFileOnce: invalidSnapshotFile,
+          metaplexFixtureFile,
+          skipInterItemDelay: true,
+        },
+      );
+      assert.equal(result.ok, true);
+
+      const parsed = JSON.parse(result.stdout) as TokenEnrichRescoreGeckoterminalOutput;
+      assert.equal(parsed.selection.selectedCount, 2);
+      assert.equal(parsed.summary.okCount, 1);
+      assert.equal(parsed.summary.errorCount, 1);
+      assert.equal(parsed.summary.providerErrorCount, 0);
+      assert.equal(parsed.summary.itemErrorCount, 1);
+      assert.equal(parsed.summary.firstErrorCategory, "data_validation_error");
+      assert.equal(parsed.summary.firstHttpStatus, null);
+      assert.equal(parsed.summary.firstErrorClass, "Error");
+      assert.equal(parsed.summary.firstErrorTokenId, parsed.items[0]?.token.id);
+      assert.equal(parsed.summary.rateLimited, false);
+      assert.equal(parsed.summary.notifySentCount, 0);
+      assert.equal(parsed.items[0]?.token.mint, newestMint);
+      assert.equal(parsed.items[0]?.errorCategory, "data_validation_error");
+      assert.equal(parsed.items[1]?.token.mint, coveredMint);
+      assert.equal(parsed.items.some((item) => item.token.mint === uncoveredMint), false);
+
+      const [failedToken, successfulToken, uncoveredToken] = await Promise.all([
+        readToken(databaseUrl, newestMint),
+        readToken(databaseUrl, coveredMint),
+        readToken(databaseUrl, uncoveredMint),
+      ]);
+      assert.equal(failedToken?.metadataStatus, "mint_only");
+      assert.equal(failedToken?.name, null);
+      assert.equal(failedToken?.rescoredAt, null);
+      assert.equal(successfulToken?.metadataStatus, "partial");
+      assert.notEqual(successfulToken?.rescoredAt, null);
+      assert.equal(uncoveredToken?.metadataStatus, "mint_only");
+      assert.equal(uncoveredToken?.name, null);
+      assert.doesNotMatch(result.stderr, /rawJson|provider body|normalizedText|matched keyword/i);
     });
   });
 

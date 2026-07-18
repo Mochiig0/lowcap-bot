@@ -170,6 +170,36 @@ test("operator preset exposes bounded limits and minimum duration estimate", () 
   }), 16_620_000);
 });
 
+test("operator preset keeps a 3h detect horizon while selecting rolling cleanup backlog", () => {
+  const parsed = parseOpsRunBoundedArgs(["--operatorCycle", "--plan"]);
+  const baseInput = input();
+  const report = buildBoundedOperationRunnerPlan(
+    {
+      ...baseInput,
+      queueState: {
+        ...baseInput.queueState,
+        requestedWindow: queue({ sinceHours: 3 }),
+        rolling168h: queue({
+          sinceHours: 168,
+          geckoOriginTokenCount: 179,
+          enrichPendingCount: 130,
+          staleReviewCount: 130,
+        }),
+      },
+    },
+    { ...parsed, repoRoot: BASE_OPTIONS.repoRoot },
+  );
+
+  assert.equal(report.computedSinceMinutes, 240);
+  assert.equal(report.detectHorizonHours, 3);
+  assert.equal(report.cleanupHorizonHours, 168);
+  assert.equal(report.cleanupSinceMinutes, 10_080);
+  assert.equal(report.cleanupWindowSource, "rolling_168h_backlog");
+  const commandText = allCommandText(report);
+  assert.match(commandText, /token:enrich-rescore:geckoterminal[^\n]+--sinceMinutes 10080/);
+  assert.match(commandText, /ops:plan:bounded[^\n]+--sinceHours 168/);
+});
+
 test("default post-run cycles are one metric cycle and one enrich cycle", () => {
   const parsed = parseOpsRunBoundedArgs([]);
   assert.equal(parsed.postRunMetricCycles, 1);
@@ -365,6 +395,123 @@ test("provider or rate-limit cycle summary stops remaining write cycles", async 
   assert.equal(report.metricCyclesStoppedReason, "provider_or_rate_limit_error");
   assert.ok(report.stopConditionCodes.includes("provider_or_rate_limit_error"));
   assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "skipped");
+});
+
+test("isolated enrich item error preserves partial success and continues read-only phases", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 1,
+      postRunEnrichCycles: 4,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 0, written: 0, error: 0 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: true,
+          summary: {
+            selected: 50,
+            ok: 49,
+            enriched: 49,
+            rescored: 49,
+            error: 1,
+            providerErrorCount: 0,
+            itemErrorCount: 1,
+            firstErrorCategory: "data_validation_error",
+            firstHttpStatus: null,
+            firstErrorClass: "Error",
+            firstErrorTokenId: 8809,
+            rateLimited: false,
+            notifySent: 0,
+          },
+        };
+      }
+      return { ok: true, summary: { selected: 0 } };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_1",
+    "report_review:review_queue_default",
+    "notification_plan_review:notification_auto_send_plan",
+  ]);
+  assert.equal(report.status, "partial");
+  assert.equal(report.partialPhase, "enrich_rescore");
+  assert.equal(report.enrichCyclesExecuted, 1);
+  assert.equal(report.enrichCyclesStoppedReason, "item_error_no_automatic_retry");
+  assert.equal(report.operatorSummary?.stopReason, "item_error_no_automatic_retry");
+  assert.equal(report.stopConditionCodes.length, 0);
+  assert.equal(report.phases.find((phase) => phase.phase === "enrich_rescore")?.status, "executed");
+  assert.equal(report.phases.find((phase) => phase.phase === "report_review")?.status, "executed");
+  assert.equal(report.operatorSummary?.enrich.updated, 49);
+  assert.equal(report.operatorSummary?.providerErrorCountByPhase.enrich_rescore, 0);
+  assert.equal(report.operatorSummary?.itemErrorCountByPhase.enrich_rescore, 1);
+  assert.equal(report.operatorSummary?.firstErrorCategory, "data_validation_error");
+  assert.equal(report.operatorSummary?.firstHttpStatus, null);
+  assert.equal(report.operatorSummary?.firstErrorClass, "Error");
+  assert.equal(report.operatorSummary?.firstErrorTokenId, 8809);
+  assert.equal(
+    report.operatorSummary?.nextRecommendedStep,
+    "review_enrich_item_error_before_next_operator_cycle",
+  );
+  assert.equal(report.operatorSummary?.telegramSendCount, 0);
+  assert.doesNotMatch(JSON.stringify(report.operatorSummary), /rawJson|provider body|normalizedText|matched keyword/i);
+  assert.doesNotMatch(allCommandText(report), /notification:retry:execute|--notify|telegram/i);
+});
+
+test("enrich provider error remains conservative and skips reports", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunMetricCycles: 1,
+      postRunEnrichCycles: 3,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 0, written: 0 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: true,
+          summary: {
+            selected: 1,
+            error: 1,
+            providerErrorCount: 1,
+            itemErrorCount: 0,
+            firstErrorCategory: "rate_limit",
+            firstHttpStatus: 429,
+            rateLimited: true,
+          },
+        };
+      }
+      return { ok: true, summary: {} };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_1",
+  ]);
+  assert.equal(report.status, "failed");
+  assert.equal(report.enrichCyclesStoppedReason, "provider_or_rate_limit_error");
+  assert.equal(report.phases.find((phase) => phase.phase === "report_review")?.status, "skipped");
+  assert.equal(report.operatorSummary?.providerErrorCountByPhase.enrich_rescore, 1);
+  assert.equal(report.operatorSummary?.itemErrorCountByPhase.enrich_rescore, 0);
+  assert.equal(report.operatorSummary?.firstErrorCategory, "rate_limit");
+  assert.equal(report.operatorSummary?.firstHttpStatus, 429);
 });
 
 test("failed notification blocks execution", () => {

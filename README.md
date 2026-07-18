@@ -141,7 +141,10 @@ diagnostic or recovery tools, not the normal operating path.
 
 The preset keeps the proven per-batch limit at `50` and repeats it up to four
 times internally, stopping early when the selector is empty or at the first
-provider/rate-limit error. Its configured minimum is about 4h37m: the 3H
+provider/rate-limit error. An isolated non-provider enrich item error now
+preserves successful updates, stops further enrich cycles to avoid immediate
+reselection, marks the cycle `partial`, and still runs read-only reports and
+Notification planners. Its configured minimum is about 4h37m: the 3H
 detect window plus Metric/enrich inter-item waits, before provider and report
 runtime. `ops:plan:bounded --postRunPlan` only prints post-run command strings;
 `ops:run:bounded -- --operatorCycle --execute` is the command that executes the
@@ -151,6 +154,13 @@ DB-count deltas, growth aggregates, queue/Notification state, and the next
 recommended step without retaining subprocess stdout/stderr or provider
 bodies.
 
+The 3H value is the detect horizon, not a cleanup cutoff. The planner compares
+the requested queue with rolling 168H state and selects the rolling cleanup
+horizon when it contains older actionable work. The plan exposes
+`detectHorizonHours`, `cleanupHorizonHours`, `cleanupSinceMinutes`, and
+`cleanupWindowSource`; the current `enrichPending=130` backlog therefore plans
+with `cleanupSinceMinutes=10080` and remains visible to the operator cycle.
+
 The first live one-command trial completed on 2026-07-18 with a conservative
 partial failure. Detect completed all `180` iterations and imported `179`
 Tokens, and Metric completed four cycles with `179` successful writes. Enrich
@@ -158,10 +168,21 @@ then updated `49` of its first `50` Metric-covered rows and stopped on one
 provider-classified error; the runner skipped report and Notification planner
 phases, emitted `nextRecommendedStep=review_failure_summary_no_automatic_retry`,
 and did not retry. Notification / HolderSnapshot deltas and Telegram sends were
-all `0`. Keep the operator cycle as the normal entry point, but do not run a
-second Red to clear the remaining `130` enrich-pending rows. Review the failure
-in a separate Yellow diagnostic task first; individual write CLIs remain
+all `0`. At that point the required next action was a Yellow failure review,
+not a second Red or individual enrich recovery; individual write CLIs remain
 recovery-only and require a new approval.
+
+That Yellow review completed without live fetches or current-DB writes. A safe
+selector reconstruction identified token id `8809` as the only failed row in
+the first enrich batch; it remains Metric-covered and enrich-pending, while
+neighboring selected rows completed normally. The sanitized historical log
+did not retain an item error class or message, so the original provider/data/
+application cause cannot be determined retrospectively. The confirmed bug was
+summary classification: any non-rate-limited item error was labeled as a
+provider failure. New summaries distinguish provider, rate-limit, validation,
+and application errors with safe token id/status/class fields. No immediate
+retry is added. A future human-approved Red can use the unchanged one-command
+operator entrypoint; this Yellow task did not execute it.
 
 Import one token candidate:
 

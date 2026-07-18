@@ -125,6 +125,47 @@ test("enrich pending recommends enrich rescore command without notify", () => {
   assert.doesNotMatch(result.redCommandCandidate ?? "", /--notify/);
 });
 
+test("3h requested window does not hide rolling 168h enrich backlog", () => {
+  const base = input();
+  const result = buildBoundedOperationPlan(
+    {
+      ...base,
+      queueState: {
+        ...base.queueState,
+        requestedWindow: queue({ sinceHours: 3 }),
+        rolling168h: queue({
+          sinceHours: 168,
+          geckoOriginTokenCount: 179,
+          enrichPendingCount: 130,
+          staleReviewCount: 130,
+        }),
+      },
+    },
+    {
+      ...BASE_OPTIONS,
+      hours: 3,
+      sinceHours: 3,
+      postRunPlan: true,
+    },
+  );
+
+  assert.equal(result.detectHorizonHours, 3);
+  assert.equal(result.requestedQueueHorizonHours, 3);
+  assert.equal(result.cleanupHorizonHours, 168);
+  assert.equal(result.cleanupWindowSource, "rolling_168h_backlog");
+  assert.equal(result.cleanupWindow.enrichPendingCount, 130);
+  assert.equal(result.nextRecommendedStep, "enrich_pending_rescore");
+  assert.match(result.redCommandCandidate ?? "", /--sinceMinutes 10080/);
+  assert.equal(result.postRunPlan?.detectHorizonHours, 3);
+  assert.equal(result.postRunPlan?.cleanupHorizonHours, 168);
+  assert.equal(result.postRunPlan?.cleanupWindowSource, "rolling_168h_backlog");
+  const enrichStep = result.postRunPlan?.steps.find(
+    (step) => step.stepName === "enrich_pending_rescore",
+  );
+  assert.equal(enrichStep?.status, "ready");
+  assert.match(enrichStep?.commandCandidate ?? "", /--sinceMinutes 10080/);
+});
+
 test("failed notification stops the planner", () => {
   const result = buildBoundedOperationPlan(
     input({
