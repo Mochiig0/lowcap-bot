@@ -66,6 +66,15 @@ shows that cleanup horizon and selects `--onlyMetricCovered`; individual
 50-row commands remain diagnostic/recovery-only. No live recovery or write was
 run during the Yellow review.
 
+Acceptance result, 2026-07-18: the subsequent approved operator command ran
+once and completed the full loop. Detect imported `179`, Metric wrote `179`,
+and four enrich cycles updated `200 / 200` Metric-covered rows with no errors.
+Token id `8809` completed normally. Reports/planners ran, DB moved
+`4475 / 1986 / 40 / 1 -> 4654 / 2165 / 40 / 1`, and rolling 168H
+`enrichPending` moved `130 -> 109`; Notification and Telegram effects stayed
+`0`. This confirms that routine work stays in the operator cycle and the
+manual minimum-loop commands below remain diagnostic/recovery references.
+
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for
 the acceptance decision, included scope, out-of-MVP items, and Phase 2 tasks.

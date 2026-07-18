@@ -140,6 +140,25 @@ requested 3H `enrichPending=0`, rolling 168H `enrichPending=130`, with
 visible and selectable by the normal operator cycle. This Yellow review made
 no provider fetch, current-DB write, retry, or Red execution.
 
+Acceptance Red, 2026-07-18: the same operator command ran exactly once through
+`/tmp/lowcap-bot-operator-cycle-2.log` and completed all phases. Runtime was
+about 4h38m11s. Detect imported/existing `179 / 1`; Metric completed four
+cycles with `179 / 179` writes; enrich completed four cycles with `200 / 200`
+updates, provider/item errors `0 / 0`, and notify would-send/sent `0 / 0`.
+The previous failed token id `8809` completed normally.
+
+Reports and Notification planners completed in-cycle. DB moved
+`4475 / 1986 / 40 / 1 -> 4654 / 2165 / 40 / 1`; rolling 168H is now
+`metricPending=0`, `enrichPending=109`, `notifyCandidate=0`; growth remains
+evaluated `335`, top FDV multiple `3.8445`, and 2x/3x/5x/10x
+`1 / 1 / 0 / 0`. Auto-send allowed, retry candidates, Notification writes,
+and Telegram sends were all `0`.
+
+This run accepts the one-command operator cycle as the normal manual Phase 2
+cadence. Do not immediately repeat it just to clear `109`; use the next
+separately approved operating window so detect and bounded cleanup remain one
+unit. Individual Metric/enrich commands remain diagnostic/recovery-only.
+
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.
 `bounded:watch:readiness` recommends `three_hour_dry_run`, and the exact

@@ -80,6 +80,19 @@ remaining backlog is actionable through the next separately approved normal
 operator cycle; no individual recovery write or second Red occurred in this
 Yellow review.
 
+Acceptance report result, 2026-07-18: the next approved operator command
+completed all phases in one run. In-run `report_review` and
+`notification_plan_review` both completed after Metric `179 / 179` and enrich
+`200 / 200` succeeded with no errors. The allowlisted growth result remained
+evaluated `335`, top FDV multiple `3.8445`, and 2x/3x/5x/10x
+`1 / 1 / 0 / 0`. Rolling 168H after the run is `metricPending=0`,
+`enrichPending=109`, `staleReview=109`, and `notifyCandidate=0`.
+
+Disabled/enabled auto-send allowed count and retry candidate count were all
+`0`; Notification/Telegram effects were `0`. This is the first live proof that
+report readiness is reached inside the one-command cycle rather than by
+separate post-failure commands.
+
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during
 detect write, then was manually interrupted about 11h32m after start and

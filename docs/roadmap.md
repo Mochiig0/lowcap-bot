@@ -75,6 +75,20 @@ freshly approved **Red one-command operator cycle** using
 enrich recovery and must still pass normal Red preflight. Individual
 Metric/enrich loops remain diagnostic/recovery-only.
 
+Acceptance update, 2026-07-18: that approved command ran once and completed
+detect, all four Metric cycles, all four enrich cycles, reports, and
+Notification planners. Detect imported `179`, Metric wrote `179`, and enrich
+updated `200 / 200` with no provider or item errors. The prior failed row also
+completed normally. DB moved `4475 / 1986 / 40 / 1 -> 4654 / 2165 / 40 / 1`,
+Notification/Telegram effects stayed `0`, and rolling 168H enrich pending moved
+`130 -> 109`.
+
+The integrated operator cycle is now accepted as the normal manual Phase 2
+cadence. The next operating slice is another separately approved normal
+operator window when new detect/cleanup work is desired, not an immediate
+retry and not an individual 50-row loop. Scheduler/systemd and Telegram live
+send remain separate future gates.
+
 Update, 2026-07-01:
 
 The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green

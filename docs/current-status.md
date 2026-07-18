@@ -124,6 +124,36 @@ Operator enrich failure Yellow review, 2026-07-18:
   The next live candidate is a newly approved one-command operator cycle, not
   an individual 50-row enrich loop. This Yellow review did not execute it.
 
+Successful bounded operator-cycle acceptance, 2026-07-18:
+
+- The Red safety Skill was applied and the approved wrapper ran the inner
+  command exactly once, writing `/tmp/lowcap-bot-operator-cycle-2.log`. Process
+  exit was `0`; runner status was `completed`, stop reason and partial phase
+  were null, all six phases completed, and elapsed time was `16691158ms`
+  (about 4h38m11s).
+- Detect completed `180 / 180`, selected/accepted `180 / 180`, imported/existing
+  `179 / 1`, and failed/provider retry `0 / 0`. The valid checkpoint advanced
+  from `2026-07-17T16:26:12.000Z` to `2026-07-18T12:19:59.000Z` with source
+  unchanged.
+- Metric completed `50 + 50 + 50 + 29 = 179` selected/ok/written with errors
+  and provider errors `0`. Its phase delta was Token / Metric / Notification /
+  HolderSnapshot `0 / +179 / 0 / 0`.
+- Enrich completed four Metric-covered cycles, `selected=200`, `updated=200`,
+  provider/item errors `0 / 0`, and notify would-send/sent `0 / 0`. The prior
+  failed token id `8809` is now metadata `partial` with name/symbol and
+  enriched/rescored timestamps present.
+- Report and Notification-plan phases completed. Growth remained evaluated
+  `335`, top FDV multiple `3.8445`, and 2x/3x/5x/10x `1 / 1 / 0 / 0`.
+  Auto-send allowed and retry candidates were `0`; Telegram send was `0`.
+- DB moved `4475 / 1986 / 40 / 1 -> 4654 / 2165 / 40 / 1`. Rolling 168H moved
+  from `metricPending=0, enrichPending=130` to `0, 109`; requested 3H pending
+  is clear. Post-run plan-only remains read-only and selects the 168H cleanup
+  horizon for the remaining backlog.
+- No second run, retry, fallback, compensation, individual Metric/enrich
+  recovery, Notification send, Telegram send, scheduler/systemd, smoke,
+  rawJson dump, or provider-body dump was executed. The integrated operator
+  cycle is accepted as the normal Phase 2 manual operating entrypoint.
+
 Smoke stabilization note, 2026-06-30:
 
 - Yellow smoke failure at `metric snapshot geckoterminal watch rate limit

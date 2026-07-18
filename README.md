@@ -158,7 +158,7 @@ The 3H value is the detect horizon, not a cleanup cutoff. The planner compares
 the requested queue with rolling 168H state and selects the rolling cleanup
 horizon when it contains older actionable work. The plan exposes
 `detectHorizonHours`, `cleanupHorizonHours`, `cleanupSinceMinutes`, and
-`cleanupWindowSource`; the current `enrichPending=130` backlog therefore plans
+`cleanupWindowSource`; the reviewed `enrichPending=130` backlog therefore planned
 with `cleanupSinceMinutes=10080` and remains visible to the operator cycle.
 
 The first live one-command trial completed on 2026-07-18 with a conservative
@@ -183,6 +183,17 @@ provider failure. New summaries distinguish provider, rate-limit, validation,
 and application errors with safe token id/status/class fields. No immediate
 retry is added. A future human-approved Red can use the unchanged one-command
 operator entrypoint; this Yellow task did not execute it.
+
+The next human-approved one-command Red ran exactly once on 2026-07-18 and
+completed every phase in about 4h38m. Detect imported `179` Tokens, Metric
+wrote `179` rows, and enrich/rescore updated `200 / 200` Metric-covered rows
+with provider/item errors `0 / 0`. The previous failed token id `8809`
+completed normally. Reports and Notification planners ran in-cycle; DB moved
+`4475 / 1986 / 40 / 1 -> 4654 / 2165 / 40 / 1`, Notification/Telegram effects
+stayed `0`, and rolling 168H enrich pending moved `130 -> 109`. This is the
+first complete live acceptance of the integrated operator cycle. Remaining
+cleanup stays on the next normal operator cycle; it does not restore manual
+50-row loops.
 
 Import one token candidate:
 
