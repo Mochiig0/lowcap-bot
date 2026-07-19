@@ -94,10 +94,12 @@ Boundary rules:
 - keep detect-to-mint-only handoff narrow: produce mint-first inputs, then delegate into the existing mint-only entrypoints
 - avoid mixing review/report logic into ingest wrappers, and avoid mixing ingest-side mutation into read-only inspection CLIs
 - keep the bounded operator cycle in `ops:run:bounded` as explicit CLI
-  orchestration over the existing detect, Metric, enrich/rescore, report, and
-  planner commands. It is the normal Phase 2 operating entrypoint, but it is
-  not a generic queue, worker, scheduler, retry runtime, or Telegram
-  auto-send executor.
+  orchestration over the existing detect, initial Metric, enrich/rescore,
+  longitudinal Metric, report, and planner commands. The longitudinal phase
+  reuses the Metric CLI's exact-one selector and append path; it does not move
+  Metric creation into detect or enrich. This is the normal Phase 2 operating
+  entrypoint, but it is not a generic queue, worker, scheduler, retry runtime,
+  or Telegram auto-send executor.
 - `ops:plan:bounded --postRunPlan` remains read-only command-string planning;
   it does not execute post-run phases. `ops:run:bounded --execute` owns the
   ordered orchestration and reuses the existing source-specific CLIs.
@@ -107,7 +109,9 @@ Boundary rules:
   violation. Metric failure does not continue into enrich automatically.
 - detect and cleanup horizons are separate. The operator preset keeps a 3H
   detect watch, while planner/runner cleanup selects rolling 168H when that
-  view contains older actionable Metric/enrich/report work. Plans and final
+  view contains older actionable initial Metric, enrich, longitudinal Metric,
+  or report work. `longitudinalMetricDueCount` means exactly one existing
+  Metric whose latest observation is at least 60 minutes old. Plans and final
   summaries expose both horizons and the cleanup selection source.
 - enrich failures are classified at the child boundary. Provider/rate-limit
   failures stop the operation conservatively. A non-provider item error keeps

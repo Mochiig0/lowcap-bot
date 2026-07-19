@@ -38,13 +38,17 @@ Preset details:
 - Metric pending snapshot: `--onlyMetricPending`, `--noNotificationCapture`,
   limit `50`, four cycles, `--write`
 - enrich/rescore: `--onlyMetricCovered`, limit `50`, four cycles, `--write`
+- longitudinal Metric snapshot: rolling 168H, `--onlyMetricOnce`,
+  `--minGapMinutes 60`, `--noNotificationCapture`, limit `50`, one cycle,
+  `--write`
 - safe reports: review queue, rolling 168h queue, `metrics:growth-report`,
   `bounded:watch:readiness`, and `ops:plan:bounded --postRunPlan`
 - Notification review is planner-only: `notification:auto-send:plan` and
   `notification:retry:plan`
-- theoretical configured minimum duration is about 4h37m
-  (`estimatedMinimumDurationMs=16620000`): 3H detect cadence plus Metric and
-  enrich inter-item waits; provider and report runtime add to this
+- theoretical configured minimum duration is about 4h49m
+  (`estimatedMinimumDurationMs=17355000`): 3H detect cadence plus initial
+  Metric, enrich, and longitudinal Metric inter-item waits; provider and
+  report runtime add to this
 
 Hard boundaries remain: Telegram live send `0`, Notification auto-send execute
 `0`, retry execute `0`, scheduler/systemd `0`, automatic retry/second
@@ -63,6 +67,14 @@ intentionally skipped after
 a Metric failure even though some older Metric-covered rows may exist, because
 the cycle does not hold a frozen selector snapshot that would make partial
 continuation unambiguous. Retry and compensation remain manual recovery work.
+
+The longitudinal phase is separate from initial Metric pending. It runs after
+enrich and selects only rows with exactly one Metric whose latest observation
+is at least 60 minutes old. Its first operator preset is one 50-row cycle, not
+four, to establish live follow-up evidence without increasing the proven
+provider cadence. Metric item/provider/rate-limit errors remain
+fail-conservative, and unexpected Token, Notification, or HolderSnapshot
+writes stop the cycle. There is no immediate retry.
 
 Before detect, runner preflight requires an out-of-repo checkpoint whose
 source and cursor shape are valid. A detect watch `failedCount > 0` is failure
@@ -158,6 +170,24 @@ This run accepts the one-command operator cycle as the normal manual Phase 2
 cadence. Do not immediately repeat it just to clear `109`; use the next
 separately approved operating window so detect and bounded cleanup remain one
 unit. Individual Metric/enrich commands remain diagnostic/recovery-only.
+
+Longitudinal integration review, 2026-07-19: the successful run's 4h38m
+duration was not the reason no second Metrics appeared. The Metric phase used
+`--onlyMetricPending`, so every row stopped being eligible after its first
+write. Read-only planning now counts `longitudinalMetricDueCount`: requested
+3H is `0`, rolling 168H is `358`, with global Metric buckets
+`0 / 1 / 2+ = 2879 / 1438 / 337`. The same one-command operator preset now
+runs one `--onlyMetricOnce` cycle after enrich and before reports. Plan-only
+remains fetch/write-free and returns the unchanged exact execution command.
+The next Red acceptance must prove up to `50` Metric-one rows become
+Metric>=2 and the in-cycle growth evaluated count advances; do not run the
+individual follow-up command as the normal route.
+
+Implementation verification ran the repo-standard fixture smoke after the
+read-only plan. It was green and left the known local fixture delta Token
+`+15`, Notification `+4`, Metric `0`, HolderSnapshot `0`, moving the DB
+baseline to `4669 / 2165 / 44 / 1`. Do not attribute those rows to the next
+operator acceptance run.
 
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.

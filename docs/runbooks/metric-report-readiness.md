@@ -26,6 +26,13 @@ auto-send/retry planners. Notification remains plan-only; individual
 Metric/enrich/report CLIs should be used for diagnostic or recovery work after
 a bounded operator cycle failure, not as the normal loop.
 
+As of 2026-07-19, report readiness is preceded by a bounded longitudinal
+Metric phase. It selects rolling-168H Gecko/pump rows with exactly one Metric,
+requires a 60-minute gap, writes at most `50` Metrics in one cycle, and keeps
+Notification capture disabled. The final summary separates initial and
+longitudinal selected/written/error counts and phase DB deltas before running
+the growth report.
+
 The operator summary now includes the allowlisted growth aggregate (evaluated
 count, top FDV/reserve multiples, and >=2x/>=3x counts), queue-after state,
 Notification candidate counts, next-step planner result, and phase DB-count
@@ -92,6 +99,16 @@ Disabled/enabled auto-send allowed count and retry candidate count were all
 `0`; Notification/Telegram effects were `0`. This is the first live proof that
 report readiness is reached inside the one-command cycle rather than by
 separate post-failure commands.
+
+Longitudinal readiness update, 2026-07-19: the unchanged evaluated count
+`335` after the prior live acceptance was selector behavior, not insufficient
+elapsed time. Initial Metric used `--onlyMetricPending` and did not select
+Metric-one rows later in the same run. Planner state now shows requested 3H
+longitudinal due `0`, rolling 168H due `358`, and global Metric buckets
+`0 / 1 / 2+ = 2879 / 1438 / 337`. Plan-only includes the new phase with no
+fetch/write/send. The next Red acceptance should verify longitudinal Metric
+delta up to `+50`, Token/Notification/HolderSnapshot delta `0` in that phase,
+and growth evaluated count increasing in the same final report.
 
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during

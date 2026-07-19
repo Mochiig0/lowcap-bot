@@ -4,6 +4,42 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Longitudinal operator-cycle integration, 2026-07-19:
+
+- The prior successful operator cycle ran for about 4h38m, but only the
+  `--onlyMetricPending` selector was orchestrated. Runtime did not make rows
+  with one existing Metric eligible for a second snapshot, which is why the
+  pump-only growth sample stayed at `335` despite new initial Metrics.
+- The existing `--onlyMetricOnce` selector is now reused as a dedicated
+  `metric_longitudinal_snapshot` phase after enrich and before reports. The
+  operator preset selects at most `50` rolling-168H Gecko/pump rows with
+  exactly one Metric, requires `minGapMinutes=60`, keeps
+  `interItemDelayMs=15000`, disables Notification capture, and allows only
+  Metric writes.
+- Read-only local planning found global Metric buckets `0 / 1 / 2+ =
+  2879 / 1438 / 337`. Requested 3H longitudinal due is `0`, while rolling
+  168H due is `358`; `longitudinalMetricDueCount` now makes that backlog
+  explicit and selects the rolling cleanup horizon without changing the 3H
+  detect horizon.
+- The normal command remains
+  `pnpm -s ops:run:bounded -- --operatorCycle --execute`. Its plan is
+  `status=planned`, checkpoint-valid, and fetch/write/send-free; configured
+  minimum duration is now `17355000ms` (about 4h49m). The final summary keeps
+  initial and longitudinal Metric writes, cycles, errors, and phase DB deltas
+  separate.
+- Default non-operator bounded runs keep the new phase at `0` cycles for
+  compatibility. Provider/rate-limit, Metric item error, unexpected Token or
+  Notification/HolderSnapshot side effect, and interrupt handling remain
+  fail-conservative with no automatic retry. Notification/Telegram remain
+  plan-only/zero.
+- This implementation and plan verification used no live provider fetch or
+  production-like write. Required `pnpm smoke` used local fixture writes and
+  left the known fixture delta Token `+15`, Notification `+4`, Metric `0`,
+  HolderSnapshot `0`; the post-smoke baseline is therefore
+  `4669 / 2165 / 44 / 1`. These rows are not operator-cycle side effects. The
+  next gate is one Red acceptance of the unchanged operator command, not an
+  individual `--onlyMetricOnce` recovery loop.
+
 Bounded operator cycle integration, 2026-07-15:
 
 - Yellow implementation completed the normal Phase 2 operating entrypoint on

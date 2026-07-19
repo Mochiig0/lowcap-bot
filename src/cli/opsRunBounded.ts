@@ -26,15 +26,17 @@ class CliUsageError extends Error {
 function usage(): string {
   return [
     "Usage:",
-    "pnpm ops:run:bounded -- [--operatorCycle] [--plan] [--hours <N>] [--pumpOnly] [--checkpointFile <PATH>] [--metricLimit <N>] [--enrichLimit <N>] [--postRunMetricCycles <N>] [--postRunEnrichCycles <N>] [--intervalSeconds <N>] [--maxIterations <N>] [--postRunBufferMinutes <N>] [--interItemDelayMs <N>] [--execute] [--json]",
+    "pnpm ops:run:bounded -- [--operatorCycle] [--plan] [--hours <N>] [--pumpOnly] [--checkpointFile <PATH>] [--metricLimit <N>] [--longitudinalMetricLimit <N>] [--enrichLimit <N>] [--postRunMetricCycles <N>] [--postRunLongitudinalMetricCycles <N>] [--postRunEnrichCycles <N>] [--longitudinalMetricMinGapMinutes <N>] [--intervalSeconds <N>] [--maxIterations <N>] [--postRunBufferMinutes <N>] [--interItemDelayMs <N>] [--execute] [--json]",
     "",
     "Default-safe bounded pipeline runner. Without --execute, or with --plan, it only plans:",
-    "detect write -> metric pending snapshot -> enrich/rescore -> report review -> notification planner review.",
-    "Post-run metric/enrich cycles default to 1 each; set a cycle count to 0 to skip that phase.",
+    "detect write -> metric pending snapshot -> enrich/rescore -> longitudinal metric snapshot -> report review -> notification planner review.",
+    "Longitudinal Metric uses Metric-one rows only, a minimum observation gap, and no Notification capture.",
+    "Default bounded runs skip longitudinal Metric; set its cycle count explicitly or use --operatorCycle.",
     "--operatorCycle selects the current 3H operator preset: pumpOnly, checkpoint in /tmp,",
-    "detect limit 1 per cycle, Metric/enrich limit 50, four Metric cycles, four enrich cycles,",
-    "60s detect interval, 15s post-run item delay, and notification planner-only review.",
-    "Its configured minimum is about 4h37m before provider/report runtime.",
+    "detect limit 1 per cycle, initial Metric/enrich limit 50 with four cycles each,",
+    "one longitudinal Metric cycle of 50 with a 60m gap, 60s detect interval,",
+    "15s post-run item delay, and notification planner-only review.",
+    "Its configured minimum is about 4h49m before provider/report runtime.",
     "",
     "--execute is required before any production fetch/write can run. Notification send, retry execution,",
     "auto live send, scheduler, systemd, rawJson full dump, and pnpm smoke are not part of this runner.",
@@ -81,12 +83,15 @@ function applyOperatorCyclePreset(out: Partial<CliArgs>): void {
   out.pumpOnly = true;
   out.checkpointFile = "/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json";
   out.metricLimit = 50;
+  out.longitudinalMetricLimit = 50;
   out.enrichLimit = 50;
   out.intervalSeconds = 60;
   out.postRunBufferMinutes = 60;
   out.interItemDelayMs = 15_000;
   out.postRunMetricCycles = 4;
+  out.postRunLongitudinalMetricCycles = 1;
   out.postRunEnrichCycles = 4;
+  out.longitudinalMetricMinGapMinutes = 60;
   out.maxIterations = undefined;
 }
 
@@ -96,6 +101,8 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
     hours: DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.hours,
     pumpOnly: false,
     metricLimit: DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.metricLimit,
+    longitudinalMetricLimit:
+      DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.longitudinalMetricLimit,
     enrichLimit: DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.enrichLimit,
     intervalSeconds: DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.intervalSeconds,
     postRunBufferMinutes:
@@ -103,8 +110,12 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
     interItemDelayMs: DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.interItemDelayMs,
     postRunMetricCycles:
       DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunMetricCycles,
+    postRunLongitudinalMetricCycles:
+      DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunLongitudinalMetricCycles,
     postRunEnrichCycles:
       DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.postRunEnrichCycles,
+    longitudinalMetricMinGapMinutes:
+      DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS.longitudinalMetricMinGapMinutes,
     executeRequested: false,
     json: false,
     planRequested: false,
@@ -167,11 +178,17 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
       case "--metricLimit":
         out.metricLimit = parsePositiveInteger(value, key);
         break;
+      case "--longitudinalMetricLimit":
+        out.longitudinalMetricLimit = parsePositiveInteger(value, key);
+        break;
       case "--enrichLimit":
         out.enrichLimit = parsePositiveInteger(value, key);
         break;
       case "--postRunMetricCycles":
         out.postRunMetricCycles = parseNonNegativeInteger(value, key);
+        break;
+      case "--postRunLongitudinalMetricCycles":
+        out.postRunLongitudinalMetricCycles = parseNonNegativeInteger(value, key);
         break;
       case "--postRunEnrichCycles":
         out.postRunEnrichCycles = parseNonNegativeInteger(value, key);
@@ -187,6 +204,9 @@ export function parseOpsRunBoundedArgs(argv: string[]): CliArgs {
         break;
       case "--interItemDelayMs":
         out.interItemDelayMs = parseNonNegativeInteger(value, key);
+        break;
+      case "--longitudinalMetricMinGapMinutes":
+        out.longitudinalMetricMinGapMinutes = parsePositiveInteger(value, key);
         break;
       default:
         throw new CliUsageError(`Unknown arg: ${key}`);

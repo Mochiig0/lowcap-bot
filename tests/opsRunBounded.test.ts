@@ -28,12 +28,15 @@ const BASE_OPTIONS: BoundedOperationRunnerOptions = {
   pumpOnly: true,
   checkpointFile: "/tmp/lowcap-bot-6h-pipeline.json",
   metricLimit: 50,
+  longitudinalMetricLimit: 50,
   enrichLimit: 50,
   intervalSeconds: 60,
   postRunBufferMinutes: 60,
   interItemDelayMs: 15_000,
   postRunMetricCycles: 1,
+  postRunLongitudinalMetricCycles: 0,
   postRunEnrichCycles: 1,
+  longitudinalMetricMinGapMinutes: 60,
   executeRequested: false,
   repoRoot: "/home/mochi/projects/lowcap-bot",
 };
@@ -43,6 +46,7 @@ function queue(overrides: Partial<QueueSummary> = {}): QueueSummary {
     sinceHours: 6,
     geckoOriginTokenCount: 0,
     metricPendingCount: 0,
+    longitudinalMetricDueCount: 0,
     enrichPendingCount: 0,
     staleReviewCount: 0,
     notifyCandidateCount: 0,
@@ -157,8 +161,10 @@ test("operator preset exposes bounded limits and minimum duration estimate", () 
 
   assert.equal(report.detectLimitPerCycle, 1);
   assert.equal(report.metricLimit, 50);
+  assert.equal(report.longitudinalMetricLimit, 50);
   assert.equal(report.enrichLimit, 50);
-  assert.equal(report.estimatedMinimumDurationMs, 16_620_000);
+  assert.equal(report.longitudinalMetricMinGapMinutes, 60);
+  assert.equal(report.estimatedMinimumDurationMs, 17_355_000);
   assert.equal(
     report.nextCommand,
     "pnpm -s ops:run:bounded -- --operatorCycle --execute",
@@ -167,7 +173,7 @@ test("operator preset exposes bounded limits and minimum duration estimate", () 
   assert.equal(computeEstimatedMinimumDurationMs({
     ...parsed,
     repoRoot: BASE_OPTIONS.repoRoot,
-  }), 16_620_000);
+  }), 17_355_000);
 });
 
 test("operator preset keeps a 3h detect horizon while selecting rolling cleanup backlog", () => {
@@ -200,9 +206,10 @@ test("operator preset keeps a 3h detect horizon while selecting rolling cleanup 
   assert.match(commandText, /ops:plan:bounded[^\n]+--sinceHours 168/);
 });
 
-test("default post-run cycles are one metric cycle and one enrich cycle", () => {
+test("default post-run cycles skip longitudinal Metric unless explicitly enabled", () => {
   const parsed = parseOpsRunBoundedArgs([]);
   assert.equal(parsed.postRunMetricCycles, 1);
+  assert.equal(parsed.postRunLongitudinalMetricCycles, 0);
   assert.equal(parsed.postRunEnrichCycles, 1);
 });
 
@@ -212,13 +219,50 @@ test("operator cycle preset selects the one-command 3h bounded shape", () => {
   assert.equal(parsed.pumpOnly, true);
   assert.equal(parsed.checkpointFile, "/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json");
   assert.equal(parsed.metricLimit, 50);
+  assert.equal(parsed.longitudinalMetricLimit, 50);
   assert.equal(parsed.enrichLimit, 50);
   assert.equal(parsed.postRunMetricCycles, 4);
+  assert.equal(parsed.postRunLongitudinalMetricCycles, 1);
   assert.equal(parsed.postRunEnrichCycles, 4);
+  assert.equal(parsed.longitudinalMetricMinGapMinutes, 60);
   assert.equal(parsed.intervalSeconds, 60);
   assert.equal(parsed.interItemDelayMs, 15_000);
   assert.equal(parsed.executeRequested, false);
   assert.equal(parsed.planRequested, true);
+});
+
+test("operator plan includes one bounded Metric-one longitudinal phase after enrich", () => {
+  const parsed = parseOpsRunBoundedArgs(["--operatorCycle", "--plan"]);
+  const report = buildBoundedOperationRunnerPlan(input(), {
+    ...parsed,
+    repoRoot: BASE_OPTIONS.repoRoot,
+  });
+
+  assert.deepEqual(
+    report.phases.map((phase) => phase.phase),
+    [
+      "preflight",
+      "detect_write",
+      "metric_pending_snapshot",
+      "enrich_rescore",
+      "metric_longitudinal_snapshot",
+      "report_review",
+      "notification_plan_review",
+    ],
+  );
+  const longitudinalPhase = report.phases.find(
+    (phase) => phase.phase === "metric_longitudinal_snapshot",
+  );
+  const command = longitudinalPhase?.commandCandidate ?? "";
+  assert.equal(longitudinalPhase?.summary.cyclesPlanned, 1);
+  assert.equal(longitudinalPhase?.summary.selector, "onlyMetricOnce");
+  assert.match(command, /--limit 50/);
+  assert.match(command, /--sinceMinutes \d+/);
+  assert.match(command, /--minGapMinutes 60/);
+  assert.match(command, /--onlyMetricOnce/);
+  assert.match(command, /--noNotificationCapture/);
+  assert.match(command, /--write/);
+  assert.doesNotMatch(command, /--onlyMetricPending|--notify|notification:send/);
 });
 
 test("plan and execute flags are mutually exclusive regardless of order", () => {
@@ -236,11 +280,14 @@ test("post-run cycle options parse non-negative integers", () => {
   const parsed = parseOpsRunBoundedArgs([
     "--postRunMetricCycles",
     "3",
+    "--postRunLongitudinalMetricCycles",
+    "1",
     "--postRunEnrichCycles",
     "2",
   ]);
 
   assert.equal(parsed.postRunMetricCycles, 3);
+  assert.equal(parsed.postRunLongitudinalMetricCycles, 1);
   assert.equal(parsed.postRunEnrichCycles, 2);
 });
 
@@ -251,6 +298,10 @@ test("invalid post-run cycle options are rejected", () => {
   );
   assert.throws(
     () => parseOpsRunBoundedArgs(["--postRunEnrichCycles", "not-a-number"]),
+    /Invalid non-negative integer/,
+  );
+  assert.throws(
+    () => parseOpsRunBoundedArgs(["--postRunLongitudinalMetricCycles", "-1"]),
     /Invalid non-negative integer/,
   );
 });
@@ -265,6 +316,7 @@ test("command candidates include bounded pipeline safety flags", () => {
   assert.match(text, /--checkpointFile \/tmp\/lowcap-bot-6h-pipeline\.json/);
   assert.match(text, /metric:snapshot:geckoterminal/);
   assert.match(text, /--onlyMetricPending/);
+  assert.doesNotMatch(text, /--onlyMetricOnce/);
   assert.match(text, /--noNotificationCapture/);
   assert.match(text, /--interItemDelayMs 15000/);
   assert.match(text, /token:enrich-rescore:geckoterminal/);
@@ -843,6 +895,151 @@ test("execute mode calls metric and enrich cycles the requested number of times"
   ]);
   assert.equal(report.metricCyclesExecuted, 3);
   assert.equal(report.enrichCyclesExecuted, 2);
+});
+
+test("execute mode aggregates initial and longitudinal Metric writes separately", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunLongitudinalMetricCycles: 1,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 1, ok: 1, written: 1, error: 0 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: true,
+          summary: { selected: 1, enriched: 1, rescored: 1, error: 0 },
+        };
+      }
+      if (phase.phase === "metric_longitudinal_snapshot") {
+        assert.ok(commands[0]?.args.includes("--onlyMetricOnce"));
+        assert.ok(commands[0]?.args.includes("--noNotificationCapture"));
+        assert.ok(!commands[0]?.args.includes("--onlyMetricPending"));
+        return { ok: true, summary: { selected: 1, ok: 1, written: 1, error: 0 } };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  assert.deepEqual(calls, [
+    "detect_write:detect_write",
+    "metric_pending_snapshot:metric_pending_snapshot_cycle_1",
+    "enrich_rescore:enrich_rescore_cycle_1",
+    "metric_longitudinal_snapshot:metric_longitudinal_snapshot_cycle_1",
+    "report_review:review_queue_default",
+    "notification_plan_review:notification_auto_send_plan",
+  ]);
+  assert.equal(report.longitudinalMetricCyclesExecuted, 1);
+  assert.equal(report.progressSummary?.totalInitialMetricWrite, 1);
+  assert.equal(report.progressSummary?.totalLongitudinalMetricWrite, 1);
+  assert.equal(report.progressSummary?.totalMetricWrite, 2);
+  assert.equal(report.operatorSummary?.metric.written, 1);
+  assert.equal(report.operatorSummary?.longitudinalMetric.written, 1);
+  assert.equal(report.operatorSummary?.telegramSendCount, 0);
+});
+
+test("longitudinal Metric provider failure stops reports without retry", async () => {
+  const calls: string[] = [];
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunLongitudinalMetricCycles: 2,
+    },
+    async (phase, commands) => {
+      calls.push(`${phase.phase}:${commands[0]?.label}`);
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 0, written: 0, error: 0 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: true,
+          summary: { selected: 0, enriched: 0, rescored: 0, error: 0 },
+        };
+      }
+      if (phase.phase === "metric_longitudinal_snapshot") {
+        return {
+          ok: true,
+          summary: {
+            selected: 1,
+            ok: 0,
+            written: 0,
+            error: 1,
+            providerErrorCount: 1,
+            firstErrorCategory: "provider_network_error",
+            firstHttpStatus: 503,
+          },
+        };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  assert.equal(
+    calls.filter((call) => call.startsWith("metric_longitudinal_snapshot:")).length,
+    1,
+  );
+  assert.equal(
+    report.longitudinalMetricCyclesStoppedReason,
+    "provider_or_rate_limit_error",
+  );
+  assert.equal(report.operatorSummary?.firstErrorCategory, "provider_network_error");
+  assert.equal(report.operatorSummary?.firstHttpStatus, 503);
+  assert.equal(
+    report.operatorSummary?.providerErrorCountByPhase.metric_longitudinal_snapshot,
+    1,
+  );
+  assert.equal(
+    report.phases.find((phase) => phase.phase === "report_review")?.status,
+    "skipped",
+  );
+  assert.doesNotMatch(calls.join("\n"), /cycle_2|notification_plan_review/);
+});
+
+test("unexpected Token write signal in longitudinal Metric phase fails", async () => {
+  const report = await runBoundedOperationRunner(
+    input(),
+    {
+      ...BASE_OPTIONS,
+      executeRequested: true,
+      postRunLongitudinalMetricCycles: 1,
+    },
+    async (phase) => {
+      if (phase.phase === "metric_pending_snapshot") {
+        return { ok: true, summary: { selected: 0, written: 0, error: 0 } };
+      }
+      if (phase.phase === "enrich_rescore") {
+        return {
+          ok: true,
+          summary: { selected: 0, enriched: 0, rescored: 0, error: 0 },
+        };
+      }
+      if (phase.phase === "metric_longitudinal_snapshot") {
+        return {
+          ok: true,
+          summary: { selected: 1, written: 1, error: 0, tokenWriteCount: 1 },
+        };
+      }
+      return { ok: true, summary: { selected: 1 } };
+    },
+  );
+
+  assert.equal(
+    report.longitudinalMetricCyclesStoppedReason,
+    "unexpected_metric_phase_side_effect",
+  );
+  assert.ok(report.stopConditionCodes.includes("unexpected_metric_phase_side_effect"));
+  assert.equal(
+    report.phases.find((phase) => phase.phase === "report_review")?.status,
+    "skipped",
+  );
 });
 
 test("execute mode emits phase cycle and final progress events", async () => {

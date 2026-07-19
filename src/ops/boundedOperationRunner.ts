@@ -14,11 +14,13 @@ import { resolveCleanupWindow } from "./boundedOperationPlanner.js";
 
 const DEFAULT_HOURS = 6;
 const DEFAULT_METRIC_LIMIT = 50;
+const DEFAULT_LONGITUDINAL_METRIC_LIMIT = 50;
 const DEFAULT_ENRICH_LIMIT = 50;
 const DEFAULT_INTERVAL_SECONDS = 60;
 const DEFAULT_POST_RUN_BUFFER_MINUTES = 60;
 const DEFAULT_INTER_ITEM_DELAY_MS = 15_000;
 const DEFAULT_POST_RUN_METRIC_CYCLES = 1;
+const DEFAULT_POST_RUN_LONGITUDINAL_METRIC_CYCLES = 0;
 const DEFAULT_POST_RUN_ENRICH_CYCLES = 1;
 const METRIC_MIN_GAP_MINUTES = 60;
 const MANUAL_INTERRUPT_CODE = "manual_interrupt";
@@ -49,13 +51,16 @@ export type BoundedOperationRunnerOptions = {
   pumpOnly: boolean;
   checkpointFile?: string;
   metricLimit: number;
+  longitudinalMetricLimit: number;
   enrichLimit: number;
   intervalSeconds: number;
   maxIterations?: number;
   postRunBufferMinutes: number;
   interItemDelayMs: number;
   postRunMetricCycles: number;
+  postRunLongitudinalMetricCycles: number;
   postRunEnrichCycles: number;
+  longitudinalMetricMinGapMinutes: number;
   cleanupSinceMinutes?: number;
   executeRequested: boolean;
   repoRoot: string;
@@ -66,6 +71,7 @@ export type BoundedOperationRunnerPhaseName =
   | "detect_write"
   | "metric_pending_snapshot"
   | "enrich_rescore"
+  | "metric_longitudinal_snapshot"
   | "report_review"
   | "notification_plan_review";
 
@@ -174,10 +180,14 @@ export type BoundedOperationRunnerProgressSummary = {
   phasesSkipped: string[];
   detectSummary: Record<string, unknown>;
   metricCyclesExecuted: number;
+  longitudinalMetricCyclesExecuted: number;
   enrichCyclesExecuted: number;
   metricCyclesStoppedReason: string | null;
+  longitudinalMetricCyclesStoppedReason: string | null;
   enrichCyclesStoppedReason: string | null;
   totalTokenCreateReuse: number | null;
+  totalInitialMetricWrite: number | null;
+  totalLongitudinalMetricWrite: number | null;
   totalMetricWrite: number | null;
   totalTokenUpdate: number | null;
   notificationCreateUpdateExpected: 0;
@@ -231,6 +241,13 @@ export type BoundedOperatorCycleSummary = {
     skipped: number | null;
     error: number | null;
   };
+  longitudinalMetric: {
+    selected: number | null;
+    ok: number | null;
+    written: number | null;
+    skipped: number | null;
+    error: number | null;
+  };
   enrich: {
     selected: number | null;
     updated: number | null;
@@ -270,7 +287,9 @@ export type BoundedOperationRunnerReport = {
   intervalSeconds: number;
   detectLimitPerCycle: 1;
   metricLimit: number;
+  longitudinalMetricLimit: number;
   enrichLimit: number;
+  longitudinalMetricMinGapMinutes: number;
   postRunBufferMinutes: number;
   interItemDelayMs: number;
   estimatedMinimumDurationMs: number;
@@ -304,10 +323,13 @@ export type BoundedOperationRunnerReport = {
   phases: BoundedOperationRunnerPhase[];
   finalQueueState: QueueState;
   postRunMetricCycles: number;
+  postRunLongitudinalMetricCycles: number;
   postRunEnrichCycles: number;
   metricCyclesExecuted: number;
+  longitudinalMetricCyclesExecuted: number;
   enrichCyclesExecuted: number;
   metricCyclesStoppedReason: string | null;
+  longitudinalMetricCyclesStoppedReason: string | null;
   enrichCyclesStoppedReason: string | null;
   blockedBy: string[];
   stopConditionCodes: string[];
@@ -320,12 +342,16 @@ export type BoundedOperationRunnerReport = {
 export const DEFAULT_BOUNDED_OPERATION_RUNNER_OPTIONS = {
   hours: DEFAULT_HOURS,
   metricLimit: DEFAULT_METRIC_LIMIT,
+  longitudinalMetricLimit: DEFAULT_LONGITUDINAL_METRIC_LIMIT,
   enrichLimit: DEFAULT_ENRICH_LIMIT,
   intervalSeconds: DEFAULT_INTERVAL_SECONDS,
   postRunBufferMinutes: DEFAULT_POST_RUN_BUFFER_MINUTES,
   interItemDelayMs: DEFAULT_INTER_ITEM_DELAY_MS,
   postRunMetricCycles: DEFAULT_POST_RUN_METRIC_CYCLES,
+  postRunLongitudinalMetricCycles:
+    DEFAULT_POST_RUN_LONGITUDINAL_METRIC_CYCLES,
   postRunEnrichCycles: DEFAULT_POST_RUN_ENRICH_CYCLES,
+  longitudinalMetricMinGapMinutes: METRIC_MIN_GAP_MINUTES,
 } as const;
 
 function optionalPumpOnlyArg(pumpOnly: boolean): string[] {
@@ -357,11 +383,18 @@ export function computeEstimatedMinimumDurationMs(
   const detectIntervalWaits = Math.max(0, computeMaxIterations(options) - 1);
   const metricInterItemWaits =
     Math.max(0, options.metricLimit - 1) * options.postRunMetricCycles;
+  const longitudinalMetricInterItemWaits =
+    Math.max(0, options.longitudinalMetricLimit - 1)
+    * options.postRunLongitudinalMetricCycles;
   const enrichInterItemWaits =
     Math.max(0, options.enrichLimit - 1) * options.postRunEnrichCycles;
 
   return detectIntervalWaits * options.intervalSeconds * 1_000
-    + (metricInterItemWaits + enrichInterItemWaits) * options.interItemDelayMs;
+    + (
+      metricInterItemWaits
+      + enrichInterItemWaits
+      + longitudinalMetricInterItemWaits
+    ) * options.interItemDelayMs;
 }
 
 function isCurrentOperatorPreset(options: BoundedOperationRunnerOptions): boolean {
@@ -369,13 +402,16 @@ function isCurrentOperatorPreset(options: BoundedOperationRunnerOptions): boolea
     && options.pumpOnly
     && options.checkpointFile === "/tmp/lowcap-bot-gecko-bounded-write-rehearsal.json"
     && options.metricLimit === 50
+    && options.longitudinalMetricLimit === 50
     && options.enrichLimit === 50
     && options.intervalSeconds === 60
     && computeMaxIterations(options) === 180
     && options.postRunBufferMinutes === 60
     && options.interItemDelayMs === 15_000
     && options.postRunMetricCycles === 4
-    && options.postRunEnrichCycles === 4;
+    && options.postRunEnrichCycles === 4
+    && options.postRunLongitudinalMetricCycles === 1
+    && options.longitudinalMetricMinGapMinutes === 60;
 }
 
 function buildNextExecutionCommand(
@@ -395,9 +431,12 @@ function buildNextExecutionCommand(
     ...optionalPumpOnlyArg(options.pumpOnly),
     `--checkpointFile ${options.checkpointFile}`,
     `--metricLimit ${options.metricLimit}`,
+    `--longitudinalMetricLimit ${options.longitudinalMetricLimit}`,
     `--enrichLimit ${options.enrichLimit}`,
     `--postRunMetricCycles ${options.postRunMetricCycles}`,
+    `--postRunLongitudinalMetricCycles ${options.postRunLongitudinalMetricCycles}`,
     `--postRunEnrichCycles ${options.postRunEnrichCycles}`,
+    `--longitudinalMetricMinGapMinutes ${options.longitudinalMetricMinGapMinutes}`,
     `--intervalSeconds ${options.intervalSeconds}`,
     `--maxIterations ${computeMaxIterations(options)}`,
     `--postRunBufferMinutes ${options.postRunBufferMinutes}`,
@@ -565,6 +604,46 @@ function buildMetricCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
   };
 }
 
+function buildLongitudinalMetricCommand(
+  options: BoundedOperationRunnerOptions,
+  cycleIndex?: number,
+): PhaseCommand {
+  const cliArgs = [
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    "--limit",
+    String(options.longitudinalMetricLimit),
+    "--sinceMinutes",
+    String(options.cleanupSinceMinutes ?? computeSinceMinutes(options)),
+    "--minGapMinutes",
+    String(options.longitudinalMetricMinGapMinutes),
+    "--interItemDelayMs",
+    String(options.interItemDelayMs),
+    "--onlyMetricOnce",
+    "--noNotificationCapture",
+    "--write",
+  ];
+  const displayArgs = [
+    "-s",
+    "metric:snapshot:geckoterminal",
+    "--",
+    ...cliArgs,
+  ];
+  const execution = buildNodeTsxCliExecution(
+    options,
+    "src/cli/metricSnapshotGeckoterminal.ts",
+    cliArgs,
+  );
+
+  return {
+    label: cycleIndex === undefined
+      ? "metric_longitudinal_snapshot"
+      : `metric_longitudinal_snapshot_cycle_${cycleIndex}`,
+    commandCandidate: joinCommand("pnpm", displayArgs),
+    file: execution.file,
+    args: execution.args,
+  };
+}
+
 function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?: number): PhaseCommand {
   const cliArgs = [
     ...optionalPumpOnlyArg(options.pumpOnly),
@@ -600,6 +679,15 @@ function buildEnrichCommand(options: BoundedOperationRunnerOptions, cycleIndex?:
 function buildMetricCycleCommands(options: BoundedOperationRunnerOptions): PhaseCommand[] {
   return Array.from({ length: options.postRunMetricCycles }, (_, index) =>
     buildMetricCommand(options, index + 1),
+  );
+}
+
+function buildLongitudinalMetricCycleCommands(
+  options: BoundedOperationRunnerOptions,
+): PhaseCommand[] {
+  return Array.from(
+    { length: options.postRunLongitudinalMetricCycles },
+    (_, index) => buildLongitudinalMetricCommand(options, index + 1),
   );
 }
 
@@ -838,6 +926,7 @@ export function buildBoundedOperationRunnerPlan(
   const detectCommand = buildDetectCommand(options);
   const metricCommands = buildMetricCycleCommands(commandOptions);
   const enrichCommands = buildEnrichCycleCommands(commandOptions);
+  const longitudinalMetricCommands = buildLongitudinalMetricCycleCommands(commandOptions);
   const reportCommands = [
     buildReviewQueueCommand(options),
     buildReviewQueueCommand(options, 168),
@@ -940,6 +1029,42 @@ export function buildBoundedOperationRunnerPlan(
       blockedBy: stop.blockedBy,
       stopConditionCodes: stop.stopConditionCodes,
     }),
+    phase(
+      "metric_longitudinal_snapshot",
+      options.postRunLongitudinalMetricCycles === 0 && !blocked ? "skipped" : plannedStatus,
+      longitudinalMetricCommands,
+      {
+        writePhase: true,
+        summary: {
+          cyclesPlanned: options.postRunLongitudinalMetricCycles,
+          cyclesExecuted: 0,
+          cleanupSinceMinutes,
+          selector: "onlyMetricOnce",
+          minGapMinutes: options.longitudinalMetricMinGapMinutes,
+          stoppedReason:
+            options.postRunLongitudinalMetricCycles === 0 ? "cycles_zero" : null,
+          cycleCommandCandidates: longitudinalMetricCommands.map(
+            (command) => command.commandCandidate,
+          ),
+        },
+        expectedSideEffects: [
+          "external GeckoTerminal fetch on --execute",
+          `production DB longitudinal Metric write max ${options.longitudinalMetricLimit * options.postRunLongitudinalMetricCycles} on --execute`,
+        ],
+        expectedNonEffects: [
+          "Token write 0",
+          "Notification create/update 0",
+          "HolderSnapshot write 0",
+          "Telegram send 0",
+          "automatic retry 0",
+          "scheduler/systemd 0",
+          "rawJson full dump 0",
+          "offensive raw text dump 0",
+        ],
+        blockedBy: stop.blockedBy,
+        stopConditionCodes: stop.stopConditionCodes,
+      },
+    ),
     phase("report_review", plannedStatus, reportCommands, {
       writePhase: false,
       expectedSideEffects: [],
@@ -981,7 +1106,9 @@ export function buildBoundedOperationRunnerPlan(
     intervalSeconds: options.intervalSeconds,
     detectLimitPerCycle: 1,
     metricLimit: options.metricLimit,
+    longitudinalMetricLimit: options.longitudinalMetricLimit,
     enrichLimit: options.enrichLimit,
+    longitudinalMetricMinGapMinutes: options.longitudinalMetricMinGapMinutes,
     postRunBufferMinutes: options.postRunBufferMinutes,
     interItemDelayMs: options.interItemDelayMs,
     estimatedMinimumDurationMs: computeEstimatedMinimumDurationMs(options),
@@ -1015,10 +1142,14 @@ export function buildBoundedOperationRunnerPlan(
     phases,
     finalQueueState: input.queueState,
     postRunMetricCycles: options.postRunMetricCycles,
+    postRunLongitudinalMetricCycles: options.postRunLongitudinalMetricCycles,
     postRunEnrichCycles: options.postRunEnrichCycles,
     metricCyclesExecuted: 0,
+    longitudinalMetricCyclesExecuted: 0,
     enrichCyclesExecuted: 0,
     metricCyclesStoppedReason: options.postRunMetricCycles === 0 ? "cycles_zero" : null,
+    longitudinalMetricCyclesStoppedReason:
+      options.postRunLongitudinalMetricCycles === 0 ? "cycles_zero" : null,
     enrichCyclesStoppedReason: options.postRunEnrichCycles === 0 ? "cycles_zero" : null,
     blockedBy: stop.blockedBy,
     stopConditionCodes: stop.stopConditionCodes,
@@ -1058,6 +1189,8 @@ function commandsForPhase(
       return buildMetricCycleCommands(options);
     case "enrich_rescore":
       return buildEnrichCycleCommands(options);
+    case "metric_longitudinal_snapshot":
+      return buildLongitudinalMetricCycleCommands(options);
     case "report_review":
       return [
         buildReviewQueueCommand(options),
@@ -1467,7 +1600,11 @@ function cycleNoWorkReason(
     return "selected_zero";
   }
 
-  if (phaseName === "metric_pending_snapshot" && asNumber(fields.written) === 0) {
+  if (
+    (phaseName === "metric_pending_snapshot"
+      || phaseName === "metric_longitudinal_snapshot")
+    && asNumber(fields.written) === 0
+  ) {
     return "written_zero";
   }
 
@@ -1821,6 +1958,9 @@ async function executeCyclePhase(
       if (phaseItem.phase === "metric_pending_snapshot") {
         report.metricCyclesExecuted = executedCount;
         report.metricCyclesStoppedReason = MANUAL_INTERRUPT_CODE;
+      } else if (phaseItem.phase === "metric_longitudinal_snapshot") {
+        report.longitudinalMetricCyclesExecuted = executedCount;
+        report.longitudinalMetricCyclesStoppedReason = MANUAL_INTERRUPT_CODE;
       } else if (phaseItem.phase === "enrich_rescore") {
         report.enrichCyclesExecuted = executedCount;
         report.enrichCyclesStoppedReason = MANUAL_INTERRUPT_CODE;
@@ -1853,6 +1993,9 @@ async function executeCyclePhase(
       if (phaseItem.phase === "metric_pending_snapshot") {
         report.metricCyclesExecuted = executedCount;
         report.metricCyclesStoppedReason = stoppedReason;
+      } else if (phaseItem.phase === "metric_longitudinal_snapshot") {
+        report.longitudinalMetricCyclesExecuted = executedCount;
+        report.longitudinalMetricCyclesStoppedReason = stoppedReason;
       } else if (phaseItem.phase === "enrich_rescore") {
         report.enrichCyclesExecuted = executedCount;
         report.enrichCyclesStoppedReason = stoppedReason;
@@ -1884,9 +2027,48 @@ async function executeCyclePhase(
       if (phaseItem.phase === "metric_pending_snapshot") {
         report.metricCyclesExecuted = executedCount;
         report.metricCyclesStoppedReason = stoppedReason;
+      } else if (phaseItem.phase === "metric_longitudinal_snapshot") {
+        report.longitudinalMetricCyclesExecuted = executedCount;
+        report.longitudinalMetricCyclesStoppedReason = stoppedReason;
       } else if (phaseItem.phase === "enrich_rescore") {
         report.enrichCyclesExecuted = executedCount;
         report.enrichCyclesStoppedReason = stoppedReason;
+      }
+      emitProgress(logger, {
+        event: "phase",
+        phase: phaseItem.phase,
+        status: "failed",
+        durationMs: Date.now() - phaseStartedAt,
+        summary: extractProgressSummaryFields(phaseItem.summary),
+        blockedBy: phaseItem.blockedBy,
+        stopConditionCodes: phaseItem.stopConditionCodes,
+      });
+      return false;
+    }
+
+    if (
+      (phaseItem.phase === "metric_pending_snapshot"
+        || phaseItem.phase === "metric_longitudinal_snapshot")
+      && cycleHasItemError(fields)
+      && !metricCycleHasUnexpectedWrite(fields)
+    ) {
+      stoppedReason = "metric_item_error_no_automatic_retry";
+      phaseItem.status = "failed";
+      phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
+        cyclesPlanned: commands.length,
+        cyclesExecuted: executedCount,
+        stoppedReason,
+        cycleSummaries,
+      });
+      phaseItem.stopConditionCodes = [stoppedReason];
+      report.blockedBy.push(`${phaseItem.phase}_failed`);
+      report.stopConditionCodes.push(stoppedReason);
+      if (phaseItem.phase === "metric_pending_snapshot") {
+        report.metricCyclesExecuted = executedCount;
+        report.metricCyclesStoppedReason = stoppedReason;
+      } else {
+        report.longitudinalMetricCyclesExecuted = executedCount;
+        report.longitudinalMetricCyclesStoppedReason = stoppedReason;
       }
       emitProgress(logger, {
         event: "phase",
@@ -1906,7 +2088,11 @@ async function executeCyclePhase(
       break;
     }
 
-    if (phaseItem.phase === "metric_pending_snapshot" && metricCycleHasUnexpectedWrite(fields)) {
+    if (
+      (phaseItem.phase === "metric_pending_snapshot"
+        || phaseItem.phase === "metric_longitudinal_snapshot")
+      && metricCycleHasUnexpectedWrite(fields)
+    ) {
       stoppedReason = "unexpected_metric_phase_side_effect";
       phaseItem.status = "failed";
       phaseItem.summary = mergePhaseSummary(phaseItem.summary, {
@@ -1918,8 +2104,13 @@ async function executeCyclePhase(
       phaseItem.stopConditionCodes = [stoppedReason];
       report.blockedBy.push(`${phaseItem.phase}_failed`);
       report.stopConditionCodes.push(stoppedReason);
-      report.metricCyclesExecuted = executedCount;
-      report.metricCyclesStoppedReason = stoppedReason;
+      if (phaseItem.phase === "metric_pending_snapshot") {
+        report.metricCyclesExecuted = executedCount;
+        report.metricCyclesStoppedReason = stoppedReason;
+      } else {
+        report.longitudinalMetricCyclesExecuted = executedCount;
+        report.longitudinalMetricCyclesStoppedReason = stoppedReason;
+      }
       emitProgress(logger, {
         event: "phase",
         phase: phaseItem.phase,
@@ -1951,6 +2142,9 @@ async function executeCyclePhase(
   if (phaseItem.phase === "metric_pending_snapshot") {
     report.metricCyclesExecuted = executedCount;
     report.metricCyclesStoppedReason = stoppedReason;
+  } else if (phaseItem.phase === "metric_longitudinal_snapshot") {
+    report.longitudinalMetricCyclesExecuted = executedCount;
+    report.longitudinalMetricCyclesStoppedReason = stoppedReason;
   } else if (phaseItem.phase === "enrich_rescore") {
     report.enrichCyclesExecuted = executedCount;
     report.enrichCyclesStoppedReason = stoppedReason;
@@ -2155,6 +2349,17 @@ function unexpectedPhaseDbDeltaCode(
         ? null
         : "unexpected_metric_pending_snapshot_db_delta";
     }
+    case "metric_longitudinal_snapshot": {
+      const writtenCount = sumCycleField(phaseItem, "written");
+      return deltas.token === 0
+        && deltas.metric >= 0
+        && deltas.metric
+          <= options.longitudinalMetricLimit * options.postRunLongitudinalMetricCycles
+        && (writtenCount === null || deltas.metric === writtenCount)
+        && noOtherWrites
+        ? null
+        : "unexpected_metric_longitudinal_snapshot_db_delta";
+    }
     case "enrich_rescore":
     case "report_review":
     case "notification_plan_review":
@@ -2229,6 +2434,9 @@ function buildOperatorSummary(
   const detectPhase = report.phases.find((phaseItem) => phaseItem.phase === "detect_write");
   const metricPhase = report.phases.find((phaseItem) => phaseItem.phase === "metric_pending_snapshot");
   const enrichPhase = report.phases.find((phaseItem) => phaseItem.phase === "enrich_rescore");
+  const longitudinalMetricPhase = report.phases.find(
+    (phaseItem) => phaseItem.phase === "metric_longitudinal_snapshot",
+  );
   const reportPhase = report.phases.find((phaseItem) => phaseItem.phase === "report_review");
   const detectSummary = extractProgressSummaryFields(detectPhase?.summary);
   const detectProviderErrors =
@@ -2236,7 +2444,22 @@ function buildOperatorSummary(
     ?? asNumber(detectSummary.failedCount)
     ?? 0;
   const metricProviderErrors = sumCycleField(metricPhase, "providerErrorCount") ?? 0;
+  const longitudinalMetricProviderErrors =
+    sumCycleField(longitudinalMetricPhase, "providerErrorCount") ?? 0;
   const enrichProviderErrors = sumCycleField(enrichPhase, "providerErrorCount") ?? 0;
+  const metricRateLimitCount = sumCycleField(metricPhase, "rateLimitedCount") ?? 0;
+  const longitudinalMetricRateLimitCount =
+    sumCycleField(longitudinalMetricPhase, "rateLimitedCount") ?? 0;
+  const metricItemErrors =
+    sumCycleField(metricPhase, "itemErrorCount")
+    ?? Math.max(0, (sumCycleField(metricPhase, "error") ?? 0) - metricProviderErrors);
+  const longitudinalMetricItemErrors =
+    sumCycleField(longitudinalMetricPhase, "itemErrorCount")
+    ?? Math.max(
+      0,
+      (sumCycleField(longitudinalMetricPhase, "error") ?? 0)
+      - longitudinalMetricProviderErrors,
+    );
   const enrichItemErrors =
     sumCycleField(enrichPhase, "itemErrorCount")
     ?? Math.max(0, (sumCycleField(enrichPhase, "error") ?? 0) - enrichProviderErrors);
@@ -2244,20 +2467,32 @@ function buildOperatorSummary(
   const firstErrorCategory =
     (detectProviderErrors > 0 ? "detect_cycle_failed" : null)
     ?? firstCycleStringField(metricPhase, "firstErrorCategory")
+    ?? (metricRateLimitCount > 0 ? "http_429" : null)
+    ?? (metricProviderErrors > 0 ? "provider_error" : null)
+    ?? (metricItemErrors > 0 ? "item_error" : null)
     ?? firstCycleStringField(enrichPhase, "firstErrorCategory")
     ?? (enrichRateLimitCount > 0 ? "http_429" : null)
     ?? (enrichProviderErrors > 0 ? "provider_error" : null)
-    ?? (enrichItemErrors > 0 ? "item_error" : null);
+    ?? (enrichItemErrors > 0 ? "item_error" : null)
+    ?? firstCycleStringField(longitudinalMetricPhase, "firstErrorCategory")
+    ?? (longitudinalMetricRateLimitCount > 0 ? "http_429" : null)
+    ?? (longitudinalMetricProviderErrors > 0 ? "provider_error" : null)
+    ?? (longitudinalMetricItemErrors > 0 ? "item_error" : null);
   const firstHttpStatus =
     firstCycleNumberField(metricPhase, "firstHttpStatus")
+    ?? (metricRateLimitCount > 0 ? 429 : null)
     ?? firstCycleNumberField(enrichPhase, "firstHttpStatus")
-    ?? (enrichRateLimitCount > 0 ? 429 : null);
+    ?? (enrichRateLimitCount > 0 ? 429 : null)
+    ?? firstCycleNumberField(longitudinalMetricPhase, "firstHttpStatus")
+    ?? (longitudinalMetricRateLimitCount > 0 ? 429 : null);
   const firstErrorClass =
     firstCycleStringField(metricPhase, "firstErrorClass")
-    ?? firstCycleStringField(enrichPhase, "firstErrorClass");
+    ?? firstCycleStringField(enrichPhase, "firstErrorClass")
+    ?? firstCycleStringField(longitudinalMetricPhase, "firstErrorClass");
   const firstErrorTokenId =
     firstCycleNumberField(metricPhase, "firstErrorTokenId")
-    ?? firstCycleNumberField(enrichPhase, "firstErrorTokenId");
+    ?? firstCycleNumberField(enrichPhase, "firstErrorTokenId")
+    ?? firstCycleNumberField(longitudinalMetricPhase, "firstErrorTokenId");
   const dbCountsBefore = coreDbCounts(report.dbState);
   const dbCountsAfter = coreDbCounts(report.finalDbState);
   const tokenDelta = dbCountsAfter.tokenCount - dbCountsBefore.tokenCount;
@@ -2280,6 +2515,7 @@ function buildOperatorSummary(
     : report.stopConditionCodes[0]
       ?? report.metricCyclesStoppedReason
       ?? report.enrichCyclesStoppedReason
+      ?? report.longitudinalMetricCyclesStoppedReason
       ?? null;
 
   return {
@@ -2328,6 +2564,13 @@ function buildOperatorSummary(
       skipped: sumCycleField(metricPhase, "skipped"),
       error: sumCycleField(metricPhase, "error"),
     },
+    longitudinalMetric: {
+      selected: sumCycleField(longitudinalMetricPhase, "selected"),
+      ok: sumCycleField(longitudinalMetricPhase, "ok"),
+      written: sumCycleField(longitudinalMetricPhase, "written"),
+      skipped: sumCycleField(longitudinalMetricPhase, "skipped"),
+      error: sumCycleField(longitudinalMetricPhase, "error"),
+    },
     enrich: {
       selected: sumCycleField(enrichPhase, "selected"),
       updated: enrichUpdated,
@@ -2339,14 +2582,16 @@ function buildOperatorSummary(
       detect_write: detectProviderErrors,
       metric_pending_snapshot: metricProviderErrors,
       enrich_rescore: enrichProviderErrors,
+      metric_longitudinal_snapshot: longitudinalMetricProviderErrors,
       report_review: 0,
       notification_plan_review: 0,
     },
     itemErrorCountByPhase: {
       preflight: 0,
       detect_write: 0,
-      metric_pending_snapshot: 0,
+      metric_pending_snapshot: metricItemErrors,
       enrich_rescore: enrichItemErrors,
+      metric_longitudinal_snapshot: longitudinalMetricItemErrors,
       report_review: 0,
       notification_plan_review: 0,
     },
@@ -2389,9 +2634,20 @@ function buildProgressSummary(
   const detectPhase = report.phases.find((phaseItem) => phaseItem.phase === "detect_write");
   const metricPhase = report.phases.find((phaseItem) => phaseItem.phase === "metric_pending_snapshot");
   const enrichPhase = report.phases.find((phaseItem) => phaseItem.phase === "enrich_rescore");
+  const longitudinalMetricPhase = report.phases.find(
+    (phaseItem) => phaseItem.phase === "metric_longitudinal_snapshot",
+  );
   const importedCount = asNumber(extractProgressSummaryFields(detectPhase?.summary).importedCount);
   const existingCount = asNumber(extractProgressSummaryFields(detectPhase?.summary).existingCount);
-  const totalMetricWrite = sumCycleField(metricPhase, "written");
+  const totalInitialMetricWrite = sumCycleField(metricPhase, "written");
+  const totalLongitudinalMetricWrite = sumCycleField(
+    longitudinalMetricPhase,
+    "written",
+  );
+  const totalMetricWrite =
+    totalInitialMetricWrite !== null || totalLongitudinalMetricWrite !== null
+      ? (totalInitialMetricWrite ?? 0) + (totalLongitudinalMetricWrite ?? 0)
+      : null;
   const totalEnriched = sumCycleField(enrichPhase, "enriched");
   const totalRescored = sumCycleField(enrichPhase, "rescored");
   const hasBlockedPhase = report.phases.some((phaseItem) => phaseItem.status === "blocked");
@@ -2432,13 +2688,18 @@ function buildProgressSummary(
     phasesSkipped,
     detectSummary: extractProgressSummaryFields(detectPhase?.summary),
     metricCyclesExecuted: report.metricCyclesExecuted,
+    longitudinalMetricCyclesExecuted: report.longitudinalMetricCyclesExecuted,
     enrichCyclesExecuted: report.enrichCyclesExecuted,
     metricCyclesStoppedReason: report.metricCyclesStoppedReason,
+    longitudinalMetricCyclesStoppedReason:
+      report.longitudinalMetricCyclesStoppedReason,
     enrichCyclesStoppedReason: report.enrichCyclesStoppedReason,
     totalTokenCreateReuse:
       importedCount !== undefined || existingCount !== undefined
         ? (importedCount ?? 0) + (existingCount ?? 0)
         : null,
+    totalInitialMetricWrite,
+    totalLongitudinalMetricWrite,
     totalMetricWrite,
     totalTokenUpdate:
       totalEnriched !== null || totalRescored !== null
@@ -2494,8 +2755,11 @@ export async function runBoundedOperationRunner(
           cleanupWindowSource: report.cleanupWindowSource,
           maxIterations: report.maxIterations,
           postRunMetricCycles: report.postRunMetricCycles,
+          postRunLongitudinalMetricCycles: report.postRunLongitudinalMetricCycles,
           postRunEnrichCycles: report.postRunEnrichCycles,
           metricCyclesExecuted: report.progressSummary.metricCyclesExecuted,
+          longitudinalMetricCyclesExecuted:
+            report.progressSummary.longitudinalMetricCyclesExecuted,
           enrichCyclesExecuted: report.progressSummary.enrichCyclesExecuted,
           activePhase: report.progressSummary.activePhase ?? "none",
           partialPhase: report.progressSummary.partialPhase ?? "none",
@@ -2508,6 +2772,9 @@ export async function runBoundedOperationRunner(
           startedAt: report.progressSummary.startedAt,
           interruptedAt: report.progressSummary.interruptedAt ?? "none",
           totalTokenCreateReuse: report.progressSummary.totalTokenCreateReuse,
+          totalInitialMetricWrite: report.progressSummary.totalInitialMetricWrite,
+          totalLongitudinalMetricWrite:
+            report.progressSummary.totalLongitudinalMetricWrite,
           totalMetricWrite: report.progressSummary.totalMetricWrite,
           totalTokenUpdate: report.progressSummary.totalTokenUpdate,
           notificationCreateUpdateExpected: 0,
@@ -2567,7 +2834,11 @@ export async function runBoundedOperationRunner(
         continue;
       }
 
-      if (phaseItem.phase === "metric_pending_snapshot" || phaseItem.phase === "enrich_rescore") {
+      if (
+        phaseItem.phase === "metric_pending_snapshot"
+        || phaseItem.phase === "enrich_rescore"
+        || phaseItem.phase === "metric_longitudinal_snapshot"
+      ) {
         const ok = await executeCyclePhase(
           report,
           phaseItem,
@@ -2778,10 +3049,15 @@ export async function runBoundedOperationRunner(
       cleanupWindowSource: report.cleanupWindowSource,
       maxIterations: report.maxIterations,
       postRunMetricCycles: report.postRunMetricCycles,
+      postRunLongitudinalMetricCycles: report.postRunLongitudinalMetricCycles,
       postRunEnrichCycles: report.postRunEnrichCycles,
       metricCyclesExecuted: report.progressSummary.metricCyclesExecuted,
+      longitudinalMetricCyclesExecuted:
+        report.progressSummary.longitudinalMetricCyclesExecuted,
       enrichCyclesExecuted: report.progressSummary.enrichCyclesExecuted,
       metricCyclesStoppedReason: report.progressSummary.metricCyclesStoppedReason ?? "none",
+      longitudinalMetricCyclesStoppedReason:
+        report.progressSummary.longitudinalMetricCyclesStoppedReason ?? "none",
       enrichCyclesStoppedReason: report.progressSummary.enrichCyclesStoppedReason ?? "none",
       activePhase: report.progressSummary.activePhase ?? "none",
       activeCycleIndex: report.progressSummary.activeCycleIndex ?? 0,
@@ -2796,6 +3072,9 @@ export async function runBoundedOperationRunner(
       startedAt: report.progressSummary.startedAt,
       interruptedAt: report.progressSummary.interruptedAt ?? "none",
       totalTokenCreateReuse: report.progressSummary.totalTokenCreateReuse,
+      totalInitialMetricWrite: report.progressSummary.totalInitialMetricWrite,
+      totalLongitudinalMetricWrite:
+        report.progressSummary.totalLongitudinalMetricWrite,
       totalMetricWrite: report.progressSummary.totalMetricWrite,
       totalTokenUpdate: report.progressSummary.totalTokenUpdate,
       notificationCreateUpdateExpected: 0,

@@ -89,6 +89,18 @@ operator window when new detect/cleanup work is desired, not an immediate
 retry and not an individual 50-row loop. Scheduler/systemd and Telegram live
 send remain separate future gates.
 
+Longitudinal Metric update, 2026-07-19: the accepted cycle exposed the next
+missing operational link. It ran long enough, but the orchestrated Metric
+selector was initial-only, so new rows stayed at Metric count `1` and the
+growth cohort did not expand. The operator preset now adds one bounded
+`metric_longitudinal_snapshot` cycle after enrich, reusing
+`--onlyMetricOnce --minGapMinutes 60 --limit 50 --noNotificationCapture`.
+Planner state exposes `longitudinalMetricDueCount`; current requested 3H is
+`0`, rolling 168H is `358`, and the rolling cleanup horizon is selected while
+detect remains 3H. The next milestone is one Red acceptance of the unchanged
+operator command proving Metric-one -> Metric>=2 movement and in-cycle growth
+report expansion. Do not replace it with an individual Metric loop.
+
 Update, 2026-07-01:
 
 The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green

@@ -44,6 +44,7 @@ export type QueueSummary = {
   sinceHours: number;
   geckoOriginTokenCount: number;
   metricPendingCount: number;
+  longitudinalMetricDueCount: number;
   enrichPendingCount: number;
   staleReviewCount: number;
   notifyCandidateCount: number;
@@ -72,6 +73,7 @@ export type OperationReadiness = {
   canRunDetectDryRun: boolean;
   canRunDetectWriteRehearsal: boolean;
   canRunMetricPending: boolean;
+  canRunLongitudinalMetric: boolean;
   canRunEnrichPending: boolean;
   canReviewReports: boolean;
   canPlanNotification: boolean;
@@ -86,6 +88,7 @@ export type NextRecommendedStep =
   | "detect_watch_write_rehearsal"
   | "metric_pending_snapshot"
   | "enrich_pending_rescore"
+  | "metric_longitudinal_snapshot"
   | "report_review"
   | "notification_manual_review"
   | "auto_send_plan_review"
@@ -136,6 +139,7 @@ export type PostRunWorkflowStepStatus =
 export type PostRunWorkflowStepName =
   | "metric_pending_snapshot"
   | "enrich_pending_rescore"
+  | "metric_longitudinal_snapshot"
   | "report_review"
   | "notification_plan_review"
   | "optional_auto_send_plan_review"
@@ -166,6 +170,7 @@ export type PostRunWorkflowPlan = {
 
 function actionableCount(queue: QueueSummary): number {
   return queue.metricPendingCount
+    + queue.longitudinalMetricDueCount
     + queue.enrichPendingCount
     + queue.staleReviewCount
     + queue.notifyCandidateCount;
@@ -176,6 +181,7 @@ export function resolveCleanupWindow(queueState: QueueState): CleanupWindowSelec
   const rolling = queueState.rolling168h;
   const rollingHasOlderActionableWork =
     rolling.metricPendingCount > requested.metricPendingCount
+    || rolling.longitudinalMetricDueCount > requested.longitudinalMetricDueCount
     || rolling.enrichPendingCount > requested.enrichPendingCount
     || rolling.staleReviewCount > requested.staleReviewCount
     || rolling.notifyCandidateCount > requested.notifyCandidateCount
@@ -204,6 +210,7 @@ type SelectedToken = {
   rescoredAt: Date | null;
   selectionAnchorAt: Date;
   metricsCount: number;
+  latestMetricObservedAt: Date | null;
   isGeckoterminalOrigin: boolean;
 };
 
@@ -252,6 +259,22 @@ function buildPostRunMetricPendingCommand(options: BoundedOperationPlannerOption
     ...options,
     limit: options.metricLimit ?? DEFAULT_POST_RUN_METRIC_LIMIT,
   });
+}
+
+function buildLongitudinalMetricCommand(options: BoundedOperationPlannerOptions): string {
+  const sinceMinutes = Math.max(1, Math.ceil(options.sinceHours * 60));
+
+  return [
+    "pnpm -s metric:snapshot:geckoterminal --",
+    ...optionalPumpOnlyArg(options.pumpOnly),
+    `--limit ${options.metricLimit ?? DEFAULT_POST_RUN_METRIC_LIMIT}`,
+    `--sinceMinutes ${sinceMinutes}`,
+    `--minGapMinutes ${METRIC_MIN_GAP_MINUTES}`,
+    `--interItemDelayMs ${METRIC_INTER_ITEM_DELAY_MS}`,
+    "--onlyMetricOnce",
+    "--noNotificationCapture",
+    "--write",
+  ].join(" ");
 }
 
 function buildEnrichPendingCommand(options: BoundedOperationPlannerOptions): string {
@@ -358,6 +381,8 @@ function buildOperationReadiness(input: {
     canRunDetectDryRun: noStop,
     canRunDetectWriteRehearsal: noStop,
     canRunMetricPending: noStop && input.queue.metricPendingCount > 0,
+    canRunLongitudinalMetric:
+      noStop && input.queue.longitudinalMetricDueCount > 0,
     canRunEnrichPending: noStop && input.queue.enrichPendingCount > 0,
     canReviewReports: noStop,
     canPlanNotification: true,
@@ -465,6 +490,7 @@ function buildPostRunWorkflowPlan(
     const steps: PostRunWorkflowStep[] = [
       "metric_pending_snapshot",
       "enrich_pending_rescore",
+      "metric_longitudinal_snapshot",
       "report_review",
       "notification_plan_review",
       "optional_auto_send_plan_review",
@@ -492,10 +518,17 @@ function buildPostRunWorkflowPlan(
   const enrichEffects = enrichStepEffects(enrichLimit);
   const metricPending = queue.metricPendingCount > 0;
   const enrichPending = queue.enrichPendingCount > 0;
+  const longitudinalMetricDue = queue.longitudinalMetricDueCount > 0;
   const staleReview = queue.staleReviewCount > 0;
   const notifyCandidate = queue.notifyCandidateCount > 0;
 
-  if (!metricPending && !enrichPending && !staleReview && !notifyCandidate) {
+  if (
+    !metricPending
+    && !enrichPending
+    && !longitudinalMetricDue
+    && !staleReview
+    && !notifyCandidate
+  ) {
     return {
       enabled: true,
       operationWindowHours: options.hours,
@@ -506,7 +539,7 @@ function buildPostRunWorkflowPlan(
         {
           stepName: "no_action_queue_clear",
           status: "ready",
-          reason: "metricPendingCount, enrichPendingCount, staleReviewCount, and notifyCandidateCount are all 0",
+          reason: "metricPendingCount, enrichPendingCount, longitudinalMetricDueCount, staleReviewCount, and notifyCandidateCount are all 0",
           commandCandidate: buildDetectWriteRehearsalCommand(options),
           humanApprovalRequired: true,
           expectedSideEffects: [
@@ -564,12 +597,42 @@ function buildPostRunWorkflowPlan(
     stopConditionCodes: [],
   });
 
-  const earlierWritePending = metricPending || enrichPending;
+  steps.push({
+    stepName: "metric_longitudinal_snapshot",
+    status: metricPending || enrichPending
+      ? "pending_previous_step"
+      : longitudinalMetricDue
+        ? "ready"
+        : "not_needed",
+    reason: metricPending || enrichPending
+      ? "complete initial Metric and enrich pending steps before longitudinal Metric"
+      : longitudinalMetricDue
+        ? "longitudinalMetricDueCount > 0"
+        : "longitudinalMetricDueCount = 0",
+    commandCandidate: !metricPending && !enrichPending && longitudinalMetricDue
+      ? buildLongitudinalMetricCommand(cleanupOptions)
+      : null,
+    humanApprovalRequired: !metricPending && !enrichPending && longitudinalMetricDue,
+    expectedSideEffects:
+      !metricPending && !enrichPending && longitudinalMetricDue
+        ? metricEffects.expectedSideEffects
+        : [],
+    expectedNonEffects:
+      !metricPending && !enrichPending && longitudinalMetricDue
+        ? metricEffects.expectedNonEffects
+        : noWriteNonEffects(),
+    blockedBy: metricPending || enrichPending
+      ? ["prior_workflow_steps_not_complete"]
+      : [],
+    stopConditionCodes: [],
+  });
+
+  const earlierWritePending = metricPending || enrichPending || longitudinalMetricDue;
   steps.push({
     stepName: "report_review",
     status: earlierWritePending ? "pending_previous_step" : staleReview ? "ready" : "not_needed",
     reason: earlierWritePending
-      ? "complete Metric/enrich pending steps before report review"
+      ? "complete initial Metric, enrich, and longitudinal Metric steps before report review"
       : staleReview
         ? "staleReviewCount > 0"
         : "staleReviewCount = 0",
@@ -581,12 +644,13 @@ function buildPostRunWorkflowPlan(
     stopConditionCodes: [],
   });
 
-  const beforeNotificationPending = metricPending || enrichPending || staleReview;
+  const beforeNotificationPending =
+    metricPending || enrichPending || longitudinalMetricDue || staleReview;
   steps.push({
     stepName: "notification_plan_review",
     status: beforeNotificationPending ? "pending_previous_step" : notifyCandidate ? "ready" : "not_needed",
     reason: beforeNotificationPending
-      ? "complete Metric/enrich/report steps before notification planner review"
+      ? "complete Metric/enrich/longitudinal Metric/report steps before notification planner review"
       : notifyCandidate
         ? "notifyCandidateCount > 0; planner review only"
         : "notifyCandidateCount = 0",
@@ -687,6 +751,20 @@ export function buildBoundedOperationPlan(
       "rawJson full dump 0",
       "offensive raw text dump 0",
     ];
+  } else if (queue.longitudinalMetricDueCount > 0) {
+    nextRecommendedStep = "metric_longitudinal_snapshot";
+    redCommandCandidate = buildLongitudinalMetricCommand({
+      ...cleanupOptions,
+      metricLimit: options.limit,
+    });
+    humanApprovalRequired = true;
+    expectedSideEffects = [
+      "external GeckoTerminal fetch on approved Red execution",
+      `production DB longitudinal Metric write max ${options.limit} on approved Red execution`,
+    ];
+    expectedNonEffects = metricStepEffects(
+      options.limit,
+    ).expectedNonEffects;
   } else if (queue.staleReviewCount > 0) {
     nextRecommendedStep = "report_review";
   } else if (queue.notifyCandidateCount > 0) {
@@ -794,6 +872,9 @@ function buildSelectedToken(token: {
   enrichedAt: Date | null;
   rescoredAt: Date | null;
   entrySnapshot: unknown;
+  metrics?: Array<{
+    observedAt: Date;
+  }>;
   _count: {
     metrics: number;
   };
@@ -818,6 +899,7 @@ function buildSelectedToken(token: {
     rescoredAt: token.rescoredAt,
     selectionAnchorAt: detectedAt ?? token.createdAt,
     metricsCount: token._count.metrics,
+    latestMetricObservedAt: token.metrics?.[0]?.observedAt ?? null,
     isGeckoterminalOrigin:
       token.source === GECKOTERMINAL_NEW_POOLS_SOURCE ||
       originSource === GECKOTERMINAL_NEW_POOLS_SOURCE,
@@ -873,6 +955,13 @@ async function readQueueSummary(
       enrichedAt: true,
       rescoredAt: true,
       entrySnapshot: true,
+      metrics: {
+        orderBy: [{ observedAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: {
+          observedAt: true,
+        },
+      },
       _count: {
         select: {
           metrics: true,
@@ -894,6 +983,13 @@ async function readQueueSummary(
     sinceHours: input.sinceHours,
     geckoOriginTokenCount: tokens.length,
     metricPendingCount: tokens.filter((token) => token.metricsCount === 0).length,
+    longitudinalMetricDueCount: tokens.filter(
+      (token) =>
+        token.metricsCount === 1
+        && token.latestMetricObservedAt !== null
+        && nowMs - token.latestMetricObservedAt.getTime()
+          >= METRIC_MIN_GAP_MINUTES * 60_000,
+    ).length,
     enrichPendingCount: tokens.filter(isEnrichPending).length,
     staleReviewCount: tokens.filter(
       (token) => isPending(token) && nowMs - token.selectionAnchorAt.getTime() >= staleAfterMs,

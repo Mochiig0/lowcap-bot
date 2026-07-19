@@ -26,7 +26,9 @@ cadence. Telegram remains planner-only in the bounded operator cycle.
 
 The operator preset keeps `limit=50` per Metric/enrich batch and performs up to
 four batches internally, so the old operator-driven 50-row repetition is no
-longer the normal loop. It stops early on an empty selector and stops all later
+longer the normal loop. After enrich it also runs one bounded 50-row
+longitudinal Metric batch with `--onlyMetricOnce`, a 60-minute gap, and
+Notification capture disabled. It stops early on an empty selector and stops all later
 phases on provider/rate-limit failure. A non-provider item error stops later
 enrich batches without reselecting the failed row in the same run, preserves
 completed updates as partial success, and continues read-only reports/plans.
@@ -74,6 +76,14 @@ Token id `8809` completed normally. Reports/planners ran, DB moved
 `enrichPending` moved `130 -> 109`; Notification and Telegram effects stayed
 `0`. This confirms that routine work stays in the operator cycle and the
 manual minimum-loop commands below remain diagnostic/recovery references.
+
+Longitudinal update, 2026-07-19: elapsed time alone did not produce a second
+Metric because the accepted cycle orchestrated only `--onlyMetricPending`.
+The existing Metric-one selector is now part of the operator cycle. Current
+read-only state is global Metric-one `1438`, rolling-168H due `358`, and
+Metric>=2 `337`; requested 3H due is `0` but no longer hides the rolling
+backlog. The next normal proof is one approved operator cycle, not one of the
+individual `--onlyMetricOnce` recovery examples later in this document.
 
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for

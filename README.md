@@ -135,18 +135,22 @@ pnpm -s ops:run:bounded -- --operatorCycle --execute
 
 The operator preset is a 3H pump-only GeckoTerminal cycle with an out-of-repo
 checkpoint, detect limit `1` per watch cycle, four bounded Metric pending
-cycles, four bounded enrich/rescore cycles, safe report review, auto-send/retry
-planner review only, and Telegram send `0`. Individual Metric/enrich CLIs are
-diagnostic or recovery tools, not the normal operating path.
+cycles, four bounded enrich/rescore cycles, one bounded longitudinal Metric
+cycle, safe report review, auto-send/retry planner review only, and Telegram
+send `0`. Individual Metric/enrich CLIs are diagnostic or recovery tools, not
+the normal operating path.
 
 The preset keeps the proven per-batch limit at `50` and repeats it up to four
 times internally, stopping early when the selector is empty or at the first
 provider/rate-limit error. An isolated non-provider enrich item error now
 preserves successful updates, stops further enrich cycles to avoid immediate
 reselection, marks the cycle `partial`, and still runs read-only reports and
-Notification planners. Its configured minimum is about 4h37m: the 3H
-detect window plus Metric/enrich inter-item waits, before provider and report
-runtime. `ops:plan:bounded --postRunPlan` only prints post-run command strings;
+Notification planners. After enrich, the longitudinal phase selects up to `50`
+rolling-168H Gecko/pump rows with exactly one Metric, requires a `60` minute
+observation gap, appends only Metric rows, and disables Notification capture.
+Its configured minimum is about 4h49m: the 3H detect window plus initial
+Metric, enrich, and longitudinal Metric inter-item waits, before provider and
+report runtime. `ops:plan:bounded --postRunPlan` only prints post-run command strings;
 `ops:run:bounded -- --operatorCycle --execute` is the command that executes the
 ordered phases. A malformed or source-mismatched checkpoint is blocked in
 runner preflight, and the final summary includes safe checkpoint views, phase
@@ -158,8 +162,8 @@ The 3H value is the detect horizon, not a cleanup cutoff. The planner compares
 the requested queue with rolling 168H state and selects the rolling cleanup
 horizon when it contains older actionable work. The plan exposes
 `detectHorizonHours`, `cleanupHorizonHours`, `cleanupSinceMinutes`, and
-`cleanupWindowSource`; the reviewed `enrichPending=130` backlog therefore planned
-with `cleanupSinceMinutes=10080` and remains visible to the operator cycle.
+`cleanupWindowSource`. It also reports `longitudinalMetricDueCount`, so a clear
+requested 3H window cannot hide Metric-one rows due in rolling 168H cleanup.
 
 The first live one-command trial completed on 2026-07-18 with a conservative
 partial failure. Detect completed all `180` iterations and imported `179`
@@ -194,6 +198,18 @@ stayed `0`, and rolling 168H enrich pending moved `130 -> 109`. This is the
 first complete live acceptance of the integrated operator cycle. Remaining
 cleanup stays on the next normal operator cycle; it does not restore manual
 50-row loops.
+
+Longitudinal Metric integration completed on 2026-07-19. The accepted live
+cycle above lasted long enough for follow-up observations, but its Metric phase
+used only `--onlyMetricPending`; duration alone could not select rows that
+already had one Metric. Read-only planning now shows `1438` Metric-one rows
+globally and `358` due Gecko/pump rows in rolling 168H. The unchanged operator
+command now adds `metric_longitudinal_snapshot` after enrich with
+`--onlyMetricOnce --minGapMinutes 60 --limit 50 --noNotificationCapture`.
+Plan-only remains fetch/write-free and reports a configured minimum of
+`17355000ms`. A live acceptance of this new phase still requires the normal
+Red safety gate; this implementation step did not run an individual recovery
+or Metric write.
 
 Import one token candidate:
 

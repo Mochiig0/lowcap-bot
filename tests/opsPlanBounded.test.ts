@@ -20,6 +20,7 @@ function queue(overrides: Partial<QueueSummary> = {}): QueueSummary {
     sinceHours: 6,
     geckoOriginTokenCount: 0,
     metricPendingCount: 0,
+    longitudinalMetricDueCount: 0,
     enrichPendingCount: 0,
     staleReviewCount: 0,
     notifyCandidateCount: 0,
@@ -164,6 +165,47 @@ test("3h requested window does not hide rolling 168h enrich backlog", () => {
   );
   assert.equal(enrichStep?.status, "ready");
   assert.match(enrichStep?.commandCandidate ?? "", /--sinceMinutes 10080/);
+});
+
+test("3h requested window does not hide rolling longitudinal Metric backlog", () => {
+  const base = input();
+  const result = buildBoundedOperationPlan(
+    {
+      ...base,
+      queueState: {
+        ...base.queueState,
+        requestedWindow: queue({ sinceHours: 3 }),
+        rolling168h: queue({
+          sinceHours: 168,
+          geckoOriginTokenCount: 50,
+          longitudinalMetricDueCount: 50,
+        }),
+      },
+    },
+    {
+      ...BASE_OPTIONS,
+      hours: 3,
+      sinceHours: 3,
+      postRunPlan: true,
+    },
+  );
+
+  assert.equal(result.detectHorizonHours, 3);
+  assert.equal(result.cleanupHorizonHours, 168);
+  assert.equal(result.cleanupWindowSource, "rolling_168h_backlog");
+  assert.equal(result.cleanupWindow.longitudinalMetricDueCount, 50);
+  assert.equal(result.nextRecommendedStep, "metric_longitudinal_snapshot");
+  assert.match(result.redCommandCandidate ?? "", /--sinceMinutes 10080/);
+  assert.match(result.redCommandCandidate ?? "", /--onlyMetricOnce/);
+  assert.match(result.redCommandCandidate ?? "", /--minGapMinutes 60/);
+  assert.match(result.redCommandCandidate ?? "", /--noNotificationCapture/);
+  const longitudinalStep = result.postRunPlan?.steps.find(
+    (step) => step.stepName === "metric_longitudinal_snapshot",
+  );
+  assert.equal(longitudinalStep?.status, "ready");
+  assert.match(longitudinalStep?.commandCandidate ?? "", /--limit 50/);
+  assert.match(longitudinalStep?.commandCandidate ?? "", /--onlyMetricOnce/);
+  assert.equal(result.postRunPlan?.recommendedFirstStep, "metric_longitudinal_snapshot");
 });
 
 test("failed notification stops the planner", () => {
