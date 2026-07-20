@@ -199,17 +199,19 @@ first complete live acceptance of the integrated operator cycle. Remaining
 cleanup stays on the next normal operator cycle; it does not restore manual
 50-row loops.
 
-Longitudinal Metric integration completed on 2026-07-19. The accepted live
-cycle above lasted long enough for follow-up observations, but its Metric phase
-used only `--onlyMetricPending`; duration alone could not select rows that
-already had one Metric. Read-only planning now shows `1438` Metric-one rows
-globally and `358` due Gecko/pump rows in rolling 168H. The unchanged operator
-command now adds `metric_longitudinal_snapshot` after enrich with
+Longitudinal Metric integration and live acceptance completed on 2026-07-19.
+The prior cycle lasted long enough for follow-up observations, but its Metric
+phase used only `--onlyMetricPending`; duration alone could not select rows
+that already had one Metric. The unchanged operator command now adds
+`metric_longitudinal_snapshot` after enrich with
 `--onlyMetricOnce --minGapMinutes 60 --limit 50 --noNotificationCapture`.
-Plan-only remains fetch/write-free and reports a configured minimum of
-`17355000ms`. A live acceptance of this new phase still requires the normal
-Red safety gate; this implementation step did not run an individual recovery
-or Metric write.
+The accepted one-command cycle completed every phase, appended `179` initial
+Metrics and `50` longitudinal Metrics, moved the global Metric>=2 bucket from
+`337` to `387`, and increased the pump-only growth cohort from `335` to `385`.
+Its longitudinal phase changed no Token, Notification, or HolderSnapshot
+counts. Telegram, Notification send/execute, retry, and automatic second run
+all stayed `0`. Plan-only remains fetch/write-free and reports rolling-168H
+cleanup separately from the 3H detect horizon.
 
 Import one token candidate:
 

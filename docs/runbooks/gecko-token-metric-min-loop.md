@@ -78,12 +78,14 @@ Token id `8809` completed normally. Reports/planners ran, DB moved
 manual minimum-loop commands below remain diagnostic/recovery references.
 
 Longitudinal update, 2026-07-19: elapsed time alone did not produce a second
-Metric because the accepted cycle orchestrated only `--onlyMetricPending`.
-The existing Metric-one selector is now part of the operator cycle. Current
-read-only state is global Metric-one `1438`, rolling-168H due `358`, and
-Metric>=2 `337`; requested 3H due is `0` but no longer hides the rolling
-backlog. The next normal proof is one approved operator cycle, not one of the
-individual `--onlyMetricOnce` recovery examples later in this document.
+Metric because the earlier accepted cycle orchestrated only
+`--onlyMetricPending`. The existing Metric-one selector is now part of the
+operator cycle and passed its live acceptance: one exact operator command
+wrote `179` initial Metrics and `50` longitudinal Metrics, moving Metric>=2
+`337 -> 387` and growth evaluated `335 -> 385`. The post-run rolling-168H
+queue still exposes `longitudinalMetricDue=487` and `enrichPending=88` for a
+later normal operator window. Individual `--onlyMetricOnce` examples below
+remain diagnostic/recovery-only.
 
 MVP completion note, 2026-06-03: the personal bounded-run MVP is complete
 enough for personal use. See `docs/runbooks/mvp-completion-checklist.md` for

@@ -177,17 +177,25 @@ duration was not the reason no second Metrics appeared. The Metric phase used
 write. Read-only planning now counts `longitudinalMetricDueCount`: requested
 3H is `0`, rolling 168H is `358`, with global Metric buckets
 `0 / 1 / 2+ = 2879 / 1438 / 337`. The same one-command operator preset now
-runs one `--onlyMetricOnce` cycle after enrich and before reports. Plan-only
-remains fetch/write-free and returns the unchanged exact execution command.
-The next Red acceptance must prove up to `50` Metric-one rows become
-Metric>=2 and the in-cycle growth evaluated count advances; do not run the
-individual follow-up command as the normal route.
+runs one `--onlyMetricOnce` cycle after enrich and before reports. Its Red
+acceptance completed all phases: initial Metric wrote `179`, enrich updated
+`200`, and longitudinal Metric wrote `50` with no provider/item error.
+Metric>=2 moved `337 -> 387` and growth evaluated moved `335 -> 385` in the
+same final summary. Notification/HolderSnapshot/Telegram deltas remained `0`;
+no retry, second run, or individual follow-up command ran.
 
 Implementation verification ran the repo-standard fixture smoke after the
 read-only plan. It was green and left the known local fixture delta Token
 `+15`, Notification `+4`, Metric `0`, HolderSnapshot `0`, moving the DB
 baseline to `4669 / 2165 / 44 / 1`. Do not attribute those rows to the next
 operator acceptance run.
+
+The accepted operator run moved that baseline to `4848 / 2394 / 44 / 1`, so
+its attributable delta is Token `+179`, Metric `+229`, Notification `0`, and
+HolderSnapshot `0`. Post-run rolling 168H remains bounded backlog rather than
+failure: `metricPending=0`, `longitudinalMetricDue=487`,
+`enrichPending=88`, `notifyCandidate=0`. Run it only in a later separately
+approved normal operator window, not as an immediate retry.
 
 Bounded 3H dry-run preflight, 2026-07-01: after the smoke summary fix, the
 read-only readiness path was rechecked without provider fetch or DB writes.

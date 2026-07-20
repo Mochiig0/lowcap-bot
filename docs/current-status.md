@@ -4,6 +4,38 @@
 
 This repository is an MVP for mint-driven token accumulation, single-source DexScreener and GeckoTerminal candidate detection with one-shot or simple polling execution plus lightweight checkpointing, enrichment, rescoring, metric capture, and read-only comparison views backed by SQLite via Prisma. Telegram notification exists on the full `pnpm import` path when a token reaches `S` rank without hitting hard reject rules, and the Gecko ops production sender has now been confirmed for bounded `metric_appended` ops notifications. The production auto-send path has been verified for one human-approved single-shot only; scheduler, systemd, always-on auto live send, background worker, and automatic retry execution remain locked.
 
+Longitudinal operator-cycle Red acceptance, 2026-07-19:
+
+- The exact command `pnpm -s ops:run:bounded -- --operatorCycle --execute`
+  ran once through the approved log wrapper and completed all seven phases in
+  `17494772ms` (about 4h51m35s). Process exit was `0`, runner status was
+  `completed`, stop reason was null, and no phase was skipped, failed, or
+  partial. The sanitized final summary is in
+  `/tmp/lowcap-bot-operator-cycle-longitudinal.log`.
+- Detect completed `180/180` iterations: selected/accepted `180/180`, imported
+  `179`, existing `1`, failed `0`, provider errors `0`. The checkpoint stayed
+  valid and advanced its GeckoTerminal new-pools cursor.
+- Initial Metric completed four cycles and wrote `179/179` selected rows with
+  no error. Enrich completed four cycles and updated `200/200` selected
+  Metric-covered rows with no error. The longitudinal Metric phase completed
+  its single cycle and wrote `50/50` Metric-one rows with no error.
+- DB counts moved from Token / Metric / Notification / HolderSnapshot
+  `4669 / 2165 / 44 / 1` to `4848 / 2394 / 44 / 1`: total delta
+  `+179 / +229 / 0 / 0`. Initial Metric phase delta was Metric `+179` only;
+  longitudinal phase delta was Metric `+50` only. The global Metric>=2 bucket
+  moved `337 -> 387`, and the in-cycle pump-only growth evaluated count moved
+  `335 -> 385`.
+- Provider errors and item errors were `0` in every phase. Notification
+  failed, retry candidates, and enabled/disabled auto-send allowed candidates
+  remain `0`; Telegram send count was `0`. No retry, second Red, fallback,
+  compensation, scheduler/systemd action, or individual recovery command ran.
+- Post-run planning is healthy and checkpoint-valid. Requested 3H queue is
+  `metricPending=0`, `longitudinalMetricDue=19`, `enrichPending=0`; rolling
+  168H is `metricPending=0`, `longitudinalMetricDue=487`,
+  `enrichPending=88`. The next normal operator recommendation is
+  `enrich_pending_rescore`; remaining work stays bounded in a later,
+  separately approved operating window rather than an immediate retry.
+
 Longitudinal operator-cycle integration, 2026-07-19:
 
 - The prior successful operator cycle ran for about 4h38m, but only the

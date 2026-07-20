@@ -102,13 +102,13 @@ separate post-failure commands.
 
 Longitudinal readiness update, 2026-07-19: the unchanged evaluated count
 `335` after the prior live acceptance was selector behavior, not insufficient
-elapsed time. Initial Metric used `--onlyMetricPending` and did not select
-Metric-one rows later in the same run. Planner state now shows requested 3H
-longitudinal due `0`, rolling 168H due `358`, and global Metric buckets
-`0 / 1 / 2+ = 2879 / 1438 / 337`. Plan-only includes the new phase with no
-fetch/write/send. The next Red acceptance should verify longitudinal Metric
-delta up to `+50`, Token/Notification/HolderSnapshot delta `0` in that phase,
-and growth evaluated count increasing in the same final report.
+elapsed time. The new longitudinal phase then passed live acceptance with
+selected/ok/written `50/50/50`, provider/item errors `0`, and phase DB delta
+Token / Metric / Notification / HolderSnapshot `0 / +50 / 0 / 0`. The same
+final report increased growth evaluated `335 -> 385` and retained top FDV
+multiple `3.8445`; >=2x/3x/5x/10x counts are `1/1/0/0`. Post-run plan-only
+remains fetch/write/send-free and exposes rolling-168H longitudinal due `487`
+instead of hiding it behind the 3H detect window.
 
 Phase 2 12H trial note, 2026-06-05: report/planner phases were not reached.
 The approved 12H bounded runner trial imported `682` mint-only Tokens during

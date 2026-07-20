@@ -101,6 +101,16 @@ detect remains 3H. The next milestone is one Red acceptance of the unchanged
 operator command proving Metric-one -> Metric>=2 movement and in-cycle growth
 report expansion. Do not replace it with an individual Metric loop.
 
+Acceptance result, 2026-07-19: the unchanged operator command ran exactly once
+and completed detect, initial Metric, enrich/rescore, longitudinal Metric, and
+all read-only report/planner phases. It wrote `179` new Tokens, `179` initial
+Metrics, and `50` follow-up Metrics; Metric>=2 moved `337 -> 387` and the
+growth cohort moved `335 -> 385`. Notification, HolderSnapshot, and Telegram
+deltas were `0`, with no retry or second execution. Phase 2 now has live proof
+of the complete one-command longitudinal loop. The next large milestone is a
+Phase 2 exit/readiness consolidation using repeated normal-cycle evidence;
+scheduler/systemd and Notification/Telegram automation remain separate gates.
+
 Update, 2026-07-01:
 
 The smoke failure is fixed and `pnpm smoke` is green again. A fresh Green
